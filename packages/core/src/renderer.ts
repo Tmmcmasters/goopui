@@ -4,13 +4,37 @@
 // Coordinates passed to blobs are in the HOST's border-box space (0,0 = host top-left,
 // y grows down), regardless of how the renderer pads its own drawing surface.
 
-import { acquireGooFilter, type GooFilterLease, type GooFilterParams } from './filter'
+import { acquireGooFilter, createOilFilter, type GooFilterLease, type GooFilterParams, type OilFilter } from './filter'
+import { readFinish, type GoopFinish, type GoopFinishRenderer } from './renderers/finish'
 
 export interface GoopLayerPadding {
   /** Extra room left/right/top of the host (px). */
   side: number
   /** Extra room below the host (px), for hanging and falling drips. */
   bottom: number
+}
+
+/** Body pose around the body's center: translate(tx, ty), then skewX(skew deg), then scale(sx, sy). */
+export interface GoopBodyTransform {
+  tx: number
+  ty: number
+  skew: number
+  sx: number
+  sy: number
+}
+
+/** Per-frame film state the sim computes from pointer motion. */
+export interface GoopSheen {
+  /** Accumulated band offset in px (flows with pointer motion and position). */
+  phase: number
+  /** 0..~2: how hard the film swirls (pointer speed). */
+  swirl: number
+  /** Pointer velocity px/s, only non-zero when --goop-oil-react > 0 (film follows the mouse). */
+  vx: number
+  vy: number
+  /** Optional: body translation (px) so the film rides the goo's own jelly motion. */
+  ox?: number
+  oy?: number
 }
 
 /** One round goo primitive (a drip bulb, neck segment, or drop). */
@@ -27,6 +51,11 @@ export interface GoopRenderer {
   setPadding(padding: GoopLayerPadding): void
   /** Scale the body shape around its center. */
   setBodyScale(sx: number, sy: number): void
+  /** Optional, additive: full body pose (jelly lean / skew / squash). When a renderer omits
+   *  it, the sim falls back to setBodyScale(sx, sy) and drops translate/skew. */
+  setBodyTransform?(t: GoopBodyTransform): void
+  /** Optional, additive: per-frame sheen flow for the 'oil' finish (ignored when solid). */
+  setSheen?(sheen: GoopSheen): void
   createBlob(): GoopBlob
   /** Called once per sim frame after all blobs are set (a canvas renderer draws here). */
   flush(): void
@@ -47,7 +76,13 @@ const fmt = (n: number): string => (Math.round(n * 100) / 100).toString()
  * SVG-filter renderer: plain <span>s (valid inside <button>) styled as a rounded body and
  * circles, inside a layer with `filter: url(#goo)`. Only transform/opacity change per frame.
  */
-export function createSvgFilterRenderer(host: HTMLElement, params: GooFilterParams): GoopRenderer {
+/** Oil film band size (px per color cycle) at --goop-oil-scale: 1. */
+const OIL_BAND_PX = 34
+
+export function createSvgFilterRenderer(
+  host: HTMLElement,
+  params: GooFilterParams,
+): GoopRenderer & Required<Pick<GoopFinishRenderer, 'setFinish'>> & { setSheen(s: GoopSheen): void } {
   const doc = host.ownerDocument
   let lease: GooFilterLease = acquireGooFilter(doc, params)
 
@@ -94,17 +129,70 @@ export function createSvgFilterRenderer(host: HTMLElement, params: GooFilterPara
 
   let bodyTransform = ''
 
+  // ---- oil finish ----
+  let goo = params
+  let finish: GoopFinish = readFinish(host, { finish: 'solid' })
+  let oil: OilFilter | null = null
+  const isDark = (): boolean => {
+    const c = doc.defaultView?.getComputedStyle(body).backgroundColor ?? ''
+    const m = c.match(/[\d.]+/g)
+    if (!m || m.length < 3) return true
+    const [r, g, b] = m.map(Number) as [number, number, number]
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b < 140
+  }
+  const oilParams = () => ({ intensity: finish.oilIntensity, scale: OIL_BAND_PX * finish.oilScale, dark: isDark() })
+  const syncFilter = (): void => {
+    if (finish.finish === 'oil') {
+      if (!oil) oil = createOilFilter(doc, goo, oilParams())
+      oil.setBox(layer.offsetWidth, layer.offsetHeight)
+      layer.style.filter = `url(#${oil.id})`
+    } else {
+      oil?.release()
+      oil = null
+      layer.style.filter = `url(#${lease.id})`
+    }
+  }
+
   return {
     layer,
     setParams(next) {
+      goo = next
       const nextLease = acquireGooFilter(doc, next)
       lease.release()
       lease = nextLease
-      layer.style.filter = `url(#${lease.id})`
+      if (oil) {
+        // Blur/threshold are baked into the oil filter: rebuild it.
+        oil.release()
+        oil = null
+      }
+      syncFilter()
     },
-    setPadding,
+    setPadding(p) {
+      setPadding(p)
+      if (oil) oil.setBox(layer.offsetWidth, layer.offsetHeight)
+    },
+    setFinish(overrides) {
+      // JS overrides < host --goop-finish / --goop-oil-* vars < defaults (renderers/finish.ts).
+      finish = readFinish(host, overrides)
+      if (oil && finish.finish === 'oil') oil.setFinish(oilParams())
+      syncFilter()
+    },
+    setSheen({ phase, swirl, ox = 0, oy = 0 }) {
+      // --goop-oil-shift offsets film thickness by whole color cycles.
+      oil?.setFlow(phase + finish.oilShift * 2 * OIL_BAND_PX * finish.oilScale, swirl, ox, oy)
+    },
     setBodyScale(sx, sy) {
       const t = sx === 1 && sy === 1 ? '' : `scale(${sx.toFixed(4)},${sy.toFixed(4)})`
+      if (t === bodyTransform) return
+      bodyTransform = t
+      body.style.transform = t
+    },
+    setBodyTransform({ tx, ty, skew, sx, sy }) {
+      const parts: string[] = []
+      if (Math.abs(tx) > 0.005 || Math.abs(ty) > 0.005) parts.push(`translate(${fmt(tx)}px,${fmt(ty)}px)`)
+      if (Math.abs(skew) > 0.01) parts.push(`skewX(${skew.toFixed(2)}deg)`)
+      if (sx !== 1 || sy !== 1) parts.push(`scale(${sx.toFixed(4)},${sy.toFixed(4)})`)
+      const t = parts.join(' ')
       if (t === bodyTransform) return
       bodyTransform = t
       body.style.transform = t
@@ -141,6 +229,8 @@ export function createSvgFilterRenderer(host: HTMLElement, params: GooFilterPara
     destroy() {
       layer.remove()
       lease.release()
+      oil?.release()
+      oil = null
     },
   }
 }

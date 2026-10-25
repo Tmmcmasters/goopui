@@ -24,5 +24,6 @@ export function readTuning(el: Element, overrides: Partial<GoopTuning> = {}): Go
   }
   out.dripCount = Math.round(out.dripCount)
   out.restingDrips = Math.round(out.restingDrips)
+  out.maxDrips = Math.round(out.maxDrips)
   return out
 }
