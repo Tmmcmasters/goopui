@@ -1,4 +1,4 @@
-"""Writes brand/index.html: a self-contained preview of every direction (all SVG inlined)."""
+"""Writes a self-contained preview page of every direction (all SVG inlined)."""
 
 from __future__ import annotations
 
@@ -12,8 +12,14 @@ INK_DARK = "#fafafa"
 DARK_BG = "#09090b"
 WHITE = "#ffffff"
 
+DEFAULT_LEAD = (
+    "Four directions, all real path data (no filters): blobs and drips are built as signed distance "
+    "fields joined with a C2 smooth-min, so every join has continuous curvature, then traced into cubic "
+    "Béziers. Text is outlined from OFL fonts. Favicon sizes use a slightly heavier small-size cut of each mark."
+)
 
-def write_preview(dirs, svg, root):
+
+def write_preview(dirs, svg, root, title="goopUI brand directions", lead=None, nav="", extra=""):
     def mark(d, ink, size, small=False, mono=None):
         art = d.favicon if small else d.mark
         if mono:
@@ -104,7 +110,7 @@ def write_preview(dirs, svg, root):
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>goopUI brand directions</title>
+<title>{html.escape(title)}</title>
 <link rel="icon" href="data:image/svg+xml,{html.escape(svg(dirs[0].favicon, 'color', '', goo_color=dirs[0].goo).replace('#', '%23'))}">
 <style>
   :root {{
@@ -116,6 +122,7 @@ def write_preview(dirs, svg, root):
   body {{ margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }}
   main {{ max-width: 1440px; margin: 0 auto; padding: 40px 24px 80px; }}
   h1 {{ font-size: 22px; letter-spacing: -0.01em; margin: 0 0 6px; }}
+  .pagenav {{ display: flex; gap: 16px; font-size: 13px; margin: 0 0 20px; }} .pagenav a {{ color: var(--muted); }} .pagenav a[aria-current] {{ color: var(--fg); font-weight: 600; text-decoration: none; }}
   .lead {{ color: var(--muted); margin: 0 0 32px; max-width: 72ch; }}
   h3 {{ font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 48px 0 12px; font-weight: 600; }}
   .grid {{ display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }}
@@ -190,8 +197,9 @@ def write_preview(dirs, svg, root):
 </head>
 <body>
 <main>
-  <h1>goopUI brand directions</h1>
-  <p class="lead">Four directions, all real path data (no filters): blobs and drips are built as signed distance fields joined with a C2 smooth-min, so every join has continuous curvature, then traced into cubic Béziers. Text is outlined from OFL fonts. Favicon sizes use a slightly heavier small-size cut of each mark.</p>
+  {nav}
+  <h1>{html.escape(title)}</h1>
+  <p class="lead">{lead or DEFAULT_LEAD}</p>
 
   <div class="grid">{''.join(cols)}</div>
 
@@ -206,6 +214,7 @@ def write_preview(dirs, svg, root):
 
   <h3>GitHub / npm avatar</h3>
   <div class="grid">{avatars}</div>
+  {extra}
 </main>
 </body>
 </html>"""

@@ -1,4 +1,4 @@
-"""Build the goopUI brand SVGs and the preview page.
+"""Round 1: build the goopUI brand SVGs (brand/round-1/) and their preview page.
 
     sh brand/tools/fetch-fonts.sh
     uv run --with numpy --with scikit-image --with shapely --with fonttools python brand/tools/build.py
@@ -23,7 +23,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 import goo  # noqa: E402
 from goo import Grid, Xform, glyph_path, glyph_polygon, load_font, shape_text, smin  # noqa: E402
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+BRAND = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+ROOT = os.path.join(BRAND, "round-1")  # round 1 lives under brand/round-1/; round 2 is build2.py
 
 INK = "#09090b"  # shadcn zinc-950 (light foreground, dark background)
 INK_DARK = "#fafafa"  # shadcn zinc-50 (dark foreground)
@@ -423,4 +424,7 @@ if __name__ == "__main__":
     emit(dirs)
     import preview
 
-    preview.write_preview(dirs, svg, ROOT)
+    preview.write_preview(
+        dirs, svg, ROOT, title="goopUI brand · round 1",
+        nav='<nav class="pagenav"><a href="../index.html">Round 2 (DynaPuff)</a><a aria-current="page">Round 1</a></nav>',
+    )

@@ -239,6 +239,8 @@ def sd_capsule(gr: Grid, ax, ay, bx, by, ra, rb=None):
     l2 = bax * bax + bay * bay
     rr = ra - rb
     a2 = l2 - rr * rr
+    if a2 <= 0:  # one end swallows the other: just the bigger circle
+        return np.hypot(gr.X - (ax if ra >= rb else bx), gr.Y - (ay if ra >= rb else by)) - max(ra, rb)
     il2 = 1.0 / l2
     # rotate into capsule frame
     y = px * bax + py * bay
@@ -250,7 +252,7 @@ def sd_capsule(gr: Grid, ax, ay, bx, by, ra, rb=None):
     d = np.where(
         np.sign(z) * a2 * z2 > k,
         np.sqrt(xx + z2) * il2 - rb,
-        np.where(np.sign(y) * a2 * y2 < k, np.sqrt(xx + y2) * il2 - ra, (np.sqrt(xx * a2 * il2) + y * rr) * il2 - ra),
+        np.where(np.sign(y) * a2 * y2 < k, np.sqrt(xx + y2) * il2 - ra, (np.sqrt(np.maximum(xx * a2 * il2, 0)) + y * rr) * il2 - ra),
     )
     return d
 
