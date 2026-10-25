@@ -8,6 +8,10 @@ UI library of interactive gooey, dripping elements. Ships as npm packages for Vu
 - `packages/vue|react|svelte`: framework adapters. Depend on `@goopui/core` (`workspace:*`), declare the framework as a peer dependency. All three are `"private": true` until they have real components (Vue first, then React/Svelte once the Vue API settles).
 - `apps/playground`: Nuxt 4 app (`app/` directory structure). Where components are built and eyeballed.
 
+## Plan
+
+All product and architecture decisions are in `HANDOFF.md`. Read it before building components.
+
 ## Tooling
 
 - pnpm 12 workspaces + Turborepo. Run tasks from the root: `pnpm build`, `pnpm typecheck`, `pnpm dev:playground`.
