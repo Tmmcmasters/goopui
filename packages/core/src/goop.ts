@@ -24,7 +24,6 @@
 
 import {
   GOOP_DEFAULT_SPLASH,
-  GOOP_FINISH_VAR,
   GOOP_PHYSICS,
   GOOP_SPLASH_VAR,
   type GoopSplashMode,
@@ -35,16 +34,12 @@ import { gooVanishRadius } from './filter'
 import { ParticleFluid, fluidParams, type ParticleSpawn } from './fluid'
 import { removeTicker, wakeTicker } from './loop'
 import { trackScroll, trackTilt, type ScrollTracker, type TiltTracker } from './motion'
-import { acquireEscapeLayer, type EscapeLease, type GoopOverlayFactory } from './overlay'
+import { acquireEscapeLayer, type EscapeLease } from './escape'
 import { trackPointer, type PointerSample } from './pointer'
 import { isReducedMotion, watchReducedMotion } from './reduced-motion'
-import {
-  createSvgFilterRenderer,
-  type GoopBlob,
-  type GoopFinishKind,
-  type GoopRenderer,
-  type GoopRendererFactory,
-} from './renderer'
+import type { GoopBlob, GoopRenderer } from './renderer'
+import { readFinish as readFinishVars, type GoopFinishName, type GoopFinishRenderer } from './renderers/finish'
+import { resolveRenderer, type GoopRendererOption } from './renderers/resolve'
 import { clamp, isSpringSettled, springConfig, stepSpring, type SpringState } from './spring'
 import { readTuning } from './tuning'
 
@@ -54,9 +49,6 @@ export interface GoopOptions extends Partial<Omit<GoopTuning, 'restingDrips'>> {
   /** Static resting drips: a count (evenly spaced) or x positions as 0..1 fractions of the
    *  width. Also `--goop-resting-drips` (count only). */
   restingDrips?: number | number[]
-  /** Surface finish: 'solid' (default) or thin-film 'oil' iridescence. Also `--goop-finish`.
-   *  Tune with --goop-oil-intensity / --goop-oil-scale / --goop-oil-shift. */
-  finish?: GoopFinishKind
   /** Per-element time scale (multiplies the global setGoopTimeScale). Default 1. */
   timeScale?: number
   /** Spawn drips on hover / tap. Default true. `false` = static goo body only. */
@@ -69,16 +61,22 @@ export interface GoopOptions extends Partial<Omit<GoopTuning, 'restingDrips'>> {
   /** 'auto' (default) follows prefers-reduced-motion + <html data-reduced-motion="true">.
    *  `true`/`false` force it. */
   reducedMotion?: boolean | 'auto'
-  /** Swap the renderer (default: SVG filter). */
-  renderer?: GoopRendererFactory
+  /** Renderer: 'svg' (default, SVG filter), 'canvas' (shared WebGL2, 2D fallback), or a
+   *  custom factory such as `createCanvasRenderer` / `makeCanvasRenderer({...})`. */
+  renderer?: GoopRendererOption
+  /** Surface finish: 'solid' (default) or 'oil' (thin-film iridescence). Falls back to the
+   *  host's `--goop-finish`; `--goop-oil-intensity|scale|shift` tune it. Renderers that
+   *  don't implement finishes ignore it. */
+  finish?: GoopFinishName
   /** RNG for drip placement/jitter (inject a seeded one for tests). Default Math.random. */
   random?: () => number
   /** Where splash / shockwave particles go: 'near' (default; stay within ~70px, inside this
    *  element's layer), 'escape' (fly across the page in a shared overlay), or 'off'.
    *  Also settable from CSS: `--goop-splash: escape`. The option wins. */
   splash?: GoopSplashMode
-  /** Swap the shared escape overlay (default: SVG filter overlay). */
-  overlay?: GoopOverlayFactory
+  /** Renderer for the shared page overlay that 'escape' splashes fly in. Default 'canvas'
+   *  (cheap full-viewport surface); 'svg' or a custom factory also work. */
+  escapeRenderer?: GoopRendererOption
   /** Space/Enter on the focused host squishes from the top and adds goop. Default true. */
   keyboard?: boolean
   /** Device tilt shifts gravity sideways (opt-in, default false). Call
@@ -167,12 +165,6 @@ function layerPadding(t: GoopTuning, splash: GoopSplashMode): { side: number; bo
 const spring = (x = 0): SpringState => ({ x, v: 0 })
 const DEG = Math.PI / 180
 
-function readFinish(host: Element, opt: GoopFinishKind | undefined): GoopFinishKind {
-  if (opt) return opt
-  const raw = host.ownerDocument?.defaultView?.getComputedStyle?.(host)?.getPropertyValue(GOOP_FINISH_VAR)?.trim()
-  return raw === 'oil' ? 'oil' : 'solid'
-}
-
 /** Numeric tuning overrides from options (array-valued restingDrips is handled separately). */
 const tuningOverrides = (o: GoopOptions): Partial<GoopTuning> => {
   const { restingDrips, ...rest } = o
@@ -200,7 +192,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
   let opts: GoopOptions = { ...options }
   let tuning = readTuning(host, tuningOverrides(opts))
   let splashMode = readSplashMode(host, opts.splash)
-  let finish = readFinish(host, opts.finish)
+  let finish: GoopFinishName = 'solid'
   const random = (): number => (opts.random ?? Math.random)()
 
   // ---- host setup ----------------------------------------------------------
@@ -208,16 +200,14 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
   if (win?.getComputedStyle(host).position === 'static') host.style.position = 'relative'
   host.style.isolation = 'isolate'
 
-  const renderer: GoopRenderer = (opts.renderer ?? createSvgFilterRenderer)(host, filterParams(tuning))
+  const renderer: GoopRenderer = resolveRenderer(opts.renderer)(host, filterParams(tuning))
   renderer.setPadding(layerPadding(tuning, splashMode))
   const field = new DripField(renderer)
-  const applyFinish = (): void =>
-    renderer.setFinish?.({
-      kind: finish,
-      intensity: tuning.oilIntensity,
-      scale: tuning.oilScale,
-      shift: tuning.oilShift,
-    })
+  /** Finish goes to whichever renderer is in use; `finish` tracks it for the sheen flow. */
+  const applyFinish = (): void => {
+    finish = readFinishVars(host, { finish: opts.finish }).finish
+    ;(renderer as GoopFinishRenderer).setFinish?.({ finish: opts.finish })
+  }
   applyFinish()
   /** Oil film flow state. */
   const sheen = { phase: 0, pos: 0, swirl: 0 }
@@ -385,7 +375,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     return { x: rect.left + (win?.scrollX ?? 0) + x * k, y: rect.top + (win?.scrollY ?? 0) + y * k, k }
   }
   const ensureEscape = (): EscapeLease => {
-    if (!escape) escape = acquireEscapeLayer(doc, opts.overlay, filterParams(tuning))
+    if (!escape) escape = acquireEscapeLayer(doc, { renderer: opts.escapeRenderer, params: filterParams(tuning) })
     return escape
   }
   const particleRoom = (): number =>
@@ -684,7 +674,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     // Oil film: bands flow along the pointer's motion, slide with its position, swirl with speed.
     let sheenMoving = false
     if (finish === 'oil' && renderer.setSheen) {
-      const sh = tuning.oilShift * r
+      const sh = r
       sheen.phase += (s.vx * 0.93 + s.vy * 0.37) * 0.12 * sh * dt
       const posT = hovered && ptr.has ? (ptr.x - width / 2) * 0.5 * sh + (ptr.y - height / 2) * 0.3 * sh : 0
       const swirlT = Math.min(2, speedOf(s) * 1.2 * sh + Math.hypot(sxo, syo) / P.maxSlosh)
@@ -1006,7 +996,6 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
       const prev = tuning
       tuning = readTuning(host, tuningOverrides(opts))
       splashMode = readSplashMode(host, opts.splash)
-      finish = readFinish(host, opts.finish)
       if (splashMode !== 'escape' && escape) {
         escape.release()
         escape = null

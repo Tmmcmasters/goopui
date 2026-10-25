@@ -51,7 +51,7 @@
       .wide { width: 280px; }
       .label { display: inline-flex; align-items: center; gap: 8px; transform: translate(calc(var(--goop-x, 0px) * 0.6), calc(var(--goop-y, 0px) * 0.6)); }
       .oil-dark { --goop-color: #1c1917; color: #fafaf9; }
-      .oil-ink { --goop-color: #0a0a0a; color: #fafafa; --goop-oil-intensity: 0.8; --goop-oil-scale: 26; }
+      .oil-ink { --goop-color: #0a0a0a; color: #fafafa; --goop-oil-intensity: 0.8; --goop-oil-scale: 0.8; }
       h2.section { font-size: 15px; margin: 0 0 2px; }
       p.hint { color: var(--muted); margin: 0 0 18px; }
       .hero { display: grid; place-items: center; height: 420px; border: 1px dashed var(--border); border-radius: 12px; margin-bottom: 88px; }
@@ -76,7 +76,7 @@
   <body>
     <main>
       <h1>goopUI core: drip feel check</h1>
-      <p class="lead">Swipe in fast from different angles, hover and wiggle, click repeatedly to add goop, then flick out downward. Tap on touch. Sliders write <code>--goop-*</code> vars on <code>&lt;main&gt;</code> and call <code>update()</code>.</p>
+      <p class="lead"><a href="./compare.html">Compare renderers (SVG vs canvas) and stress test</a>. Swipe in fast from different angles, hover and wiggle, click repeatedly to add goop, then flick out downward. Tap on touch. Sliders write <code>--goop-*</code> vars on <code>&lt;main&gt;</code> and call <code>update()</code>.</p>
 
       <div class="row">
         <button class="btn primary" data-goop>Button</button>
@@ -160,7 +160,17 @@
     <canvas id="trail" aria-hidden="true" style="position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:20"></canvas>
 
     <script type="module">
-      import { attachGoop, GOOP_DEFAULTS, GOOP_CSS_VARS, setGoopTimeScale } from '../dist/index.mjs'
+      import {
+        attachGoop,
+        GOOP_DEFAULTS as CORE_DEFAULTS,
+        GOOP_CSS_VARS as CORE_VARS,
+        GOOP_FINISH_DEFAULTS,
+        GOOP_FINISH_VARS,
+        setGoopTimeScale,
+      } from '../dist/index.mjs'
+      // Engine knobs + finish knobs (the oil vars live with the renderers).
+      const GOOP_DEFAULTS = { ...CORE_DEFAULTS, ...GOOP_FINISH_DEFAULTS }
+      const GOOP_CSS_VARS = { ...CORE_VARS, ...GOOP_FINISH_VARS }
 
       const knobs = [
         ['blur', 0, 12, 0.5],
@@ -186,8 +196,8 @@
         ['oiliness', 0, 1, 0.05],
         ['shockwave', 0, 3, 0.05],
         ['oilIntensity', 0, 1, 0.05],
-        ['oilScale', 8, 120, 1],
-        ['oilShift', 0, 3, 0.05],
+        ['oilScale', 0.3, 3, 0.05],
+        ['oilShift', 0, 1, 0.02],
         ['maxDrips', 1, 30, 1],
       ]
       const host = document.querySelector('main')

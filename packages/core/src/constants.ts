@@ -70,18 +70,9 @@ export interface GoopTuning {
   /** `--goop-tilt`. Device tilt shifts gravity sideways (mobile). Only used when the element
    *  opts in with `tilt: true` (needs requestTiltPermission() on iOS). 0 disables. */
   tiltStrength: number
-  /** `--goop-oil-intensity` (0..1). Strength of the thin-film sheen when `finish: 'oil'`. */
-  oilIntensity: number
-  /** `--goop-oil-scale` (px). Size of one color band cycle of the oil film. */
-  oilScale: number
-  /** `--goop-oil-shift`. How much the film bands flow with pointer position and velocity. */
-  oilShift: number
   /** `--goop-max-drips`. Cap on live drips for this element (wide edges can raise it). */
   maxDrips: number
 }
-
-/** Surface finish. `--goop-finish: solid | oil`. */
-export const GOOP_FINISH_VAR = '--goop-finish'
 
 
 /** Where splash / shockwave particles may go. `--goop-splash: near | escape | off`. */
@@ -114,9 +105,6 @@ export const GOOP_DEFAULTS: Readonly<GoopTuning> = Object.freeze({
   flow: 1,
   scrollSlosh: 1,
   tiltStrength: 1,
-  oilIntensity: 0.6,
-  oilScale: 34,
-  oilShift: 1,
   maxDrips: 10,
 })
 
@@ -145,9 +133,6 @@ export const GOOP_CSS_VARS: Readonly<Record<keyof GoopTuning, string>> = Object.
   flow: '--goop-flow',
   scrollSlosh: '--goop-scroll-slosh',
   tiltStrength: '--goop-tilt',
-  oilIntensity: '--goop-oil-intensity',
-  oilScale: '--goop-oil-scale',
-  oilShift: '--goop-oil-shift',
   maxDrips: '--goop-max-drips',
 })
 
@@ -176,9 +161,6 @@ export const GOOP_LIMITS: Readonly<Record<keyof GoopTuning, readonly [number, nu
   flow: [0, 2],
   scrollSlosh: [-3, 3],
   tiltStrength: [0, 3],
-  oilIntensity: [0, 1],
-  oilScale: [6, 200],
-  oilShift: [0, 4],
   maxDrips: [0, 48],
 })
 

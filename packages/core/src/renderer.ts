@@ -5,6 +5,7 @@
 // y grows down), regardless of how the renderer pads its own drawing surface.
 
 import { acquireGooFilter, createOilFilter, type GooFilterLease, type GooFilterParams, type OilFilter } from './filter'
+import { readFinish, type GoopFinish, type GoopFinishRenderer } from './renderers/finish'
 
 export interface GoopLayerPadding {
   /** Extra room left/right/top of the host (px). */
@@ -20,19 +21,6 @@ export interface GoopBodyTransform {
   skew: number
   sx: number
   sy: number
-}
-
-export type GoopFinishKind = 'solid' | 'oil'
-
-/** Surface finish, renderer-agnostic (`finish` option / `--goop-finish`, `--goop-oil-*`). */
-export interface GoopFinish {
-  kind: GoopFinishKind
-  /** 0..1 sheen strength (--goop-oil-intensity). */
-  intensity: number
-  /** Band size in px (--goop-oil-scale). */
-  scale: number
-  /** How much bands move with the pointer (--goop-oil-shift). */
-  shift: number
 }
 
 /** Per-frame film state the sim computes from pointer motion. */
@@ -63,9 +51,6 @@ export interface GoopRenderer {
   /** Optional, additive: full body pose (jelly lean / skew / squash). When a renderer omits
    *  it, the sim falls back to setBodyScale(sx, sy) and drops translate/skew. */
   setBodyTransform?(t: GoopBodyTransform): void
-  /** Optional, additive: surface finish ('solid' or thin-film 'oil'). Renderers without it
-   *  stay solid. */
-  setFinish?(finish: GoopFinish): void
   /** Optional, additive: per-frame sheen flow for the 'oil' finish (ignored when solid). */
   setSheen?(sheen: GoopSheen): void
   createBlob(): GoopBlob
@@ -88,7 +73,13 @@ const fmt = (n: number): string => (Math.round(n * 100) / 100).toString()
  * SVG-filter renderer: plain <span>s (valid inside <button>) styled as a rounded body and
  * circles, inside a layer with `filter: url(#goo)`. Only transform/opacity change per frame.
  */
-export function createSvgFilterRenderer(host: HTMLElement, params: GooFilterParams): GoopRenderer {
+/** Oil film band size (px per color cycle) at --goop-oil-scale: 1. */
+const OIL_BAND_PX = 34
+
+export function createSvgFilterRenderer(
+  host: HTMLElement,
+  params: GooFilterParams,
+): GoopRenderer & Required<Pick<GoopFinishRenderer, 'setFinish'>> & { setSheen(s: GoopSheen): void } {
   const doc = host.ownerDocument
   let lease: GooFilterLease = acquireGooFilter(doc, params)
 
@@ -137,7 +128,7 @@ export function createSvgFilterRenderer(host: HTMLElement, params: GooFilterPara
 
   // ---- oil finish ----
   let goo = params
-  let finish: GoopFinish = { kind: 'solid', intensity: 0, scale: 0, shift: 0 }
+  let finish: GoopFinish = readFinish(host, { finish: 'solid' })
   let oil: OilFilter | null = null
   const isDark = (): boolean => {
     const c = doc.defaultView?.getComputedStyle(body).backgroundColor ?? ''
@@ -146,9 +137,9 @@ export function createSvgFilterRenderer(host: HTMLElement, params: GooFilterPara
     const [r, g, b] = m.map(Number) as [number, number, number]
     return 0.2126 * r + 0.7152 * g + 0.0722 * b < 140
   }
-  const oilParams = () => ({ intensity: finish.intensity, scale: finish.scale, dark: isDark() })
+  const oilParams = () => ({ intensity: finish.oilIntensity, scale: OIL_BAND_PX * finish.oilScale, dark: isDark() })
   const syncFilter = (): void => {
-    if (finish.kind === 'oil') {
+    if (finish.finish === 'oil') {
       if (!oil) oil = createOilFilter(doc, goo, oilParams())
       oil.setBox(layer.offsetWidth, layer.offsetHeight)
       layer.style.filter = `url(#${oil.id})`
@@ -177,13 +168,15 @@ export function createSvgFilterRenderer(host: HTMLElement, params: GooFilterPara
       setPadding(p)
       if (oil) oil.setBox(layer.offsetWidth, layer.offsetHeight)
     },
-    setFinish(next) {
-      finish = { ...next }
-      if (oil && next.kind === 'oil') oil.setFinish(oilParams())
+    setFinish(overrides) {
+      // JS overrides < host --goop-finish / --goop-oil-* vars < defaults (renderers/finish.ts).
+      finish = readFinish(host, overrides)
+      if (oil && finish.finish === 'oil') oil.setFinish(oilParams())
       syncFilter()
     },
     setSheen({ phase, swirl }) {
-      oil?.setFlow(phase, swirl)
+      // --goop-oil-shift offsets film thickness by whole color cycles.
+      oil?.setFlow(phase + finish.oilShift * 2 * OIL_BAND_PX * finish.oilScale, swirl)
     },
     setBodyScale(sx, sy) {
       const t = sx === 1 && sy === 1 ? '' : `scale(${sx.toFixed(4)},${sy.toFixed(4)})`

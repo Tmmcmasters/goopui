@@ -1,7 +1,7 @@
 {
   "name": "goopui-monorepo",
   "private": true,
-  "description": "goopUI — interactive gooey, dripping UI elements for Vue, React, and Svelte",
+  "description": "goopUI \u2014 interactive gooey, dripping UI elements for Vue, React, and Svelte",
   "packageManager": "pnpm@12.4.2",
   "engines": {
     "node": ">=22"
@@ -14,6 +14,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "clean": "turbo run clean && rm -rf node_modules",
+    "clean:dot": "bash scripts/clean-appledouble.sh",
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "turbo run build --filter=./packages/* && changeset publish"

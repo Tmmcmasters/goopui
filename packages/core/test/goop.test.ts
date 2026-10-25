@@ -271,7 +271,9 @@ describe('oil finish', () => {
     host.style.setProperty('--goop-oil-intensity', '0.3')
     const h = attach(host)
     expect(h.layer.style.filter).toMatch(/goop-oil-/)
-    expect(h.tuning.oilIntensity).toBe(0.3)
+    const id = h.layer.style.filter.match(/#([^)"]+)/)![1]!
+    const strength = document.getElementById(id)!.querySelector('feColorMatrix[in="sheen"]')!
+    expect(strength.getAttribute('values')!.trim().endsWith('0.300 0')).toBe(true)
   })
 })
 

@@ -18,21 +18,17 @@ export {
 } from './fluid'
 export {
   ESCAPE_MAX_PARTICLES,
-  GOOP_OVERLAY_ATTR,
   acquireEscapeLayer,
-  createSvgOverlay,
   escapeLayerRefs,
   type EscapeLease,
-  type GoopOverlay,
-  type GoopOverlayFactory,
-} from './overlay'
+  type EscapeOptions,
+} from './escape'
 export { requestTiltPermission, trackScroll, trackTilt, type ScrollTracker, type TiltTracker } from './motion'
 export {
   GOOP_CSS_VARS,
   GOOP_DEFAULTS,
   GOOP_LIMITS,
   GOOP_DEFAULT_SPLASH,
-  GOOP_FINISH_VAR,
   GOOP_PHYSICS,
   GOOP_SPLASH_VAR,
   type GoopSplashMode,
@@ -61,13 +57,35 @@ export {
   createSvgFilterRenderer,
   type GoopBlob,
   type GoopBodyTransform,
-  type GoopFinish,
-  type GoopFinishKind,
   type GoopSheen,
   type GoopLayerPadding,
   type GoopRenderer,
   type GoopRendererFactory,
 } from './renderer'
+export {
+  createCanvasRenderer,
+  makeCanvasRenderer,
+  type CanvasBodyPose,
+  type CanvasGoopRenderer,
+  type CanvasRendererOptions,
+} from './renderers/canvas'
+export {
+  GOOP_OVERLAY_ATTR,
+  acquireGoopOverlay,
+  goopOverlayCount,
+  type GoopOverlay,
+  type GoopOverlayOptions,
+} from './renderers/overlay'
+export { gooCanvasBackend, gooCanvasRefCount, type CanvasBackend } from './renderers/shared'
+export {
+  GOOP_FINISH_DEFAULTS,
+  GOOP_FINISH_VARS,
+  readFinish,
+  type GoopFinish,
+  type GoopFinishName,
+  type GoopFinishRenderer,
+} from './renderers/finish'
+export { resolveRenderer, type GoopRendererName, type GoopRendererOption } from './renderers/resolve'
 export { DripField, type Drip, type DripContext, type SpawnOptions } from './drips'
 export {
   clampDt,
