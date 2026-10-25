@@ -29,6 +29,7 @@
   --color-goo: var(--goo);
   --color-goo-foreground: var(--goo-foreground);
   --color-goo-ink: var(--goo-ink);
+  --color-slime: var(--slime);
   --color-ring: var(--ring);
 
   --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
@@ -38,7 +39,7 @@
 
 /* ---------------------------------------------------------------------------
    Tokens. shadcn names on purpose: the goo components read --primary etc.
-   --goo is the site's one accent (slime). Swap it when the brand lands.
+   --slime is the brand color (logo drip); --goo is where the site paints with it.
 --------------------------------------------------------------------------- */
 :root {
   --background: oklch(0.985 0.005 90);
@@ -55,10 +56,13 @@
   --secondary-foreground: oklch(0.2 0.012 60);
   --destructive: oklch(0.57 0.21 27);
   --destructive-foreground: oklch(0.985 0.005 90);
-  --goo: oklch(0.89 0.2 124);
-  --goo-foreground: oklch(0.2 0.03 130);
-  /* Readable accent text on the paper background. */
-  --goo-ink: oklch(0.48 0.13 132);
+  /* Brand: Slime, the logo's drip color. */
+  --slime: #1fa64a;
+  /* The big hero panel and goo accents are Slime itself; ink on it is ~6:1. */
+  --goo: var(--slime);
+  --goo-foreground: oklch(0.15 0.02 150);
+  /* Readable slime for text on the paper background (#1fa64a itself is ~3:1 there). */
+  --goo-ink: oklch(0.5 0.13 148);
   --ring: oklch(0.2 0.012 60);
   --header-h: 60px;
   --radius: 0.625rem;
@@ -80,9 +84,11 @@
   --secondary-foreground: oklch(0.955 0.006 88);
   --destructive: oklch(0.62 0.2 25);
   --destructive-foreground: oklch(0.985 0.005 90);
-  --goo: oklch(0.89 0.2 124);
-  --goo-foreground: oklch(0.2 0.03 130);
-  --goo-ink: oklch(0.86 0.18 124);
+  --slime: #1fa64a;
+  /* The big hero panel and goo accents are Slime itself; ink on it is ~6:1. */
+  --goo: var(--slime);
+  --goo-foreground: oklch(0.15 0.02 150);
+  --goo-ink: oklch(0.74 0.17 148);
   --ring: oklch(0.955 0.006 88);
   color-scheme: dark;
 }

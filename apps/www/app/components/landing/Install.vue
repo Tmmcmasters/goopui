@@ -1,5 +1,26 @@
 <script setup lang="ts">
+import type { GoopOptions } from '@goopui/core'
+
 const NuxtLink = resolveComponent('NuxtLink')
+
+// The dark card is the landing's oil slick: its bottom edge drips in the card's own color.
+// TODO(core-feel-1): finish: 'oil' turns this edge (and the CTA) iridescent.
+const oilEdge: GoopOptions = nextOptions(
+  {
+    interactive: false,
+    drips: false,
+    squish: 0,
+    blur: 7,
+    contrast: 24,
+    threshold: 0.5,
+    dripSize: 16,
+    dripLength: 70,
+    restingDrips: 2,
+  },
+  { finish: 'oil' },
+)
+// TODO(core-feel-1): the CTA fires a shockwave on click.
+const ctaOptions: GoopOptions = nextOptions({ restingDrips: 1, dripSize: 6, dripLength: 12 }, { shockwave: true })
 const tab = ref<'nuxt' | 'vue'>('nuxt')
 
 const snippets = {
@@ -25,11 +46,11 @@ const current = computed(() => snippets[tab.value])
 <template>
   <section class="px-3 pb-24 pt-8 sm:px-6 sm:pb-32" aria-labelledby="install">
     <!-- Always the dark palette: `.dark` re-scopes every token for this subtree. -->
-    <div v-reveal class="install-card dark mx-auto max-w-6xl rounded-[clamp(22px,3vw,34px)] px-5 py-14 sm:px-12 sm:py-20">
+    <div v-reveal class="install-card dark relative mx-auto max-w-6xl rounded-[clamp(22px,3vw,34px)] px-5 py-14 sm:px-12 sm:py-20">
       <div class="grid gap-10 lg:grid-cols-[1fr_1.05fr] lg:items-center lg:gap-14">
         <div>
           <p class="font-mono text-[11px] uppercase tracking-[0.12em] opacity-60">06 · Install</p>
-          <h2 id="install" class="mt-4 text-[clamp(2rem,4.6vw,3.25rem)] font-semibold leading-[1.02] tracking-[-0.045em]">
+          <h2 id="install" class="type-display mt-4 text-[clamp(2rem,4.6vw,3.25rem)] leading-[1.02]">
             Two lines to goopy.
           </h2>
           <p class="mt-4 max-w-md leading-relaxed opacity-75">
@@ -41,7 +62,7 @@ const current = computed(() => snippets[tab.value])
               to="/docs/getting-started/installation"
               class="goop-btn install-cta"
               data-size="lg"
-              :options="{ restingDrips: 1, dripSize: 6, dripLength: 12 }"
+              :options="ctaOptions"
             >
               Installation guide
               <SiteIcon name="arrowRight" :size="16" />
@@ -67,6 +88,7 @@ const current = computed(() => snippets[tab.value])
           <CodeSnippet :code="current.code" :lang="current.lang" :filename="current.file" />
         </div>
       </div>
+      <GoopHost class="oil-edge" aria-hidden="true" :options="oilEdge" />
     </div>
   </section>
 </template>
@@ -76,6 +98,16 @@ const current = computed(() => snippets[tab.value])
   background: var(--card);
   color: var(--foreground);
   box-shadow: inset 0 0 0 1px var(--border);
+}
+.oil-edge {
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  bottom: 1px;
+  height: 40px;
+  border-radius: 0 0 calc(clamp(22px, 3vw, 34px) - 1px) calc(clamp(22px, 3vw, 34px) - 1px);
+  pointer-events: none;
+  --goop-color: var(--card);
 }
 .install-cta {
   --goop-color: var(--goo);

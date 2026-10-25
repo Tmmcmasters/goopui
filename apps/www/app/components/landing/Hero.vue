@@ -229,8 +229,8 @@ const copyInstall = async () => {
             </span>
           </button>
         </div>
-        <p class="intro intro-4 mt-3 font-mono text-[11px] text-goo-foreground/65">Packages publish with v0.1. The engine is live on this page.</p>
-        <p class="intro intro-5 mt-14 font-mono text-xs text-goo-foreground/70 sm:absolute sm:bottom-14 sm:right-12 sm:mt-0 lg:right-16">
+        <p class="intro intro-4 mt-3 font-mono text-[11px] text-goo-foreground/80">Packages publish with v0.1. The engine is live on this page.</p>
+        <p class="intro intro-5 mt-14 font-mono text-xs text-goo-foreground/80 sm:absolute sm:bottom-14 sm:right-12 sm:mt-0 lg:right-16">
           <span class="hidden sm:inline">Run your cursor along the slime ↓</span>
           <span class="sm:hidden">Tap the slime ↓</span>
         </p>

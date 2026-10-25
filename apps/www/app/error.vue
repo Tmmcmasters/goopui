@@ -12,7 +12,7 @@ useSeoMeta({ title: () => (notFound.value ? 'Page not found' : 'Something broke'
       <div class="flex flex-col items-center text-center">
         <GoopHost class="err-blob" aria-hidden="true" :options="{ interactive: false, drips: false, restingDrips: 3, dripSize: 8, dripLength: 22 }" />
         <p class="mt-14 font-mono text-xs uppercase tracking-[0.12em] text-subtle">{{ error.statusCode }}</p>
-        <h1 class="mt-3 text-4xl font-semibold tracking-[-0.04em]">
+        <h1 class="type-display mt-3 text-4xl">
           {{ notFound ? 'This page dripped away.' : 'Something went sideways.' }}
         </h1>
         <p class="mt-3 max-w-sm text-muted-foreground">
