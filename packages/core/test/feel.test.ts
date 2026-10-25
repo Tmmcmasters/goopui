@@ -11,6 +11,7 @@ import {
   createSvgFilterRenderer,
   trackPointer,
   type GoopBodyTransform,
+  type GoopSheen,
   type GoopHandle,
   type GoopRenderer,
 } from '../src'
@@ -38,6 +39,7 @@ let frameNo = 0
 function recordingRenderer() {
   const blobs: BlobRec[] = []
   const bodies: GoopBodyTransform[] = []
+  const sheens: GoopSheen[] = []
   const factory = (host: HTMLElement, params: Parameters<typeof createSvgFilterRenderer>[1]): GoopRenderer => {
     const real = createSvgFilterRenderer(host, params)
     return {
@@ -46,6 +48,10 @@ function recordingRenderer() {
       setBodyTransform(t) {
         bodies.push({ ...t })
         real.setBodyTransform?.(t)
+      },
+      setSheen(sh: GoopSheen) {
+        sheens.push({ ...sh })
+        real.setSheen(sh)
       },
       createBlob() {
         const inner = real.createBlob()
@@ -65,7 +71,7 @@ function recordingRenderer() {
       },
     }
   }
-  return { blobs, bodies, factory }
+  return { blobs, bodies, sheens, factory }
 }
 
 /** Approximate radius as SEEN through the goo threshold: a lone circle vanishes at the filter's
@@ -452,5 +458,39 @@ describe('direction', () => {
     }
     pump(0.3)
     expect(root.sets[root.sets.length - 1]!.x).toBeGreaterThan(first + 10)
+  })
+})
+
+describe('oil film ignores the mouse by default', () => {
+  const run = (react?: number) => {
+    const { host, rec } = setup({ finish: 'oil' })
+    if (react !== undefined) {
+      host.style.setProperty('--goop-oil-react', String(react))
+    }
+    // re-read finish vars
+    handles[handles.length - 1]!.update()
+    const p = { x: 180, y: 120 }
+    host.dispatchEvent(mouse('pointerenter', 180, 120))
+    pump(0.1)
+    moveTo(250, 125, 10, p, 8) // fast sideways
+    host.dispatchEvent(mouse('pointermove', 250, 125))
+    pump(0.2)
+    return rec.sheens
+  }
+
+  it('default: no pointer velocity reaches the sheen, phase only drifts slowly', () => {
+    const sh = run()
+    expect(sh.length).toBeGreaterThan(5)
+    expect(sh.every((s) => s.vx === 0 && s.vy === 0)).toBe(true)
+    const span = sh[sh.length - 1]!.phase - sh[0]!.phase
+    // ~0.3 s at the ambient drift rate, nothing from the 7000 px/s flick
+    expect(Math.abs(span)).toBeLessThan(GOOP_PHYSICS.oilDrift * 0.5)
+    expect(Math.max(...sh.map((s) => s.swirl))).toBeLessThanOrEqual(GOOP_PHYSICS.oilSwirl + 1e-6)
+  })
+
+  it('--goop-oil-react brings the pointer coupling back', () => {
+    const sh = run(1)
+    expect(sh.some((s) => s.vx !== 0)).toBe(true)
+    expect(Math.max(...sh.map((s) => s.swirl))).toBeGreaterThan(GOOP_PHYSICS.oilSwirl + 0.03)
   })
 })

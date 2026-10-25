@@ -328,6 +328,12 @@ export const GOOP_PHYSICS = Object.freeze({
   keyPush: 60,
   keySquash: 0.9,
 
+  // ---- oil film (SVG renderer flow) --------------------------------------------
+  /** Ambient band drift (px/s) while the goo is animating. Pointer-independent. */
+  oilDrift: 6,
+  /** Resting film swirl (contour bend); pointer speed adds to it only with --goop-oil-react. */
+  oilSwirl: 0.3,
+
   // ---- particle fluid (splash-through + shockwave) ---------------------------
   /** Hard caps: particles per element, and across the whole page (all elements + overlay). */
   maxParticles: 64,

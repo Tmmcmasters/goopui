@@ -204,8 +204,11 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
   renderer.setPadding(layerPadding(tuning, splashMode))
   const field = new DripField(renderer)
   /** Finish goes to whichever renderer is in use; `finish` tracks it for the sheen flow. */
+  let oilReact = 0
   const applyFinish = (): void => {
-    finish = readFinishVars(host, { finish: opts.finish }).finish
+    const f = readFinishVars(host, { finish: opts.finish })
+    finish = f.finish
+    oilReact = f.oilReact
     ;(renderer as GoopFinishRenderer).setFinish?.({ finish: opts.finish })
   }
   applyFinish()
@@ -306,7 +309,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     resetMotion()
     sheen.pos = 0
     sheen.swirl = 0
-    if (finish === 'oil') renderer.setSheen?.({ phase: sheen.phase, swirl: 0.3, vx: 0, vy: 0 })
+    if (finish === 'oil') renderer.setSheen?.({ phase: sheen.phase, swirl: P.oilSwirl, vx: 0, vy: 0 })
     renderer.flush()
     removeTicker(tick)
   }
@@ -671,17 +674,26 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     })
     const ripplesMoving = stepRipples(dt, map)
 
-    // Oil film: bands flow along the pointer's motion, slide with its position, swirl with speed.
+    // Oil film. By default it ignores the mouse: it drifts slowly on its own while the goo is
+    // animating and rides the body's jelly translation (it is painted on the goo). With
+    // --goop-oil-react > 0 the old pointer coupling (flow, slide, swirl) comes back, scaled.
     let sheenMoving = false
     if (finish === 'oil' && renderer.setSheen) {
-      const sh = r
-      sheen.phase += (s.vx * 0.93 + s.vy * 0.37) * 0.12 * sh * dt
-      const posT = hovered && ptr.has ? (ptr.x - width / 2) * 0.5 * sh + (ptr.y - height / 2) * 0.3 * sh : 0
-      const swirlT = Math.min(2, speedOf(s) * 1.2 * sh + Math.hypot(sxo, syo) / P.maxSlosh)
+      const sh = oilReact * r
+      sheen.phase += (P.oilDrift + (s.vx * 0.93 + s.vy * 0.37) * 0.12 * sh) * dt
+      const posT = sh > 0 && hovered && ptr.has ? (ptr.x - width / 2) * 0.5 * sh + (ptr.y - height / 2) * 0.3 * sh : 0
+      const swirlT = P.oilSwirl + (sh > 0 ? Math.min(2, speedOf(s) * 1.2 * sh) : 0)
       const k = 1 - Math.exp(-dt / 0.25)
       sheen.pos += (posT - sheen.pos) * k
       sheen.swirl += (swirlT - sheen.swirl) * k
-      renderer.setSheen({ phase: sheen.phase + sheen.pos, swirl: sheen.swirl, vx: s.vx, vy: s.vy })
+      renderer.setSheen({
+        phase: sheen.phase + sheen.pos,
+        swirl: sheen.swirl,
+        vx: sh > 0 ? s.vx : 0,
+        vy: sh > 0 ? s.vy : 0,
+        ox: tx,
+        oy: ty,
+      })
       sheenMoving = Math.abs(posT - sheen.pos) > 0.05 || Math.abs(swirlT - sheen.swirl) > 0.01
     }
     renderer.flush()

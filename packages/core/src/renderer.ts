@@ -29,9 +29,12 @@ export interface GoopSheen {
   phase: number
   /** 0..~2: how hard the film swirls (pointer speed). */
   swirl: number
-  /** Pointer velocity px/s (direction of motion, for renderers that stretch the film). */
+  /** Pointer velocity px/s, only non-zero when --goop-oil-react > 0 (film follows the mouse). */
   vx: number
   vy: number
+  /** Optional: body translation (px) so the film rides the goo's own jelly motion. */
+  ox?: number
+  oy?: number
 }
 
 /** One round goo primitive (a drip bulb, neck segment, or drop). */
@@ -174,9 +177,9 @@ export function createSvgFilterRenderer(
       if (oil && finish.finish === 'oil') oil.setFinish(oilParams())
       syncFilter()
     },
-    setSheen({ phase, swirl }) {
+    setSheen({ phase, swirl, ox = 0, oy = 0 }) {
       // --goop-oil-shift offsets film thickness by whole color cycles.
-      oil?.setFlow(phase + finish.oilShift * 2 * OIL_BAND_PX * finish.oilScale, swirl)
+      oil?.setFlow(phase + finish.oilShift * 2 * OIL_BAND_PX * finish.oilScale, swirl, ox, oy)
     },
     setBodyScale(sx, sy) {
       const t = sx === 1 && sy === 1 ? '' : `scale(${sx.toFixed(4)},${sy.toFixed(4)})`

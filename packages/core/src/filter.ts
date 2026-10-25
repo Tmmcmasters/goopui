@@ -210,8 +210,9 @@ export interface OilFilter {
   readonly id: string
   /** Layer size in px (the filtered element), so the band image covers it. */
   setBox(width: number, height: number): void
-  /** Slide the bands `phase` px along their direction; `swirl` (0..~2) bends them harder. */
-  setFlow(phase: number, swirl: number): void
+  /** Slide the bands `phase` px along their direction; `swirl` (0..~2) bends them harder;
+   *  (ox, oy) moves the whole film with the goo body. */
+  setFlow(phase: number, swirl: number, ox?: number, oy?: number): void
   setFinish(p: OilFinishParams): void
   release(): void
 }
@@ -329,14 +330,14 @@ export function createOilFilter(doc: Document, params: GooFilterParams, finish: 
       box = { w, h }
       renderImage()
     },
-    setFlow(phase, swirl) {
+    setFlow(phase, swirl, ox = 0, oy = 0) {
       // The baked warp makes the image non-periodic, so instead of wrapping (a visible jump)
       // the accumulated phase ping-pongs over +/- one period: always continuous.
       const span = period * 2
       const t = (((phase % (2 * span)) + 2 * span) % (2 * span)) / span
       const ph = (t < 1 ? t : 2 - t) * span - period
-      const dx = (dir.x * ph).toFixed(1)
-      const dy = (dir.y * ph).toFixed(1)
+      const dx = (dir.x * ph + ox).toFixed(1)
+      const dy = (dir.y * ph + oy).toFixed(1)
       const sc = (6 + Math.max(0, swirl) * 14).toFixed(1)
       const s = dx + '|' + dy + '|' + sc
       if (s === last) return

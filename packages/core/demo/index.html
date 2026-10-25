@@ -93,7 +93,7 @@
       </div>
 
       <h2 class="section">Oil finish</h2>
-      <p class="hint">Thin-film sheen. Bands flow with the pointer and swirl with speed.</p>
+      <p class="hint">Thin-film sheen riding the goo. The film ignores the mouse unless <code>--goop-oil-react</code> &gt; 0.</p>
       <div class="row oil-row">
         <button class="btn oil-dark" data-goop data-finish="oil">Oil on dark</button>
         <button class="btn oil-ink lg" data-goop data-finish="oil">Crude oil</button>
@@ -198,6 +198,7 @@
         ['oilIntensity', 0, 1, 0.05],
         ['oilScale', 0.3, 3, 0.05],
         ['oilShift', 0, 1, 0.02],
+        ['oilReact', 0, 2, 0.05],
         ['maxDrips', 1, 30, 1],
       ]
       const host = document.querySelector('main')
