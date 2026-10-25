@@ -36,6 +36,22 @@ export {
   type GoopRenderer,
   type GoopRendererFactory,
 } from './renderer'
+export {
+  createCanvasRenderer,
+  makeCanvasRenderer,
+  type CanvasBodyPose,
+  type CanvasGoopRenderer,
+  type CanvasRendererOptions,
+} from './renderers/canvas'
+export {
+  GOOP_OVERLAY_ATTR,
+  acquireGoopOverlay,
+  goopOverlayCount,
+  type GoopOverlay,
+  type GoopOverlayOptions,
+} from './renderers/overlay'
+export { gooCanvasBackend, gooCanvasRefCount, type CanvasBackend } from './renderers/shared'
+export { resolveRenderer, type GoopRendererName, type GoopRendererOption } from './renderers/resolve'
 export { DripField, type Drip, type DripContext, type SpawnOptions } from './drips'
 export {
   clampDt,
