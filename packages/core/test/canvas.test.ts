@@ -319,13 +319,13 @@ describe('oil finish', () => {
     await flushMicrotasks()
   })
 
-  it('2D fallback draws oil without errors and the SVG renderer ignores finish', async () => {
+  it('2D fallback draws oil without errors and the SVG renderer switches to its oil filter', async () => {
     const a = attach(makeHost(), { renderer: 'canvas', finish: 'oil' })
     const b = attach(makeHost(), { renderer: 'svg', finish: 'oil' })
     a.drip()
     b.drip()
     await flushMicrotasks()
-    expect(b.layer.style.filter).toMatch(/^url\(#goop-goo-/)
+    expect(b.layer.style.filter).toMatch(/^url\(#goop-oil-/)
   })
 
   it('reduced motion keeps a static sheen: no sheen loop on pointer move', () => {

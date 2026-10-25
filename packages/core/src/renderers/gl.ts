@@ -268,7 +268,7 @@ vec3 oil(float f, vec3 base) {
   vec2 sv = v_oilB.zw;
   float sl = length(sv);
   if (sl > 1e-3) { vec2 dir = sv / sl; pc -= dir * dot(pc, dir) * (sl / (1.0 + sl)); }
-  vec2 q = pc / (64.0 * scale);
+  vec2 q = pc / (120.0 * scale);
   // Domain-warped fbm: swirls, like a film being dragged across the surface.
   vec2 warp = vec2(fbm(q * 0.8 + vec2(time * 0.03, 1.3)), fbm(q * 0.8 + vec2(5.2, -time * 0.025)));
   float nz = smoothstep(0.22, 0.78, fbm(q + 1.6 * warp + vec2(time * 0.02, -time * 0.015)));
@@ -280,8 +280,9 @@ vec3 oil(float f, vec3 base) {
   vec3 hue = film - m;
   float lum = dot(base, vec3(0.2126, 0.7152, 0.0722));
   // The film shows mostly where the surface turns away (Fresnel), faintly on flat tops.
-  float amt = intensity * (0.36 + 0.6 * smoothstep(0.0, 0.5, slope));
-  vec3 col = base + amt * (hue * mix(0.85, 0.8, lum) + (m - 0.5) * mix(0.16, 0.08, lum));
+  // Mostly at the rim (grazing angles); the flat middle keeps the base color.
+  float amt = intensity * (0.08 + 0.92 * smoothstep(0.04, 0.55, slope));
+  vec3 col = base + amt * (hue * mix(0.55, 0.45, lum) + (m - 0.5) * mix(0.08, 0.04, lum));
   // Key light from the top-left, swung toward the pointer when it is over the goo.
   vec3 Ld = normalize(vec3(-0.45, -0.8, 0.5));
   vec3 P = vec3(v_local / k, 0.0);

@@ -14,13 +14,18 @@ export interface GoopFinish {
   oilScale: number
   /** `--goop-oil-shift`: film thickness offset in cycles (0..1 rotates the band palette). */
   oilShift: number
+  /** `--goop-oil-react` 0..2: how much the film bands follow the pointer (drift, swirl,
+   *  stretch, light). Default 0: the film only drifts slowly on its own and rides the goo's
+   *  own motion; the goo itself stays fully pointer-reactive. */
+  oilReact: number
 }
 
 export const GOOP_FINISH_DEFAULTS: Readonly<GoopFinish> = Object.freeze({
   finish: 'solid',
-  oilIntensity: 0.6,
+  oilIntensity: 0.3,
   oilScale: 1,
   oilShift: 0,
+  oilReact: 0,
 })
 
 export const GOOP_FINISH_VARS = Object.freeze({
@@ -28,6 +33,7 @@ export const GOOP_FINISH_VARS = Object.freeze({
   oilIntensity: '--goop-oil-intensity',
   oilScale: '--goop-oil-scale',
   oilShift: '--goop-oil-shift',
+  oilReact: '--goop-oil-react',
 })
 
 /** A renderer that can draw finishes. */
@@ -53,5 +59,6 @@ export function readFinish(el: Element, overrides: Partial<GoopFinish> = {}): Go
     oilIntensity: clamp(num('oilIntensity'), 0, 1),
     oilScale: clamp(num('oilScale'), 0.1, 10),
     oilShift: num('oilShift'),
+    oilReact: clamp(num('oilReact'), 0, 2),
   }
 }

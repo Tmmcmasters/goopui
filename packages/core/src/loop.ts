@@ -18,7 +18,19 @@ export function setGoopTimeScale(scale: number): void {
   timeScale = Number.isFinite(scale) && scale > 0 ? scale : 1
 }
 
+let lastFrameMs = 0
+let peakFrameMs = 0
+
+/** Devtools: JS time (ms) the last frame spent in goop tickers, the peak since the last
+ *  reset, and how many tickers are live. */
+export function loopStats(reset = false): { frameMs: number; peakMs: number; tickers: number } {
+  const out = { frameMs: lastFrameMs, peakMs: peakFrameMs, tickers: tickers.size }
+  if (reset) peakFrameMs = 0
+  return out
+}
+
 function frame(now: number): void {
+  const t0 = typeof performance !== 'undefined' ? performance.now() : 0
   const dt = (lastTime ? clampDt((now - lastTime) / 1000) : 1 / 60) * timeScale
   lastTime = now
   for (const t of Array.from(tickers)) {
@@ -31,6 +43,8 @@ function frame(now: number): void {
     }
     if (!keep) tickers.delete(t)
   }
+  lastFrameMs = (typeof performance !== 'undefined' ? performance.now() : 0) - t0
+  if (lastFrameMs > peakFrameMs) peakFrameMs = lastFrameMs
   if (tickers.size > 0) {
     rafId = requestAnimationFrame(frame)
   } else {
