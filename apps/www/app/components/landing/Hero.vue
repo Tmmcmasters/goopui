@@ -1,92 +1,167 @@
 <script setup lang="ts">
-// The slime slab. A solid rounded panel whose bottom edge is a live goo body:
-// moving the pointer across the hero pours drips from the edge right under the cursor,
-// taps drip on touch, and an idle "ambient" drip keeps it alive when nobody's touching it.
-// Only the thin edge strip is filtered (not the whole panel), which keeps the SVG filter
-// region small enough to stay smooth in Safari.
+// The slime slab. A solid rounded panel whose bottom edge is live goo.
+//
+// The edge is several overlapping goo strips, not one. Today's engine spaces resting drips
+// evenly along a body, so a single strip reads as a row of teeth; giving each strip its own
+// span, drip size, and drip length puts a few fat, uneven drips exactly where we want them.
+// Strips overlap so each one's softened corners hide under its neighbor's flat body.
+//
+// Interaction today:
+//   - moving the pointer pours a drip from the strip under the cursor;
+//   - a hard swipe pours a small burst;             TODO(core-feel-1): splash 'escape'
+//   - clicking the slab drips at the click point;   TODO(core-feel-1): shockwave
+//   - taps drip on touch; an idle drip keeps it alive while on screen.
+// Round-3 options are already requested through nextOptions() (see utils/goopNext.ts).
 import type { GoopHandle, GoopOptions } from '@goopui/core'
 
 const { reduced } = useMotionPreference()
 const NuxtLink = resolveComponent('NuxtLink')
 
 const section = ref<HTMLElement | null>(null)
-const edge = ref<{ $el: HTMLElement } | null>(null)
-let handle: GoopHandle | null = null
+const slab = ref<HTMLElement | null>(null)
 
-const edgeOptions: GoopOptions = {
-  interactive: false,
-  squish: 0,
-  blur: 7,
-  contrast: 24,
-  // 0.5 keeps straight goo edges exactly on the box edge, so the strip meets the slab
-  // without a visible step.
-  threshold: 0.5,
-  dripSize: 12,
-  dripLength: 30,
-  dripCount: 1,
-  fall: 150,
-  gravity: 950,
-  viscosity: 1.15,
-  restingDrips: 5,
+interface Segment {
+  /** Span along the slab's bottom edge, as fractions of its width. */
+  from: number
+  to: number
+  /** One resting drip at the span's center, or none. */
+  rest: 0 | 1
+  size: number
+  length: number
+  fall: number
 }
 
-const ctaOptions: GoopOptions = { restingDrips: 1, dripSize: 6, dripLength: 12 }
+// Hand-placed for an organic edge: a fat long drip, a small one close beside it, a wide
+// calm stretch, the biggest drip, then a medium one near the right corner.
+const SEGMENTS: Segment[] = [
+  { from: 0, to: 0.2, rest: 0, size: 13, length: 36, fall: 150 },
+  { from: 0.16, to: 0.34, rest: 1, size: 18, length: 84, fall: 190 },
+  { from: 0.3, to: 0.44, rest: 1, size: 11, length: 34, fall: 120 },
+  { from: 0.4, to: 0.66, rest: 0, size: 15, length: 48, fall: 160 },
+  { from: 0.62, to: 0.8, rest: 1, size: 22, length: 112, fall: 220 },
+  { from: 0.76, to: 1, rest: 1, size: 13, length: 52, fall: 150 },
+]
+
+const segmentOptions = (s: Segment): GoopOptions =>
+  nextOptions(
+    {
+      interactive: false,
+      squish: 0,
+      blur: 7,
+      contrast: 24,
+      // 0.5 keeps straight goo edges exactly on the box edge, so strips meet the slab
+      // (and each other) without a visible step.
+      threshold: 0.5,
+      dripCount: 1,
+      dripSize: s.size,
+      dripLength: s.length,
+      fall: s.fall,
+      gravity: 950,
+      viscosity: 1.2,
+      restingDrips: s.rest,
+    },
+    // TODO(core-feel-1): momentum-carrying goo, escape splashes, click shockwave.
+    { momentum: true, splash: 'escape', shockwave: true },
+  )
+const SEGMENT_OPTIONS = SEGMENTS.map(segmentOptions)
+
+const handles: (GoopHandle | null)[] = SEGMENTS.map(() => null)
+const onReady = (i: number, h: GoopHandle) => {
+  handles[i] = h
+}
+
+// TODO(core-feel-1): the CTA fires a shockwave on click.
+const ctaOptions: GoopOptions = nextOptions({ restingDrips: 1, dripSize: 7, dripLength: 14 }, { shockwave: true })
+
+/** Which strip owns slab-relative x: the one containing it whose center is nearest. */
+const pick = (fx: number): number => {
+  let best = -1
+  let bestD = Infinity
+  SEGMENTS.forEach((s, i) => {
+    if (fx < s.from || fx > s.to) return
+    const d = Math.abs(fx - (s.from + s.to) / 2)
+    if (d < bestD) {
+      bestD = d
+      best = i
+    }
+  })
+  return best
+}
+
+/** Drip at viewport x. Returns false if x isn't over the slab. */
+const dripAt = (clientX: number): boolean => {
+  const el = slab.value
+  if (!el) return false
+  const r = el.getBoundingClientRect()
+  const fx = (clientX - r.left) / r.width
+  const i = pick(fx)
+  if (i < 0) return false
+  const s = SEGMENTS[i]!
+  handles[i]?.drip((fx - s.from) * r.width)
+  return true
+}
 
 let lastX = -1e9
 let lastT = 0
+let prevX = 0
+let prevT = 0
 let visible = true
 let ambientTimer: ReturnType<typeof setTimeout> | undefined
 
-const edgeX = (clientX: number): number | null => {
-  const el = edge.value?.$el
-  if (!el) return null
-  const r = el.getBoundingClientRect()
-  const x = clientX - r.left
-  return x >= 0 && x <= r.width ? x : null
-}
-
-const pour = (x: number) => {
-  handle?.drip(x)
-  lastX = x
-  lastT = performance.now()
+const pour = (clientX: number) => {
+  if (dripAt(clientX)) {
+    lastX = clientX
+    lastT = performance.now()
+  }
 }
 
 const onMove = (e: PointerEvent) => {
-  if (e.pointerType !== 'mouse' || !handle) return
-  const x = edgeX(e.clientX)
-  if (x === null) return
-  // A drip per ~80px of travel, or every ~0.6s while hovering in one spot.
+  if (e.pointerType !== 'mouse') return
   const now = performance.now()
-  if (Math.abs(x - lastX) > 80 || now - lastT > 600) pour(x)
+  const speed = prevT ? (Math.abs(e.clientX - prevX) / Math.max(1, now - prevT)) * 1000 : 0
+  const dir = Math.sign(e.clientX - prevX) || 1
+  prevX = e.clientX
+  prevT = now
+  if (speed > HARD_SWIPE_SPEED && now - lastT > 250) {
+    // TODO(core-feel-1): a hard swipe splashes goo across the page (splash: 'escape',
+    // carrying the pointer velocity). Today: a small burst along the swipe.
+    const x = e.clientX
+    pour(x)
+    setTimeout(() => dripAt(x + dir * 90), 70)
+    return
+  }
+  // Fewer, fatter drips: one per ~130px of travel, or every ~0.9s in one spot.
+  if (Math.abs(e.clientX - lastX) > 130 || now - lastT > 900) pour(e.clientX)
 }
 
 const onTap = (e: PointerEvent) => {
-  if (e.pointerType === 'mouse' || !handle) return
-  const x = edgeX(e.clientX)
-  if (x !== null) pour(x)
+  if (e.pointerType !== 'mouse') pour(e.clientX)
+}
+
+const onClick = (e: MouseEvent) => {
+  // Clicks on the CTAs belong to them.
+  if ((e.target as Element).closest('a, button')) return
+  // TODO(core-feel-1): fire a shockwave from the click point through the slab's goo.
+  if (e.detail > 0) pour(e.clientX)
 }
 
 const scheduleAmbient = () => {
   clearTimeout(ambientTimer)
   ambientTimer = setTimeout(
     () => {
-      const el = edge.value?.$el
+      const el = slab.value
       // Only when idle, on screen, and the tab is visible.
-      if (handle && el && visible && !document.hidden && performance.now() - lastT > 1800) {
-        const w = el.offsetWidth
-        handle.drip(w * (0.12 + Math.random() * 0.76))
+      if (el && visible && !document.hidden && performance.now() - lastT > 2200) {
+        const r = el.getBoundingClientRect()
+        dripAt(r.left + r.width * (0.1 + Math.random() * 0.8))
       }
       scheduleAmbient()
     },
-    1600 + Math.random() * 1600,
+    1900 + Math.random() * 2200,
   )
 }
 
 let io: IntersectionObserver | null = null
-const onReady = (h: GoopHandle) => {
-  handle = h
-}
-
 onMounted(() => {
   io = new IntersectionObserver(([e]) => (visible = !!e?.isIntersecting))
   if (section.value) io.observe(section.value)
@@ -110,18 +185,21 @@ const copyInstall = async () => {
 <template>
   <section
     ref="section"
-    class="hero relative px-3 pt-[calc(var(--header-h)+12px)] sm:px-6 sm:pt-[calc(var(--header-h)+20px)]"
+    class="hero relative px-3 pb-16 pt-[calc(var(--header-h)+12px)] sm:px-6 sm:pb-24 sm:pt-[calc(var(--header-h)+20px)]"
+    data-goop-splash-zone
     @pointermove="onMove"
     @pointerup="onTap"
   >
-    <div class="slab relative mx-auto max-w-6xl" :data-reduced="reduced || undefined">
+    <!-- pb-16/24 below the slab is the landing runway for falling drops (and, with the
+         round-3 engine, where splashes land before escaping into the page overlay). -->
+    <div ref="slab" class="slab relative mx-auto max-w-6xl" :data-reduced="reduced || undefined" @click="onClick">
       <div class="relative z-10 px-6 pb-16 pt-14 sm:px-12 sm:pb-24 sm:pt-20 lg:px-16 lg:pb-28 lg:pt-24">
         <p class="intro intro-1 inline-flex items-center gap-2 rounded-full bg-goo-foreground/8 px-3 py-1 font-mono text-xs">
           <span class="size-1.5 rounded-full bg-goo-foreground" />
           shadcn, but it drips
         </p>
         <h1
-          class="intro intro-2 mt-6 text-[clamp(3rem,10.2vw,9.25rem)] font-semibold leading-[0.9] tracking-[-0.06em] text-balance"
+          class="type-display intro intro-2 mt-6 text-[clamp(3rem,9.6vw,8.5rem)] leading-[0.94] text-balance"
         >
           Components that drip.
         </h1>
@@ -158,8 +236,21 @@ const copyInstall = async () => {
         </p>
       </div>
 
-      <!-- The dripping edge: same color as the slab, overlapping its bottom. -->
-      <GoopHost ref="edge" class="slab-edge" aria-hidden="true" :options="edgeOptions" @ready="onReady" />
+      <!-- The dripping edge: overlapping strips in the slab's color. -->
+      <GoopHost
+        v-for="(seg, i) in SEGMENTS"
+        :key="i"
+        class="slab-edge"
+        aria-hidden="true"
+        :style="{
+          left: `${seg.from * 100}%`,
+          right: `${(1 - seg.to) * 100}%`,
+          borderBottomLeftRadius: seg.from === 0 ? 'var(--slab-r)' : '0',
+          borderBottomRightRadius: seg.to === 1 ? 'var(--slab-r)' : '0',
+        }"
+        :options="SEGMENT_OPTIONS[i]"
+        @ready="(h: GoopHandle) => onReady(i, h)"
+      />
     </div>
 
   </section>
@@ -178,11 +269,8 @@ const copyInstall = async () => {
 }
 .slab-edge {
   position: absolute;
-  left: 0;
-  right: 0;
   bottom: 0;
   height: 40px;
-  border-radius: 0 0 var(--slab-r) var(--slab-r);
   pointer-events: none;
   z-index: 1;
 }

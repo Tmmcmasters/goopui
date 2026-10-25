@@ -1,5 +1,7 @@
 @import "@fontsource-variable/geist";
 @import "@fontsource-variable/geist-mono";
+/* DynaPuff (OFL): display only. standard.css carries both the wght (400-700) and wdth (75-100%) axes. */
+@import "@fontsource-variable/dynapuff/standard.css";
 @import "tailwindcss";
 @import "lenis/dist/lenis.css";
 
@@ -7,6 +9,7 @@
 
 @theme inline {
   --font-sans: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: 'DynaPuff Variable', var(--font-sans);
   --font-mono: 'Geist Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
 
   --color-background: var(--background);
@@ -132,6 +135,19 @@ a {
    including on touch (Lenis' default `contain` would trap vertical swipes). */
 .lenis [data-lenis-prevent-horizontal] {
   overscroll-behavior: auto;
+}
+
+/* ---------------------------------------------------------------------------
+   Display type. DynaPuff is bubbly by default; slightly condensed, medium-heavy,
+   and tracked in a touch reads chubby and gooey rather than childish.
+--------------------------------------------------------------------------- */
+.type-display {
+  font-family: var(--font-display);
+  font-weight: 560;
+  font-stretch: 95%;
+  letter-spacing: -0.02em;
+  font-kerning: normal;
+  font-optical-sizing: auto;
 }
 
 /* ---------------------------------------------------------------------------
