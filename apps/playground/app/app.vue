@@ -1,11 +1,20 @@
 <script setup lang="ts">
-import { VERSION, defaultGoopOptions } from '@goopui/core'
+const { theme, simulateReducedMotion } = usePlaygroundSettings()
+
+useHead({
+  titleTemplate: t => (t ? `${t} · goopUI playground` : 'goopUI playground'),
+  htmlAttrs: {
+    'class': computed(() => (theme.value === 'dark' ? 'dark' : undefined)),
+    'data-reduced-motion': computed(() => (simulateReducedMotion.value ? 'true' : undefined)),
+  },
+})
 </script>
 
 <template>
-  <main>
-    <h1>goopUI playground</h1>
-    <p>@goopui/core v{{ VERSION }}</p>
-    <pre>{{ defaultGoopOptions }}</pre>
-  </main>
+  <div class="min-h-dvh">
+    <PlaygroundToolbar />
+    <main class="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
+      <NuxtPage />
+    </main>
+  </div>
 </template>
