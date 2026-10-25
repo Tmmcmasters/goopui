@@ -32,6 +32,8 @@ The canvas renderer gives each element its own small 2D `<canvas>` in the same z
 
 `--goop-blur` and `--goop-threshold` mean exactly the same thing in both renderers. `--goop-contrast` sets the edge ramp (1/contrast in alpha) in both, but the canvas edge never gets sharper than about one device pixel, so high contrast stays anti-aliased instead of aliasing. The canvas renderer reads `--goop-color` from computed style; it repaints on hover/focus, class/style changes, color transitions and theme changes on `<html>`/`<body>`. Call `handle.update()` after any other color change made while the goo is idle.
 
-`acquireGoopOverlay(document, { renderer, color })` gives a shared, fixed, full-viewport goo surface (viewport px) for goo that leaves its component, such as splash particles.
+Finish: `attachGoop(el, { finish: 'oil' })` or `--goop-finish: oil`, tuned with `--goop-oil-intensity` (0-1, default 0.6), `--goop-oil-scale` (band size multiplier) and `--goop-oil-shift` (thickness offset in cycles). The canvas renderer shades a thin-film interference sheen from the goo's surface normals, with a specular that follows the pointer and bands that flow and stretch with pointer velocity. Drips and particles carry it too. Under reduced motion the sheen is static. Its 2D fallback uses a banded gradient clipped to the goo.
+
+`acquireGoopOverlay(document, { renderer, color, finish })` gives a shared, fixed, full-viewport goo surface (viewport px) for goo that leaves its component, such as splash particles.
 
 Compare page: run the demo, then open `/demo/compare.html` (side by side, stress N=10/50/200, a 1200x600 surface, overlay particles).

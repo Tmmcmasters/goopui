@@ -3,7 +3,7 @@
 // IntersectionObserver (offscreen instances are skipped until visible), DPR + theme
 // watchers, and a ref count. Created on first acquire, torn down on last release.
 
-import { GlGooEngine, type GlBatch, type GlItem, type GlShape } from './gl'
+import { GlGooEngine, type GlBatch, type GlItem, type GlOil, type GlShape } from './gl'
 
 export type CanvasBackend = 'webgl' | '2d'
 
@@ -40,6 +40,8 @@ export interface PreparedItem {
   threshold: number
   contrast: number
   color: readonly [number, number, number, number]
+  /** Oil finish parameters, or null for solid. */
+  oil: GlOil | null
 }
 
 export interface CanvasShared {
@@ -332,7 +334,7 @@ class SharedImpl {
         if (cy + h + gap > atlasH) {
           flush()
         }
-        const item: GlItem = { x: cx, y: cy, w: p.w, h: p.h, color: p.color, threshold: p.threshold, contrast: p.contrast }
+        const item: GlItem = { x: cx, y: cy, w: p.w, h: p.h, color: p.color, threshold: p.threshold, contrast: p.contrast, oil: p.oil }
         batch.items.push(item)
         owners.push(inst)
         inst.collect(batch.shapes, cx / n, cy / n, p.kx / n, p.ky / n)

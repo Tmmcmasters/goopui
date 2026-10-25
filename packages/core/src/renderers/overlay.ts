@@ -10,17 +10,20 @@
 import { GOOP_DEFAULTS } from '../constants'
 import type { GooFilterParams } from '../filter'
 import type { GoopBlob, GoopRenderer } from '../renderer'
+import type { GoopFinish, GoopFinishRenderer } from './finish'
 import { resolveRenderer, type GoopRendererOption } from './resolve'
 
 export interface GoopOverlayOptions {
   /** Default 'canvas': big particle counts and a full-viewport surface are its strength. */
   renderer?: GoopRendererOption
-  /** Goo color (any CSS color or var()). Default `var(--goop-color, currentColor)` of <body>. */
+  /** Goo color (any CSS color or var()). Default: inherits `--goop-color` / `currentColor` from <body>. */
   color?: string
   /** Filter params; default GOOP_DEFAULTS. */
   params?: Partial<GooFilterParams>
   /** Stacking of the overlay host. Default 2147483000 (above page content). */
   zIndex?: number
+  /** Finish for everything on this overlay (e.g. { finish: 'oil' }). */
+  finish?: Partial<GoopFinish>
 }
 
 export interface GoopOverlay {
@@ -64,10 +67,12 @@ export function acquireGoopOverlay(doc: Document, options: GoopOverlayOptions = 
     contrast: options.params?.contrast ?? GOOP_DEFAULTS.contrast,
     threshold: options.params?.threshold ?? GOOP_DEFAULTS.threshold,
   }
-  const color = options.color ?? 'var(--goop-color, currentColor)'
+  // No color given: inherit --goop-color / currentColor from <body>. (Setting
+  // `--goop-color: var(--goop-color, ...)` on the host would be a self-referencing cycle.)
+  const color = options.color ?? ''
   const z = options.zIndex ?? 2147483000
   const rendererOpt = options.renderer ?? 'canvas'
-  const key = keyOf(rendererOpt, color, params, z)
+  const key = `${keyOf(rendererOpt, color, params, z)}|${JSON.stringify(options.finish ?? {})}`
   let map = overlays.get(doc)
   if (!map) overlays.set(doc, (map = new Map()))
   let entry = map.get(key)
@@ -77,11 +82,13 @@ export function acquireGoopOverlay(doc: Document, options: GoopOverlayOptions = 
     host.setAttribute('aria-hidden', 'true')
     host.style.cssText =
       `position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:${z};` +
-      `isolation:isolate;overflow:hidden;contain:strict;color:${color};--goop-color:${color};`
+      'isolation:isolate;overflow:hidden;contain:strict;' +
+      (color ? `color:${color};--goop-color:${color};` : '')
     ;(doc.body ?? doc.documentElement).append(host)
     const renderer = resolveRenderer(rendererOpt)(host, params)
     renderer.setPadding({ side: 0, bottom: 0 })
     renderer.setBodyScale(0, 0) // no body: free goo only
+    if (options.finish) (renderer as GoopFinishRenderer).setFinish?.(options.finish)
     entry = { refs: 0, host, renderer }
     map.set(key, entry)
   }

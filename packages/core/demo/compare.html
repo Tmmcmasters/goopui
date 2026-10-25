@@ -111,6 +111,10 @@
         <label>blur <input id="blur" type="range" min="0" max="12" step="0.5" value="4" /><span id="blurV">4</span></label>
         <label>contrast <input id="contrast" type="range" min="2" max="60" step="1" value="20" /><span id="contrastV">20</span></label>
         <label>threshold <input id="threshold" type="range" min="0.1" max="0.9" step="0.01" value="0.4" /><span id="thresholdV">0.4</span></label>
+        <label>finish
+          <select id="finish"><option value="solid">solid</option><option value="oil">oil</option></select>
+        </label>
+        <label>oil <input id="oilIntensity" type="range" min="0" max="1" step="0.05" value="0.6" /><span id="oilIntensityV">0.6</span></label>
         <label><input type="checkbox" id="reduced" /> reduced motion</label>
         <span class="meter" id="meter">frame -</span>
       </div>
@@ -212,12 +216,13 @@
         cols[col.dataset.col] = { el: col, buttons: [...row.children], handles: [], renderer: null }
       }
       let mode = 'split'
+      let finish = 'solid'
       let resting = false
       const attachCol = (c, r) => {
         for (const h of c.handles) h.destroy()
         c.renderer = r
         c.el.querySelector('.name').textContent = labels[r]
-        c.handles = c.buttons.map((b, i) => attachGoop(b, { renderer: factories[r], random: mulberry(1000 + i), restingDrips: resting ? 2 : undefined }))
+        c.handles = c.buttons.map((b, i) => attachGoop(b, { renderer: factories[r], random: mulberry(1000 + i), restingDrips: resting ? 2 : undefined, finish }))
       }
       const applyMode = () => {
         const [a, b] = mode === 'split' ? ['svg', 'canvas'] : [mode, mode]
@@ -257,6 +262,18 @@
           for (const h of [...allHandles(), ...stress.handles]) h.update()
         })
       }
+      document.getElementById('finish').addEventListener('change', (e) => {
+        finish = e.target.value
+        // Both the option and the CSS var, so either renderer's plumbing picks it up.
+        root.style.setProperty('--goop-finish', finish)
+        for (const h of [...allHandles(), ...stress.handles]) h.update({ finish })
+        if (part.overlay) startParticles()
+      })
+      document.getElementById('oilIntensity').addEventListener('input', (e) => {
+        document.getElementById('oilIntensityV').textContent = e.target.value
+        root.style.setProperty('--goop-oil-intensity', e.target.value)
+        for (const h of [...allHandles(), ...stress.handles]) h.update()
+      })
       document.getElementById('reduced').addEventListener('change', (e) => {
         if (e.target.checked) root.dataset.reducedMotion = 'true'
         else delete root.dataset.reducedMotion
@@ -279,7 +296,7 @@
           b.className = `btn ${variants[i % 4]}`
           b.textContent = `Goop ${i + 1}`
           grid.append(b)
-          stress.handles.push(attachGoop(b, { renderer: factories[r], random: mulberry(5000 + i) }))
+          stress.handles.push(attachGoop(b, { renderer: factories[r], random: mulberry(5000 + i), finish }))
         }
         const dripAll = () => stress.handles.forEach((h) => h.drip())
         dripAll()
@@ -305,6 +322,7 @@
         const rand = mulberry(42)
         const W = 1200, H = 600
         const ren = factories[r](surface, { blur, contrast: 20, threshold: 0.4 })
+        ren.setFinish?.({ finish })
         ren.setPadding({ side: 0, bottom: 0 })
         ren.setBodyScale(0, 0)
         surf.renderer = ren
@@ -349,7 +367,7 @@
       const startParticles = (n = Number(document.getElementById('partN').value), r = document.getElementById('partR').value) => {
         stopParticles()
         const rand = mulberry(7)
-        part.overlay = acquireGoopOverlay(document, { renderer: factories[r], color: 'oklch(0.62 0.19 259)', params: { blur: 3, contrast: 20, threshold: 0.4 } })
+        part.overlay = acquireGoopOverlay(document, { renderer: factories[r], color: 'oklch(0.62 0.19 259)', params: { blur: 3, contrast: 20, threshold: 0.4 }, finish: { finish } })
         const W = () => innerWidth, H = () => innerHeight
         let burst = { x: W() / 2, y: H() / 3 }
         const spawn = (q, t) => {
@@ -413,6 +431,7 @@
       window.goopCompare = {
         startStress, stopStress, startSurface, stopSurface, startParticles, stopParticles,
         setMode: (m) => { mode = m; applyMode() },
+        setFinish: (f) => { const el = document.getElementById('finish'); el.value = f; el.dispatchEvent(new Event('change')) },
         resetStats: () => { frames.length = 0; js.length = 0 },
         stats: () => ({ frames: frames.length, p50: pct(frames, 50), p95: pct(frames, 95), js50: pct(js, 50), js95: pct(js, 95), jsMean: js.reduce((a, b) => a + b, 0) / Math.max(1, js.length) }),
         handles: allHandles,

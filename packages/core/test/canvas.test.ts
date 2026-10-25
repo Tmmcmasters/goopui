@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  GOOP_FINISH_DEFAULTS,
   GOOP_OVERLAY_ATTR,
+  readFinish,
   GOOP_PART_ATTR,
   acquireGoopOverlay,
   activeTickerCount,
@@ -292,5 +294,54 @@ describe('helpers', () => {
       for (let i = 0; i < t.count; i++) sum += 2 * t.taps[i * 2 + 1]!
       expect(sum).toBeCloseTo(1, 5)
     }
+  })
+})
+
+describe('oil finish', () => {
+  it('resolves defaults < CSS vars < JS overrides', () => {
+    const el = makeHost()
+    expect(readFinish(el)).toEqual(GOOP_FINISH_DEFAULTS)
+    el.style.setProperty('--goop-finish', 'oil')
+    el.style.setProperty('--goop-oil-intensity', '0.9')
+    el.style.setProperty('--goop-oil-scale', '2')
+    expect(readFinish(el)).toMatchObject({ finish: 'oil', oilIntensity: 0.9, oilScale: 2, oilShift: 0 })
+    expect(readFinish(el, { finish: 'solid', oilIntensity: 5 })).toMatchObject({ finish: 'solid', oilIntensity: 1 })
+  })
+
+  it("attachGoop({ finish: 'oil' }) reaches the canvas renderer and draws the film", async () => {
+    const fake = fakeWebGL2()
+    const host = makeHost()
+    const h = attach(host, { renderer: 'canvas', finish: 'oil' })
+    h.drip()
+    await flushMicrotasks()
+    expect(fake.calls).toContain('drawArraysInstanced')
+    h.update({ finish: 'solid' })
+    await flushMicrotasks()
+  })
+
+  it('2D fallback draws oil without errors and the SVG renderer ignores finish', async () => {
+    const a = attach(makeHost(), { renderer: 'canvas', finish: 'oil' })
+    const b = attach(makeHost(), { renderer: 'svg', finish: 'oil' })
+    a.drip()
+    b.drip()
+    await flushMicrotasks()
+    expect(b.layer.style.filter).toMatch(/^url\(#goop-goo-/)
+  })
+
+  it('reduced motion keeps a static sheen: no sheen loop on pointer move', () => {
+    document.documentElement.dataset.reducedMotion = 'true'
+    const host = makeHost()
+    attach(host, { renderer: 'canvas', finish: 'oil' })
+    const raf = vi.spyOn(window, 'requestAnimationFrame')
+    host.dispatchEvent(new PointerEvent('pointermove', { clientX: 5, clientY: 5 }))
+    expect(raf).not.toHaveBeenCalled()
+  })
+
+  it('overlay accepts a finish', () => {
+    const o = acquireGoopOverlay(document, { finish: { finish: 'oil' } })
+    o.createBlob().set(20, 20, 6)
+    o.flush()
+    o.release()
+    expect(goopOverlayCount(document)).toBe(0)
   })
 })

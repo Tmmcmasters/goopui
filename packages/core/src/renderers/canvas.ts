@@ -21,7 +21,9 @@
 
 import { acquireGooFilter, type GooFilterLease, type GooFilterParams } from '../filter'
 import { GOOP_PART_ATTR, type GoopBlob, type GoopLayerPadding, type GoopRenderer, type GoopRendererFactory } from '../renderer'
-import type { GlShape } from './gl'
+import { isReducedMotion, watchReducedMotion } from '../reduced-motion'
+import { readFinish, type GoopFinish } from './finish'
+import type { GlOil, GlShape } from './gl'
 import { acquireCanvasShared, type CanvasBackend, type CanvasInstance, type PreparedItem } from './shared'
 
 export interface CanvasRendererOptions {
@@ -30,6 +32,8 @@ export interface CanvasRendererOptions {
   backend?: 'auto' | '2d'
   /** Use WebGL even on a software rasterizer. Default false (2D fallback instead). */
   allowSoftwareWebGL?: boolean
+  /** Finish overrides (otherwise `--goop-finish` / `--goop-oil-*` on the host). */
+  finish?: Partial<GoopFinish>
 }
 
 /**
@@ -48,7 +52,18 @@ export interface CanvasBodyPose {
 /** The canvas renderer: a GoopRenderer that also takes a full body pose. */
 export interface CanvasGoopRenderer extends GoopRenderer {
   setBodyTransform(t: CanvasBodyPose): void
+  /** Finish overrides; unspecified fields come from the host's CSS vars, then defaults. */
+  setFinish(overrides: Partial<GoopFinish>): void
 }
+
+/** 2D-fallback film palette (magenta, gold, green, cyan, violet). */
+const OIL_PALETTE: readonly (readonly [number, number, number])[] = [
+  [1, 0.25, 0.75],
+  [1, 0.78, 0.25],
+  [0.3, 0.9, 0.55],
+  [0.25, 0.78, 1],
+  [0.6, 0.38, 1],
+]
 
 interface BlobState {
   x: number
@@ -155,6 +170,41 @@ function createCanvasRendererImpl(
     return null
   }
 
+  // ---- finish (oil film) ---------------------------------------------------------
+  let finishOverrides: Partial<GoopFinish> = { ...options.finish }
+  let finish = readFinish(host, finishOverrides)
+  let reduced = isReducedMotion(doc)
+  const unwatchReduced = watchReducedMotion(doc, (r) => {
+    reduced = r
+    invalidate()
+  })
+  const clock = (): number => win?.performance?.now() ?? Date.now()
+  const born = clock()
+  /** Pointer state in host css px; velocity in px/s; flow = accumulated noise offset. */
+  const ptr = { x: Number.NaN, y: Number.NaN, vx: 0, vy: 0, flowX: 0, flowY: 0, t: 0, inside: false }
+  const oilOn = (): boolean => finish.finish === 'oil' && finish.oilIntensity > 0
+  const oilFor = (k: number): GlOil | null => {
+    if (!oilOn()) return null
+    const live = !reduced
+    const speed = live ? Math.hypot(ptr.vx, ptr.vy) : 0
+    const stretch = Math.min(1.2, speed / 900)
+    const hasPtr = live && ptr.inside && Number.isFinite(ptr.x)
+    return {
+      intensity: finish.oilIntensity,
+      scale: finish.oilScale,
+      shift: finish.oilShift,
+      time: live ? (clock() - born) / 1000 : 0,
+      flowX: live ? ptr.flowX : 0,
+      flowY: live ? ptr.flowY : 0,
+      stretchX: speed > 1 ? (ptr.vx / speed) * stretch : 0,
+      stretchY: speed > 1 ? (ptr.vy / speed) * stretch : 0,
+      lightX: hasPtr ? ptr.x + pad.side : pad.side + hostW * 0.3,
+      lightY: hasPtr ? ptr.y + pad.side : pad.side - 24,
+      k,
+      pointer: hasPtr ? 1 : 0,
+    }
+  }
+
   // ---- backend --------------------------------------------------------------
   let backend: CanvasBackend = 'webgl'
   let lease: GooFilterLease | null = null
@@ -199,6 +249,7 @@ function createCanvasRendererImpl(
         threshold: params.threshold,
         contrast: params.contrast,
         color: shared.color(colorString()),
+        oil: oilFor(w / cssW),
       } satisfies PreparedItem
     },
     collect(out, ox, oy, kx, ky) {
@@ -252,15 +303,16 @@ function createCanvasRendererImpl(
       c.globalAlpha = 1
       c.clearRect(0, 0, w, h)
       c.setTransform(w / cssW, 0, 0, h / cssH, pad.side * (w / cssW), pad.side * (h / cssH))
-      c.fillStyle = colorString()
+      const oil = oilFor(1)
+      c.fillStyle = oil ? oilGradient(c, shared.color(colorString()), oil, hostW, hostH) : colorString()
       if (bodyVisible()) {
         c.save()
         c.translate(hostW / 2 + bodyTx, hostH / 2 + bodyTy)
         if (bodyShear) c.transform(1, 0, bodyShear, 1, 0, 0)
         c.scale(bodySx, bodySy)
         roundRectPath(c, -hostW / 2, -hostH / 2, hostW, hostH, radii)
+        c.restore() // path keeps the body transform; fill (gradient) in host space
         c.fill()
-        c.restore()
       }
       for (const b of blobs) {
         if (b.r <= 0.005 || b.o <= 0) continue
@@ -270,6 +322,20 @@ function createCanvasRendererImpl(
         c.fill()
       }
       c.globalAlpha = 1
+      if (oil) {
+        // Soft specular, clipped to the goo already drawn (the SVG filter keeps it).
+        const lx = oil.lightX - pad.side
+        const ly = oil.lightY - pad.side
+        const r = Math.min(hostW, hostH) * 0.55
+        const sy = Math.max(r * 0.4, Math.min(hostH * 0.3, ly + 24))
+        const g = c.createRadialGradient(lx, sy, 0, lx, sy, r)
+        g.addColorStop(0, `rgba(255,255,255,${(0.3 * oil.intensity).toFixed(3)})`)
+        g.addColorStop(1, 'rgba(255,255,255,0)')
+        c.globalCompositeOperation = 'source-atop'
+        c.fillStyle = g
+        c.fillRect(-pad.side, -pad.side, cssW, cssH)
+        c.globalCompositeOperation = 'source-over'
+      }
     },
   }
   shared.add(inst)
@@ -297,6 +363,7 @@ function createCanvasRendererImpl(
   const frame = (): void => {
     raf = 0
     cs = null
+    finish = readFinish(host, finishOverrides)
     invalidate()
     if (transitions > 0 && now() < transitionUntil) raf = win?.requestAnimationFrame(frame) ?? 0
   }
@@ -322,6 +389,53 @@ function createCanvasRendererImpl(
     ['transitioncancel', onTransitionEnd],
   ]
   for (const [t, l] of hostEvents) host.addEventListener(t, l)
+  // Pointer flow for the oil film: bands drift with the pointer and stretch along its
+  // velocity. A small rAF loop runs only while an oil instance is hovered or coasting.
+  let sheenRaf = 0
+  let sheenLast = 0
+  const sheen = (t: number): void => {
+    sheenRaf = 0
+    const dt = sheenLast ? Math.min(0.05, (t - sheenLast) / 1000) : 1 / 60
+    sheenLast = t
+    const decay = Math.exp(-dt * (ptr.inside ? 3 : 5))
+    ptr.vx *= decay
+    ptr.vy *= decay
+    ptr.flowX -= ptr.vx * dt * 0.12
+    ptr.flowY -= ptr.vy * dt * 0.12
+    invalidate()
+    if (oilOn() && !reduced && (ptr.inside || Math.hypot(ptr.vx, ptr.vy) > 4)) sheenRaf = win?.requestAnimationFrame(sheen) ?? 0
+    else sheenLast = 0
+  }
+  const wakeSheen = (): void => {
+    if (!sheenRaf && oilOn() && !reduced && win?.requestAnimationFrame) sheenRaf = win.requestAnimationFrame(sheen)
+  }
+  const onPointerMove = (e: PointerEvent): void => {
+    if (!oilOn() || reduced) return
+    const rect = host.getBoundingClientRect()
+    if (!rect.width || !rect.height) return
+    const x = ((e.clientX - rect.left) / rect.width) * hostW
+    const y = ((e.clientY - rect.top) / rect.height) * hostH
+    const t = e.timeStamp || clock()
+    if (Number.isFinite(ptr.x) && ptr.t && t > ptr.t) {
+      const dt = Math.max(0.008, (t - ptr.t) / 1000)
+      ptr.vx += ((x - ptr.x) / dt - ptr.vx) * 0.35
+      ptr.vy += ((y - ptr.y) / dt - ptr.vy) * 0.35
+    }
+    ptr.x = x
+    ptr.y = y
+    ptr.t = t
+    ptr.inside = true
+    wakeSheen()
+  }
+  const onPointerOut = (): void => {
+    ptr.inside = false
+    ptr.t = 0
+    wakeSheen()
+  }
+  hostEvents.push(['pointermove', onPointerMove as EventListener], ['pointerleave', onPointerOut])
+  host.addEventListener('pointermove', onPointerMove as EventListener)
+  host.addEventListener('pointerleave', onPointerOut)
+
   const MO = win?.MutationObserver
   const mo = MO ? new MO(nextFrame) : undefined
   mo?.observe(host, { attributes: true, attributeFilter: ['class', 'style', 'data-state', 'data-variant', 'disabled'] })
@@ -330,8 +444,14 @@ function createCanvasRendererImpl(
 
   return {
     layer,
+    setFinish(overrides) {
+      finishOverrides = { ...finishOverrides, ...overrides }
+      finish = readFinish(host, finishOverrides)
+      invalidate()
+    },
     setParams(next) {
       params = { ...next }
+      finish = readFinish(host, finishOverrides)
       if (backend === '2d') applyFilter()
       cs = null
       readRadii()
@@ -392,6 +512,8 @@ function createCanvasRendererImpl(
       mo?.disconnect()
       for (const [t, l] of hostEvents) host.removeEventListener(t, l)
       if (raf) win?.cancelAnimationFrame(raf)
+      if (sheenRaf) win?.cancelAnimationFrame(sheenRaf)
+      unwatchReduced()
       shared.remove(inst)
       shared.release()
       lease?.release()
@@ -402,6 +524,40 @@ function createCanvasRendererImpl(
       layer.remove()
     },
   }
+}
+
+/** 2D fallback film: a diagonal multi-band gradient over the base color. */
+function oilGradient(
+  c: CanvasRenderingContext2D,
+  premul: readonly [number, number, number, number],
+  oil: GlOil,
+  w: number,
+  h: number,
+): CanvasGradient {
+  const a = premul[3] || 1
+  const base = [premul[0] / a, premul[1] / a, premul[2] / a]
+  // Mostly horizontal bands, so drips share the colors of the body right above them.
+  const len = w * 0.7 * oil.scale
+  const ang = Math.atan2((oil.stretchY || 0) * 0.3 + 0.18, 1) + Math.sin(oil.time * 0.2) * 0.08
+  const cx = w / 2 + oil.flowX * 0.5
+  const cy = h / 2 + oil.flowY * 0.5
+  const dx = (Math.cos(ang) * len) / 2
+  const dy = (Math.sin(ang) * len) / 2
+  const g = c.createLinearGradient(cx - dx, cy - dy, cx + dx, cy + dy)
+  const lum = 0.2126 * base[0]! + 0.7152 * base[1]! + 0.0722 * base[2]!
+  const mixAmt = oil.intensity * (lum < 0.5 ? 0.4 : 0.32)
+  const n = OIL_PALETTE.length
+  const phase = ((oil.shift % 1) + 1) % 1
+  for (let i = 0; i <= 8; i++) {
+    const p = OIL_PALETTE[(i + Math.floor(phase * n)) % n]!
+    const col = base.map((b, j) => {
+      // Dark bases get a screen-like lift, light bases a tint.
+      const film = lum < 0.5 ? 1 - (1 - b) * (1 - p[j]! * 0.85) : b * (0.55 + 0.6 * p[j]!)
+      return Math.round(255 * (b + (film - b) * mixAmt))
+    })
+    g.addColorStop(i / 8, `rgba(${col[0]},${col[1]},${col[2]},${a})`)
+  }
+  return g
 }
 
 function roundRectPath(

@@ -51,6 +51,14 @@ export {
   type GoopOverlayOptions,
 } from './renderers/overlay'
 export { gooCanvasBackend, gooCanvasRefCount, type CanvasBackend } from './renderers/shared'
+export {
+  GOOP_FINISH_DEFAULTS,
+  GOOP_FINISH_VARS,
+  readFinish,
+  type GoopFinish,
+  type GoopFinishName,
+  type GoopFinishRenderer,
+} from './renderers/finish'
 export { resolveRenderer, type GoopRendererName, type GoopRendererOption } from './renderers/resolve'
 export { DripField, type Drip, type DripContext, type SpawnOptions } from './drips'
 export {
