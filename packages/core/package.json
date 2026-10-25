@@ -13,15 +13,21 @@
   },
   "main": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
-    "clean": "rm -rf dist .turbo"
+    "test": "vitest run",
+    "clean": "rm -rf dist .turbo",
+    "demo": "tsdown && node demo/serve.mjs"
   },
   "publishConfig": {
     "access": "public"
+  },
+  "devDependencies": {
+    "happy-dom": "^21.0.4"
   }
 }
