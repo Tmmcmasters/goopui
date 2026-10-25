@@ -3,6 +3,7 @@ import {
   GOO_DEFS_ATTR,
   GOOP_DEFAULTS,
   GOOP_PART_ATTR,
+  GOOP_PHYSICS,
   activeTickerCount,
   attachGoop,
   readTuning,
@@ -160,7 +161,7 @@ describe('attachGoop', () => {
     expect(document.querySelector(`svg[${GOO_DEFS_ATTR}]`)).toBeNull()
     expect(host.style.isolation).toBe('auto')
     expect(activeTickerCount()).toBe(0)
-    expect(removeSpy.mock.calls.map((c) => c[0]).sort()).toEqual(['pointerdown', 'pointerenter', 'pointerleave', 'pointermove'])
+    expect(removeSpy.mock.calls.map((c) => c[0]).sort()).toEqual(['keydown', 'keyup', 'pointerdown', 'pointerenter', 'pointerleave', 'pointermove'])
     host.dispatchEvent(mouse('pointerenter'))
     document.dispatchEvent(mouse('pointerup', { bubbles: true }))
     expect(layerOf(host)).toBeNull()
@@ -241,5 +242,52 @@ describe('reduced motion', () => {
     h.update({ reducedMotion: false })
     host.dispatchEvent(mouse('pointerenter'))
     expect(blobs(host).length).toBeGreaterThan(0)
+  })
+})
+
+describe('oil finish', () => {
+  it('switches the layer to a per-element oil filter and back, cleaning up', () => {
+    stubMatchMedia()
+    const host = makeHost()
+    const h = attach(host, { finish: 'oil' })
+    expect(h.layer.style.filter).toMatch(/goop-oil-/)
+    const id = h.layer.style.filter.match(/#([^)"]+)/)![1]!
+    const f = document.getElementById(id)!
+    expect(f.querySelector('feImage')?.getAttribute('href')).toMatch(/^data:image\/svg\+xml/)
+    expect(f.querySelector('feDisplacementMap')).not.toBeNull()
+    expect(f.querySelector('feBlend')).not.toBeNull()
+    h.update({ finish: 'solid' })
+    expect(h.layer.style.filter).toMatch(/goop-goo-/)
+    expect(document.getElementById(id)).toBeNull()
+    h.update({ finish: 'oil' })
+    h.destroy()
+    expect(document.querySelector('[' + GOO_DEFS_ATTR + ']')).toBeNull()
+  })
+
+  it('reads --goop-finish and the oil knobs from CSS', () => {
+    stubMatchMedia()
+    const host = makeHost()
+    host.style.setProperty('--goop-finish', 'oil')
+    host.style.setProperty('--goop-oil-intensity', '0.3')
+    const h = attach(host)
+    expect(h.layer.style.filter).toMatch(/goop-oil-/)
+    expect(h.tuning.oilIntensity).toBe(0.3)
+  })
+})
+
+describe('backlog options', () => {
+  it('maxDrips caps live drips per element', () => {
+    stubMatchMedia()
+    const host = makeHost()
+    const h = attach(host, { maxDrips: 2, clickMass: 0 })
+    for (let i = 0; i < 6; i++) h.drip()
+    expect(h.inspect().drips).toBeLessThanOrEqual(2)
+  })
+
+  it('restingDrips accepts x fractions', () => {
+    stubMatchMedia()
+    const host = makeHost()
+    attach(host, { restingDrips: [0.25, 0.75] })
+    expect(blobs(host).length).toBe(2 * (GOOP_PHYSICS.neckSegments + 2))
   })
 })

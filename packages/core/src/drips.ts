@@ -55,6 +55,16 @@ export interface DripContext {
   sway?: number
   /** Optional: extra feed-rate multiplier (e.g. from click mass). Default 1. */
   feedBoost?: number
+  /** Optional: per-drip feed multiplier by anchor x (leading side of a slosh feeds faster). */
+  feedAt?: (x: number) => number
+  /** Optional: extra hang (px at full fill), e.g. vertical slosh. Negative shortens. */
+  stretch?: number
+  /** Optional: host x that attached, fed drips creep toward (flow toward the pointer). */
+  flowTo?: number
+  /** Optional: fraction of the distance to `flowTo` a drip may creep (0..1). Default 0. */
+  flowPull?: number
+  /** Optional: allowed anchor range [lo, hi] for flowing drips. */
+  edge?: readonly [number, number]
 }
 
 interface Drop {
@@ -66,8 +76,10 @@ interface Drop {
 }
 
 export interface Drip {
-  /** Anchor x along the bottom edge, in unscaled host space. */
-  readonly x: number
+  /** Anchor x along the bottom edge, in unscaled host space. Creeps when flowing. */
+  x: number
+  /** Where it was spawned (flow is a partial pull away from here). */
+  readonly x0: number
   /** Stay fed until detach even without hover (click/tap drips). */
   readonly forced: boolean
   fed: boolean
@@ -160,13 +172,14 @@ export class DripField {
   }
 
   spawn(tuning: GoopTuning, opts: SpawnOptions): Drip | null {
-    if (this.drips.length >= P.maxDrips) return null
+    if (this.drips.length >= (tuning.maxDrips ?? P.maxDrips)) return null
     const rand = opts.random ?? Math.random
     const blobs: GoopBlob[] = []
     for (let i = 0; i < P.neckSegments + 2; i++) blobs.push(this.renderer.createBlob())
     const forced = !!opts.forced
     const drip: Drip = {
       x: opts.x,
+      x0: opts.x,
       forced,
       fed: true,
       delay: Math.max(0, opts.delay ?? 0),
@@ -237,15 +250,27 @@ export class DripField {
     }
 
     if (!d.detached) {
-      const boost = (ctx.pressed ? P.pressFeedBoost : 1) * (ctx.feedBoost ?? 1)
+      const boost =
+        (ctx.pressed ? P.pressFeedBoost : 1) * (ctx.feedBoost ?? 1) * Math.max(0, ctx.feedAt ? ctx.feedAt(d.x) : 1)
       const feed = d.fed ? (1 / Math.max(0.05, d.swellTime)) * boost : 0
       d.m = d.fed ? Math.min(1, d.m + dt * feed) : Math.max(0, d.m - dt / (P.drainTime * t.viscosity))
       const cfg: SpringConfig = d.fed ? this.springs.hang : this.springs.retract
-      stepSpring(d.hang, t.dripLength * Math.pow(d.m, P.hangCurve), cfg, dt)
+      const hangT = t.dripLength * Math.pow(d.m, P.hangCurve) + (ctx.stretch ?? 0) * d.m
+      stepSpring(d.hang, Math.max(0, hangT), cfg, dt)
       // sqrt(m) (area ~ volume), but linear near 0 so a draining drip never collapses steeply.
       stepSpring(d.rad, d.size * (d.m < 0.25 ? d.m * 2 : Math.sqrt(d.m)), cfg, dt)
+      // Pendulum: the longer it hangs, the further the bulb swings.
       const maxSway = d.size * P.maxSway
-      stepSpring(d.sway, d.fed ? clamp(ctx.sway ?? 0, -maxSway, maxSway) : 0, this.springs.sway, dt)
+      const reach = clamp(d.hang.x / Math.max(1, t.dripLength), 0.25, 1.4)
+      stepSpring(d.sway, clamp((ctx.sway ?? 0) * reach, -maxSway, maxSway), this.springs.sway, dt)
+      // Flow: fed drips creep along the edge toward the pointer with viscous lag.
+      if (d.fed && ctx.flowTo !== undefined && ctx.flowPull) {
+        const target = lerp(d.x0, ctx.flowTo, clamp(ctx.flowPull, 0, 1))
+        const k = 1 - Math.exp(-dt / (P.flowLag * t.viscosity))
+        let nx = d.x + (target - d.x) * k
+        if (ctx.edge) nx = clamp(nx, ctx.edge[0], ctx.edge[1])
+        d.x = nx
+      }
 
       const full = d.fed && d.m >= 1 && d.hang.x >= t.dripLength * P.detachAt
       if (full || (d.yank && d.rad.x > d.size * 0.3)) {
@@ -361,8 +386,8 @@ export class DripField {
   }
 
   /** Static resting drips (no motion). Redraw whenever size or tuning changes. */
-  drawResting(ctx: Omit<DripContext, 'pressed' | 'sx' | 'sy'>): void {
-    const n = ctx.tuning.restingDrips
+  drawResting(ctx: Omit<DripContext, 'pressed' | 'sx' | 'sy'>, positions?: readonly number[]): void {
+    const n = positions ? positions.length : ctx.tuning.restingDrips
     const perDrip = P.neckSegments + 2
     while (this.resting.length < n * perDrip) this.resting.push(this.renderer.createBlob())
     while (this.resting.length > n * perDrip) this.resting.pop()!.remove()
@@ -370,7 +395,7 @@ export class DripField {
     const hang = ctx.tuning.dripLength * P.restingHang
     const r = ctx.tuning.dripSize * P.restingSize
     for (let j = 0; j < n; j++) {
-      const ax = (ctx.width * (j + 1)) / (n + 1)
+      const ax = positions ? clamp(positions[j]!, 0, 1) * ctx.width : (ctx.width * (j + 1)) / (n + 1)
       const blobs = this.resting.slice(j * perDrip, (j + 1) * perDrip)
       blobs[0]!.set(ax, ay, r * P.rootScale)
       for (let i = 1; i <= P.neckSegments; i++) {

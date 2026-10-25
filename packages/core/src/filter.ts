@@ -187,3 +187,174 @@ function releaseGooFilter(doc: Document, id: string): void {
 export function gooFilterRefCount(doc: Document, id: string): number {
   return registries.get(doc)?.filters.get(id)?.count ?? 0
 }
+
+// ---- oil finish (thin-film iridescence) ---------------------------------------------
+//
+// Same goo pipeline, plus a sheen: a band image (repeating thin-film palette, rendered once
+// from a data: URI SVG gradient) is slid along its band direction (flow), bent by the
+// blurred goo alpha with feDisplacementMap (so bands follow the contours of the body, necks
+// and drops like a real film does), clipped to the goo shape, and blended over the base
+// color (screen on dark bases, multiply on light ones). Unlike plain goo filters these are
+// per element (their flow state is per element), so they are not shared.
+
+export interface OilFinishParams {
+  /** 0..1 strength of the sheen. */
+  intensity: number
+  /** Band size in px (one color cycle). */
+  scale: number
+  /** True when the base color is dark (blend with screen), false for light (multiply). */
+  dark: boolean
+}
+
+export interface OilFilter {
+  readonly id: string
+  /** Layer size in px (the filtered element), so the band image covers it. */
+  setBox(width: number, height: number): void
+  /** Slide the bands `phase` px along their direction; `swirl` (0..~2) bends them harder. */
+  setFlow(phase: number, swirl: number): void
+  setFinish(p: OilFinishParams): void
+  release(): void
+}
+
+/** Thin-film palette as [offset, color] stops (cycled with reflect). Black stops are gaps:
+ *  under the screen blend they leave the base untouched, so the film reads as thin colored
+ *  fringes over a dark, rich base instead of a full rainbow. */
+export const OIL_PALETTE: readonly (readonly [number, string])[] = [
+  [0, '#000000'],
+  [0.12, '#7d2a5e'],
+  [0.26, '#8f6f2a'],
+  [0.38, '#000000'],
+  [0.55, '#25704f'],
+  [0.68, '#1f6a82'],
+  [0.8, '#463087'],
+  [1, '#000000'],
+]
+/** Band direction (deg). */
+const OIL_ANGLE = 22
+
+let oilSeq = 0
+
+function oilImage(w: number, h: number, scale: number): string {
+  const a = (OIL_ANGLE * Math.PI) / 180
+  const L = Math.max(4, scale)
+  const stops = OIL_PALETTE.map(([o, c]) => '<stop offset="' + o + '" stop-color="' + c + '"/>').join('')
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '">' +
+    '<defs><linearGradient id="g" gradientUnits="userSpaceOnUse" spreadMethod="reflect" x1="0" y1="0" ' +
+    'x2="' + (Math.cos(a) * L).toFixed(2) + '" y2="' + (Math.sin(a) * L).toFixed(2) + '">' + stops +
+    '</linearGradient>' +
+    // Bake a soft fractal warp into the band image once (static, decoded once), so the film
+    // reads as swirled oil instead of straight stripes. No per-frame turbulence cost.
+    '<filter id="w" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" ' +
+    'baseFrequency="' + (0.35 / L).toFixed(4) + ' ' + (0.6 / L).toFixed(4) + '" numOctaves="2" seed="7"/>' +
+    '<feDisplacementMap in="SourceGraphic" scale="' + (L * 1.6).toFixed(1) + '" xChannelSelector="R" yChannelSelector="G"/>' +
+    '</filter></defs><rect width="100%" height="100%" fill="url(#g)" filter="url(#w)"/></svg>'
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)
+}
+
+/** Create a per-element oil filter in `doc` (released with `release()`). */
+export function createOilFilter(doc: Document, params: GooFilterParams, finish: OilFinishParams): OilFilter {
+  const p = normalize(params)
+  const id = 'goop-oil-' + ++oilSeq
+  const reg = getRegistry(doc)
+  const el = (tag: string, attrs: Record<string, string>): Element => {
+    const node = doc.createElementNS(SVG_NS, tag)
+    for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v)
+    return node
+  }
+  const r = GOO_FILTER_REGION
+  const filter = el('filter', {
+    id,
+    x: r.x,
+    y: r.y,
+    width: r.width,
+    height: r.height,
+    'color-interpolation-filters': 'sRGB',
+  }) as SVGFilterElement
+  const image = el('feImage', { result: 'film', preserveAspectRatio: 'none' })
+  const offset = el('feOffset', { in: 'film', dx: '0', dy: '0', result: 'flow' })
+  const disp = el('feDisplacementMap', {
+    in: 'flow',
+    in2: 'blur',
+    scale: '10',
+    xChannelSelector: 'A',
+    yChannelSelector: 'A',
+    result: 'bent',
+  })
+  const strength = el('feColorMatrix', { in: 'sheen', type: 'matrix', result: 'sheenA' })
+  const blend = el('feBlend', { in: 'sheenA', in2: 'base', mode: 'screen' })
+  filter.append(
+    el('feGaussianBlur', { in: 'SourceGraphic', stdDeviation: String(p.blur), result: 'blur' }),
+    el('feColorMatrix', { in: 'blur', mode: 'matrix', values: gooColorMatrix(p), result: 'goo' }),
+    el('feComposite', { in: 'SourceGraphic', in2: 'goo', operator: 'atop', result: 'base' }),
+    image,
+    offset,
+    disp,
+    el('feComposite', { in: 'bent', in2: 'goo', operator: 'in', result: 'sheen' }),
+    strength,
+    blend,
+  )
+  reg.defs.append(filter)
+  reg.filters.set(id, { count: 1, el: filter })
+
+  let box = { w: 0, h: 0 }
+  let rendered = false
+  let fin = finish
+  let period = 2 * Math.max(4, finish.scale)
+  const ang = (OIL_ANGLE * Math.PI) / 180
+  const dir = { x: Math.cos(ang), y: Math.sin(ang) }
+  const renderImage = (): void => {
+    // Oversize so sliding by up to one period (plus the baked warp) never shows an edge.
+    const m = Math.ceil(period * 2.5)
+    const w = Math.max(1, Math.ceil(box.w)) + m * 2
+    const h = Math.max(1, Math.ceil(box.h)) + m * 2
+    image.setAttribute('x', String(-m))
+    image.setAttribute('y', String(-m))
+    image.setAttribute('width', String(w))
+    image.setAttribute('height', String(h))
+    image.setAttribute('href', oilImage(w, h, fin.scale))
+  }
+  const applyFinish = (): void => {
+    const k = Math.max(0, Math.min(1, fin.intensity))
+    strength.setAttribute('values', '1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 ' + k.toFixed(3) + ' 0')
+    blend.setAttribute('mode', fin.dark ? 'screen' : 'multiply')
+  }
+  applyFinish()
+  let last = ''
+  return {
+    id,
+    setBox(w, h) {
+      if (rendered && Math.abs(w - box.w) < 1 && Math.abs(h - box.h) < 1) return
+      rendered = true
+      box = { w, h }
+      renderImage()
+    },
+    setFlow(phase, swirl) {
+      // The baked warp makes the image non-periodic, so instead of wrapping (a visible jump)
+      // the accumulated phase ping-pongs over +/- one period: always continuous.
+      const span = period * 2
+      const t = (((phase % (2 * span)) + 2 * span) % (2 * span)) / span
+      const ph = (t < 1 ? t : 2 - t) * span - period
+      const dx = (dir.x * ph).toFixed(1)
+      const dy = (dir.y * ph).toFixed(1)
+      const sc = (6 + Math.max(0, swirl) * 14).toFixed(1)
+      const s = dx + '|' + dy + '|' + sc
+      if (s === last) return
+      last = s
+      offset.setAttribute('dx', dx)
+      offset.setAttribute('dy', dy)
+      disp.setAttribute('scale', sc)
+    },
+    setFinish(next) {
+      const rescale = next.scale !== fin.scale
+      fin = next
+      period = 2 * Math.max(4, next.scale)
+      applyFinish()
+      if (rescale && rendered) renderImage()
+    },
+    release() {
+      if (!reg.filters.has(id)) return
+      releaseGooFilter(doc, id)
+    },
+  }
+}

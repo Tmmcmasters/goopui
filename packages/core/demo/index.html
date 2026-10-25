@@ -49,6 +49,14 @@
       .pill { border-radius: 9999px; }
       .icon { width: 40px; padding: 0; }
       .wide { width: 280px; }
+      .label { display: inline-flex; align-items: center; gap: 8px; transform: translate(calc(var(--goop-x, 0px) * 0.6), calc(var(--goop-y, 0px) * 0.6)); }
+      .oil-dark { --goop-color: #1c1917; color: #fafaf9; }
+      .oil-ink { --goop-color: #0a0a0a; color: #fafafa; --goop-oil-intensity: 0.8; --goop-oil-scale: 26; }
+      h2.section { font-size: 15px; margin: 0 0 2px; }
+      p.hint { color: var(--muted); margin: 0 0 18px; }
+      .hero { display: grid; place-items: center; height: 420px; border: 1px dashed var(--border); border-radius: 12px; margin-bottom: 88px; }
+      .hero-btn { height: 56px; padding: 0 40px; font-size: 17px; border-radius: 10px; }
+      .slosh { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 40px; }
 
       .panel {
         position: fixed; right: 16px; bottom: 16px; width: 300px; max-height: calc(100vh - 32px); overflow: auto;
@@ -83,6 +91,30 @@
         <button class="btn secondary wide" data-goop>Wide secondary button</button>
         <button class="btn primary" data-goop disabled style="opacity:.5;cursor:not-allowed">Disabled</button>
       </div>
+
+      <h2 class="section">Oil finish</h2>
+      <p class="hint">Thin-film sheen. Bands flow with the pointer and swirl with speed.</p>
+      <div class="row oil-row">
+        <button class="btn oil-dark" data-goop data-finish="oil">Oil on dark</button>
+        <button class="btn oil-ink lg" data-goop data-finish="oil">Crude oil</button>
+        <button class="btn secondary" data-goop data-finish="oil">Oil on light</button>
+        <button class="btn destructive" data-goop data-finish="oil">Oil on red</button>
+      </div>
+
+      <h2 class="section">Hero</h2>
+      <p class="hint">Punch through fast to splash out the far side. Try <b>Splash: escape</b> in the panel so goo can fly across the page.</p>
+      <div class="hero">
+        <button class="btn primary hero-btn" data-goop>Get started</button>
+      </div>
+
+      <h2 class="section">Scroll slosh</h2>
+      <p class="hint">Hover a button to hang some drips, then scroll the page quickly up and down.</p>
+      <div class="slosh">
+        <button class="btn primary" data-goop data-resting="0.3,0.7">Resting drips</button>
+        <button class="btn destructive lg" data-goop data-resting="0.5">Slosh me</button>
+        <button class="btn primary pill" data-goop data-resting="0.25,0.5,0.75">Pill</button>
+      </div>
+      <div style="height:900px" aria-hidden="true"></div>
     </main>
 
     <aside class="panel" aria-label="Tuning">
@@ -90,6 +122,20 @@
       <div id="knobs"></div>
       <div class="toggles">
         <label><input type="checkbox" id="reduced" /> Reduced motion (<code>data-reduced-motion</code>)</label>
+        <label>Splash
+          <select id="splash">
+            <option value="near">near (default)</option>
+            <option value="escape">escape (fly across page)</option>
+            <option value="off">off</option>
+          </select>
+        </label>
+        <label>Finish
+          <select id="finish">
+            <option value="">per button</option>
+            <option value="solid">all solid</option>
+            <option value="oil">all oil</option>
+          </select>
+        </label>
         <label>Speed
           <select id="speed">
             <option value="1">1x</option>
@@ -132,10 +178,34 @@
         ['reactivity', 0, 3, 0.05],
         ['clickMass', 0, 1, 0.05],
         ['massDecay', 0.2, 5, 0.1],
+        ['inertia', 0, 3, 0.05],
+        ['flow', 0, 2, 0.05],
+        ['scrollSlosh', -2, 2, 0.05],
+        ['splashThreshold', 0.2, 3, 0.05],
+        ['splashAmount', 0, 3, 0.05],
+        ['oiliness', 0, 1, 0.05],
+        ['shockwave', 0, 3, 0.05],
+        ['oilIntensity', 0, 1, 0.05],
+        ['oilScale', 8, 120, 1],
+        ['oilShift', 0, 3, 0.05],
+        ['maxDrips', 1, 30, 1],
       ]
       const host = document.querySelector('main')
+      // Labels ride along with the goo body via the --goop-x / --goop-y vars (cssVars: true).
+      for (const el of document.querySelectorAll('[data-goop]')) {
+        if (el.querySelector('.label')) continue
+        const span = document.createElement('span')
+        span.className = 'label'
+        span.append(...el.childNodes)
+        el.append(span)
+      }
       const handles = [...document.querySelectorAll('[data-goop]')].map((el) =>
-        attachGoop(el, { disabled: el.disabled }),
+        attachGoop(el, {
+          disabled: el.disabled,
+          cssVars: true,
+          finish: el.dataset.finish,
+          restingDrips: el.dataset.resting ? el.dataset.resting.split(',').map(Number) : undefined,
+        }),
       )
       window.goop = handles // poke from devtools
 
@@ -179,6 +249,11 @@
       })
       document.getElementById('speed').addEventListener('change', (e) => setGoopTimeScale(Number(e.target.value)))
       document.getElementById('dripAll').addEventListener('click', () => handles.forEach((h) => h.drip()))
+      document.getElementById('splash').addEventListener('change', (e) => handles.forEach((h) => h.update({ splash: e.target.value })))
+      const goopEls = [...document.querySelectorAll('[data-goop]')]
+      document.getElementById('finish').addEventListener('change', (e) =>
+        handles.forEach((h, i) => h.update({ finish: e.target.value || goopEls[i].dataset.finish || 'solid' })),
+      )
 
       // ---- what's driving it: live readout + pointer trail -------------------------
       const readout = document.getElementById('readout')
@@ -203,7 +278,11 @@
           `velocity ${fmt(s.vx)}, ${fmt(s.vy)} px/s\n` +
           `speed    ${fmt(s.speed)} (1 = fast)\n` +
           `mass     ${fmt(s.mass)}\n` +
-          `drips    ${s.drips}   next in ${fmt(s.nextDrip)}s`
+          `drips    ${s.drips}   next in ${fmt(s.nextDrip)}s\n` +
+          `inertia  ${fmt(s.sloshX)}, ${fmt(s.sloshY)} px (blue)\n` +
+          `gravity  ${fmt(s.gravityX)}, ${fmt(s.gravityY)}\n` +
+          `scroll   ${fmt(s.scrollVy)} px/s\n` +
+          `particles ${s.particles}  splash ${s.splash}`
         // velocity vector
         const W = 120, H = 120
         vec.clearRect(0, 0, W, H)
@@ -213,6 +292,9 @@
         vec.lineWidth = 3
         const k = 50 / 2400
         vec.beginPath(); vec.moveTo(W / 2, H / 2); vec.lineTo(W / 2 + s.vx * k, H / 2 + s.vy * k); vec.stroke()
+        // inertia (slosh) vector, 14px of slosh = full radius
+        vec.strokeStyle = '#2563eb'
+        vec.beginPath(); vec.moveTo(W / 2, H / 2); vec.lineTo(W / 2 + (s.sloshX / 14) * 50, H / 2 + (s.sloshY / 14) * 50); vec.stroke()
         vec.lineWidth = 1
         // trail of the last 400ms, thicker = faster
         const now = performance.now()

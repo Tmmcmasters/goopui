@@ -3,7 +3,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   GOOP_DEFAULTS,
+  GOOP_OVERLAY_ATTR,
   GOOP_PHYSICS,
+  escapeLayerRefs,
   gooVanishRadius,
   attachGoop,
   createSvgFilterRenderer,
@@ -343,4 +345,112 @@ describe('continuity: no pops on any transition', () => {
       expect(h.inspect().drips).toBe(0)
     })
   }
+})
+
+describe('splash-through, shockwave, escape overlay', () => {
+  const punch = (host: HTMLElement, stepMs: number) => {
+    const p = { x: 20, y: 120 }
+    clock += 500 // long pause: the tracker restarts from the next raw velocity
+    moveTo(20, 120, 1, p)
+    clock += 500
+    moveTo(20, 120, 1, p)
+    moveTo(120, 120, 10, p, stepMs)
+    host.dispatchEvent(mouse('pointerenter', 120, 120))
+  }
+
+  it('only a hard enough entry splashes through (threshold gating)', () => {
+    const slow = setup()
+    punch(slow.host, 40) // ~250 px/s
+    expect(slow.h.inspect().particles).toBe(0)
+    const fast = setup()
+    punch(fast.host, 4) // ~2500 px/s
+    expect(fast.h.inspect().particles).toBeGreaterThan(4)
+  })
+
+  it('splash particles drain away and the loop sleeps', () => {
+    const { host, h } = setup()
+    punch(host, 4)
+    host.dispatchEvent(mouse('pointerleave', 300, 120))
+    pump(5)
+    expect(h.inspect().particles).toBe(0)
+    expect(frames).toHaveLength(0)
+  })
+
+  it('click shockwave throws a capped particle ring', () => {
+    const { host, h } = setup()
+    host.dispatchEvent(mouse('pointerenter', 180, 120))
+    host.dispatchEvent(mouse('pointerdown', 180, 120))
+    host.dispatchEvent(mouse('pointerup', 180, 120))
+    expect(h.inspect().particles).toBeGreaterThan(4)
+    for (let i = 0; i < 20; i++) {
+      host.dispatchEvent(mouse('pointerdown', 180, 120))
+      host.dispatchEvent(mouse('pointerup', 180, 120))
+    }
+    expect(h.inspect().particles).toBeLessThanOrEqual(GOOP_PHYSICS.maxParticles)
+  })
+
+  it('reduced motion: no splash, no shockwave, no particles', () => {
+    const { host, h } = setup({ reducedMotion: true })
+    punch(host, 4)
+    h.shockwave(80, 20)
+    h.splashThrough(10, 20, 3000, 0)
+    expect(h.inspect().particles).toBe(0)
+    expect(document.querySelector('[' + GOOP_OVERLAY_ATTR + ']')).toBeNull()
+  })
+
+  it('escape mode shares one ref-counted page overlay, removed with the last user', () => {
+    const a = setup({ splash: 'escape' })
+    const b = setup({ splash: 'escape' })
+    expect(escapeLayerRefs(document)).toBe(0) // acquired lazily
+    a.h.shockwave(80, 20)
+    b.h.shockwave(80, 20)
+    expect(escapeLayerRefs(document)).toBe(2)
+    expect(document.querySelectorAll('[' + GOOP_OVERLAY_ATTR + ']')).toHaveLength(1)
+    expect(a.h.inspect().particles).toBe(0) // they live in the overlay, not the element
+    pump(0.1)
+    a.h.destroy()
+    expect(escapeLayerRefs(document)).toBe(1)
+    expect(document.querySelector('[' + GOOP_OVERLAY_ATTR + ']')).not.toBeNull()
+    b.h.destroy()
+    expect(escapeLayerRefs(document)).toBe(0)
+    expect(document.querySelector('[' + GOOP_OVERLAY_ATTR + ']')).toBeNull()
+  })
+
+  it('splash off disables particles but keeps the edge ripple', () => {
+    const { h, rec } = setup({ splash: 'off' })
+    h.shockwave(80, 20)
+    expect(h.inspect().particles).toBe(0)
+    expect(rec.blobs.length).toBe(8) // ripple slots
+  })
+})
+
+describe('direction', () => {
+  it('a sudden pointer acceleration sloshes the goo the opposite way, then it settles', () => {
+    const { host, h } = setup()
+    const p = { x: 180, y: 120 }
+    host.dispatchEvent(mouse('pointerenter', 180, 120))
+    pump(0.1)
+    moveTo(240, 120, 6, p, 8) // jerk right
+    pump(0.05)
+    expect(h.inspect().sloshX).toBeLessThan(-1)
+    host.dispatchEvent(mouse('pointerleave', 240, 160))
+    pump(4)
+    expect(Math.abs(h.inspect().sloshX)).toBeLessThan(0.1)
+  })
+
+  it('hanging drips creep toward the cursor', () => {
+    const { host, rec } = setup({ dripInterval: 10, dripCount: 1 })
+    host.dispatchEvent(mouse('pointerenter', 130, 120)) // local x = 30
+    pump(0.05)
+    const root = rec.blobs[0]!
+    const first = root.sets[root.sets.length - 1]!.x
+    const p = { x: 130, y: 120 }
+    for (let i = 0; i < 20; i++) {
+      moveTo(130 + (i + 1) * 5.5, 120, 1, p, 20)
+      host.dispatchEvent(mouse('pointermove', p.x, 120))
+      pump(0.02)
+    }
+    pump(0.3)
+    expect(root.sets[root.sets.length - 1]!.x).toBeGreaterThan(first + 10)
+  })
 })
