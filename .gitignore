@@ -1,0 +1,17 @@
+node_modules
+dist
+.output
+.nuxt
+.nitro
+.cache
+.turbo
+.data
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+coverage
+
+# macOS AppleDouble files created on non-APFS drives
+._*

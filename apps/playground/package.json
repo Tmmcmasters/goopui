@@ -1,0 +1,17 @@
+{
+  "name": "playground",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "clean": "rm -rf .nuxt .output .turbo"
+  },
+  "dependencies": {
+    "@goopui/core": "workspace:*",
+    "nuxt": "^4.6.2",
+    "vue": "^3.5.44"
+  }
+}

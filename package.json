@@ -1,0 +1,29 @@
+{
+  "name": "goopui-monorepo",
+  "private": true,
+  "description": "goopUI — interactive gooey, dripping UI elements for Vue, React, and Svelte",
+  "packageManager": "pnpm@12.4.2",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "dev:playground": "pnpm --filter playground dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "turbo run build --filter=./packages/* && changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^3.0.3",
+    "@types/node": "^24.19.2",
+    "tsdown": "^0.23.2",
+    "turbo": "^2.11.10",
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.5"
+  }
+}
