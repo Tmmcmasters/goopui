@@ -161,7 +161,7 @@ describe('attachGoop', () => {
     expect(document.querySelector(`svg[${GOO_DEFS_ATTR}]`)).toBeNull()
     expect(host.style.isolation).toBe('auto')
     expect(activeTickerCount()).toBe(0)
-    expect(removeSpy.mock.calls.map((c) => c[0]).sort()).toEqual(['keydown', 'keyup', 'pointerdown', 'pointerenter', 'pointerleave', 'pointermove'])
+    expect(removeSpy.mock.calls.map((c) => c[0]).sort()).toEqual(['click', 'keydown', 'keyup', 'pointerdown', 'pointerenter', 'pointerleave', 'pointermove'])
     host.dispatchEvent(mouse('pointerenter'))
     document.dispatchEvent(mouse('pointerup', { bubbles: true }))
     expect(layerOf(host)).toBeNull()
@@ -303,5 +303,26 @@ describe('backlog options', () => {
     const host = makeHost()
     attach(host, { restingDrips: [0.25, 0.75] })
     expect(blobs(host).length).toBe(2 * (GOOP_PHYSICS.neckSegments + 2))
+  })
+})
+
+describe('hot renderer swap', () => {
+  it('update({ finish / renderer }) swaps the renderer in place and keeps live drips', () => {
+    stubMatchMedia()
+    const host = makeHost()
+    const h = attach(host)
+    host.dispatchEvent(mouse('pointerenter'))
+    const drips = h.inspect().drips
+    expect(drips).toBeGreaterThan(0)
+    const oldLayer = h.layer
+    h.update({ finish: 'oil' }) // oil + no explicit renderer -> canvas
+    expect(h.layer).not.toBe(oldLayer)
+    expect(oldLayer.isConnected).toBe(false)
+    expect(h.layer.querySelector('canvas')).not.toBeNull()
+    expect(h.inspect().drips).toBe(drips)
+    expect(layerOf(host)).toBe(h.layer)
+    h.update({ finish: 'solid', renderer: 'svg' })
+    expect(h.layer.style.filter).toMatch(/goop-goo-/)
+    expect(h.inspect().drips).toBe(drips)
   })
 })

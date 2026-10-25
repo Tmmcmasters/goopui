@@ -49,7 +49,9 @@
       .pill { border-radius: 9999px; }
       .icon { width: 40px; padding: 0; }
       .wide { width: 280px; }
-      .label { display: inline-flex; align-items: center; gap: 8px; transform: translate(calc(var(--goop-x, 0px) * 0.6), calc(var(--goop-y, 0px) * 0.6)); }
+      .label { display: inline-flex; align-items: center; gap: 8px; }
+      .features { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; margin: 6px 0 12px; }
+      .features label { white-space: nowrap; }
       .oil-dark { --goop-color: #1c1917; color: #fafaf9; }
       .oil-ink { --goop-color: #0a0a0a; color: #fafafa; --goop-oil-intensity: 0.5; --goop-oil-scale: 1; }
       h2.section { font-size: 15px; margin: 0 0 2px; }
@@ -118,6 +120,15 @@
     </main>
 
     <aside class="panel" aria-label="Tuning">
+      <h2>Features</h2>
+      <label>Preset
+        <select id="preset">
+          <option value="subtle">subtle</option>
+          <option value="playful" selected>playful (default)</option>
+          <option value="wild">wild</option>
+        </select>
+      </label>
+      <div class="features" id="features"></div>
       <h2>Tuning</h2>
       <div id="knobs"></div>
       <div class="toggles">
@@ -200,20 +211,28 @@
         ['oilShift', 0, 1, 0.02],
         ['oilReact', 0, 2, 0.05],
         ['maxDrips', 1, 30, 1],
+        ['gloss', 0, 1, 0.05],
+        ['taffy', 0, 2, 0.05],
+        ['taffyLength', 20, 300, 5],
+        ['reach', 0, 200, 5],
+        ['stringiness', 0, 1, 0.05],
+        ['puddleLife', 0.2, 6, 0.1],
+        ['labelRide', 0, 1, 0.05],
+        ['dripVariance', 0, 1, 0.05],
       ]
       const host = document.querySelector('main')
-      // Labels ride along with the goo body via the --goop-x / --goop-y vars (cssVars: true).
+      // Labels ride along with the goo body: the engine moves anything marked [data-goop-label].
       for (const el of document.querySelectorAll('button[data-goop]')) {
         if (el.querySelector('.label')) continue
         const span = document.createElement('span')
         span.className = 'label'
+        span.setAttribute('data-goop-label', '')
         span.append(...el.childNodes)
         el.append(span)
       }
       const handles = [...document.querySelectorAll('button[data-goop]')].map((el) =>
         attachGoop(el, {
           disabled: el.disabled,
-          cssVars: true,
           finish: el.dataset.finish,
           restingDrips: el.dataset.resting ? el.dataset.resting.split(',').map(Number) : undefined,
         }),
@@ -260,6 +279,47 @@
       })
       document.getElementById('speed').addEventListener('change', (e) => setGoopTimeScale(Number(e.target.value)))
       document.getElementById('dripAll').addEventListener('click', () => handles.forEach((h) => h.drip()))
+
+      // ---- Features: one checkbox per feature. Unchecked = the option that turns it off;
+      // checked = undefined, so the preset / CSS vars decide its strength.
+      const FEATURES = [
+        ['drips', 'Drips', { drips: false }],
+        ['inertia', 'Inertia', { inertia: 0 }],
+        ['flow', 'Flow to cursor', { flow: 0 }],
+        ['reach', 'Reach', { reach: false }],
+        ['taffy', 'Taffy pull', { taffy: false }],
+        ['shockwave', 'Shockwave', { shockwave: 0 }],
+        ['clickMass', 'Click adds goop', { clickMass: 0 }],
+        ['splash', 'Splash-through', { splashAmount: 0 }],
+        ['stringiness', 'Strings', { stringiness: 0 }],
+        ['puddles', 'Puddles', { puddles: false }],
+        ['scrollSlosh', 'Scroll slosh', { scrollSlosh: 0 }],
+        ['keyboard', 'Keyboard', { keyboard: false }],
+        ['gloss', 'Gloss', { gloss: false }],
+        ['labelRide', 'Label ride', { labelRide: false }],
+        ['idle', 'Idle breathing', { idle: false }],
+      ]
+      const featuresEl = document.getElementById('features')
+      const featureOn = {}
+      const featureOpts = () => {
+        const o = { preset: document.getElementById('preset').value }
+        for (const [key, , off] of FEATURES) {
+          for (const k of Object.keys(off)) o[k] = featureOn[key] ? undefined : off[k]
+        }
+        return o
+      }
+      const applyFeatures = () => handles.forEach((h) => h.update(featureOpts()))
+      for (const [key, label] of FEATURES) {
+        const row = document.createElement('label')
+        row.innerHTML = `<input type="checkbox" checked> ${label}`
+        featureOn[key] = true
+        row.querySelector('input').addEventListener('change', (e) => {
+          featureOn[key] = e.target.checked
+          applyFeatures()
+        })
+        featuresEl.append(row)
+      }
+      document.getElementById('preset').addEventListener('change', applyFeatures)
       document.getElementById('splash').addEventListener('change', (e) => handles.forEach((h) => h.update({ splash: e.target.value })))
       const goopEls = [...document.querySelectorAll('button[data-goop]')]
       document.getElementById('finish').addEventListener('change', (e) =>

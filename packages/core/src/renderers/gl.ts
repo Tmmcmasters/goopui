@@ -48,6 +48,8 @@ export interface GlItem {
   contrast: number
   /** Oil finish, or null for solid. */
   oil: GlOil | null
+  /** 0..1 wet-look gloss (specular + rim), independent of the finish. */
+  gloss?: number
 }
 
 /** Per-instance oil-film parameters (css px unless noted). */
@@ -134,7 +136,7 @@ void main() {
 export const MAX_TAPS = 32
 
 /** Floats per instance in the edge pass: rect4 color4 edge2 oilA4 oilB4 oilC4. */
-const EDGE_STRIDE = 22
+const EDGE_STRIDE = 23
 
 const BLUR_FS = `#version 300 es
 precision highp float;
@@ -166,6 +168,7 @@ layout(location=3) in vec2 a_edge;
 layout(location=4) in vec4 a_oilA;
 layout(location=5) in vec4 a_oilB;
 layout(location=6) in vec4 a_oilC;
+layout(location=7) in float a_gloss;
 uniform vec2 u_canvas;
 uniform float u_n;
 out vec2 v_field;
@@ -175,13 +178,14 @@ flat out vec2 v_edge;
 flat out vec4 v_oilA;
 flat out vec4 v_oilB;
 flat out vec4 v_oilC;
+flat out float v_gloss;
 void main() {
   vec2 local = a_corner * a_rect.zw;
   vec2 pos = a_rect.xy + local;
   v_field = (a_rect.xy + local) / u_n;
   v_local = local;
   v_color = a_color; v_edge = a_edge;
-  v_oilA = a_oilA; v_oilB = a_oilB; v_oilC = a_oilC;
+  v_oilA = a_oilA; v_oilB = a_oilB; v_oilC = a_oilC; v_gloss = a_gloss;
   gl_Position = vec4(pos.x / u_canvas.x * 2.0 - 1.0, 1.0 - pos.y / u_canvas.y * 2.0, 0.0, 1.0);
 }`
 
@@ -205,6 +209,7 @@ flat in vec2 v_edge;
 flat in vec4 v_oilA;
 flat in vec4 v_oilB;
 flat in vec4 v_oilC;
+flat in float v_gloss;
 out vec4 o;
 float bicubic(vec2 p) {
   vec2 t = p - 0.5;
@@ -263,7 +268,10 @@ vec3 oil(float f, vec3 base) {
   vec3 N = normalize(vec3(-g, 1.0));
   float cosV = N.z;
   float slope = 1.0 - cosV;
-  // Flowing, pointer-stretched noise in css px.
+  vec3 col = base;
+  vec3 hue = vec3(0.0);
+  if (intensity > 0.0) {
+  // Flowing noise in css px (pointer stretch only with --goop-oil-react).
   vec2 pc = v_local / k + v_oilB.xy;
   vec2 sv = v_oilB.zw;
   float sl = length(sv);
@@ -277,12 +285,13 @@ vec3 oil(float f, vec3 base) {
   float d = 260.0 + 640.0 * (nz + shift) + 420.0 * slope;
   vec3 film = thinFilm(d, cosV);
   float m = (film.r + film.g + film.b) / 3.0;
-  vec3 hue = film - m;
+  hue = film - m;
   float lum = dot(base, vec3(0.2126, 0.7152, 0.0722));
   // The film shows mostly where the surface turns away (Fresnel), faintly on flat tops.
   // Mostly at the rim (grazing angles); the flat middle keeps the base color.
   float amt = intensity * (0.08 + 0.92 * smoothstep(0.04, 0.55, slope));
-  vec3 col = base + amt * (hue * mix(0.55, 0.45, lum) + (m - 0.5) * mix(0.08, 0.04, lum));
+  col = base + amt * (hue * mix(0.55, 0.45, lum) + (m - 0.5) * mix(0.08, 0.04, lum));
+  }
   // Key light from the top-left, swung toward the pointer when it is over the goo.
   vec3 Ld = normalize(vec3(-0.45, -0.8, 0.5));
   vec3 P = vec3(v_local / k, 0.0);
@@ -291,7 +300,17 @@ vec3 oil(float f, vec3 base) {
   vec3 H = normalize(L + vec3(0.0, 0.0, 1.0));
   float nh = max(dot(N, H), 0.0);
   float spec = pow(nh, 70.0) * 0.6 + pow(nh, 9.0) * 0.07;
-  col += spec * (0.4 + 0.6 * intensity) * (vec3(1.0) + hue * 0.6);
+  if (intensity > 0.0) col += spec * (0.4 + 0.6 * intensity) * (vec3(1.0) + hue * 0.6);
+  // Wet gloss: Blinn-Phong from a fixed top-left light + a gentle fresnel rim (darker on the
+  // side facing away from the light, a touch lighter on the lit rim).
+  if (v_gloss > 0.0) {
+    float sharp = pow(nh, 48.0) * 0.75 + pow(nh, 7.0) * 0.12;
+    float fres = pow(slope, 1.6);
+    float facing = dot(normalize(N.xy + 1e-5), normalize(Ld.xy));
+    col += sharp * v_gloss;
+    col *= 1.0 - v_gloss * 0.28 * fres * clamp(0.5 - 0.5 * facing, 0.0, 1.0);
+    col += v_gloss * 0.06 * fres * clamp(facing, 0.0, 1.0);
+  }
   return clamp(col, 0.0, 1.0);
 }
 void main() {
@@ -300,7 +319,7 @@ void main() {
   float t0 = v_edge.x + 0.5 / c;
   float w = max(1.0 / c, fwidth(f));
   float a = clamp((f - t0) / w + 0.5, 0.0, 1.0);
-  if (v_oilA.x <= 0.0 || a <= 0.0) { o = v_color * a; return; }
+  if ((v_oilA.x <= 0.0 && v_gloss <= 0.0) || a <= 0.0) { o = v_color * a; return; }
   vec3 base = v_color.rgb / max(v_color.a, 1e-4);
   o = vec4(oil(f, base), 1.0) * (v_color.a * a);
 }`
@@ -435,7 +454,7 @@ export class GlGooEngine {
     this.sceneBuf = gl.createBuffer()!
     this.edgeBuf = gl.createBuffer()!
     this.sceneVao = vao(this.sceneBuf, [4, 4, 4])
-    this.edgeVao = vao(this.edgeBuf, [4, 4, 2, 4, 4, 4])
+    this.edgeVao = vao(this.edgeBuf, [4, 4, 2, 4, 4, 4, 1])
     this.emptyVao = gl.createVertexArray()!
     this.targets = []
     this.texW = 0
@@ -596,6 +615,7 @@ export class GlGooEngine {
         ed.fill(0, o + 10, o + EDGE_STRIDE)
         ed[o + 20] = 1
       }
+      ed[o + 22] = it.gloss ?? 0
     }
     gl.bindFramebuffer(gl.FRAMEBUFFER, null)
     const W = this.canvas.width

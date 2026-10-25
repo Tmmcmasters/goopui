@@ -7,6 +7,7 @@ import {
   GOOP_PHYSICS,
   escapeLayerRefs,
   gooVanishRadius,
+  readTuning,
   attachGoop,
   createSvgFilterRenderer,
   trackPointer,
@@ -33,7 +34,7 @@ function pump(seconds: number, fps = 60, each?: () => void) {
 // ---- recording renderer ------------------------------------------------------
 interface BlobRec {
   sets: { x: number; y: number; r: number; o: number; frame: number }[]
-  removedAt: { r: number; o: number } | null
+  removedAt: { r: number; o: number; x: number; y: number; frame: number } | null
 }
 let frameNo = 0
 function recordingRenderer() {
@@ -64,7 +65,9 @@ function recordingRenderer() {
           },
           remove() {
             const last = rec.sets[rec.sets.length - 1]
-            rec.removedAt = last ? { r: last.r, o: last.o } : { r: 0, o: 0 }
+            rec.removedAt = last
+              ? { r: last.r, o: last.o, x: last.x, y: last.y, frame: frameNo }
+              : { r: 0, o: 0, x: 0, y: 0, frame: frameNo }
             inner.remove()
           },
         }
@@ -84,11 +87,19 @@ const vis = (s: { r: number; o: number }) => (s.o > 0.02 ? Math.sqrt(Math.max(0,
 /** Assert no circle changes visible size by more than `maxJump` px between frames,
  *  and none is removed while still visible. */
 function expectContinuous(blobs: BlobRec[], maxJump = 2.2) {
+  // Hand-offs (a drop landing becomes a puddle) swap circles in the same frame at the same
+  // spot: the old one goes to 0 while a new one appears there with the same size.
+  const handedOff = (frame: number, x: number, y: number, r: number): boolean =>
+    blobs.some((o) => {
+      const f = o.sets[0]
+      return !!f && f.frame === frame && Math.abs(f.x - x) < 3 && Math.abs(f.y + f.r - (y + r)) < r + 3 && Math.abs(f.r - r) < 1
+    })
   for (const b of blobs) {
     for (let i = 1; i < b.sets.length; i++) {
       const a = b.sets[i - 1]!
       const c = b.sets[i]!
       if (c.frame - a.frame > 1) continue // not drawn in between (delay) - first draw starts at 0 anyway
+      if (c.r === 0 && a.r > 0 && handedOff(c.frame, a.x, a.y, a.r)) continue
       // Root circles sit on the body edge and merge into it: no threshold, compare raw size.
       const onEdge = Math.abs(a.y - 40) < 3 && (c.r === 0 || Math.abs(c.y - 40) < 3)
       if (onEdge) {
@@ -97,7 +108,9 @@ function expectContinuous(blobs: BlobRec[], maxJump = 2.2) {
       }
       expect(Math.abs(vis(c) - vis(a)), `radius jump in frame ${c.frame}: ${JSON.stringify(a)} -> ${JSON.stringify(c)}`).toBeLessThan(maxJump)
     }
-    if (b.removedAt) expect(vis(b.removedAt), 'removed while visible').toBeLessThan(0.5)
+    const ra = b.removedAt
+    if (ra && !(ra.r > 0 && handedOff(ra.frame, ra.x, ra.y, ra.r)))
+      expect(vis(ra), 'removed while visible').toBeLessThan(0.5)
   }
 }
 
@@ -492,5 +505,223 @@ describe('oil film ignores the mouse by default', () => {
     const sh = run(1)
     expect(sh.some((s) => s.vx !== 0)).toBe(true)
     expect(Math.max(...sh.map((s) => s.swirl))).toBeGreaterThan(GOOP_PHYSICS.oilSwirl + 0.03)
+  })
+})
+
+// ---- round 4: features, presets, toggles ---------------------------------------------------
+
+describe('presets and precedence (option > CSS var > preset > default)', () => {
+  it('preset sets defaults; CSS beats preset; option beats CSS; true forces a feature on', () => {
+    const host = makeHost()
+    expect(readTuning(host, {}, 'subtle').taffy).toBe(0)
+    expect(readTuning(host, {}, 'wild').taffy).toBe(1.5)
+    expect(readTuning(host, {}, 'playful').taffy).toBe(GOOP_DEFAULTS.taffy)
+    host.style.setProperty('--goop-taffy', '0.7')
+    expect(readTuning(host, {}, 'subtle').taffy).toBe(0.7)
+    expect(readTuning(host, { taffy: 0.2 }, 'subtle').taffy).toBe(0.2)
+    host.style.removeProperty('--goop-taffy')
+    const h = attachGoop(host, { preset: 'subtle', taffy: true })
+    handles.push(h)
+    expect(h.tuning.taffy).toBe(GOOP_DEFAULTS.taffy)
+    expect(h.inspect().preset).toBe('subtle')
+    expect(h.inspect().splash).toBe('off')
+  })
+
+  it('--goop-preset is read from CSS; the option wins', () => {
+    const host = makeHost()
+    host.style.setProperty('--goop-preset', 'wild')
+    const a = attachGoop(host)
+    handles.push(a)
+    expect(a.inspect().preset).toBe('wild')
+    expect(a.inspect().splash).toBe('escape')
+    a.update({ preset: 'subtle' })
+    expect(a.inspect().preset).toBe('subtle')
+  })
+})
+
+describe('taffy pull', () => {
+  const press = (host: HTMLElement, x: number, y: number) =>
+    host.dispatchEvent(new PointerEvent('pointerdown', { pointerType: 'mouse', pointerId: 1, button: 0, clientX: x, clientY: y, bubbles: true }))
+  const move = (host: HTMLElement, x: number, y: number) =>
+    host.dispatchEvent(new PointerEvent('pointermove', { pointerType: 'mouse', pointerId: 1, clientX: x, clientY: y, bubbles: true }))
+  const up = (host: HTMLElement, x: number, y: number) =>
+    host.dispatchEvent(new PointerEvent('pointerup', { pointerType: 'mouse', pointerId: 1, clientX: x, clientY: y, bubbles: true }))
+  const clicked = (host: HTMLElement) => {
+    const fn = vi.fn()
+    host.addEventListener('click', fn)
+    host.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    host.removeEventListener('click', fn)
+    return fn.mock.calls.length
+  }
+
+  it('dragging off while pressed pulls a string; past the max length it snaps, drops goo, and no click fires', () => {
+    const { host, h } = setup({ taffyLength: 60 })
+    press(host, 180, 120)
+    for (let i = 1; i <= 12; i++) {
+      move(host, 180, 140 + i * 8) // down and away, beyond 60px
+      pump(0.03)
+      if (i === 3) expect(h.inspect().taffy).toBe('pulling')
+    }
+    expect(h.inspect().taffy).toBe('retracting') // snapped
+    expect(h.inspect().particles).toBeGreaterThan(0) // the far blob became a drop
+    up(host, 180, 236)
+    expect(clicked(host)).toBe(0)
+    pump(2)
+    expect(h.inspect().taffy).toBe('none')
+  })
+
+  it('release before the snap retracts springily; released outside = no click; inside = click', () => {
+    const { host, h } = setup({ taffyLength: 200 })
+    press(host, 180, 120)
+    move(host, 180, 160)
+    pump(0.1)
+    expect(h.inspect().taffy).toBe('pulling')
+    up(host, 180, 160)
+    expect(clicked(host)).toBe(0)
+    expect(h.inspect().taffy).toBe('retracting')
+    pump(2)
+    expect(h.inspect().taffy).toBe('none')
+    press(host, 180, 120)
+    up(host, 182, 121)
+    expect(clicked(host)).toBe(1)
+  })
+
+  it('taffy: false never pulls', () => {
+    const { host, h, rec } = setup({ taffy: false })
+    const before = rec.blobs.length
+    press(host, 180, 120)
+    for (let i = 1; i <= 6; i++) {
+      move(host, 180, 140 + i * 10)
+      pump(0.03)
+    }
+    expect(h.inspect().taffy).toBe('none')
+    up(host, 180, 200)
+    expect(rec.blobs.length - before).toBeLessThan(10) // only click-free: no string circles
+  })
+})
+
+describe('reach', () => {
+  const near = (x: number, y: number) => {
+    const p = { x: x - 40, y }
+    clock += 500
+    moveTo(p.x, p.y, 1, p)
+    moveTo(x, y, 6, p, 16)
+  }
+
+  it('bulges only when the pointer is within the radius', () => {
+    const { h } = setup({ reach: 60 })
+    near(180, 40) // host top is y=100: 60px away, outside the radius
+    pump(0.3)
+    expect(h.inspect().reach).toBe(0)
+    near(180, 75) // 25px away
+    pump(0.3)
+    expect(h.inspect().reach).toBeGreaterThan(0.1)
+    near(180, 20) // move away again
+    pump(1)
+    expect(h.inspect().reach).toBeLessThan(0.01)
+  })
+
+  it('reach: false disables it completely', () => {
+    const { h } = setup({ reach: false })
+    near(180, 85)
+    pump(0.3)
+    expect(h.inspect().reach).toBe(0)
+  })
+})
+
+describe('puddles', () => {
+  it('drops pool on the floor, spread, drain to nothing without pops', () => {
+    const { h, rec } = setup({ dripInterval: 10 })
+    h.drip(80)
+    let seen = 0
+    pump(6, 60, () => (seen = Math.max(seen, h.inspect().puddles)))
+    expect(seen).toBeGreaterThan(0)
+    expect(h.inspect().puddles).toBe(0)
+    expectContinuous(rec.blobs)
+  })
+
+  it('puddles: false: drops just drain in the air', () => {
+    const { h } = setup({ puddles: false })
+    h.drip(80)
+    let seen = 0
+    pump(4, 60, () => (seen = Math.max(seen, h.inspect().puddles)))
+    expect(seen).toBe(0)
+  })
+})
+
+describe('gloss, label ride, keyboard toggles', () => {
+  it('gloss on adds the static shading to the filter; off is the plain goo filter', () => {
+    const on = setup({ renderer: createSvgFilterRenderer })
+    expect(on.h.layer.style.filter).toMatch(/-g0_/)
+    const off = setup({ gloss: false, renderer: createSvgFilterRenderer })
+    expect(off.h.layer.style.filter).not.toMatch(/-g\d/)
+  })
+
+  it('label ride moves [data-goop-label] content with the body, and not at all when off', () => {
+    const run = (labelRide: boolean) => {
+      const { host } = setup({ labelRide })
+      const label = document.createElement('span')
+      label.setAttribute('data-goop-label', '')
+      host.append(label)
+      handles[handles.length - 1]!.update()
+      let moved = false
+      host.dispatchEvent(mouse('pointerdown', 180, 120))
+      pump(0.1, 60, () => (moved ||= label.style.transform !== ''))
+      host.dispatchEvent(mouse('pointerup', 180, 120))
+      pump(3)
+      return { moved, rest: label.style.transform }
+    }
+    const on = run(true)
+    expect(on.moved).toBe(true)
+    expect(on.rest).toBe('')
+    expect(run(false).moved).toBe(false)
+  })
+
+  it('keyboard: false ignores Space/Enter', () => {
+    const { host, h } = setup({ keyboard: false })
+    host.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }))
+    expect(h.inspect().pressed).toBe(false)
+    const b = setup()
+    b.host.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }))
+    expect(b.h.inspect().pressed).toBe(true)
+  })
+})
+
+describe('resting drip variance', () => {
+  const bulbs = (opts: Parameters<typeof attachGoop>[1]) => {
+    const { rec, h } = setup(opts)
+    const per = GOOP_PHYSICS.neckSegments + 2
+    const out: { x: number; y: number; r: number }[] = []
+    for (let i = per - 1; i < rec.blobs.length; i += per) {
+      const s = rec.blobs[i]!.sets[0]!
+      out.push({ x: s.x, y: s.y, r: s.r })
+    }
+    h.destroy()
+    return out
+  }
+
+  it('variance 0: identical, evenly spaced nubs', () => {
+    const b = bulbs({ restingDrips: 3, dripVariance: 0, idle: false })
+    expect(b).toHaveLength(3)
+    expect(new Set(b.map((p) => p.r.toFixed(3))).size).toBe(1)
+    expect(new Set(b.map((p) => p.y.toFixed(3))).size).toBe(1)
+    const gaps = [b[1]!.x - b[0]!.x, b[2]!.x - b[1]!.x].map((g) => Math.abs(g))
+    expect(Math.abs(gaps[0]! - gaps[1]!)).toBeLessThan(0.01)
+  })
+
+  it('default: different lengths and sizes, deterministic per element', () => {
+    const a = bulbs({ restingDrips: 3, idle: false })
+    expect(new Set(a.map((p) => p.y.toFixed(1))).size).toBe(3) // three different hang lengths
+    expect(new Set(a.map((p) => p.r.toFixed(2))).size).toBeGreaterThan(1)
+    const again = bulbs({ restingDrips: 3, idle: false })
+    expect(again).toEqual(a) // same markup -> same layout (SSR / re-render safe)
+    const seeded = bulbs({ restingDrips: 3, idle: false, seed: 42 })
+    expect(seeded).not.toEqual(a)
+  })
+
+  it('accepts exact { x, size, length } specs', () => {
+    const b = bulbs({ restingDrips: [{ x: 0.5, size: 1, length: 1 }], dripVariance: 0, idle: false })
+    expect(b).toHaveLength(1)
+    expect(b[0]!.x).toBeCloseTo(80, 0)
   })
 })

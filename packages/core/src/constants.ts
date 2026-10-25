@@ -6,6 +6,40 @@
 //                   via attachGoop(el, { ... }). Precedence: JS option > CSS var > default.
 //   GOOP_PHYSICS  : engine-level constants (spring feel, timings, shape ratios). Not
 //                   exposed as CSS vars; edit here while dialing in the feel.
+//
+// Precedence everywhere: JS option > `--goop-*` CSS var > preset (GOOP_PRESETS) > default.
+//
+// ---- features ------------------------------------------------------------------------------
+// Every feature is individually toggleable and tunable. "Off" = the option/var value that
+// disables it. Cost = extra work when it is ON (everything sleeps when nothing moves).
+//
+// feature          option (off)              CSS var                     default  cost
+// drips            drips (false)             --goop-drip-count (0)       3        low: <=8 circles/drip
+// rhythm           dripInterval              --goop-drip-interval        0.9s     none (timer)
+// click mass       clickMass (0)             --goop-click-mass           0.35     low
+// squish           squish (0)                --goop-squish               0.08     none
+// inertia/slosh    inertia (0)               --goop-inertia              1        none (one spring)
+// flow to cursor   flow (0)                  --goop-flow                 1        none
+// pointer jelly    reactivity (0)            --goop-reactivity           1        none
+// scroll slosh     scrollSlosh (0)           --goop-scroll-slosh         1        low: 1 shared scroll listener
+// tilt             tilt (false, opt-in)      --goop-tilt                 1        low: 1 shared listener
+// keyboard         keyboard (false)          --goop-keyboard (0)         1        none
+// splash-through   splashAmount (0)          --goop-splash-amount        1        med: <=28 particles/burst
+//   reach mode     splash ('off')            --goop-splash               near     escape: shared overlay
+// shockwave        shockwave (0)             --goop-shockwave            1        med: <=22 particles + 8 circles
+// oiliness         oiliness                  --goop-oiliness             0.65     none (fluid params)
+// strings          stringiness (0)           --goop-stringiness          0.5      low: 1 bond/particle
+// puddles          puddles (false)           --goop-puddles (0)          1        low: 1 circle/puddle
+// gloss            gloss (false)             --goop-gloss (0)            0.6      SVG: static filter prims;
+//                                                                                 canvas: shader branch
+// taffy pull       taffy (false)             --goop-taffy (0)            1        low: <=24 circles while held
+// reach            reach (false)             --goop-reach (0, px)        60       low: 2 circles, wakes only
+//                                                                                 within radius, on screen
+// label ride       labelRide (false)         --goop-label-ride (0)       0.6      low: 1 transform write/frame
+// finish (oil)     finish ('solid')          --goop-finish               solid    canvas: ~free; SVG: static
+//
+// Presets ('subtle' | 'playful' | 'wild', option `preset` or `--goop-preset`) only change
+// the defaults column; see GOOP_PRESETS at the bottom of this file.
 
 /** Per-element tuning knobs. Every field maps 1:1 to a `--goop-*` CSS custom property. */
 export interface GoopTuning {
@@ -72,6 +106,33 @@ export interface GoopTuning {
   tiltStrength: number
   /** `--goop-max-drips`. Cap on live drips for this element (wide edges can raise it). */
   maxDrips: number
+  /** `--goop-gloss` (0..1). Wet look: soft top-left specular + rim shading. 0 = flat color. */
+  gloss: number
+  /** `--goop-taffy` (0..2). Press and drag off the element to pull a goo string. 0 disables. */
+  taffy: number
+  /** `--goop-taffy-length` (px). Max string length past the edge before it snaps. */
+  taffyLength: number
+  /** `--goop-reach` (px). The nearest edge bulges toward a pointer within this distance,
+   *  before contact. 0 disables. */
+  reach: number
+  /** `--goop-stringiness` (0..1). Splash particles stay chained so oil splashes form long
+   *  tendrils that thin and snap. 0 = no chains (clumps / spray only). */
+  stringiness: number
+  /** `--goop-puddles` (0/1). Falling drops pool on the floor (bottom of the padded layer in
+   *  'near' mode, viewport bottom in 'escape' mode), spread flat, then drain. */
+  puddles: number
+  /** `--goop-puddle-life` (s). How long a puddle lasts before it has fully drained. */
+  puddleLife: number
+  /** `--goop-label-ride` (0..1). How much elements marked `[data-goop-label]` inside the host
+   *  follow the body's jelly (translate / skew / squash). 0 disables. */
+  labelRide: number
+  /** `--goop-keyboard` (0/1). Space/Enter squish from the top + goop. Same as `keyboard`. */
+  keyboard: number
+  /** `--goop-drip-variance` (0..1). How different drips are from each other: length, bulb
+   *  size, neck, and (resting drips) position jitter. 0 = uniform. */
+  dripVariance: number
+  /** `--goop-idle` (0/1). Resting drips breathe with a very slow, tiny swell. */
+  idle: number
 }
 
 
@@ -106,6 +167,17 @@ export const GOOP_DEFAULTS: Readonly<GoopTuning> = Object.freeze({
   scrollSlosh: 1,
   tiltStrength: 1,
   maxDrips: 10,
+  gloss: 0.6,
+  taffy: 1,
+  taffyLength: 90,
+  reach: 60,
+  stringiness: 0.5,
+  puddles: 1,
+  puddleLife: 1.4,
+  labelRide: 0.6,
+  keyboard: 1,
+  dripVariance: 0.6,
+  idle: 1,
 })
 
 /** CSS custom property name for each tuning knob. */
@@ -134,6 +206,17 @@ export const GOOP_CSS_VARS: Readonly<Record<keyof GoopTuning, string>> = Object.
   scrollSlosh: '--goop-scroll-slosh',
   tiltStrength: '--goop-tilt',
   maxDrips: '--goop-max-drips',
+  gloss: '--goop-gloss',
+  taffy: '--goop-taffy',
+  taffyLength: '--goop-taffy-length',
+  reach: '--goop-reach',
+  stringiness: '--goop-stringiness',
+  puddles: '--goop-puddles',
+  puddleLife: '--goop-puddle-life',
+  labelRide: '--goop-label-ride',
+  keyboard: '--goop-keyboard',
+  dripVariance: '--goop-drip-variance',
+  idle: '--goop-idle',
 })
 
 /** Sanity clamps applied after reading CSS / options, so a bad value can't explode the sim. */
@@ -162,6 +245,85 @@ export const GOOP_LIMITS: Readonly<Record<keyof GoopTuning, readonly [number, nu
   scrollSlosh: [-3, 3],
   tiltStrength: [0, 3],
   maxDrips: [0, 48],
+  gloss: [0, 1],
+  taffy: [0, 2],
+  taffyLength: [20, 400],
+  reach: [0, 300],
+  stringiness: [0, 1],
+  puddles: [0, 1],
+  puddleLife: [0.2, 10],
+  labelRide: [0, 1],
+  keyboard: [0, 1],
+  dripVariance: [0, 1],
+  idle: [0, 1],
+})
+
+// ---- presets --------------------------------------------------------------------------
+//
+// `preset: 'subtle' | 'playful' | 'wild'` (or `--goop-preset`) replaces the defaults above
+// for the knobs it lists. Precedence: JS option > CSS var > preset > GOOP_DEFAULTS.
+// 'playful' is the default and equals GOOP_DEFAULTS.
+
+export type GoopPreset = 'subtle' | 'playful' | 'wild'
+export const GOOP_PRESET_VAR = '--goop-preset'
+export const GOOP_DEFAULT_PRESET: GoopPreset = 'playful'
+
+export interface GoopPresetValues {
+  tuning: Partial<GoopTuning>
+  splash: GoopSplashMode
+}
+
+export const GOOP_PRESETS: Readonly<Record<GoopPreset, GoopPresetValues>> = Object.freeze({
+  /** Calm enough for a dense dashboard: one slow drip, small reactions, no flying goo. */
+  subtle: {
+    splash: 'off',
+    tuning: {
+      dripCount: 1,
+      dripInterval: 2.2,
+      reactivity: 0.45,
+      inertia: 0.5,
+      flow: 0.4,
+      squish: 0.05,
+      clickMass: 0.12,
+      shockwave: 0.35,
+      splashAmount: 0,
+      scrollSlosh: 0,
+      gloss: 0.35,
+      taffy: 0,
+      reach: 0,
+      stringiness: 0,
+      puddles: 0,
+      labelRide: 0.3,
+    },
+  },
+  /** The default: everything on at shadcn-friendly strengths. */
+  playful: { splash: 'near', tuning: {} },
+  /** Hero sections: big, fast, sloppy. Splashes escape across the page. */
+  wild: {
+    splash: 'escape',
+    tuning: {
+      dripCount: 5,
+      dripInterval: 0.5,
+      reactivity: 1.6,
+      inertia: 1.6,
+      flow: 1.3,
+      squish: 0.12,
+      clickMass: 0.5,
+      shockwave: 2,
+      splashAmount: 2,
+      splashThreshold: 0.7,
+      oiliness: 0.85,
+      stringiness: 1,
+      scrollSlosh: 1.5,
+      gloss: 0.9,
+      taffy: 1.5,
+      taffyLength: 150,
+      reach: 90,
+      puddles: 1,
+      puddleLife: 2.2,
+      labelRide: 0.8,
+    },
+  },
 })
 
 /**
@@ -333,6 +495,32 @@ export const GOOP_PHYSICS = Object.freeze({
   oilDrift: 6,
   /** Resting film swirl (contour bend); pointer speed adds to it only with --goop-oil-react. */
   oilSwirl: 0.3,
+
+  // ---- resting drips: idle breathing ---------------------------------------------
+  /** Breathing swell amplitude (fraction) and period (s). Redrawn at idleFps only. */
+  idleSwell: 0.07,
+  idlePeriod: 3.6,
+  idleFps: 12,
+
+  // ---- puddles / strings / taffy / reach / gloss ---------------------------------
+  /** Flattest a puddle gets (minor/major radius ratio before area-preserving spread). */
+  puddleFlatten: 0.5,
+  /** Chain bonds (stringiness): stiffness per 1/60 s at stringiness 1, and the stretch
+   *  factor at which a bond snaps (rest x (2 + this x stringiness)). */
+  bondStiffness: 0.35,
+  bondBreak: 6,
+  /** Taffy: string circle count, sag (px at full length), recoil spring, follow lag (s). */
+  taffySegments: 9,
+  taffySag: 10,
+  taffyFollow: 0.06,
+  taffySpring: { response: 0.32, dampingRatio: 0.42 } as SpringFeel,
+  /** Touch long-press before taffy can start (s). */
+  taffyLongPress: 0.35,
+  /** Reach: bulge length (px) at full strength, blob radius (x dripSize), speed boost. */
+  reachBulge: 9,
+  reachSize: 1.25,
+  reachSpeedBoost: 0.6,
+  reachSpring: { response: 0.22, dampingRatio: 0.65 } as SpringFeel,
 
   // ---- particle fluid (splash-through + shockwave) ---------------------------
   /** Hard caps: particles per element, and across the whole page (all elements + overlay). */

@@ -23,6 +23,7 @@ interface Tracker {
   t: number
   has: boolean
   refs: number
+  subs: Set<() => void>
   stop: () => void
 }
 
@@ -60,21 +61,23 @@ export interface PointerTracker {
 }
 
 /** Subscribe to the document's shared pointer tracker. */
-export function trackPointer(doc: Document): PointerTracker {
+export function trackPointer(doc: Document, onMove?: () => void): PointerTracker {
   let tr = trackers.get(doc)
   if (!tr) {
-    const t: Tracker = { x: 0, y: 0, vx: 0, vy: 0, t: 0, has: false, refs: 0, stop: () => {} }
-    const onMove = (e: PointerEvent): void => {
+    const t: Tracker = { x: 0, y: 0, vx: 0, vy: 0, t: 0, has: false, refs: 0, subs: new Set(), stop: () => {} }
+    const onEvt = (e: PointerEvent): void => {
       if (e.pointerType === 'touch') return
       feed(t, e.clientX, e.clientY, now())
+      for (const f of Array.from(t.subs)) f()
     }
-    doc.addEventListener('pointermove', onMove, { capture: true, passive: true })
-    t.stop = () => doc.removeEventListener('pointermove', onMove, { capture: true })
+    doc.addEventListener('pointermove', onEvt, { capture: true, passive: true })
+    t.stop = () => doc.removeEventListener('pointermove', onEvt, { capture: true })
     trackers.set(doc, t)
     tr = t
   }
   const t = tr
   t.refs++
+  if (onMove) t.subs.add(onMove)
   let live = true
   return {
     feed(e) {
@@ -91,6 +94,7 @@ export function trackPointer(doc: Document): PointerTracker {
     release() {
       if (!live) return
       live = false
+      if (onMove) t.subs.delete(onMove)
       t.refs--
       if (t.refs <= 0) {
         t.stop()
