@@ -13,6 +13,15 @@ export interface GoopLayerPadding {
   bottom: number
 }
 
+/** Body pose around the body's center: translate(tx, ty), then skewX(skew deg), then scale(sx, sy). */
+export interface GoopBodyTransform {
+  tx: number
+  ty: number
+  skew: number
+  sx: number
+  sy: number
+}
+
 /** One round goo primitive (a drip bulb, neck segment, or drop). */
 export interface GoopBlob {
   /** Center (x, y) in host space, radius r (px). sx/sy stretch the circle (default 1). */
@@ -27,6 +36,9 @@ export interface GoopRenderer {
   setPadding(padding: GoopLayerPadding): void
   /** Scale the body shape around its center. */
   setBodyScale(sx: number, sy: number): void
+  /** Optional, additive: full body pose (jelly lean / skew / squash). When a renderer omits
+   *  it, the sim falls back to setBodyScale(sx, sy) and drops translate/skew. */
+  setBodyTransform?(t: GoopBodyTransform): void
   createBlob(): GoopBlob
   /** Called once per sim frame after all blobs are set (a canvas renderer draws here). */
   flush(): void
@@ -105,6 +117,16 @@ export function createSvgFilterRenderer(host: HTMLElement, params: GooFilterPara
     setPadding,
     setBodyScale(sx, sy) {
       const t = sx === 1 && sy === 1 ? '' : `scale(${sx.toFixed(4)},${sy.toFixed(4)})`
+      if (t === bodyTransform) return
+      bodyTransform = t
+      body.style.transform = t
+    },
+    setBodyTransform({ tx, ty, skew, sx, sy }) {
+      const parts: string[] = []
+      if (Math.abs(tx) > 0.005 || Math.abs(ty) > 0.005) parts.push(`translate(${fmt(tx)}px,${fmt(ty)}px)`)
+      if (Math.abs(skew) > 0.01) parts.push(`skewX(${skew.toFixed(2)}deg)`)
+      if (sx !== 1 || sy !== 1) parts.push(`scale(${sx.toFixed(4)},${sy.toFixed(4)})`)
+      const t = parts.join(' ')
       if (t === bodyTransform) return
       bodyTransform = t
       body.style.transform = t

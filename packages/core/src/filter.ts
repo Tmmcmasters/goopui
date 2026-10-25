@@ -48,6 +48,20 @@ export function gooColorMatrix(params: GooFilterParams): string {
 }
 
 /**
+ * Radius (px) below which a lone circle disappears under the goo filter.
+ * A disc of radius r blurred by sigma has center alpha 1 - exp(-r^2 / (2 sigma^2)); it is
+ * visible while that clears the edge level (threshold + 0.5 / contrast). Near this radius the
+ * visible size collapses very steeply, so free-floating circles must approach it gently
+ * (see DripField) or they "pop" out instead of shrinking away.
+ */
+export function gooVanishRadius(params: GooFilterParams): number {
+  const p = normalize(params)
+  if (p.blur <= 0) return 0
+  const edge = Math.min(0.999, p.threshold + (p.contrast > 0 ? 0.5 / p.contrast : 0))
+  return p.blur * Math.sqrt(-2 * Math.log(1 - edge))
+}
+
+/**
  * Pure markup for one goo filter (useful for SSR output or snapshot tests).
  * Pipeline: blur the source -> crush alpha to a hard-ish edge (the "goo") -> draw the
  * original pixels atop that shape so color/gradients come from the source, not the blur.

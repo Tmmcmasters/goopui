@@ -160,7 +160,7 @@ describe('attachGoop', () => {
     expect(document.querySelector(`svg[${GOO_DEFS_ATTR}]`)).toBeNull()
     expect(host.style.isolation).toBe('auto')
     expect(activeTickerCount()).toBe(0)
-    expect(removeSpy.mock.calls.map((c) => c[0]).sort()).toEqual(['pointerdown', 'pointerenter', 'pointerleave'])
+    expect(removeSpy.mock.calls.map((c) => c[0]).sort()).toEqual(['pointerdown', 'pointerenter', 'pointerleave', 'pointermove'])
     host.dispatchEvent(mouse('pointerenter'))
     document.dispatchEvent(mouse('pointerup', { bubbles: true }))
     expect(layerOf(host)).toBeNull()

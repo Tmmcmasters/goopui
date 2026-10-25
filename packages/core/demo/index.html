@@ -68,7 +68,7 @@
   <body>
     <main>
       <h1>goopUI core: drip feel check</h1>
-      <p class="lead">Hover to drip (hold to see a detach), press to squish, tap on touch. Sliders write <code>--goop-*</code> vars on <code>&lt;main&gt;</code> and call <code>update()</code>.</p>
+      <p class="lead">Swipe in fast from different angles, hover and wiggle, click repeatedly to add goop, then flick out downward. Tap on touch. Sliders write <code>--goop-*</code> vars on <code>&lt;main&gt;</code> and call <code>update()</code>.</p>
 
       <div class="row">
         <button class="btn primary" data-goop>Button</button>
@@ -103,8 +103,15 @@
           <button class="plain" id="reset">Reset knobs</button>
         </div>
       </div>
+      <h2 style="margin-top:12px">Driving it</h2>
+      <label><input type="checkbox" id="showTrail" checked /> Pointer trail</label>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+        <canvas id="vec" width="120" height="120" style="width:60px;height:60px" aria-label="Pointer velocity"></canvas>
+        <pre id="readout" style="flex:1;margin:0"></pre>
+      </div>
       <pre id="css"></pre>
     </aside>
+    <canvas id="trail" aria-hidden="true" style="position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:20"></canvas>
 
     <script type="module">
       import { attachGoop, GOOP_DEFAULTS, GOOP_CSS_VARS, setGoopTimeScale } from '../dist/index.mjs'
@@ -121,6 +128,10 @@
         ['gravity', 100, 4000, 50],
         ['squish', 0, 0.3, 0.01],
         ['restingDrips', 0, 4, 1],
+        ['dripInterval', 0.1, 3, 0.05],
+        ['reactivity', 0, 3, 0.05],
+        ['clickMass', 0, 1, 0.05],
+        ['massDecay', 0.2, 5, 0.1],
       ]
       const host = document.querySelector('main')
       const handles = [...document.querySelectorAll('[data-goop]')].map((el) =>
@@ -168,6 +179,57 @@
       })
       document.getElementById('speed').addEventListener('change', (e) => setGoopTimeScale(Number(e.target.value)))
       document.getElementById('dripAll').addEventListener('click', () => handles.forEach((h) => h.drip()))
+
+      // ---- what's driving it: live readout + pointer trail -------------------------
+      const readout = document.getElementById('readout')
+      const vec = document.getElementById('vec').getContext('2d')
+      const trailCanvas = document.getElementById('trail')
+      const trail = trailCanvas.getContext('2d')
+      const showTrail = document.getElementById('showTrail')
+      const pts = []
+      document.addEventListener('pointermove', (e) => pts.push({ x: e.clientX, y: e.clientY, t: performance.now() }), { passive: true })
+      const fit = () => {
+        trailCanvas.width = innerWidth * devicePixelRatio
+        trailCanvas.height = innerHeight * devicePixelRatio
+      }
+      fit()
+      addEventListener('resize', fit)
+      const fmt = (n) => (Number.isFinite(n) ? n.toFixed(Math.abs(n) < 10 ? 2 : 0) : '-')
+      ;(function frame() {
+        const active = handles.find((h) => h.inspect().hovered) ?? handles[0]
+        const s = active.inspect()
+        readout.textContent =
+          `hovered  ${s.hovered}${s.pressed ? ' (pressed)' : ''}\n` +
+          `velocity ${fmt(s.vx)}, ${fmt(s.vy)} px/s\n` +
+          `speed    ${fmt(s.speed)} (1 = fast)\n` +
+          `mass     ${fmt(s.mass)}\n` +
+          `drips    ${s.drips}   next in ${fmt(s.nextDrip)}s`
+        // velocity vector
+        const W = 120, H = 120
+        vec.clearRect(0, 0, W, H)
+        vec.strokeStyle = '#e4e4e7'
+        vec.beginPath(); vec.arc(W / 2, H / 2, 50, 0, Math.PI * 2); vec.stroke()
+        vec.strokeStyle = '#dc2626'
+        vec.lineWidth = 3
+        const k = 50 / 2400
+        vec.beginPath(); vec.moveTo(W / 2, H / 2); vec.lineTo(W / 2 + s.vx * k, H / 2 + s.vy * k); vec.stroke()
+        vec.lineWidth = 1
+        // trail of the last 400ms, thicker = faster
+        const now = performance.now()
+        while (pts.length && now - pts[0].t > 400) pts.shift()
+        trail.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0)
+        trail.clearRect(0, 0, innerWidth, innerHeight)
+        if (showTrail.checked) {
+          for (let i = 1; i < pts.length; i++) {
+            const a = pts[i - 1], b = pts[i]
+            const v = Math.hypot(b.x - a.x, b.y - a.y) / Math.max(1, b.t - a.t) * 1000
+            trail.strokeStyle = `rgba(220, 38, 38, ${1 - (now - b.t) / 400})`
+            trail.lineWidth = 1 + Math.min(6, v / 400)
+            trail.beginPath(); trail.moveTo(a.x, a.y); trail.lineTo(b.x, b.y); trail.stroke()
+          }
+        }
+        requestAnimationFrame(frame)
+      })()
     </script>
   </body>
 </html>

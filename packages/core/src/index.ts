@@ -22,6 +22,7 @@ export {
   GOO_FILTER_REGION,
   acquireGooFilter,
   gooColorMatrix,
+  gooVanishRadius,
   gooFilterId,
   gooFilterMarkup,
   gooFilterRefCount,
@@ -32,6 +33,7 @@ export {
   GOOP_PART_ATTR,
   createSvgFilterRenderer,
   type GoopBlob,
+  type GoopBodyTransform,
   type GoopLayerPadding,
   type GoopRenderer,
   type GoopRendererFactory,
@@ -51,3 +53,4 @@ export { isReducedMotion, watchReducedMotion } from './reduced-motion'
 
 /** @deprecated Use GOOP_DEFAULTS. Kept so existing imports keep compiling. */
 export const defaultGoopOptions = GOOP_DEFAULTS
+export { trackPointer, type PointerSample, type PointerTracker } from './pointer'
