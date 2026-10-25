@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The slime slab. A solid rounded panel whose bottom edge is live goo.
 //
-// The edge is one full-width goo body (the "main" edge: pointer drips, splashes,
+// The edge is one full-width goo body (the "main" edge: pointer drips and shockwaves,
 // shockwaves) plus two short accent bodies that only hold one fat or one small resting
 // drip each. Resting drips take positions now, but every drip on one body shares a size,
 // so the accents are what make the edge uneven: a big long drip, a little one, and two
@@ -10,9 +10,9 @@
 //
 // Interaction:
 //   - moving the pointer pours a drip from the edge under the cursor;
-//   - a hard swipe punches goo out of the edge and it flies across the page
-//     (splash: 'escape', carrying the swipe's velocity);
-//   - clicking the slab fires a shockwave from that spot and swells the edge;
+//   - a click on the slab and a hard swipe across it are the same effect: a shockwave
+//     from that point on the edge (fireShockwave). Swipes scale it by speed and are
+//     rate-limited, so a long scrub doesn't machine-gun;
 //   - taps drip on touch; an idle drip keeps it alive while on screen.
 // Reduced motion: the engine ignores all of it and keeps the still resting drips.
 import type { GoopHandle, GoopOptions } from '@goopui/core'
@@ -25,8 +25,13 @@ const slab = ref<HTMLElement | null>(null)
 
 /** px/s of pointer travel that counts as a hard swipe. */
 const HARD_SWIPE_SPEED = 2000
-/** Cap on the velocity handed to the splash. */
-const SPLASH_MAX_SPEED = 2600
+/** Swipe speed that earns a full-strength shockwave. */
+const FULL_SWIPE_SPEED = 5000
+/** Min ms between swipe shockwaves. */
+const SWIPE_COOLDOWN = 250
+/** Shockwave strength range shared by clicks and swipes. */
+const SHOCK_MIN = 0.9
+const SHOCK_MAX = 1.8
 
 const edgeBase: GoopOptions = {
   interactive: false,
@@ -48,8 +53,8 @@ const MAIN: GoopOptions = {
   fall: 170,
   maxDrips: 16,
   restingDrips: [0.25, 0.885],
+  // Shockwave particles (click and swipe alike) fly across the page.
   splash: 'escape',
-  splashAmount: 2.2,
   oiliness: 0.6,
   shockwave: 1.4,
   clickMass: 0,
@@ -86,7 +91,7 @@ const toEdge = (clientX: number, clientY?: number): { x: number; y: number } | n
 
 let lastX = -1e9
 let lastT = 0
-let lastSplash = 0
+let lastSwipe = 0
 let prevX = 0
 let prevY = 0
 let prevT = 0
@@ -111,16 +116,11 @@ const onMove = (e: PointerEvent) => {
   prevY = e.clientY
   prevT = now
   const speed = Math.hypot(vx, vy)
-  if (speed > HARD_SWIPE_SPEED && now - lastSplash > 320) {
-    const p = toEdge(e.clientX)
-    if (p) {
-      // Punch through the edge. Raw pointer speeds can hit 10k px/s, which throws the goo
-      // off-screen in a frame, so cap it; tip it downward so it spills out of the slab and
-      // arcs across the page instead of skimming along the edge.
-      const k = Math.min(1, SPLASH_MAX_SPEED / speed)
-      main?.splashThrough(p.x, p.y, vx * k, Math.max(vy * k, 220 + Math.abs(vx * k) * 0.2))
-      lastSplash = now
-      lastT = now
+  if (speed > HARD_SWIPE_SPEED && now - lastSwipe > SWIPE_COOLDOWN) {
+    // Same effect as a click, scaled by how hard the swipe was.
+    const t = Math.min(1, (speed - HARD_SWIPE_SPEED) / (FULL_SWIPE_SPEED - HARD_SWIPE_SPEED))
+    if (fireShockwave(e.clientX, SHOCK_MIN + t * (SHOCK_MAX - SHOCK_MIN))) {
+      lastSwipe = now
       return
     }
   }
@@ -132,16 +132,22 @@ const onTap = (e: PointerEvent) => {
   if (e.pointerType !== 'mouse') pour(e.clientX)
 }
 
+/** The one shockwave path for clicks and swipes: a ring from the edge under clientX. */
+const fireShockwave = (clientX: number, strength: number): boolean => {
+  const p = toEdge(clientX)
+  if (!p) return false
+  main?.shockwave(p.x, p.y, Math.min(SHOCK_MAX, Math.max(SHOCK_MIN, strength)))
+  lastT = performance.now()
+  return true
+}
+
 const onClick = (e: MouseEvent) => {
   // Clicks on the CTAs belong to them (they fire their own shockwave).
   if ((e.target as Element).closest('a, button')) return
-  const p = toEdge(e.clientX)
-  if (!p) return
-  // The ring starts on the edge below the click, stronger the closer the click was.
+  // Stronger the closer the click is to the edge.
   const host = main?.layer.parentElement
   const dist = host ? Math.max(0, host.getBoundingClientRect().top - e.clientY) : 0
-  main?.shockwave(p.x, p.y, 1.8 - Math.min(0.9, dist / 600))
-  lastT = performance.now()
+  fireShockwave(e.clientX, SHOCK_MAX - Math.min(SHOCK_MAX - SHOCK_MIN, dist / 600))
 }
 
 const scheduleAmbient = () => {
@@ -189,8 +195,8 @@ const copyInstall = async () => {
     @pointermove="onMove"
     @pointerup="onTap"
   >
-    <!-- pb-16/24 below the slab is the runway for falling drops. Escape splashes leave it
-         and fly across the page in the engine's shared overlay. -->
+    <!-- pb-16/24 below the slab is the runway for falling drops. Shockwave particles leave
+         it and fly across the page in the engine's shared overlay. -->
     <div ref="slab" class="slab relative mx-auto max-w-6xl" :data-reduced="reduced || undefined" @click="onClick">
       <div class="relative z-10 px-6 pb-16 pt-14 sm:px-12 sm:pb-24 sm:pt-20 lg:px-16 lg:pb-28 lg:pt-24">
         <p class="intro intro-1 inline-flex items-center gap-2 rounded-full bg-goo-foreground/8 px-3 py-1 font-mono text-xs">
