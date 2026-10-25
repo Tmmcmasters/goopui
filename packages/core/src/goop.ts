@@ -9,7 +9,9 @@ import { GOOP_PHYSICS, type GoopTuning } from './constants'
 import { DripField } from './drips'
 import { removeTicker, wakeTicker } from './loop'
 import { isReducedMotion, watchReducedMotion } from './reduced-motion'
-import { createSvgFilterRenderer, type GoopRenderer, type GoopRendererFactory } from './renderer'
+import type { GoopRenderer } from './renderer'
+import type { GoopFinishName, GoopFinishRenderer } from './renderers/finish'
+import { resolveRenderer, type GoopRendererOption } from './renderers/resolve'
 import { isSpringSettled, springConfig, stepSpring, type SpringState } from './spring'
 import { readTuning } from './tuning'
 
@@ -26,8 +28,13 @@ export interface GoopOptions extends Partial<GoopTuning> {
   /** 'auto' (default) follows prefers-reduced-motion + <html data-reduced-motion="true">.
    *  `true`/`false` force it. */
   reducedMotion?: boolean | 'auto'
-  /** Swap the renderer (default: SVG filter). */
-  renderer?: GoopRendererFactory
+  /** Renderer: 'svg' (default, SVG filter), 'canvas' (shared WebGL2, 2D fallback), or a
+   *  custom factory such as `createCanvasRenderer` / `makeCanvasRenderer({...})`. */
+  renderer?: GoopRendererOption
+  /** Surface finish: 'solid' (default) or 'oil' (thin-film iridescence). Falls back to the
+   *  host's `--goop-finish`; `--goop-oil-intensity|scale|shift` tune it. Renderers that
+   *  don't implement finishes ignore it. */
+  finish?: GoopFinishName
   /** RNG for drip placement/jitter (inject a seeded one for tests). Default Math.random. */
   random?: () => number
 }
@@ -74,8 +81,9 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
   if (win?.getComputedStyle(host).position === 'static') host.style.position = 'relative'
   host.style.isolation = 'isolate'
 
-  const renderer: GoopRenderer = (opts.renderer ?? createSvgFilterRenderer)(host, filterParams(tuning))
+  const renderer: GoopRenderer = resolveRenderer(opts.renderer)(host, filterParams(tuning))
   renderer.setPadding(layerPadding(tuning))
+  ;(renderer as GoopFinishRenderer).setFinish?.({ finish: opts.finish })
   const field = new DripField(renderer)
 
   // ---- state ---------------------------------------------------------------
@@ -305,6 +313,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
         renderer.setParams(filterParams(tuning))
       }
       renderer.setPadding(layerPadding(tuning))
+      ;(renderer as GoopFinishRenderer).setFinish?.({ finish: opts.finish })
       pressCfg = springConfig(P.pressSpring, tuning.viscosity)
       releaseCfg = springConfig(P.releaseSpring, tuning.viscosity)
       listen(opts.interactive !== false)

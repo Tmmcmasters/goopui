@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>goopUI renderer compare</title>
+    <link rel="icon" href="data:," />
+    <script>
+      // Per-frame JS time: wrap rAF before the engine loads. Each callback is timed
+      // including the microtasks it queued (the canvas renderer draws in a microtask).
+      ;(() => {
+        const raw = window.requestAnimationFrame.bind(window)
+        const perf = (window.__goopPerf = { js: 0, raw })
+        window.requestAnimationFrame = (cb) =>
+          raw((t) => {
+            const s = performance.now()
+            try {
+              cb(t)
+            } finally {
+              queueMicrotask(() => (perf.js += performance.now() - s))
+            }
+          })
+      })()
+    </script>
+    <style>
+      :root {
+        --background: #ffffff;
+        --foreground: #09090b;
+        --muted: #71717a;
+        --border: #e4e4e7;
+        --primary: #18181b;
+        --primary-foreground: #fafafa;
+        --destructive: #dc2626;
+        --destructive-foreground: #fafafa;
+        --secondary: #f4f4f5;
+        --secondary-foreground: #18181b;
+        --accent: oklch(0.62 0.19 259);
+        --radius: 0.375rem;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--background);
+        color: var(--foreground);
+        font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      main { max-width: 1280px; margin: 0 auto; padding: 32px 16px 120px; }
+      h1 { font-size: 20px; margin: 0 0 4px; }
+      h2 { font-size: 15px; margin: 40px 0 8px; }
+      p.lead, .note { color: var(--muted); margin: 0 0 16px; }
+      a { color: inherit; }
+      .bar {
+        position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center;
+        padding: 10px 12px; margin: 0 -12px 16px; background: rgb(255 255 255 / 0.92); backdrop-filter: blur(6px);
+        border-bottom: 1px solid var(--border); font-size: 12px;
+      }
+      .bar label { display: inline-flex; gap: 4px; align-items: center; }
+      .bar button, .ctl button { font: inherit; padding: 4px 10px; border: 1px solid var(--border); border-radius: 6px; background: #fff; cursor: pointer; }
+      .bar button[aria-pressed='true'] { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+      .meter { font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; margin-left: auto; white-space: nowrap; }
+      .meter b { font-weight: 600; }
+      .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+      .col { border: 1px solid var(--border); border-radius: 10px; padding: 16px 16px 72px; min-width: 0; }
+      .col h3 { margin: 0 0 16px; font-size: 13px; display: flex; gap: 8px; align-items: baseline; }
+      .col h3 small { color: var(--muted); font-weight: 400; }
+      .row { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; margin-bottom: 72px; }
+      .btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+        height: 40px; padding: 0 16px; border: 0; border-radius: var(--radius);
+        font: 500 14px/1 inherit; font-family: inherit; cursor: pointer; user-select: none;
+        background: transparent; -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+      }
+      .btn:focus-visible { outline: 2px solid #a1a1aa; outline-offset: 2px; }
+      .primary { --goop-color: var(--primary); color: var(--primary-foreground); }
+      .destructive { --goop-color: var(--destructive); color: var(--destructive-foreground); }
+      .secondary { --goop-color: var(--secondary); color: var(--secondary-foreground); }
+      .accent { --goop-color: var(--accent); color: #fff; }
+      .sm { height: 32px; padding: 0 12px; font-size: 13px; }
+      .lg { height: 44px; padding: 0 28px; }
+      .pill { border-radius: 9999px; }
+      .icon { width: 40px; padding: 0; }
+      .wide { width: 240px; }
+      .ctl { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; font-size: 12px; margin: 0 0 12px; }
+      .grid { display: flex; flex-wrap: wrap; gap: 10px 12px; padding-bottom: 80px; min-height: 120px; }
+      .grid .btn { height: 32px; padding: 0 12px; font-size: 12px; }
+      .surface-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 10px; }
+      .surface {
+        position: relative; isolation: isolate; width: 1200px; height: 600px; --goop-color: var(--accent);
+        background: #fafafa;
+      }
+      .surface .label { position: absolute; left: 16px; top: 12px; color: #fff; mix-blend-mode: difference; font-weight: 600; }
+      code { font-size: 12px; }
+      @media (max-width: 760px) { .cols { grid-template-columns: 1fr; } .meter { margin-left: 0; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>goopUI: SVG filter vs canvas renderer</h1>
+      <p class="lead">
+        Same sim, same seeds, two renderers. <a href="./">Back to the drip demo</a>.
+        Backend of the canvas renderer: <b id="backend">-</b>, DPR <b id="dpr">-</b>.
+      </p>
+
+      <div class="bar" role="toolbar" aria-label="Renderer">
+        <span>Renderers:</span>
+        <button data-mode="split" aria-pressed="true">Split (SVG | canvas)</button>
+        <button data-mode="svg" aria-pressed="false">All SVG</button>
+        <button data-mode="canvas" aria-pressed="false">All canvas</button>
+        <button data-mode="canvas2d" aria-pressed="false">All canvas 2D fallback</button>
+        <label>blur <input id="blur" type="range" min="0" max="12" step="0.5" value="4" /><span id="blurV">4</span></label>
+        <label>contrast <input id="contrast" type="range" min="2" max="60" step="1" value="20" /><span id="contrastV">20</span></label>
+        <label>threshold <input id="threshold" type="range" min="0.1" max="0.9" step="0.01" value="0.4" /><span id="thresholdV">0.4</span></label>
+        <label>finish
+          <select id="finish"><option value="solid">solid</option><option value="oil">oil</option></select>
+        </label>
+        <label>oil <input id="oilIntensity" type="range" min="0" max="1" step="0.05" value="0.6" /><span id="oilIntensityV">0.6</span></label>
+        <label><input type="checkbox" id="reduced" /> reduced motion</label>
+        <span class="meter" id="meter">frame -</span>
+      </div>
+
+      <h2>Side by side</h2>
+      <div class="ctl">
+        <button id="dripAll">Drip all</button>
+        <button id="hoverAll">Hover all (hold)</button>
+        <button id="pressAll">Press all</button>
+        <label><input type="checkbox" id="resting" /> resting drips</label>
+        <span class="note">Corresponding buttons share an RNG seed, so the two columns move identically.</span>
+      </div>
+      <div class="cols" id="cols">
+        <section class="col" data-col="a"><h3><span class="name">SVG</span><small class="hint"></small></h3></section>
+        <section class="col" data-col="b"><h3><span class="name">Canvas</span><small class="hint"></small></h3></section>
+      </div>
+
+      <h2>Stress: N buttons, all dripping</h2>
+      <div class="ctl">
+        <label>N
+          <select id="stressN"><option>10</option><option selected>50</option><option>200</option></select>
+        </label>
+        <label>renderer
+          <select id="stressR"><option value="svg">svg</option><option value="canvas">canvas</option><option value="canvas2d">canvas 2D</option></select>
+        </label>
+        <button id="stressStart">Start</button>
+        <button id="stressStop">Stop</button>
+        <span class="note">"Drip all" every 250 ms. Meter shows rAF frame time p50/p95 and JS ms per frame.</span>
+      </div>
+      <div class="grid" id="grid"></div>
+
+      <h2>Large surface: 1200 x 600, many blobs</h2>
+      <div class="ctl">
+        <label>blobs <select id="blobN"><option>24</option><option selected>60</option><option>150</option></select></label>
+        <label>blur <select id="surfBlur"><option>6</option><option selected>10</option><option>16</option></select></label>
+        <label>renderer
+          <select id="surfR"><option value="svg">svg</option><option value="canvas">canvas</option><option value="canvas2d">canvas 2D</option></select>
+        </label>
+        <button id="surfStart">Start</button>
+        <button id="surfStop">Stop</button>
+      </div>
+      <div class="surface-wrap"><div class="surface" id="surface"><span class="label" id="surfLabel">stopped</span></div></div>
+
+      <h2>Particles: page-level overlay</h2>
+      <div class="ctl">
+        <label>particles <select id="partN"><option>300</option><option selected>1000</option><option>3000</option></select></label>
+        <label>renderer
+          <select id="partR"><option value="svg">svg</option><option value="canvas" selected>canvas</option><option value="canvas2d">canvas 2D</option></select>
+        </label>
+        <button id="partStart">Start</button>
+        <button id="partStop">Stop</button>
+        <span class="note">Splash bursts across the whole viewport on one fixed overlay (<code>acquireGoopOverlay</code>), above the page.</span>
+      </div>
+    </main>
+
+    <script type="module">
+      import {
+        attachGoop,
+        createSvgFilterRenderer,
+        createCanvasRenderer,
+        makeCanvasRenderer,
+        gooCanvasBackend,
+        acquireGoopOverlay,
+        GOOP_CSS_VARS,
+      } from '../dist/index.mjs'
+
+      const canvas2d = makeCanvasRenderer({ backend: '2d' })
+      const factories = { svg: createSvgFilterRenderer, canvas: createCanvasRenderer, canvas2d }
+      const labels = { svg: 'SVG filter', canvas: 'Canvas', canvas2d: 'Canvas 2D fallback' }
+      const root = document.documentElement
+      document.getElementById('dpr').textContent = String(devicePixelRatio)
+
+      // Seeded RNG so both columns make the same drips.
+      const mulberry = (a) => () => {
+        a |= 0; a = (a + 0x6d2b79f5) | 0
+        let t = Math.imul(a ^ (a >>> 15), 1 | a)
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+      }
+
+      // ---- side by side -----------------------------------------------------
+      const BUTTONS = [
+        ['primary', 'Button'], ['destructive', 'Delete'], ['secondary', 'Secondary'], ['primary sm', 'Small'],
+        ['primary lg', 'Large button'], ['primary pill', 'Pill'], ['destructive icon', '✕'], ['accent', 'oklch accent'],
+        ['secondary wide', 'Wide secondary button'],
+      ]
+      const cols = {}
+      for (const col of document.querySelectorAll('[data-col]')) {
+        const row = document.createElement('div')
+        row.className = 'row'
+        for (const [cls, text] of BUTTONS) {
+          const b = document.createElement('button')
+          b.className = `btn ${cls}`
+          b.textContent = text
+          if (text === '✕') b.setAttribute('aria-label', 'Close')
+          row.append(b)
+        }
+        col.append(row)
+        cols[col.dataset.col] = { el: col, buttons: [...row.children], handles: [], renderer: null }
+      }
+      let mode = 'split'
+      let finish = 'solid'
+      let resting = false
+      const attachCol = (c, r) => {
+        for (const h of c.handles) h.destroy()
+        c.renderer = r
+        c.el.querySelector('.name').textContent = labels[r]
+        c.handles = c.buttons.map((b, i) => attachGoop(b, { renderer: factories[r], random: mulberry(1000 + i), restingDrips: resting ? 2 : undefined, finish }))
+      }
+      const applyMode = () => {
+        const [a, b] = mode === 'split' ? ['svg', 'canvas'] : [mode, mode]
+        attachCol(cols.a, a)
+        attachCol(cols.b, b)
+        for (const btn of document.querySelectorAll('[data-mode]')) btn.setAttribute('aria-pressed', String(btn.dataset.mode === mode))
+        queueMicrotask(() => (document.getElementById('backend').textContent = gooCanvasBackend(document) ?? 'n/a (no canvas instance)'))
+      }
+      for (const btn of document.querySelectorAll('[data-mode]')) btn.addEventListener('click', () => { mode = btn.dataset.mode; applyMode() })
+      applyMode()
+      const allHandles = () => [...cols.a.handles, ...cols.b.handles]
+      // Reseed both columns identically before a synchronized action.
+      const reseedAndRun = (fn) => {
+        for (const c of [cols.a, cols.b]) c.handles.forEach((h, i) => h.update({ random: mulberry(2000 + i) }))
+        allHandles().forEach(fn)
+      }
+      document.getElementById('dripAll').addEventListener('click', () => reseedAndRun((h) => h.drip()))
+      let hovering = false
+      document.getElementById('hoverAll').addEventListener('click', (e) => {
+        hovering = !hovering
+        e.target.textContent = hovering ? 'Release hover' : 'Hover all (hold)'
+        reseedAndRun((h) => h.hover(hovering))
+      })
+      document.getElementById('pressAll').addEventListener('click', () => {
+        allHandles().forEach((h) => h.press())
+        setTimeout(() => allHandles().forEach((h) => h.release()), 180)
+      })
+      document.getElementById('resting').addEventListener('change', (e) => {
+        resting = e.target.checked
+        applyMode()
+      })
+      for (const key of ['blur', 'contrast', 'threshold']) {
+        const input = document.getElementById(key)
+        input.addEventListener('input', () => {
+          document.getElementById(key + 'V').textContent = input.value
+          root.style.setProperty(GOOP_CSS_VARS[key], input.value)
+          for (const h of [...allHandles(), ...stress.handles]) h.update()
+        })
+      }
+      document.getElementById('finish').addEventListener('change', (e) => {
+        finish = e.target.value
+        // Both the option and the CSS var, so either renderer's plumbing picks it up.
+        root.style.setProperty('--goop-finish', finish)
+        for (const h of [...allHandles(), ...stress.handles]) h.update({ finish })
+        if (part.overlay) startParticles()
+      })
+      document.getElementById('oilIntensity').addEventListener('input', (e) => {
+        document.getElementById('oilIntensityV').textContent = e.target.value
+        root.style.setProperty('--goop-oil-intensity', e.target.value)
+        for (const h of [...allHandles(), ...stress.handles]) h.update()
+      })
+      document.getElementById('reduced').addEventListener('change', (e) => {
+        if (e.target.checked) root.dataset.reducedMotion = 'true'
+        else delete root.dataset.reducedMotion
+      })
+
+      // ---- stress -----------------------------------------------------------
+      const grid = document.getElementById('grid')
+      const stress = { handles: [], timer: 0 }
+      const stopStress = () => {
+        clearInterval(stress.timer)
+        for (const h of stress.handles) h.destroy()
+        stress.handles = []
+        grid.textContent = ''
+      }
+      const startStress = (n = Number(document.getElementById('stressN').value), r = document.getElementById('stressR').value) => {
+        stopStress()
+        const variants = ['primary', 'destructive', 'accent', 'secondary']
+        for (let i = 0; i < n; i++) {
+          const b = document.createElement('button')
+          b.className = `btn ${variants[i % 4]}`
+          b.textContent = `Goop ${i + 1}`
+          grid.append(b)
+          stress.handles.push(attachGoop(b, { renderer: factories[r], random: mulberry(5000 + i), finish }))
+        }
+        const dripAll = () => stress.handles.forEach((h) => h.drip())
+        dripAll()
+        stress.timer = setInterval(dripAll, 250)
+      }
+      document.getElementById('stressStart').addEventListener('click', () => startStress())
+      document.getElementById('stressStop').addEventListener('click', stopStress)
+
+      // ---- large surface ----------------------------------------------------
+      // Drives a renderer directly through the GoopRenderer seam (no button sim): the
+      // GoopBlob/GoopBackground case. Body scaled to 0, only free blobs.
+      const surface = document.getElementById('surface')
+      const surf = { renderer: null, blobs: [], raf: 0 }
+      const stopSurface = () => {
+        cancelAnimationFrame(surf.raf)
+        surf.renderer?.destroy()
+        surf.renderer = null
+        surf.blobs = []
+        document.getElementById('surfLabel').textContent = 'stopped'
+      }
+      const startSurface = (n = Number(document.getElementById('blobN').value), r = document.getElementById('surfR').value, blur = Number(document.getElementById('surfBlur').value)) => {
+        stopSurface()
+        const rand = mulberry(42)
+        const W = 1200, H = 600
+        const ren = factories[r](surface, { blur, contrast: 20, threshold: 0.4 })
+        ren.setFinish?.({ finish })
+        ren.setPadding({ side: 0, bottom: 0 })
+        ren.setBodyScale(0, 0)
+        surf.renderer = ren
+        surf.blobs = Array.from({ length: n }, () => {
+          const rad = 14 + rand() * 46
+          return {
+            b: ren.createBlob(), r: rad,
+            x: rad + blur * 3 + rand() * (W - 2 * (rad + blur * 3)), y: rad + blur * 3 + rand() * (H - 2 * (rad + blur * 3)),
+            vx: (rand() * 2 - 1) * 160, vy: (rand() * 2 - 1) * 160, ph: rand() * 6.28,
+          }
+        })
+        document.getElementById('surfLabel').textContent = `${labels[r]} · ${n} blobs · blur ${blur}`
+        let last = 0
+        const tick = (t) => {
+          const dt = last ? Math.min(0.05, (t - last) / 1000) : 1 / 60
+          last = t
+          for (const o of surf.blobs) {
+            const m = o.r + blur * 3
+            o.x += o.vx * dt; o.y += o.vy * dt
+            if (o.x < m || o.x > W - m) { o.vx *= -1; o.x = Math.max(m, Math.min(W - m, o.x)) }
+            if (o.y < m || o.y > H - m) { o.vy *= -1; o.y = Math.max(m, Math.min(H - m, o.y)) }
+            const s = 1 + 0.12 * Math.sin(t / 400 + o.ph)
+            o.b.set(o.x, o.y, o.r, 1, s, 2 - s)
+          }
+          ren.flush()
+          surf.raf = requestAnimationFrame(tick)
+        }
+        surf.raf = requestAnimationFrame(tick)
+      }
+      document.getElementById('surfStart').addEventListener('click', () => startSurface())
+      document.getElementById('surfStop').addEventListener('click', stopSurface)
+
+      // ---- particles on a page overlay ---------------------------------------
+      const part = { overlay: null, ps: [], raf: 0 }
+      const stopParticles = () => {
+        cancelAnimationFrame(part.raf)
+        for (const q of part.ps) q.b.remove()
+        part.ps = []
+        part.overlay?.release()
+        part.overlay = null
+      }
+      const startParticles = (n = Number(document.getElementById('partN').value), r = document.getElementById('partR').value) => {
+        stopParticles()
+        const rand = mulberry(7)
+        part.overlay = acquireGoopOverlay(document, { renderer: factories[r], color: 'oklch(0.62 0.19 259)', params: { blur: 3, contrast: 20, threshold: 0.4 }, finish: { finish } })
+        const W = () => innerWidth, H = () => innerHeight
+        let burst = { x: W() / 2, y: H() / 3 }
+        const spawn = (q, t) => {
+          if (rand() < 0.02) burst = { x: 80 + rand() * (W() - 160), y: 60 + rand() * (H() * 0.5) }
+          const a = rand() * Math.PI * 2, sp = 80 + rand() * 420
+          Object.assign(q, { x: burst.x, y: burst.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 200, r: 2 + rand() * 5, born: t, life: 0.8 + rand() * 1.4 })
+        }
+        part.ps = Array.from({ length: n }, () => ({ b: part.overlay.createBlob() }))
+        let last = 0
+        const tick = (t) => {
+          const now = t / 1000
+          const dt = last ? Math.min(0.05, now - last) : 1 / 60
+          last = now
+          for (const q of part.ps) {
+            if (q.born === undefined || now - q.born > q.life) { spawn(q, now - rand() * (q.born === undefined ? 1.5 : 0)) }
+            q.vy += 900 * dt; q.vx *= 1 - 0.6 * dt
+            q.x += q.vx * dt; q.y += q.vy * dt
+            if (q.y > H() - q.r) { q.y = H() - q.r; q.vy *= -0.35 }
+            const age = (now - q.born) / q.life
+            q.b.set(q.x, q.y, q.r * (1 - 0.4 * age), age > 0.7 ? (1 - age) / 0.3 : 1)
+          }
+          part.overlay.flush()
+          part.raf = requestAnimationFrame(tick)
+        }
+        part.raf = requestAnimationFrame(tick)
+      }
+      document.getElementById('partStart').addEventListener('click', () => startParticles())
+      document.getElementById('partStop').addEventListener('click', stopParticles)
+
+      // ---- meter ------------------------------------------------------------
+      const perf = window.__goopPerf
+      const frames = []
+      const js = []
+      let lastT = 0
+      const pct = (arr, p) => {
+        if (!arr.length) return 0
+        const s = [...arr].sort((a, b) => a - b)
+        return s[Math.min(s.length - 1, Math.floor((p / 100) * s.length))]
+      }
+      const meterEl = document.getElementById('meter')
+      let shown = 0
+      const meter = (t) => {
+        if (lastT) {
+          frames.push(t - lastT)
+          js.push(perf.js)
+          if (frames.length > 600) { frames.shift(); js.shift() }
+        }
+        perf.js = 0
+        lastT = t
+        if (t - shown > 250) {
+          shown = t
+          meterEl.innerHTML =
+            `frame p50 <b>${pct(frames, 50).toFixed(1)}</b> p95 <b>${pct(frames, 95).toFixed(1)}</b> ms · ` +
+            `JS p50 <b>${pct(js, 50).toFixed(2)}</b> p95 <b>${pct(js, 95).toFixed(2)}</b> ms`
+        }
+        perf.raw(meter)
+      }
+      perf.raw(meter)
+
+      // Automation hooks (headless benchmark / screenshots).
+      window.goopCompare = {
+        startStress, stopStress, startSurface, stopSurface, startParticles, stopParticles,
+        setMode: (m) => { mode = m; applyMode() },
+        setFinish: (f) => { const el = document.getElementById('finish'); el.value = f; el.dispatchEvent(new Event('change')) },
+        resetStats: () => { frames.length = 0; js.length = 0 },
+        stats: () => ({ frames: frames.length, p50: pct(frames, 50), p95: pct(frames, 95), js50: pct(js, 50), js95: pct(js, 95), jsMean: js.reduce((a, b) => a + b, 0) / Math.max(1, js.length) }),
+        handles: allHandles,
+        backend: () => gooCanvasBackend(document),
+      }
+    </script>
+  </body>
+</html>
