@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>goopUI core demo</title>
+    <link rel="icon" href="data:," />
+    <style>
+      :root {
+        --background: #ffffff;
+        --foreground: #09090b;
+        --muted: #71717a;
+        --border: #e4e4e7;
+        --primary: #18181b;
+        --primary-foreground: #fafafa;
+        --destructive: #dc2626;
+        --destructive-foreground: #fafafa;
+        --secondary: #f4f4f5;
+        --secondary-foreground: #18181b;
+        --radius: 0.375rem;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--background);
+        color: var(--foreground);
+        font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      main { max-width: 920px; margin: 0 auto; padding: 40px 16px 120px; }
+      h1 { font-size: 20px; margin: 0 0 4px; }
+      p.lead { color: var(--muted); margin: 0 0 32px; }
+      .row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; margin-bottom: 88px; }
+
+      /* shadcn-ish button. The goo body paints the background, so the host itself is transparent
+         and only sets --goop-color. The label is real content, above the goo, never filtered. */
+      .btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+        height: 40px; padding: 0 16px; border: 0; border-radius: var(--radius);
+        font: 500 14px/1 inherit; font-family: inherit; cursor: pointer; user-select: none;
+        background: transparent; -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+      }
+      .btn:focus-visible { outline: 2px solid #a1a1aa; outline-offset: 2px; }
+      .primary { --goop-color: var(--primary); color: var(--primary-foreground); }
+      .destructive { --goop-color: var(--destructive); color: var(--destructive-foreground); }
+      .secondary { --goop-color: var(--secondary); color: var(--secondary-foreground); }
+      .sm { height: 32px; padding: 0 12px; font-size: 13px; }
+      .lg { height: 44px; padding: 0 32px; }
+      .pill { border-radius: 9999px; }
+      .icon { width: 40px; padding: 0; }
+      .wide { width: 280px; }
+
+      .panel {
+        position: fixed; right: 16px; bottom: 16px; width: 300px; max-height: calc(100vh - 32px); overflow: auto;
+        background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;
+        box-shadow: 0 10px 30px rgb(0 0 0 / 0.08); font-size: 12px; z-index: 10;
+      }
+      .panel h2 { font-size: 13px; margin: 0 0 10px; }
+      .knob { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; margin-bottom: 8px; }
+      .knob code { color: var(--muted); }
+      .knob input { grid-column: 1 / -1; width: 100%; }
+      .toggles { display: grid; gap: 6px; margin: 10px 0; }
+      .panel button.plain { font: inherit; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: #fff; cursor: pointer; }
+      pre { background: #fafafa; border: 1px solid var(--border); border-radius: 6px; padding: 8px; white-space: pre-wrap; font-size: 11px; margin: 8px 0 0; }
+      @media (max-width: 720px) { .panel { position: static; width: auto; margin-top: 24px; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>goopUI core: drip feel check</h1>
+      <p class="lead">Hover to drip (hold to see a detach), press to squish, tap on touch. Sliders write <code>--goop-*</code> vars on <code>&lt;main&gt;</code> and call <code>update()</code>.</p>
+
+      <div class="row">
+        <button class="btn primary" data-goop>Button</button>
+        <button class="btn destructive" data-goop>Delete</button>
+        <button class="btn secondary" data-goop>Secondary</button>
+        <button class="btn primary sm" data-goop>Small</button>
+        <button class="btn primary lg" data-goop>Large button</button>
+      </div>
+      <div class="row">
+        <button class="btn primary pill" data-goop>Pill</button>
+        <button class="btn destructive icon" data-goop aria-label="Close">✕</button>
+        <button class="btn secondary wide" data-goop>Wide secondary button</button>
+        <button class="btn primary" data-goop disabled style="opacity:.5;cursor:not-allowed">Disabled</button>
+      </div>
+    </main>
+
+    <aside class="panel" aria-label="Tuning">
+      <h2>Tuning</h2>
+      <div id="knobs"></div>
+      <div class="toggles">
+        <label><input type="checkbox" id="reduced" /> Reduced motion (<code>data-reduced-motion</code>)</label>
+        <label>Speed
+          <select id="speed">
+            <option value="1">1x</option>
+            <option value="0.5">0.5x</option>
+            <option value="0.25">0.25x</option>
+            <option value="0.1">0.1x</option>
+          </select>
+        </label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="plain" id="dripAll">Drip all</button>
+          <button class="plain" id="reset">Reset knobs</button>
+        </div>
+      </div>
+      <pre id="css"></pre>
+    </aside>
+
+    <script type="module">
+      import { attachGoop, GOOP_DEFAULTS, GOOP_CSS_VARS, setGoopTimeScale } from '../dist/index.mjs'
+
+      const knobs = [
+        ['blur', 0, 12, 0.5],
+        ['contrast', 2, 60, 1],
+        ['threshold', 0.1, 0.9, 0.01],
+        ['dripCount', 0, 6, 1],
+        ['dripLength', 0, 40, 1],
+        ['dripSize', 2, 16, 0.5],
+        ['viscosity', 0.3, 3, 0.05],
+        ['fall', 0, 120, 1],
+        ['gravity', 100, 4000, 50],
+        ['squish', 0, 0.3, 0.01],
+        ['restingDrips', 0, 4, 1],
+      ]
+      const host = document.querySelector('main')
+      const handles = [...document.querySelectorAll('[data-goop]')].map((el) =>
+        attachGoop(el, { disabled: el.disabled }),
+      )
+      window.goop = handles // poke from devtools
+
+      const knobsEl = document.getElementById('knobs')
+      const cssEl = document.getElementById('css')
+      const inputs = {}
+      const renderCss = () => {
+        cssEl.textContent = ':root {\n' + knobs.map(([k]) => `  ${GOOP_CSS_VARS[k]}: ${inputs[k].value};`).join('\n') + '\n}'
+      }
+      for (const [key, min, max, step] of knobs) {
+        const row = document.createElement('label')
+        row.className = 'knob'
+        row.innerHTML = `<code>${GOOP_CSS_VARS[key]}</code><span></span><input type="range" min="${min}" max="${max}" step="${step}">`
+        const input = row.querySelector('input')
+        const out = row.querySelector('span')
+        input.value = GOOP_DEFAULTS[key]
+        out.textContent = input.value
+        input.addEventListener('input', () => {
+          out.textContent = input.value
+          host.style.setProperty(GOOP_CSS_VARS[key], input.value)
+          for (const h of handles) h.update()
+          renderCss()
+        })
+        inputs[key] = input
+        knobsEl.append(row)
+      }
+      renderCss()
+
+      document.getElementById('reset').addEventListener('click', () => {
+        for (const [key] of knobs) {
+          inputs[key].value = GOOP_DEFAULTS[key]
+          inputs[key].previousElementSibling.textContent = inputs[key].value
+          host.style.removeProperty(GOOP_CSS_VARS[key])
+        }
+        for (const h of handles) h.update()
+        renderCss()
+      })
+      document.getElementById('reduced').addEventListener('change', (e) => {
+        if (e.target.checked) document.documentElement.dataset.reducedMotion = 'true'
+        else delete document.documentElement.dataset.reducedMotion
+      })
+      document.getElementById('speed').addEventListener('change', (e) => setGoopTimeScale(Number(e.target.value)))
+      document.getElementById('dripAll').addEventListener('click', () => handles.forEach((h) => h.drip()))
+    </script>
+  </body>
+</html>
