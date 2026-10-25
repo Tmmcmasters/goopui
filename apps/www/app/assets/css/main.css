@@ -224,6 +224,11 @@ html[data-reduced-motion='true'] [data-reveal] {
   --goop-color: var(--secondary);
   color: var(--secondary-foreground);
 }
+.goop-btn[data-variant='oil'] {
+  --goop-color: oklch(0.17 0.01 60);
+  --goop-oil-intensity: 0.6;
+  color: oklch(0.97 0.005 90);
+}
 .goop-btn[data-variant='goo'] {
   --goop-color: var(--goo);
   color: var(--goo-foreground);

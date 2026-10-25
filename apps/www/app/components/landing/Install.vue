@@ -3,24 +3,29 @@ import type { GoopOptions } from '@goopui/core'
 
 const NuxtLink = resolveComponent('NuxtLink')
 
-// The dark card is the landing's oil slick: its bottom edge drips in the card's own color.
-// TODO(core-feel-1): finish: 'oil' turns this edge (and the CTA) iridescent.
-const oilEdge: GoopOptions = nextOptions(
-  {
-    interactive: false,
-    drips: false,
-    squish: 0,
-    blur: 7,
-    contrast: 24,
-    threshold: 0.5,
-    dripSize: 16,
-    dripLength: 70,
-    restingDrips: 2,
-  },
-  { finish: 'oil' },
-)
-// TODO(core-feel-1): the CTA fires a shockwave on click.
-const ctaOptions: GoopOptions = nextOptions({ restingDrips: 1, dripSize: 6, dripLength: 12 }, { shockwave: true })
+// The dark card is the landing's oil slick: the whole card is a goo body with the oil
+// finish (thin-film iridescence, canvas renderer). It hangs two drips, drips more where
+// you hover, ripples when you click, and leans a little with the pointer. The content
+// sits above the goo, unfiltered. Under reduced motion the sheen and drips hold still.
+const oilCard: GoopOptions = {
+  finish: 'oil',
+  blur: 8,
+  threshold: 0.5,
+  contrast: 24,
+  squish: 0,
+  reactivity: 0.3,
+  inertia: 0.6,
+  clickMass: 0.25,
+  shockwave: 1.2,
+  dripCount: 2,
+  dripSize: 16,
+  dripLength: 64,
+  fall: 90,
+  maxDrips: 12,
+  restingDrips: [0.3, 0.68],
+  oiliness: 0.9,
+}
+const ctaOptions: GoopOptions = { restingDrips: 1, dripSize: 6, dripLength: 12 }
 const tab = ref<'nuxt' | 'vue'>('nuxt')
 
 const snippets = {
@@ -46,7 +51,11 @@ const current = computed(() => snippets[tab.value])
 <template>
   <section class="px-3 pb-24 pt-8 sm:px-6 sm:pb-32" aria-labelledby="install">
     <!-- Always the dark palette: `.dark` re-scopes every token for this subtree. -->
-    <div v-reveal class="install-card dark relative mx-auto max-w-6xl rounded-[clamp(22px,3vw,34px)] px-5 py-14 sm:px-12 sm:py-20">
+    <GoopHost
+      v-reveal
+      class="install-card dark relative mx-auto max-w-6xl rounded-[clamp(22px,3vw,34px)] px-5 py-14 sm:px-12 sm:py-20"
+      :options="oilCard"
+    >
       <div class="grid gap-10 lg:grid-cols-[1fr_1.05fr] lg:items-center lg:gap-14">
         <div>
           <p class="font-mono text-[11px] uppercase tracking-[0.12em] opacity-60">06 · Install</p>
@@ -88,26 +97,17 @@ const current = computed(() => snippets[tab.value])
           <CodeSnippet :code="current.code" :lang="current.lang" :filename="current.file" />
         </div>
       </div>
-      <GoopHost class="oil-edge" aria-hidden="true" :options="oilEdge" />
-    </div>
+    </GoopHost>
   </section>
 </template>
 
 <style scoped>
 .install-card {
-  background: var(--card);
+  /* The goo body paints the card; the host stays transparent. */
+  --goop-color: oklch(0.15 0.008 60);
+  --goop-oil-intensity: 0.62;
+  --goop-oil-scale: 1.5;
   color: var(--foreground);
-  box-shadow: inset 0 0 0 1px var(--border);
-}
-.oil-edge {
-  position: absolute;
-  left: 1px;
-  right: 1px;
-  bottom: 1px;
-  height: 40px;
-  border-radius: 0 0 calc(clamp(22px, 3vw, 34px) - 1px) calc(clamp(22px, 3vw, 34px) - 1px);
-  pointer-events: none;
-  --goop-color: var(--card);
 }
 .install-cta {
   --goop-color: var(--goo);

@@ -4,6 +4,11 @@
 //
 // Renders `as` (default div), calls attachGoop on mount, forwards option changes to
 // handle.update(), and destroys on unmount. The host's color is `--goop-color`.
+// Inside a `data-goop-stage` element it also follows the stage's controls (see
+// utils/goopStage.ts): drip-all and option overrides such as a per-frame timeScale.
+//
+// Note: the renderer is chosen at attach time (`finish: 'oil'` upgrades to canvas), so
+// switching finish/renderer needs a remount: give the host a :key that includes them.
 import { attachGoop, type GoopHandle, type GoopOptions } from '@goopui/core'
 import type { Component } from 'vue'
 
@@ -21,28 +26,31 @@ const node = (): HTMLElement | null => {
   return v instanceof HTMLElement ? v : v.$el
 }
 let handle: GoopHandle | null = null
+let stage: Element | null = null
+
+const merged = (): GoopOptions => ({ ...props.options, ...stageOptions(stage) })
+const onStageDrip = () => handle?.drip()
+const onStageOptions = () => handle?.update(merged())
 
 onMounted(() => {
   const host = node()
   if (!host) return
-  handle = attachGoop(host, { ...props.options })
-  // Demo frames (<Preview>, tuners) can ask every goo inside them to drip at once.
-  stage = host.parentElement?.closest('[data-goop-stage]') ?? null
-  stage?.addEventListener('goop:drip', onStageDrip)
+  stage = host.parentElement?.closest(`[${STAGE_ATTR}]`) ?? null
+  handle = attachGoop(host, merged())
+  stage?.addEventListener(STAGE_DRIP, onStageDrip)
+  stage?.addEventListener(STAGE_OPTIONS, onStageOptions)
   emit('ready', handle)
 })
 
-let stage: Element | null = null
-const onStageDrip = () => handle?.drip()
-
 watch(
   () => props.options,
-  (opts) => handle?.update({ ...opts }),
+  () => handle?.update(merged()),
   { deep: true },
 )
 
 onUnmounted(() => {
-  stage?.removeEventListener('goop:drip', onStageDrip)
+  stage?.removeEventListener(STAGE_DRIP, onStageDrip)
+  stage?.removeEventListener(STAGE_OPTIONS, onStageOptions)
   handle?.destroy()
   handle = null
 })

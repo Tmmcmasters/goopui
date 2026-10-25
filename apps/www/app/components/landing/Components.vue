@@ -1,13 +1,9 @@
 <script setup lang="ts">
-import { setGoopTimeScale, type GoopOptions } from '@goopui/core'
+import type { GoopOptions } from '@goopui/core'
 
-// Slow-mo uses the engine's global time scale (it affects every goo on the page).
-const slow = ref(false)
-watch(slow, (s) => setGoopTimeScale(s ? 0.3 : 1))
-onUnmounted(() => setGoopTimeScale(1))
-
-const buttons = ref<{ getHandle: () => import('@goopui/core').GoopHandle | null }[]>([])
-const dripAll = () => buttons.value.forEach((b) => b.getHandle()?.drip())
+// The live card is a goo stage: its controls (Drip, per-instance Slow-mo, Let it fly)
+// reach every button inside it. See utils/goopStage.ts.
+const stage = ref<HTMLElement | null>(null)
 
 const still: GoopOptions = { interactive: false, drips: false }
 
@@ -23,23 +19,23 @@ const soon = [
 <template>
   <section class="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28" aria-labelledby="components">
     <LandingSectionHead id="components" index="02" label="Components" title="Button drips today. The rest are on the way.">
-      GoopButton is the first one, and it's live below. The others ship in order. Hover to drip, press to squish, hold to
-      watch a drop let go.
+      GoopButton is the first one, and it's live below. Hover to drip, swipe through fast to splash, click for a
+      shockwave. The others ship in order.
     </LandingSectionHead>
 
     <div class="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <!-- Live: Button -->
       <article v-reveal class="card sm:col-span-2 lg:row-span-2">
-        <div class="card-stage stage-lg flex-col gap-10">
+        <div ref="stage" data-goop-stage class="card-stage stage-lg flex-col gap-10">
           <div class="flex flex-wrap items-center justify-center gap-4 px-4">
-            <GoopButtonDemo :ref="(el: any) => el && (buttons[0] = el)">Button</GoopButtonDemo>
-            <GoopButtonDemo :ref="(el: any) => el && (buttons[1] = el)" variant="destructive">Delete</GoopButtonDemo>
-            <GoopButtonDemo :ref="(el: any) => el && (buttons[2] = el)" variant="secondary">Secondary</GoopButtonDemo>
+            <GoopButtonDemo>Button</GoopButtonDemo>
+            <GoopButtonDemo variant="destructive">Delete</GoopButtonDemo>
+            <GoopButtonDemo variant="secondary">Secondary</GoopButtonDemo>
           </div>
           <div class="flex flex-wrap items-center justify-center gap-4 px-4">
-            <GoopButtonDemo :ref="(el: any) => el && (buttons[3] = el)" size="sm">Small</GoopButtonDemo>
-            <GoopButtonDemo :ref="(el: any) => el && (buttons[4] = el)" shape="pill" variant="goo">Pill</GoopButtonDemo>
-            <GoopButtonDemo :ref="(el: any) => el && (buttons[5] = el)" size="lg">Large button</GoopButtonDemo>
+            <GoopButtonDemo size="sm">Small</GoopButtonDemo>
+            <GoopButtonDemo shape="pill" variant="goo">Pill</GoopButtonDemo>
+            <GoopButtonDemo size="lg" variant="oil">Crude oil</GoopButtonDemo>
           </div>
         </div>
         <footer class="card-foot">
@@ -47,12 +43,9 @@ const soon = [
             <p class="flex items-center gap-2 font-mono text-[13px]">
               GoopButton <span class="pill pill-live">live</span>
             </p>
-            <p class="mt-1 text-sm text-muted-foreground">Drips on hover, squish on press, one drip per tap.</p>
+            <p class="mt-1 text-sm text-muted-foreground">Drips, splashes, shockwaves, and an oil finish.</p>
           </div>
-          <div class="flex shrink-0 items-center gap-1.5">
-            <button type="button" class="ctl" @click="dripAll">Drip all</button>
-            <button type="button" class="ctl" :aria-pressed="slow" @click="slow = !slow">Slow-mo</button>
-          </div>
+          <StageControls class="shrink-0" :stage="stage" />
         </footer>
       </article>
 
@@ -140,30 +133,6 @@ const soon = [
 .pill-live {
   color: var(--goo-foreground);
   background: var(--goo);
-  box-shadow: none;
-}
-.ctl {
-  height: 2rem;
-  padding: 0 0.7rem;
-  border-radius: 0.5rem;
-  font-size: 0.8125rem;
-  color: var(--muted-foreground);
-  box-shadow: inset 0 0 0 1px var(--border);
-  transition:
-    background-color 150ms ease,
-    color 150ms ease,
-    transform 140ms var(--ease-out-strong);
-}
-.ctl:hover {
-  color: var(--foreground);
-  background: var(--muted);
-}
-.ctl:active {
-  transform: scale(0.96);
-}
-.ctl[aria-pressed='true'] {
-  color: var(--background);
-  background: var(--foreground);
   box-shadow: none;
 }
 

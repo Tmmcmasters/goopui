@@ -5,7 +5,7 @@ import type { GoopOptions } from '@goopui/core'
 
 const props = withDefaults(
   defineProps<{
-    variant?: 'default' | 'destructive' | 'secondary' | 'goo'
+    variant?: 'default' | 'destructive' | 'secondary' | 'goo' | 'oil'
     size?: 'sm' | 'md' | 'lg'
     shape?: 'rounded' | 'pill'
     disabled?: boolean
@@ -15,7 +15,12 @@ const props = withDefaults(
 )
 
 const host = ref<{ getHandle: () => import('@goopui/core').GoopHandle | null; refresh: () => void } | null>(null)
-const opts = computed<GoopOptions>(() => ({ ...props.options, disabled: props.disabled }))
+// The oil variant is crude-oil ink with the thin-film finish (auto-upgrades to canvas).
+const opts = computed<GoopOptions>(() => ({
+  ...(props.variant === 'oil' ? { finish: 'oil' as const } : {}),
+  ...props.options,
+  disabled: props.disabled,
+}))
 
 defineExpose({
   getHandle: () => host.value?.getHandle() ?? null,
