@@ -249,12 +249,13 @@ describe('oil finish', () => {
   it('switches the layer to a per-element oil filter and back, cleaning up', () => {
     stubMatchMedia()
     const host = makeHost()
-    const h = attach(host, { finish: 'oil' })
+    const h = attach(host, { finish: 'oil', renderer: 'svg' })
     expect(h.layer.style.filter).toMatch(/goop-oil-/)
     const id = h.layer.style.filter.match(/#([^)"]+)/)![1]!
     const f = document.getElementById(id)!
     expect(f.querySelector('feImage')?.getAttribute('href')).toMatch(/^data:image\/svg\+xml/)
-    expect(f.querySelector('feDisplacementMap')).not.toBeNull()
+    expect(f.querySelector('feDisplacementMap')).toBeNull() // cheap path: no per-frame displacement
+    expect(f.querySelector('feTurbulence')).toBeNull()
     expect(f.querySelector('feBlend')).not.toBeNull()
     h.update({ finish: 'solid' })
     expect(h.layer.style.filter).toMatch(/goop-goo-/)
@@ -269,11 +270,22 @@ describe('oil finish', () => {
     const host = makeHost()
     host.style.setProperty('--goop-finish', 'oil')
     host.style.setProperty('--goop-oil-intensity', '0.3')
-    const h = attach(host)
+    const h = attach(host, { renderer: 'svg' })
     expect(h.layer.style.filter).toMatch(/goop-oil-/)
     const id = h.layer.style.filter.match(/#([^)"]+)/)![1]!
     const strength = document.getElementById(id)!.querySelector('feColorMatrix[in="sheen"]')!
     expect(strength.getAttribute('values')!.trim().endsWith('0.300 0')).toBe(true)
+  })
+})
+
+describe('oil renderer choice', () => {
+  it('oil without an explicit renderer upgrades to canvas; solid stays svg', () => {
+    stubMatchMedia()
+    const oil = attach(makeHost(), { finish: 'oil' })
+    expect(oil.layer.style.filter).not.toMatch(/goop-oil-/)
+    expect(oil.layer.querySelector('canvas')).not.toBeNull()
+    const solid = attach(makeHost())
+    expect(solid.layer.style.filter).toMatch(/goop-goo-/)
   })
 })
 

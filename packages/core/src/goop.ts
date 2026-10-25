@@ -62,7 +62,8 @@ export interface GoopOptions extends Partial<Omit<GoopTuning, 'restingDrips'>> {
    *  `true`/`false` force it. */
   reducedMotion?: boolean | 'auto'
   /** Renderer: 'svg' (default, SVG filter), 'canvas' (shared WebGL2, 2D fallback), or a
-   *  custom factory such as `createCanvasRenderer` / `makeCanvasRenderer({...})`. */
+   *  custom factory such as `createCanvasRenderer` / `makeCanvasRenderer({...})`.
+   *  Unset + `finish: 'oil'` (or --goop-finish: oil at attach) picks 'canvas'. */
   renderer?: GoopRendererOption
   /** Surface finish: 'solid' (default) or 'oil' (thin-film iridescence). Falls back to the
    *  host's `--goop-finish`; `--goop-oil-intensity|scale|shift` tune it. Renderers that
@@ -200,7 +201,14 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
   if (win?.getComputedStyle(host).position === 'static') host.style.position = 'relative'
   host.style.isolation = 'isolate'
 
-  const renderer: GoopRenderer = resolveRenderer(opts.renderer)(host, filterParams(tuning))
+  // Oil is nearly free on canvas but costs a filter re-raster on SVG: when oil is asked for
+  // and no renderer was chosen explicitly, use canvas. `renderer: 'svg'` still gets the
+  // (cheap, static) SVG film. The renderer is fixed at attach time.
+  const wantsOil = readFinishVars(host, { finish: opts.finish }).finish === 'oil'
+  const renderer: GoopRenderer = resolveRenderer(opts.renderer ?? (wantsOil ? 'canvas' : undefined))(
+    host,
+    filterParams(tuning),
+  )
   renderer.setPadding(layerPadding(tuning, splashMode))
   const field = new DripField(renderer)
   /** Finish goes to whichever renderer is in use; `finish` tracks it for the sheen flow. */

@@ -22,7 +22,7 @@ export interface GoopFinish {
 
 export const GOOP_FINISH_DEFAULTS: Readonly<GoopFinish> = Object.freeze({
   finish: 'solid',
-  oilIntensity: 0.6,
+  oilIntensity: 0.3,
   oilScale: 1,
   oilShift: 0,
   oilReact: 0,

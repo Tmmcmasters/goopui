@@ -210,25 +210,23 @@ export interface OilFilter {
   readonly id: string
   /** Layer size in px (the filtered element), so the band image covers it. */
   setBox(width: number, height: number): void
-  /** Slide the bands `phase` px along their direction; `swirl` (0..~2) bends them harder;
+  /** Slide the bands `phase` px along their direction (`swirl` is accepted but unused: the
+   *  cheap SVG film has no per-frame displacement);
    *  (ox, oy) moves the whole film with the goo body. */
   setFlow(phase: number, swirl: number, ox?: number, oy?: number): void
   setFinish(p: OilFinishParams): void
   release(): void
 }
 
-/** Thin-film palette as [offset, color] stops (cycled with reflect). Black stops are gaps:
- *  under the screen blend they leave the base untouched, so the film reads as thin colored
- *  fringes over a dark, rich base instead of a full rainbow. */
+/** Thin-film palette as [offset, color] stops (cycled with reflect). Soft, desaturated,
+ *  no dark gaps: it tints the base rather than painting over it. */
 export const OIL_PALETTE: readonly (readonly [number, string])[] = [
-  [0, '#000000'],
-  [0.12, '#7d2a5e'],
-  [0.26, '#8f6f2a'],
-  [0.38, '#000000'],
-  [0.55, '#25704f'],
-  [0.68, '#1f6a82'],
-  [0.8, '#463087'],
-  [1, '#000000'],
+  [0, '#b06a9a'],
+  [0.22, '#c9a86a'],
+  [0.45, '#7fb39a'],
+  [0.68, '#6fa6c4'],
+  [0.86, '#8f84c9'],
+  [1, '#b06a9a'],
 ]
 /** Band direction (deg). */
 const OIL_ANGLE = 22
@@ -243,17 +241,19 @@ function oilImage(w: number, h: number, scale: number): string {
     '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '">' +
     '<defs><linearGradient id="g" gradientUnits="userSpaceOnUse" spreadMethod="reflect" x1="0" y1="0" ' +
     'x2="' + (Math.cos(a) * L).toFixed(2) + '" y2="' + (Math.sin(a) * L).toFixed(2) + '">' + stops +
-    '</linearGradient>' +
-    // Bake a soft fractal warp into the band image once (static, decoded once), so the film
-    // reads as swirled oil instead of straight stripes. No per-frame turbulence cost.
-    '<filter id="w" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" ' +
-    'baseFrequency="' + (0.35 / L).toFixed(4) + ' ' + (0.6 / L).toFixed(4) + '" numOctaves="2" seed="7"/>' +
-    '<feDisplacementMap in="SourceGraphic" scale="' + (L * 1.6).toFixed(1) + '" xChannelSelector="R" yChannelSelector="G"/>' +
-    '</filter></defs><rect width="100%" height="100%" fill="url(#g)" filter="url(#w)"/></svg>'
+    '</linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/></svg>'
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)
 }
 
-/** Create a per-element oil filter in `doc` (released with `release()`). */
+/**
+ * Create a per-element oil filter in `doc` (released with `release()`).
+ *
+ * Cheap by design: the band image is a plain static gradient (no turbulence, no displacement),
+ * and the only thing that ever changes is an feOffset, rounded to whole px, so the filter is
+ * re-rasterized only when the goo is already moving. The sheen is masked toward the rim:
+ * `goo - 0.85 * blur` is ~0.15 on flat interiors and peaks where the surface curves away
+ * (thin film is strongest at grazing angles), so the base color dominates the middle.
+ */
 export function createOilFilter(doc: Document, params: GooFilterParams, finish: OilFinishParams): OilFilter {
   const p = normalize(params)
   const id = 'goop-oil-' + ++oilSeq
@@ -274,24 +274,16 @@ export function createOilFilter(doc: Document, params: GooFilterParams, finish: 
   }) as SVGFilterElement
   const image = el('feImage', { result: 'film', preserveAspectRatio: 'none' })
   const offset = el('feOffset', { in: 'film', dx: '0', dy: '0', result: 'flow' })
-  const disp = el('feDisplacementMap', {
-    in: 'flow',
-    in2: 'blur',
-    scale: '10',
-    xChannelSelector: 'A',
-    yChannelSelector: 'A',
-    result: 'bent',
-  })
   const strength = el('feColorMatrix', { in: 'sheen', type: 'matrix', result: 'sheenA' })
   const blend = el('feBlend', { in: 'sheenA', in2: 'base', mode: 'screen' })
   filter.append(
     el('feGaussianBlur', { in: 'SourceGraphic', stdDeviation: String(p.blur), result: 'blur' }),
     el('feColorMatrix', { in: 'blur', mode: 'matrix', values: gooColorMatrix(p), result: 'goo' }),
     el('feComposite', { in: 'SourceGraphic', in2: 'goo', operator: 'atop', result: 'base' }),
+    el('feComposite', { in: 'goo', in2: 'blur', operator: 'arithmetic', k1: '0', k2: '1', k3: '-0.85', k4: '0', result: 'rim' }),
     image,
     offset,
-    disp,
-    el('feComposite', { in: 'bent', in2: 'goo', operator: 'in', result: 'sheen' }),
+    el('feComposite', { in: 'flow', in2: 'rim', operator: 'in', result: 'sheen' }),
     strength,
     blend,
   )
@@ -305,8 +297,8 @@ export function createOilFilter(doc: Document, params: GooFilterParams, finish: 
   const ang = (OIL_ANGLE * Math.PI) / 180
   const dir = { x: Math.cos(ang), y: Math.sin(ang) }
   const renderImage = (): void => {
-    // Oversize so sliding by up to one period (plus the baked warp) never shows an edge.
-    const m = Math.ceil(period * 2.5)
+    // Oversize so sliding by up to one period never shows an edge.
+    const m = Math.ceil(period * 1.5)
     const w = Math.max(1, Math.ceil(box.w)) + m * 2
     const h = Math.max(1, Math.ceil(box.h)) + m * 2
     image.setAttribute('x', String(-m))
@@ -330,21 +322,17 @@ export function createOilFilter(doc: Document, params: GooFilterParams, finish: 
       box = { w, h }
       renderImage()
     },
-    setFlow(phase, swirl, ox = 0, oy = 0) {
-      // The baked warp makes the image non-periodic, so instead of wrapping (a visible jump)
-      // the accumulated phase ping-pongs over +/- one period: always continuous.
-      const span = period * 2
-      const t = (((phase % (2 * span)) + 2 * span) % (2 * span)) / span
-      const ph = (t < 1 ? t : 2 - t) * span - period
-      const dx = (dir.x * ph + ox).toFixed(1)
-      const dy = (dir.y * ph + oy).toFixed(1)
-      const sc = (6 + Math.max(0, swirl) * 14).toFixed(1)
-      const s = dx + '|' + dy + '|' + sc
+    setFlow(phase, _swirl, ox = 0, oy = 0) {
+      // The plain gradient is periodic along its direction, so wrapping is seamless.
+      // Whole-px steps: a slow drift touches the filter a few times a second, never per frame.
+      const ph = (((phase % period) + period) % period) - period / 2
+      const dx = Math.round(dir.x * ph + ox)
+      const dy = Math.round(dir.y * ph + oy)
+      const s = dx + '|' + dy
       if (s === last) return
       last = s
-      offset.setAttribute('dx', dx)
-      offset.setAttribute('dy', dy)
-      disp.setAttribute('scale', sc)
+      offset.setAttribute('dx', String(dx))
+      offset.setAttribute('dy', String(dy))
     },
     setFinish(next) {
       const rescale = next.scale !== fin.scale
