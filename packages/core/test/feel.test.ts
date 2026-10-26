@@ -6,6 +6,7 @@ import {
   GOOP_OVERLAY_ATTR,
   GOOP_PHYSICS,
   escapeLayerRefs,
+  gooParamsOf,
   gooVanishRadius,
   readTuning,
   attachGoop,
@@ -81,7 +82,7 @@ function recordingRenderer() {
  *  vanish radius rm, and near it the visible size goes like sqrt(r^2 - rm^2) (steep). This is
  *  what makes threshold "pops" measurable: a circle removed at r = rm is fine, but a circle
  *  dropping from r = 2*rm to 0 in one frame is a visible pop. */
-const RM = gooVanishRadius(GOOP_DEFAULTS)
+const RM = gooVanishRadius(gooParamsOf(GOOP_DEFAULTS))
 const vis = (s: { r: number; o: number }) => (s.o > 0.02 ? Math.sqrt(Math.max(0, s.r * s.r - RM * RM)) : 0)
 
 /** Assert no circle changes visible size by more than `maxJump` px between frames,

@@ -126,11 +126,11 @@ describe('attachGoop', () => {
     host.style.setProperty('--goop-viscosity', 'nonsense')
     host.style.setProperty('--goop-squish', '9')
     const t = readTuning(host, { dripCount: 1 })
-    expect(t.blur).toBe(7)
+    expect(t.softness).toBe(7) // via the deprecated --goop-blur alias
     expect(t.dripCount).toBe(1)
-    expect(t.viscosity).toBe(GOOP_DEFAULTS.viscosity)
+    expect(t.thickness).toBe(GOOP_DEFAULTS.thickness)
     expect(t.squish).toBe(0.4)
-    expect(t.fall).toBe(GOOP_DEFAULTS.fall)
+    expect(t.fallDistance).toBe(GOOP_DEFAULTS.fallDistance)
   })
 
   it('update() re-reads CSS vars and swaps the filter', () => {
@@ -140,7 +140,7 @@ describe('attachGoop', () => {
     const before = h.layer.style.filter
     host.style.setProperty('--goop-blur', '9')
     h.update()
-    expect(h.tuning.blur).toBe(9)
+    expect(h.tuning.softness).toBe(9)
     expect(h.layer.style.filter).not.toBe(before)
     expect(document.querySelectorAll(`svg[${GOO_DEFS_ATTR}] filter`)).toHaveLength(1)
   })

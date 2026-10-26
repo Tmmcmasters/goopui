@@ -51,9 +51,9 @@ export function acquireEscapeLayer(doc: Document, options: EscapeOptions = {}): 
   let s = shared.get(doc)
   if (!s) {
     const params = options.params ?? {
-      blur: GOOP_DEFAULTS.blur,
-      contrast: GOOP_DEFAULTS.contrast,
-      threshold: GOOP_DEFAULTS.threshold,
+      blur: GOOP_DEFAULTS.softness,
+      contrast: GOOP_DEFAULTS.edgeSharpness,
+      threshold: GOOP_DEFAULTS.edge,
     }
     const overlays = new Map<string, GoopOverlay>()
     const overlayFor = (color: string): GoopOverlay => {

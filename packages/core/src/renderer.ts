@@ -140,7 +140,7 @@ export function createSvgFilterRenderer(
     const [r, g, b] = m.map(Number) as [number, number, number]
     return 0.2126 * r + 0.7152 * g + 0.0722 * b < 140
   }
-  const oilParams = () => ({ intensity: finish.oilIntensity, scale: OIL_BAND_PX * finish.oilScale, dark: isDark() })
+  const oilParams = () => ({ intensity: finish.oilIntensity, scale: OIL_BAND_PX * finish.oilBandSize, dark: isDark() })
   const syncFilter = (): void => {
     if (finish.finish === 'oil') {
       if (!oil) oil = createOilFilter(doc, goo, oilParams())
@@ -179,7 +179,7 @@ export function createSvgFilterRenderer(
     },
     setSheen({ phase, swirl, ox = 0, oy = 0 }) {
       // --goop-oil-shift offsets film thickness by whole color cycles.
-      oil?.setFlow(phase + finish.oilShift * 2 * OIL_BAND_PX * finish.oilScale, swirl, ox, oy)
+      oil?.setFlow(phase + finish.oilHueShift * 2 * OIL_BAND_PX * finish.oilBandSize, swirl, ox, oy)
     },
     setBodyScale(sx, sy) {
       const t = sx === 1 && sy === 1 ? '' : `scale(${sx.toFixed(4)},${sy.toFixed(4)})`

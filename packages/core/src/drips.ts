@@ -23,6 +23,7 @@
 
 import { GOOP_PHYSICS, type GoopTuning } from './constants'
 import { gooVanishRadius } from './filter'
+import { gooParamsOf } from './tuning'
 import type { GoopBlob, GoopRenderer } from './renderer'
 import {
   clamp,
@@ -140,7 +141,7 @@ const jitter = (rand: () => number, amount: number): number => 1 + (rand() * 2 -
  * (Opacity stays 1: fading alpha under a threshold filter is itself a pop.)
  */
 export function dropRadius(r0: number, p: number, t: GoopTuning): number {
-  const rm = gooVanishRadius(t) * 0.98
+  const rm = gooVanishRadius(gooParamsOf(t)) * 0.98
   const fade = P.dropFadeStart
   // Never shrink into the threshold zone before the deliberate fade-out.
   const rA = Math.max(r0 * (1 - P.dropShrink * Math.min(p, fade)), Math.min(r0, rm * 1.2))
@@ -230,15 +231,15 @@ export class DripField {
         tuning.dripSize *
           jitter(rand, P.sizeJitter * (0.4 + (tuning.dripVariance ?? 0.6))) *
           (opts.sizeScale ?? 1),
-        gooVanishRadius(tuning) * 1.25,
+        gooVanishRadius(gooParamsOf(tuning)) * 1.25,
       ),
       swellTime:
         P.swellTime *
-        tuning.viscosity *
+        tuning.thickness *
         jitter(rand, P.swellJitter) *
         (forced ? P.tapSwellScale : 1) *
         (opts.swellScale ?? 1),
-      fall: tuning.fall * jitter(rand, P.fallJitter),
+      fall: tuning.fallDistance * jitter(rand, P.fallJitter),
       lengthScale: 1 + (rand() * 2 - 1) * 0.45 * (tuning.dripVariance ?? 0),
       pinchScale: 1 + (rand() * 2 - 1) * 0.6 * (tuning.dripVariance ?? 0),
       blobs,
@@ -254,7 +255,7 @@ export class DripField {
 
   /** Advance the sim and draw. Returns true while anything is still moving. */
   step(dt: number, ctx: DripContext): boolean {
-    this.syncSprings(ctx.tuning.viscosity)
+    this.syncSprings(ctx.tuning.thickness)
     const anchor =
       ctx.anchor ??
       ((x: number) => ({
@@ -290,7 +291,7 @@ export class DripField {
       const boost =
         (ctx.pressed ? P.pressFeedBoost : 1) * (ctx.feedBoost ?? 1) * Math.max(0, ctx.feedAt ? ctx.feedAt(d.x) : 1)
       const feed = d.fed ? (1 / Math.max(0.05, d.swellTime)) * boost : 0
-      d.m = d.fed ? Math.min(1, d.m + dt * feed) : Math.max(0, d.m - dt / (P.drainTime * t.viscosity))
+      d.m = d.fed ? Math.min(1, d.m + dt * feed) : Math.max(0, d.m - dt / (P.drainTime * t.thickness))
       const cfg: SpringConfig = d.fed ? this.springs.hang : this.springs.retract
       const hangT = t.dripLength * d.lengthScale * Math.pow(d.m, P.hangCurve) + (ctx.stretch ?? 0) * d.m
       stepSpring(d.hang, Math.max(0, hangT), cfg, dt)
@@ -303,7 +304,7 @@ export class DripField {
       // Flow: fed drips creep along the edge toward the pointer with viscous lag.
       if (d.fed && ctx.flowTo !== undefined && ctx.flowPull) {
         const target = lerp(d.x0, ctx.flowTo, clamp(ctx.flowPull, 0, 1))
-        const k = 1 - Math.exp(-dt / (P.flowLag * t.viscosity))
+        const k = 1 - Math.exp(-dt / (P.flowLag * t.thickness))
         let nx = d.x + (target - d.x) * k
         if (ctx.edge) nx = clamp(nx, ctx.edge[0], ctx.edge[1])
         d.x = nx

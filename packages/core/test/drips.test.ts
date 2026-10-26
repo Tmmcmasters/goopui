@@ -59,7 +59,7 @@ describe('drip model', () => {
     })
     expect(detached).toBe(1)
     // fell roughly `fall` px below where it let go (40 = edge, + dripLength hang)
-    expect(maxDropY).toBeGreaterThan(40 + ctx.tuning.dripLength + ctx.tuning.fall * 0.6)
+    expect(maxDropY).toBeGreaterThan(40 + ctx.tuning.dripLength + ctx.tuning.fallDistance * 0.6)
     expect(field.size).toBe(0)
     expect(r.blobs.size).toBe(0)
   })

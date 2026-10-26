@@ -222,14 +222,14 @@ function createCanvasRendererImpl(
     const live = !reduced
     // Pointer coupling is opt-in (--goop-oil-react); by default the film ignores the mouse,
     // drifts slowly on its own (shader time) and uses a fixed top-left key light.
-    const react = live ? finish.oilReact : 0
+    const react = live ? finish.oilFollowPointer : 0
     const speed = react > 0 ? Math.hypot(ptr.vx, ptr.vy) : 0
     const stretch = Math.min(1.2, speed / 900) * react
     const hasPtr = react > 0 && ptr.inside && Number.isFinite(ptr.x)
     return {
       intensity: finish.oilIntensity,
-      scale: finish.oilScale,
-      shift: finish.oilShift,
+      scale: finish.oilBandSize,
+      shift: finish.oilHueShift,
       time: live ? (clock() - born) / 1000 : 0,
       flowX: react > 0 ? ptr.flowX * react : 0,
       flowY: react > 0 ? ptr.flowY * react : 0,
@@ -479,11 +479,11 @@ function createCanvasRendererImpl(
     else sheenLast = 0
   }
   const wakeSheen = (): void => {
-    if (!sheenRaf && oilOn() && !reduced && finish.oilReact > 0 && win?.requestAnimationFrame)
+    if (!sheenRaf && oilOn() && !reduced && finish.oilFollowPointer > 0 && win?.requestAnimationFrame)
       sheenRaf = win.requestAnimationFrame(sheen)
   }
   const onPointerMove = (e: PointerEvent): void => {
-    if (!oilOn() || reduced || finish.oilReact <= 0) return
+    if (!oilOn() || reduced || finish.oilFollowPointer <= 0) return
     const rect = host.getBoundingClientRect()
     if (!rect.width || !rect.height) return
     const x = ((e.clientX - rect.left) / rect.width) * hostW

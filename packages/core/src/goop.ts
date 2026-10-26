@@ -45,7 +45,7 @@ import type { GoopBlob, GoopRenderer } from './renderer'
 import { readFinish as readFinishVars, type GoopFinishName, type GoopFinishRenderer } from './renderers/finish'
 import { resolveRenderer, type GoopRendererOption } from './renderers/resolve'
 import { clamp, isSpringSettled, springConfig, stepSpring, type SpringState } from './spring'
-import { readPreset, readTuning } from './tuning'
+import { gooParamsOf, readPreset, readTuning, renameOptions } from './tuning'
 
 const P = GOOP_PHYSICS
 
@@ -53,6 +53,17 @@ const P = GOOP_PHYSICS
 type ToggleKeys = 'restingDrips' | 'keyboard' | 'gloss' | 'taffy' | 'reach' | 'puddles' | 'labelRide' | 'idle'
 
 export interface GoopOptions extends Partial<Omit<GoopTuning, ToggleKeys>> {
+  /** @deprecated use `softness` */ blur?: number
+  /** @deprecated use `edgeSharpness` */ contrast?: number
+  /** @deprecated use `edge` */ threshold?: number
+  /** @deprecated use `thickness` */ viscosity?: number
+  /** @deprecated use `fallDistance` */ fall?: number
+  /** @deprecated use `pointerReaction` */ reactivity?: number
+  /** @deprecated use `clickGoop` */ clickMass?: number
+  /** @deprecated use `clickGoopFade` */ massDecay?: number
+  /** @deprecated use `splashMinSpeed` */ splashThreshold?: number
+  /** @deprecated use `flowToCursor` */ flow?: number
+  /** @deprecated use `strands` */ stringiness?: number
   /** Preset that sets defaults across features: 'subtle' | 'playful' (default) | 'wild'.
    *  Also `--goop-preset`. Explicit options and `--goop-*` vars override it. */
   preset?: GoopPreset
@@ -170,8 +181,14 @@ export interface GoopHandle {
   /** Add goop like a click does: swell the body and throw a splash drip at x (host px).
    *  `amount` defaults to --goop-click-mass. */
   addGoop(amount?: number, x?: number): void
-  /** Click shockwave at (x, y) host px (default center): particle ring + edge ripple. */
-  shockwave(x?: number, y?: number, strength?: number): void
+  /** Click shockwave at (x, y) host px (default center): particle ring + edge ripple.
+   *  `aim.vx/vy` (px/s) override the tracked pointer velocity for the directional bias,
+   *  e.g. on `interactive: false` hosts that never see the pointer. */
+  shockwave(x?: number, y?: number, strength?: number, aim?: { vx?: number; vy?: number }): void
+  /** Drive the pointer from outside (non-interactive hosts): feeds the shared velocity
+   *  tracker with a client-space position and, while `hover(true)` is on, steers lean,
+   *  inertia, flow and drip placement. */
+  feedPointer(p: { clientX: number; clientY: number }): void
   /** Punch-through splash as if the pointer entered at (x, y) host px moving at (vx, vy) px/s. */
   splashThrough(x: number, y: number, vx: number, vy: number): void
   /** What is driving the goo right now (pointer velocity, mass, slosh, ...). */
@@ -184,22 +201,22 @@ export interface GoopHandle {
   readonly tuning: Readonly<GoopTuning>
 }
 
-const filterParams = (t: GoopTuning) => ({ blur: t.blur, contrast: t.contrast, threshold: t.threshold, gloss: t.gloss })
+const filterParams = (t: GoopTuning) => gooParamsOf(t)
 
 function layerPadding(t: GoopTuning, splash: GoopSplashMode): { side: number; bottom: number } {
   const maxSize = t.dripSize * (1 + P.sizeJitter) * (1 + P.burstSize * 2 + P.splashSizePerMass * P.maxMass)
-  let side = Math.ceil(t.blur * 3 + maxSize * 2 + P.maxOffset + 4)
+  let side = Math.ceil(t.softness * 3 + maxSize * 2 + P.maxOffset + 4)
   const reach = t.dripLength + maxSize * 2 + P.maxSlosh
-  const fall = t.fall * (1 + P.fallJitter) * (1 + P.dropMaxStretch)
+  const fall = t.fallDistance * (1 + P.fallJitter) * (1 + P.dropMaxStretch)
   let bottom = Math.ceil(side + reach + fall)
   if (splash === 'near' && (t.splashAmount > 0 || t.shockwave > 0)) {
     // Room for particles to fly ~nearReach px past any edge, then drip.
-    side = Math.max(side, Math.ceil(P.nearReach + t.blur * 3 + t.dripSize * 2))
-    bottom = Math.max(bottom, Math.ceil(side + t.fall))
+    side = Math.max(side, Math.ceil(P.nearReach + t.softness * 3 + t.dripSize * 2))
+    bottom = Math.max(bottom, Math.ceil(side + t.fallDistance))
   }
   // Taffy strings and reach bulges extend past the edges.
-  if (t.taffy > 0) side = Math.max(side, Math.ceil(t.taffyLength + t.dripSize * 3 + t.blur * 3))
-  if (t.reach > 0) side = Math.max(side, Math.ceil(P.reachBulge * 2 + t.dripSize * 3 + t.blur * 3))
+  if (t.taffy > 0) side = Math.max(side, Math.ceil(t.taffyLength + t.dripSize * 3 + t.softness * 3))
+  if (t.reach > 0) side = Math.max(side, Math.ceil(P.reachBulge * 2 + t.dripSize * 3 + t.softness * 3))
   bottom = Math.max(bottom, side + 8)
   return { side, bottom }
 }
@@ -231,7 +248,8 @@ const TOGGLES = ['gloss', 'taffy', 'reach', 'puddles', 'labelRide', 'keyboard', 
 
 /** Numeric tuning overrides from options. Toggles: `false` -> 0, number -> itself, `true` ->
  *  left to CSS / preset (then bumped to the default strength if that resolved to 0). */
-const tuningOverrides = (o: GoopOptions): Partial<GoopTuning> => {
+const tuningOverrides = (raw: GoopOptions): Partial<GoopTuning> => {
+  const o = renameOptions(raw)
   const { restingDrips, ...rest } = o
   const out = { ...rest, restingDrips: Array.isArray(restingDrips) ? undefined : restingDrips } as Record<string, unknown>
   for (const k of TOGGLES) {
@@ -293,7 +311,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
   const applyFinish = (): void => {
     const f = readFinishVars(host, { finish: opts.finish })
     finish = f.finish
-    oilReact = f.oilReact
+    oilReact = f.oilFollowPointer
     ;(renderer as GoopFinishRenderer).setFinish?.({ finish: opts.finish })
   }
   applyFinish()
@@ -326,17 +344,17 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
   const ptr = { x: 0, y: 0, has: false }
   let lastVars = ''
 
-  let pressCfg = springConfig(P.pressSpring, tuning.viscosity)
-  let releaseCfg = springConfig(P.releaseSpring, tuning.viscosity)
-  let jellyCfg = springConfig(P.jellySpring, tuning.viscosity)
-  let sloshCfg = springConfig(P.sloshSpring, tuning.viscosity)
+  let pressCfg = springConfig(P.pressSpring, tuning.thickness)
+  let releaseCfg = springConfig(P.releaseSpring, tuning.thickness)
+  let jellyCfg = springConfig(P.jellySpring, tuning.thickness)
+  let sloshCfg = springConfig(P.sloshSpring, tuning.thickness)
   const syncSprings = (): void => {
-    pressCfg = springConfig(P.pressSpring, tuning.viscosity)
-    releaseCfg = springConfig(P.releaseSpring, tuning.viscosity)
-    jellyCfg = springConfig(P.jellySpring, tuning.viscosity)
-    sloshCfg = springConfig(P.sloshSpring, tuning.viscosity)
-    taffyCfg = springConfig(P.taffySpring, tuning.viscosity)
-    reachCfg = springConfig(P.reachSpring, tuning.viscosity)
+    pressCfg = springConfig(P.pressSpring, tuning.thickness)
+    releaseCfg = springConfig(P.releaseSpring, tuning.thickness)
+    jellyCfg = springConfig(P.jellySpring, tuning.thickness)
+    sloshCfg = springConfig(P.sloshSpring, tuning.thickness)
+    taffyCfg = springConfig(P.taffySpring, tuning.thickness)
+    reachCfg = springConfig(P.reachSpring, tuning.thickness)
   }
 
   const readGeometry = (): void => {
@@ -417,7 +435,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
   })
 
   // ---- helpers ---------------------------------------------------------------
-  const react = (): number => tuning.reactivity
+  const react = (): number => tuning.pointerReaction
   const speedOf = (s: { speed: number }): number => Math.min(2, s.speed / P.speedRef)
   const canInteract = (): boolean => !destroyed && !reduced && !opts.disabled
   const dripsOn = (): boolean => opts.drips !== false && tuning.dripCount > 0
@@ -494,19 +512,19 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     rand: number,
     bond = false,
   ): void => {
-    const fp = fluidParams(tuning.oiliness, tuning.viscosity)
+    const fp = fluidParams(tuning.oiliness, tuning.thickness)
     const r = tuning.dripSize * fp.size * (0.8 + 0.4 * rand)
     const base: Omit<ParticleSpawn, 'x' | 'y' | 'vx' | 'vy'> = {
       r,
       oiliness: tuning.oiliness,
       gravity: tuning.gravity,
       gravityX: gravityX() * tuning.gravity * P.tiltGravity,
-      vanish: gooVanishRadius(tuning),
-      viscosity: tuning.viscosity,
+      vanish: gooVanishRadius(gooParamsOf(tuning)),
+      viscosity: tuning.thickness,
       rand,
-      bond: bond && tuning.stringiness > 0,
-      bondStiffness: P.bondStiffness * tuning.stringiness,
-      bondBreak: 2 + P.bondBreak * tuning.stringiness,
+      bond: bond && tuning.strands > 0,
+      bondStiffness: P.bondStiffness * tuning.strands,
+      bondBreak: 2 + P.bondBreak * tuning.strands,
     }
     const v = speed * fp.speed
     if (splashMode === 'escape') {
@@ -541,7 +559,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     const speed = Math.hypot(vx, vy)
     if (speed < 1) return
     const n = speed / P.speedRef
-    const over = Math.max(0, n - tuning.splashThreshold)
+    const over = Math.max(0, n - tuning.splashMinSpeed)
     const dx = vx / speed
     const dy = vy / speed
     const exit = exitPoint(x, y, dx, dy)
@@ -559,7 +577,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     // stringiness, particles go out fastest-first and each is chained to the previous one,
     // so the burst becomes a tendril strung along the ray that thins and snaps.
     const spread = 0.35 + 0.35 * tuning.oiliness
-    const chain = tuning.stringiness > 0
+    const chain = tuning.strands > 0
     let a0 = base + (random() * 2 - 1) * cone * 0.5
     for (let i = 0; i < count; i++) {
       const order = chain ? 1 - i / Math.max(1, count - 1) : random()
@@ -578,10 +596,23 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     wake()
   }
 
-  const shockwave = (x = width / 2, y = height / 2, strength = tuning.shockwave): void => {
+  const shockwave = (
+    x = width / 2,
+    y = height / 2,
+    strength = tuning.shockwave,
+    aim?: { vx?: number; vy?: number },
+  ): void => {
     if (!canInteract() || strength <= 0) return
     const r = react()
-    const s = pointer.sample()
+    const tracked = pointer.sample()
+    const s =
+      aim && (aim.vx !== undefined || aim.vy !== undefined)
+        ? (() => {
+            const vx = aim.vx ?? 0
+            const vy = aim.vy ?? 0
+            return { ...tracked, vx, vy, speed: Math.hypot(vx, vy) }
+          })()
+        : tracked
     const n = speedOf(s)
     // Body pulse away from the click point.
     const ox = (x - width / 2) / (width / 2 || 1)
@@ -717,7 +748,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
   // ---- puddles --------------------------------------------------------------------------
   const floorY = (): number => height + layerPadding(tuning, splashMode).bottom - 3
   const pool = (x: number, y: number, r: number, vx: number): void =>
-    puddles.add({ x, floor: y, r, vx, vanish: gooVanishRadius(tuning), life: tuning.puddleLife })
+    puddles.add({ x, floor: y, r, vx, vanish: gooVanishRadius(gooParamsOf(tuning)), life: tuning.puddleLife })
 
   // ---- taffy pull -------------------------------------------------------------------------
   interface Taffy {
@@ -734,7 +765,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
   let taffyArmed = false
   let taffyTimer: ReturnType<typeof setTimeout> | null = null
   let suppressClick = false
-  let taffyCfg = springConfig(P.taffySpring, tuning.viscosity)
+  let taffyCfg = springConfig(P.taffySpring, tuning.thickness)
 
   /** Closest point on the host's edge to (x, y), host px. */
   const edgePoint = (x: number, y: number): { x: number; y: number } => {
@@ -786,8 +817,8 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
       r: tuning.dripSize * 1.05,
       oiliness: tuning.oiliness,
       gravity: tuning.gravity,
-      vanish: gooVanishRadius(tuning),
-      viscosity: tuning.viscosity,
+      vanish: gooVanishRadius(gooParamsOf(tuning)),
+      viscosity: tuning.thickness,
     })
     // Recoil from where it broke: the stub starts ~40% of the way back, moving fast.
     const dx = t.ax - ex
@@ -809,7 +840,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     const maxLen = tuning.taffyLength
     if (t.holding) {
       // The end chases the pointer with a little viscous lag.
-      const k = 1 - Math.exp(-dt / (P.taffyFollow * tuning.viscosity))
+      const k = 1 - Math.exp(-dt / (P.taffyFollow * tuning.thickness))
       const nx = t.end.x.x + (t.target.x - t.end.x.x) * k
       const ny = t.end.y.x + (t.target.y - t.end.y.x) * k
       t.end.x.v = dt > 0 ? (nx - t.end.x.x) / dt : 0
@@ -829,7 +860,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
       return false
     }
     // Volume ~ r^2 * length: the string thins as it stretches, but stays visible.
-    const vanish = gooVanishRadius(tuning)
+    const vanish = gooVanishRadius(gooParamsOf(tuning))
     const r0 = tuning.dripSize * (0.9 + 0.25 * Math.min(2, tuning.taffy))
     const vol = r0 * r0 * r0 * 3
     const rMid = Math.max(vanish * 1.08, Math.min(r0, Math.sqrt(vol / Math.max(len, r0 * 3))))
@@ -858,7 +889,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
   let reachBlobs: GoopBlob[] = []
   const reachAmt: SpringState = { x: 0, v: 0 }
   const reachPt = { x: 0, y: 0, nx: 0, ny: 0, has: false }
-  let reachCfg = springConfig(P.reachSpring, tuning.viscosity)
+  let reachCfg = springConfig(P.reachSpring, tuning.thickness)
   /** Client-space host rect, refreshed lazily (no per-frame layout reads). */
   let rect: DOMRect | null = null
   let rectAt = 0
@@ -935,7 +966,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     const r = react()
 
     // Click mass drains back to rest.
-    mass *= Math.exp(-dt / tuning.massDecay)
+    mass *= Math.exp(-dt / tuning.clickGoopFade)
     if (mass < 0.005) mass = 0
 
     // Inertia: the goo lags OPPOSITE to the pointer's acceleration while hovered.
@@ -1021,7 +1052,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
       feedBoost: 1 + mass * P.massFeed,
       feedAt: side === 0 ? undefined : (x) => 1 + P.sloshFeedBias * side * clamp((x - width / 2) / (width / 2 || 1), -1, 1),
       flowTo: hovered && ptr.has ? ptr.x : undefined,
-      flowPull: P.flowPull * tuning.flow * Math.min(1, r),
+      flowPull: P.flowPull * tuning.flowToCursor * Math.min(1, r),
       edge,
       floor: tuning.puddles > 0 ? floorY() : undefined,
       onLand: tuning.puddles > 0 ? pool : undefined,
@@ -1169,7 +1200,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     impact(s, false)
     // Hard enough: punch through and splash out the far side.
     const n = s.speed / P.speedRef
-    if (x !== undefined && n >= tuning.splashThreshold) splashThrough(x, y ?? height / 2, s.vx, s.vy)
+    if (x !== undefined && n >= tuning.splashMinSpeed) splashThrough(x, y ?? height / 2, s.vx, s.vy)
     if (dripsOn()) {
       field.setFed(true) // re-feed drips that were retracting: interruptible
       const sn = speedOf(s) * react()
@@ -1236,7 +1267,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     wake()
   }
 
-  const addGoop = (amount: number = tuning.clickMass, x?: number): void => {
+  const addGoop = (amount: number = tuning.clickGoop, x?: number): void => {
     if (!canInteract() || amount <= 0) return
     mass = Math.min(P.maxMass, mass + amount)
     // A little pop of the swell spring so the gain reads as a gulp, not a scale step.
@@ -1365,7 +1396,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
       setTimeout(() => (suppressClick = false), 0)
     }
     if (e.type === 'pointerup' && inside && !suppressClick) {
-      if (tuning.clickMass > 0) addGoop(tuning.clickMass, p?.x)
+      if (tuning.clickGoop > 0) addGoop(tuning.clickGoop, p?.x)
       else if (pressType !== 'mouse') tapDrip(p?.x)
       if (tuning.shockwave > 0) shockwave(p?.x ?? width / 2, p?.y ?? height / 2)
     }
@@ -1394,7 +1425,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     if (!keyDown || e.key !== keyDown) return
     keyDown = ''
     release()
-    if (tuning.clickMass > 0) addGoop(tuning.clickMass, width / 2)
+    if (tuning.clickGoop > 0) addGoop(tuning.clickGoop, width / 2)
     if (tuning.shockwave > 0) shockwave(width / 2, height * 0.25, tuning.shockwave * 0.7)
   }
 
@@ -1537,9 +1568,9 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
         rendererKey = nextKey
         swapRenderer()
       } else if (
-        prev.blur !== tuning.blur ||
-        prev.contrast !== tuning.contrast ||
-        prev.threshold !== tuning.threshold ||
+        prev.softness !== tuning.softness ||
+        prev.edgeSharpness !== tuning.edgeSharpness ||
+        prev.edge !== tuning.edge ||
         prev.gloss !== tuning.gloss
       ) {
         renderer.setParams(filterParams(tuning))
@@ -1605,6 +1636,17 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     addGoop,
     shockwave,
     splashThrough,
+    feedPointer(e) {
+      if (destroyed) return
+      pointer.feed(e)
+      const p = local(e)
+      if (p) {
+        ptr.x = p.x
+        ptr.y = p.y
+        ptr.has = true
+      }
+      wake()
+    },
     inspect() {
       const s = pointer.sample()
       const g = opts.tilt && tiltTracker ? tiltTracker.gravity() : { x: 0, y: 1 }
