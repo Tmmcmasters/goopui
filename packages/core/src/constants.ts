@@ -30,7 +30,7 @@
 // oiliness         oiliness                  --goop-oiliness             0.65     none (fluid params)
 // strings          stringiness (0)           --goop-stringiness          0.5      low: 1 bond/particle
 // puddles          puddles (false)           --goop-puddles (0)          1        low: 1 circle/puddle
-// gloss            gloss (false)             --goop-gloss (0)            0.6      SVG: static filter prims;
+// gloss            gloss (false)             --goop-gloss (0)            0 (on: 0.6)     SVG: static filter prims;
 //                                                                                 canvas: shader branch
 // taffy pull       taffy (false)             --goop-taffy (0)            1        low: <=24 circles while held
 // reach            reach (false)             --goop-reach (0, px)        60       low: 2 circles, wakes only
@@ -124,8 +124,8 @@ const TUNING_META: { readonly [K in keyof GoopTuning]: TuningMeta & { option: K 
     description: 'How hard the goo outline is; lower gives a soft, slightly fuzzy edge.' },
   edge: { name: '--goop-edge', option: 'edge', label: 'Edge position', unit: '0-1', default: 0.4, min: 0.05, max: 0.95, step: 0.01, group: 'Shape', cost: 'none', reducedMotion: STATIC, aliases: ['--goop-threshold'],
     description: 'Where the outline sits on the melted shape; lower makes everything fatter and merge from further away, higher makes necks thinner.' },
-  gloss: { name: '--goop-gloss', option: 'gloss', label: 'Wet gloss', unit: '0-1', default: 0.6, min: 0, max: 1, step: 0.05, group: 'Shape', cost: 'low', reducedMotion: STATIC,
-    description: 'A soft top-left highlight and rim shading so the goo looks wet and 3D; 0 is flat color.' },
+  gloss: { name: '--goop-gloss', option: 'gloss', label: 'Wet gloss', unit: '0-1', default: 0, min: 0, max: 1, step: 0.05, group: 'Shape', cost: 'low', reducedMotion: STATIC,
+    description: 'Opt-in wet look: a soft top-left highlight and rim shading so the goo looks 3D. Off (flat color) by default; `gloss: true` uses 0.6.' },
 
   // ---- Drips
   dripCount: { name: '--goop-drip-count', option: 'dripCount', label: 'Drips per hover', unit: 'count', default: 3, min: 0, max: 8, step: 1, group: 'Drips', cost: 'low', reducedMotion: OFF,
@@ -299,7 +299,6 @@ export const GOOP_PRESETS: Readonly<Record<GoopPreset, GoopPresetValues>> = Obje
       shockwave: 0.35,
       splashAmount: 0,
       scrollSlosh: 0,
-      gloss: 0.35,
       taffy: 0,
       reach: 0,
       strands: 0,
@@ -326,7 +325,7 @@ export const GOOP_PRESETS: Readonly<Record<GoopPreset, GoopPresetValues>> = Obje
       oiliness: 0.85,
       strands: 1,
       scrollSlosh: 1.5,
-      gloss: 0.9,
+      gloss: 0.5,
       taffy: 1.5,
       taffyLength: 150,
       reach: 90,

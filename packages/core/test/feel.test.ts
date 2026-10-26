@@ -651,9 +651,12 @@ describe('puddles', () => {
 })
 
 describe('gloss, label ride, keyboard toggles', () => {
-  it('gloss on adds the static shading to the filter; off is the plain goo filter', () => {
-    const on = setup({ renderer: createSvgFilterRenderer })
+  it('gloss is opt-in: off by default, `true` adds the static shading to the filter', () => {
+    const on = setup({ gloss: true, renderer: createSvgFilterRenderer })
     expect(on.h.layer.style.filter).toMatch(/-g0_/)
+    expect(on.h.tuning.gloss).toBe(0.6)
+    const byDefault = setup({ renderer: createSvgFilterRenderer })
+    expect(byDefault.h.layer.style.filter).not.toMatch(/-g\d/)
     const off = setup({ gloss: false, renderer: createSvgFilterRenderer })
     expect(off.h.layer.style.filter).not.toMatch(/-g\d/)
   })
