@@ -37,6 +37,7 @@ export const ENGINE_OPTION_KEYS = [
   'renderer',
   'finish',
   'splash',
+  'hitEffect',
   'drips',
   'interactive',
   'tilt',
