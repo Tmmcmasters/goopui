@@ -467,6 +467,27 @@ describe('splash-through, shockwave, escape overlay', () => {
     expect(fast.h.inspect().particles).toBeGreaterThan(4)
   })
 
+  it('a fast upward hit tears droplets off the far (top) edge, flying up', () => {
+    const { host, h, rec } = setup({ hitEffect: 'shockwave' })
+    const p = { x: 180, y: 220 }
+    clock += 500
+    moveTo(180, 220, 1, p)
+    clock += 500
+    moveTo(180, 220, 1, p)
+    moveTo(180, 120, 10, p, 4) // upward, fast, into the 160x40 host at (100,100)
+    host.dispatchEvent(mouse('pointerenter', 180, 120))
+    let peak = 0
+    pump(1.5, 60, () => (peak = Math.max(peak, h.inspect().particles)))
+    expect(peak).toBeGreaterThan(3)
+    const above = rec.blobs.filter((b) => b.sets.some((q) => q.y < -4 && q.r > 0))
+    expect(above.length).toBeGreaterThan(3)
+    const rising = above.filter((b) => {
+      const ys = b.sets.map((q) => q.y)
+      return Math.min(...ys) < ys[0]! - 2
+    })
+    expect(rising.length).toBeGreaterThan(0)
+  })
+
   it('splash particles drain away and the loop sleeps', () => {
     const { host, h } = setup()
     punch(host, 4)
