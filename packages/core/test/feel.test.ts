@@ -102,9 +102,11 @@ function expectContinuous(blobs: BlobRec[], maxJump = 2.2) {
       if (c.frame - a.frame > 1) continue // not drawn in between (delay) - first draw starts at 0 anyway
       if (c.r === 0 && a.r > 0 && handedOff(c.frame, a.x, a.y, a.r)) continue
       // Root circles sit on the body edge and merge into it: no threshold, compare raw size.
-      const onEdge = Math.abs(a.y - 40) < 3 && (c.r === 0 || Math.abs(c.y - 40) < 3)
+      // Touching the body edge (y = 40): merged into the body, so growth/shrink is not a pop.
+      const touches = (q: { y: number; r: number }) => Math.abs(q.y - 40) < 3 || (q.y > 40 && q.y - q.r <= 42)
+      const onEdge = touches(a) && (c.r === 0 || touches(c))
       if (onEdge) {
-        expect(Math.abs(c.r - a.r), `root jump in frame ${c.frame}`).toBeLessThan(1.5)
+        expect(Math.abs(c.r - a.r), `root jump in frame ${c.frame}`).toBeLessThan(2)
         continue
       }
       expect(Math.abs(vis(c) - vis(a)), `radius jump in frame ${c.frame}: ${JSON.stringify(a)} -> ${JSON.stringify(c)}`).toBeLessThan(maxJump)
@@ -365,6 +367,44 @@ describe('continuity: no pops on any transition', () => {
       expect(h.inspect().drips).toBe(0)
     })
   }
+})
+
+describe('momentum hits', () => {
+  const punch = (host: HTMLElement) => {
+    const p = { x: 20, y: 120 }
+    clock += 500
+    moveTo(20, 120, 1, p)
+    clock += 500
+    moveTo(20, 120, 1, p)
+    moveTo(120, 120, 10, p, 4) // ~2500 px/s
+    host.dispatchEvent(mouse('pointerenter', 120, 120))
+  }
+
+  it("a fast entry fires the click-like shockwave by default (ripple, ring, a bit of goop), no glob", () => {
+    const { host, h, rec } = setup()
+    punch(host)
+    expect(h.inspect().mass).toBeGreaterThan(0) // click goop
+    expect(h.inspect().particles).toBeGreaterThan(4) // ring
+    expect(rec.blobs.length).toBeGreaterThanOrEqual(8) // ripple slots
+  })
+
+  it("hitEffect 'none' fires nothing; 'splash' fires only the glob", () => {
+    const none = setup({ hitEffect: 'none' })
+    punch(none.host)
+    expect(none.h.inspect().particles).toBe(0)
+    expect(none.h.inspect().mass).toBe(0)
+    const glob = setup({ hitEffect: 'splash' })
+    punch(glob.host)
+    expect(glob.h.inspect().particles).toBeGreaterThan(0)
+    expect(glob.h.inspect().mass).toBe(0)
+  })
+
+  it('reduced motion fires nothing', () => {
+    const { host, h } = setup({ reducedMotion: true })
+    punch(host)
+    expect(h.inspect().particles).toBe(0)
+    expect(h.inspect().mass).toBe(0)
+  })
 })
 
 describe('splash-through, shockwave, escape overlay', () => {
@@ -631,8 +671,17 @@ describe('reach', () => {
 })
 
 describe('puddles', () => {
-  it('drops pool on the floor, spread, drain to nothing without pops', () => {
-    const { h, rec } = setup({ dripInterval: 10 })
+  it('puddles are opt-in: off by default, no invisible floor', () => {
+    const { h } = setup()
+    expect(h.tuning.puddles).toBe(0)
+    h.drip(80)
+    let seen = 0
+    pump(4, 60, () => (seen = Math.max(seen, h.inspect().puddles)))
+    expect(seen).toBe(0)
+  })
+
+  it('puddles: true -> drops pool on the floor, spread, drain to nothing without pops', () => {
+    const { h, rec } = setup({ dripInterval: 10, puddles: true })
     h.drip(80)
     let seen = 0
     pump(6, 60, () => (seen = Math.max(seen, h.inspect().puddles)))

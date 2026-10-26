@@ -72,6 +72,10 @@ export interface GoopTuning {
   taffy: number
   taffyLength: number
   reach: number
+  reachSize: number
+  reachGlobs: number
+  taffyStrands: number
+  globbiness: number
   strands: number
   puddles: number
   puddleLife: number
@@ -148,8 +152,8 @@ const TUNING_META: { readonly [K in keyof GoopTuning]: TuningMeta & { option: K 
     description: 'How far a released drop falls before it has drained away (when puddles are off).' },
   gravity: { name: '--goop-gravity', option: 'gravity', label: 'Gravity', unit: 'px/s²', default: 700, min: 0, max: 10000, step: 50, group: 'Drips', cost: 'none', reducedMotion: OFF,
     description: 'How fast drops and splashes speed up as they fall.' },
-  puddles: { name: '--goop-puddles', option: 'puddles', label: 'Puddles', unit: 'on/off', default: 1, min: 0, max: 1, step: 1, group: 'Drips', cost: 'low', reducedMotion: OFF,
-    description: 'Falling drops land on a floor below the element, spread flat, then drain.' },
+  puddles: { name: '--goop-puddles', option: 'puddles', label: 'Puddles', unit: 'on/off', default: 0, min: 0, max: 1, step: 1, group: 'Drips', cost: 'low', reducedMotion: OFF,
+    description: 'Opt-in: falling drops land on an invisible floor below the element, spread flat, then drain; off, they just fall and fade.' },
   puddleLife: { name: '--goop-puddle-life', option: 'puddleLife', label: 'Puddle life', unit: 's', default: 1.4, min: 0.2, max: 10, step: 0.1, group: 'Drips', cost: 'none', reducedMotion: OFF,
     description: 'How long a puddle lasts before it has fully drained.' },
 
@@ -182,8 +186,16 @@ const TUNING_META: { readonly [K in keyof GoopTuning]: TuningMeta & { option: K 
     description: 'Press and drag off the element to pull a stretchy goo string; 0 turns it off.' },
   taffyLength: { name: '--goop-taffy-length', option: 'taffyLength', label: 'Taffy snap length', unit: 'px', default: 90, min: 20, max: 400, step: 5, group: 'Touch', cost: 'none', reducedMotion: OFF,
     description: 'How far the string stretches past the edge before it snaps.' },
-  reach: { name: '--goop-reach', option: 'reach', label: 'Reach distance', unit: 'px', default: 60, min: 0, max: 300, step: 5, group: 'Touch', cost: 'low', reducedMotion: OFF,
-    description: 'The edge bulges toward a pointer closer than this, before it touches; 0 turns it off.' },
+  reach: { name: '--goop-reach', option: 'reach', label: 'Reach distance', unit: 'px', default: 80, min: 0, max: 300, step: 5, group: 'Touch', cost: 'low', reducedMotion: OFF,
+    description: 'A lump of goo swells out of the edge toward a pointer closer than this, before it touches; 0 turns it off.' },
+  reachSize: { name: '--goop-reach-size', option: 'reachSize', label: 'Reach lump size', unit: 'x drip size', default: 2.6, min: 0.5, max: 5, step: 0.1, group: 'Touch', cost: 'none', reducedMotion: OFF,
+    description: 'How big the lump that reaches toward the pointer gets, as a multiple of the drip size.' },
+  reachGlobs: { name: '--goop-reach-globs', option: 'reachGlobs', label: 'Reach globs', unit: 'count', default: 3, min: 1, max: 4, step: 1, group: 'Touch', cost: 'low', reducedMotion: OFF,
+    description: 'Most lumps that swell toward an approaching pointer; extra ones join as it gets nearer or faster.' },
+  taffyStrands: { name: '--goop-taffy-strands', option: 'taffyStrands', label: 'Taffy strands', unit: 'count', default: 2, min: 0, max: 3, step: 1, group: 'Touch', cost: 'low', reducedMotion: OFF,
+    description: 'Extra ropes that stretch from the edge into the pulled blob, each letting go at its own length.' },
+  globbiness: { name: '--goop-globbiness', option: 'globbiness', label: 'Globbiness', unit: '0-1', default: 0.8, min: 0, max: 1, step: 0.05, group: 'Touch', cost: 'none', reducedMotion: OFF,
+    description: 'How fat and lumpy reach lumps and taffy pulls are; 1 is round blobby goo, 0 is a thin smooth string.' },
 
   // ---- Splash
   splashMinSpeed: { name: '--goop-splash-min-speed', option: 'splashMinSpeed', label: 'Splash speed', unit: 'x1200 px/s', default: 1, min: 0.1, max: 5, step: 0.05, group: 'Splash', cost: 'none', reducedMotion: OFF, aliases: ['--goop-splash-threshold'],
@@ -204,6 +216,8 @@ const OTHER_META: Readonly<Record<string, GoopVarMeta>> = {
     description: 'Starting point for every feature: subtle for dense UIs, playful by default, wild for hero sections.' },
   splash: { name: '--goop-splash', option: 'splash', label: 'Splash reach', unit: 'keyword', default: 'near', values: ['near', 'escape', 'off'], group: 'Splash', cost: 'medium', reducedMotion: OFF,
     description: 'Where splash goo may fly: near the element, across the whole page (escape), or nowhere.' },
+  hitEffect: { name: '--goop-hit-effect', option: 'hitEffect', label: 'Hit effect', unit: 'keyword', default: 'shockwave', values: ['shockwave', 'splash', 'both', 'none'], group: 'Splash', cost: 'medium', reducedMotion: OFF,
+    description: 'What a fast pointer hit does (a hard entry or a fast swipe across or out): a click-like shockwave, the punch-through glob, both, or nothing.' },
   finish: { name: '--goop-finish', option: 'finish', label: 'Finish', unit: 'keyword', default: 'solid', values: ['solid', 'oil'], group: 'Finish', cost: 'low', reducedMotion: 'Static sheen.',
     description: 'Surface look: plain color, or an oily rainbow sheen at the edges.' },
   oilIntensity: { name: '--goop-oil-intensity', option: 'oilIntensity', label: 'Oil sheen', unit: '0-1', default: 0.3, min: 0, max: 1, step: 0.05, group: 'Finish', cost: 'none', reducedMotion: STATIC,
@@ -269,6 +283,11 @@ export type GoopSplashMode = 'near' | 'escape' | 'off'
 export const GOOP_SPLASH_VAR = '--goop-splash'
 export const GOOP_DEFAULT_SPLASH: GoopSplashMode = 'near'
 
+/** What a fast pointer "hit" (hard entry, fast swipe across or out) does. `--goop-hit-effect`. */
+export type GoopHitEffect = 'shockwave' | 'splash' | 'both' | 'none'
+export const GOOP_HIT_VAR = '--goop-hit-effect'
+export const GOOP_DEFAULT_HIT: GoopHitEffect = 'shockwave'
+
 // ---- presets --------------------------------------------------------------------------
 //
 // `preset: 'subtle' | 'playful' | 'wild'` (or `--goop-preset`) replaces the defaults above
@@ -282,6 +301,7 @@ export const GOOP_DEFAULT_PRESET: GoopPreset = 'playful'
 export interface GoopPresetValues {
   tuning: Partial<GoopTuning>
   splash: GoopSplashMode
+  hitEffect?: GoopHitEffect
 }
 
 export const GOOP_PRESETS: Readonly<Record<GoopPreset, GoopPresetValues>> = Object.freeze({
@@ -311,6 +331,7 @@ export const GOOP_PRESETS: Readonly<Record<GoopPreset, GoopPresetValues>> = Obje
   /** Hero sections: big, fast, sloppy. Splashes escape across the page. */
   wild: {
     splash: 'escape',
+    hitEffect: 'both',
     tuning: {
       dripCount: 5,
       dripInterval: 0.5,
@@ -328,7 +349,7 @@ export const GOOP_PRESETS: Readonly<Record<GoopPreset, GoopPresetValues>> = Obje
       gloss: 0.5,
       taffy: 1.5,
       taffyLength: 150,
-      reach: 90,
+      reach: 110,
       puddles: 1,
       puddleLife: 2.2,
       labelRide: 0.8,
@@ -523,14 +544,18 @@ export const GOOP_PHYSICS = Object.freeze({
   taffySegments: 9,
   taffySag: 10,
   taffyFollow: 0.06,
-  taffySpring: { response: 0.32, dampingRatio: 0.42 } as SpringFeel,
+  taffySpring: { response: 0.34, dampingRatio: 0.34 } as SpringFeel,
   /** Touch long-press before taffy can start (s). */
   taffyLongPress: 0.35,
   /** Reach: bulge length (px) at full strength, blob radius (x dripSize), speed boost. */
   reachBulge: 9,
   reachSize: 1.25,
   reachSpeedBoost: 0.6,
-  reachSpring: { response: 0.22, dampingRatio: 0.65 } as SpringFeel,
+  /** Max swell / shrink rate of reach lumps (amount per second). */
+  reachMaxRate: 2.2,
+  reachSpring: { response: 0.5, dampingRatio: 0.62 } as SpringFeel,
+  /** The reach lump lags the cursor on this spring: low damping = wobbly. */
+  reachLumpSpring: { response: 0.3, dampingRatio: 0.38 } as SpringFeel,
 
   // ---- particle fluid (splash-through + shockwave) ---------------------------
   /** Hard caps: particles per element, and across the whole page (all elements + overlay). */
@@ -585,6 +610,12 @@ export const GOOP_PHYSICS = Object.freeze({
   rippleSizePerMass: 2,
   rippleMaxSize: 6.5,
   maxRipples: 3,
+  /** Momentum hits: base and max shockwave strength (x --goop-shockwave), share of click
+   *  goop added, and the minimum time between hits (s). */
+  hitBaseStrength: 0.7,
+  hitMaxStrength: 1.6,
+  hitGoop: 0.5,
+  hitCooldown: 0.25,
   /** Shockwave body pulse: jelly velocity kick away from the click point. */
   shockPush: 26,
   shockSquash: 0.5,

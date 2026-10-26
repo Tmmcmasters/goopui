@@ -27,6 +27,9 @@ import {
   GOOP_PRESETS,
   type GoopPreset,
   GOOP_DEFAULT_SPLASH,
+  GOOP_DEFAULT_HIT,
+  GOOP_HIT_VAR,
+  type GoopHitEffect,
   GOOP_PHYSICS,
   GOOP_SPLASH_VAR,
   type GoopSplashMode,
@@ -44,7 +47,7 @@ import { isReducedMotion, watchReducedMotion } from './reduced-motion'
 import type { GoopBlob, GoopRenderer } from './renderer'
 import { readFinish as readFinishVars, type GoopFinishName, type GoopFinishRenderer } from './renderers/finish'
 import { resolveRenderer, type GoopRendererOption } from './renderers/resolve'
-import { clamp, isSpringSettled, springConfig, stepSpring, type SpringState } from './spring'
+import { clamp, isSpringSettled, smoothstep, springConfig, stepSpring, type SpringState } from './spring'
 import { gooParamsOf, readPreset, readTuning, renameOptions } from './tuning'
 
 const P = GOOP_PHYSICS
@@ -114,6 +117,10 @@ export interface GoopOptions extends Partial<Omit<GoopTuning, ToggleKeys>> {
    *  element's layer), 'escape' (fly across the page in a shared overlay), or 'off'.
    *  Also settable from CSS: `--goop-splash: escape`. The option wins. */
   splash?: GoopSplashMode
+  /** What a fast pointer hit (hard entry, fast swipe across or out) does: 'shockwave'
+   *  (default: same family as a click, aimed along the motion), 'splash' (the punch-through
+   *  glob), 'both', or 'none'. Also `--goop-hit-effect`. */
+  hitEffect?: GoopHitEffect
   /** Renderer for the shared page overlay that 'escape' splashes fly in. Default 'canvas'
    *  (cheap full-viewport surface); 'svg' or a custom factory also work. */
   escapeRenderer?: GoopRendererOption
@@ -215,8 +222,9 @@ function layerPadding(t: GoopTuning, splash: GoopSplashMode): { side: number; bo
     bottom = Math.max(bottom, Math.ceil(side + t.fallDistance))
   }
   // Taffy strings and reach bulges extend past the edges.
-  if (t.taffy > 0) side = Math.max(side, Math.ceil(t.taffyLength + t.dripSize * 3 + t.softness * 3))
-  if (t.reach > 0) side = Math.max(side, Math.ceil(P.reachBulge * 2 + t.dripSize * 3 + t.softness * 3))
+  if (t.taffy > 0) side = Math.max(side, Math.ceil(t.taffyLength + t.dripSize * 5 + t.softness * 3))
+  if (t.reach > 0)
+    side = Math.max(side, Math.ceil(P.reachBulge + t.dripSize * t.reachSize * 4.2 + t.softness * 3))
   bottom = Math.max(bottom, side + 8)
   return { side, bottom }
 }
@@ -247,7 +255,7 @@ const DEG = Math.PI / 180
 const TOGGLES = ['gloss', 'taffy', 'reach', 'puddles', 'labelRide', 'keyboard', 'idle'] as const
 
 /** Strength a `true` toggle gets when its default is off (gloss is opt-in). */
-const TOGGLE_ON_STRENGTH: Partial<Record<(typeof TOGGLES)[number], number>> = { gloss: 0.6 }
+const TOGGLE_ON_STRENGTH: Partial<Record<(typeof TOGGLES)[number], number>> = { gloss: 0.6, puddles: 1 }
 
 /** Numeric tuning overrides from options. Toggles: `false` -> 0, number -> itself, `true` ->
  *  left to CSS / preset (then bumped to the default strength if that resolved to 0). */
@@ -268,6 +276,14 @@ function resolveTuning(host: Element, o: GoopOptions): { tuning: GoopTuning; pre
   const tuning = readTuning(host, tuningOverrides(o), preset)
   for (const k of TOGGLES) if (o[k] === true && tuning[k] <= 0) tuning[k] = GOOP_DEFAULTS[k] || TOGGLE_ON_STRENGTH[k] || 1
   return { tuning, preset }
+}
+
+function readHitEffect(host: Element, opt: GoopHitEffect | undefined, preset: GoopPreset): GoopHitEffect {
+  if (opt) return opt
+  const raw = host.ownerDocument?.defaultView?.getComputedStyle?.(host)?.getPropertyValue(GOOP_HIT_VAR)?.trim()
+  return raw === 'shockwave' || raw === 'splash' || raw === 'both' || raw === 'none'
+    ? raw
+    : (GOOP_PRESETS[preset].hitEffect ?? GOOP_DEFAULT_HIT)
 }
 
 function readSplashMode(host: Element, opt: GoopSplashMode | undefined, preset: GoopPreset): GoopSplashMode {
@@ -292,6 +308,8 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
   let resolved = resolveTuning(host, opts)
   let tuning = resolved.tuning
   let splashMode = readSplashMode(host, opts.splash, resolved.preset)
+  let hitEffect = readHitEffect(host, opts.hitEffect, resolved.preset)
+  let lastHit = -Infinity
   let finish: GoopFinishName = 'solid'
   const random = (): number => (opts.random ?? Math.random)()
 
@@ -358,6 +376,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     sloshCfg = springConfig(P.sloshSpring, tuning.thickness)
     taffyCfg = springConfig(P.taffySpring, tuning.thickness)
     reachCfg = springConfig(P.reachSpring, tuning.thickness)
+    reachLumpCfg = springConfig(P.reachLumpSpring, tuning.thickness)
   }
 
   const readGeometry = (): void => {
@@ -417,6 +436,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     for (const b of reachBlobs) b.remove()
     reachBlobs = []
     reachAmt.x = 0
+    reachShown = 0
     reachAmt.v = 0
     rideLabels(0, 0, 0, 1, 1)
     pressed = false
@@ -763,6 +783,22 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     target: { x: number; y: number }
     holding: boolean
     blobs: GoopBlob[]
+    /** Secondary ropes from nearby edge points into the cursor blob. */
+    extra: TaffyRope[]
+  }
+  interface TaffyRope {
+    ax: number
+    ay: number
+    end: { x: SpringState; y: SpringState }
+    /** Offset from the main end (the ropes meet the cursor blob a little apart). */
+    ox: number
+    oy: number
+    /** Snaps at this fraction of the taffy length (staggered release). */
+    snapAt: number
+    /** Thickness relative to the main rope. */
+    scale: number
+    snapped: boolean
+    blobs: GoopBlob[]
   }
   let taffy: Taffy | null = null
   let taffyArmed = false
@@ -787,6 +823,31 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     const e = edgePoint(x, y)
     const blobs: GoopBlob[] = []
     for (let i = 0; i < 24; i++) blobs.push(renderer.createBlob())
+    // Secondary ropes: anchored a little to either side along the edge.
+    const horizontal = e.y <= 0.01 || e.y >= height - 0.01
+    const rng = seeded((opts.seed ?? stableSeed(host)) ^ Math.round(e.x * 31 + e.y * 17))
+    const r0 = tuning.dripSize * (1 + 0.5 * tuning.globbiness)
+    const extra: TaffyRope[] = []
+    const count = Math.round(tuning.taffyStrands)
+    for (let j = 0; j < count; j++) {
+      const side = j % 2 === 0 ? -1 : 1
+      const off = side * r0 * (2 + 1.4 * Math.floor(j / 2)) * (0.8 + 0.4 * rng())
+      const ax = horizontal ? clamp(e.x + off, 0, width) : e.x
+      const ay = horizontal ? e.y : clamp(e.y + off, 0, height)
+      const rb: GoopBlob[] = []
+      for (let i = 0; i < 12; i++) rb.push(renderer.createBlob())
+      extra.push({
+        ax,
+        ay,
+        end: { x: { x: ax, v: 0 }, y: { x: ay, v: 0 } },
+        ox: (horizontal ? off * 0.25 : 0) + (rng() - 0.5) * r0,
+        oy: (horizontal ? 0 : off * 0.25) + (rng() - 0.5) * r0,
+        snapAt: 0.62 + 0.3 * rng(),
+        scale: 0.55 + 0.25 * rng(),
+        snapped: false,
+        blobs: rb,
+      })
+    }
     taffy = {
       ax: e.x,
       ay: e.y,
@@ -794,6 +855,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
       target: { x, y },
       holding: true,
       blobs,
+      extra,
     }
     wake()
   }
@@ -801,10 +863,24 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
   const endTaffy = (): void => {
     if (!taffy) return
     for (const b of taffy.blobs) b.remove()
+    for (const r of taffy.extra) for (const b of r.blobs) b.remove()
     taffy = null
   }
 
-  /** Snap: the far blob becomes a falling drop; the near part recoils with a wobble. */
+  /** Globby taffy geometry for the current pull. Volume flows into the cursor blob as the
+   *  pull grows; the neck stays fat and lumpy and only thins late, near the snap length. */
+  const taffyShape = (len: number) => {
+    const g = tuning.globbiness
+    const maxLen = tuning.taffyLength
+    const p = Math.min(1, len / maxLen)
+    const r0 = tuning.dripSize * (0.9 + 0.25 * Math.min(2, tuning.taffy)) * (1 + 0.5 * g)
+    const rEnd = r0 * (1.05 + (0.35 + 0.45 * g) * p)
+    const late = smoothstep(0.72, 1, p) // necking only near the snap
+    const rNeck = r0 * (0.5 + 0.45 * g) * (1 - 0.55 * late)
+    return { r0, rEnd, rNeck, g, p }
+  }
+
+  /** Snap: a big fat glob falls; the stub recoils into the body with a fat wobble. */
   const snapTaffy = (): void => {
     if (!taffy) return
     const t = taffy
@@ -812,28 +888,40 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     suppressClick = true
     const ex = t.end.x.x
     const ey = t.end.y.x
-    fluid.spawn({
-      x: ex,
-      y: ey,
-      vx: t.end.x.v * 0.4,
-      vy: Math.max(0, t.end.y.v * 0.4),
-      r: tuning.dripSize * 1.05,
-      oiliness: tuning.oiliness,
-      gravity: tuning.gravity,
-      vanish: gooVanishRadius(gooParamsOf(tuning)),
-      viscosity: tuning.thickness,
-    })
-    // Recoil from where it broke: the stub starts ~40% of the way back, moving fast.
+    const shape = taffyShape(Math.hypot(ex - t.ax, ey - t.ay))
+    const vanish = gooVanishRadius(gooParamsOf(tuning))
+    const drop = (x: number, y: number, r: number, k: number): void => {
+      fluid.spawn({
+        x,
+        y,
+        vx: t.end.x.v * 0.4 * k,
+        vy: Math.max(0, t.end.y.v * 0.4 * k),
+        r,
+        oiliness: Math.max(tuning.oiliness, 0.8),
+        gravity: tuning.gravity,
+        vanish,
+        viscosity: tuning.thickness,
+      })
+    }
+    // The cursor glob, plus a couple of satellite lumps so it falls as one fat, wobbly mass.
+    drop(ex, ey, shape.rEnd, 1)
+    if (shape.g > 0.3) {
+      drop(ex - shape.rEnd * 0.6, ey - shape.rEnd * 0.4, shape.rEnd * 0.6, 0.9)
+      drop(ex + shape.rEnd * 0.5, ey - shape.rEnd * 0.5, shape.rEnd * 0.55, 0.95)
+    }
+    // Recoil from where it broke: the stub starts ~45% of the way back, moving fast.
     const dx = t.ax - ex
     const dy = t.ay - ey
-    t.end.x.x = ex + dx * 0.4
-    t.end.y.x = ey + dy * 0.4
-    t.end.x.v = dx * 8
-    t.end.y.v = dy * 8
+    t.end.x.x = ex + dx * 0.45
+    t.end.y.x = ey + dy * 0.45
+    t.end.x.v = dx * 9
+    t.end.y.v = dy * 9
     const n = Math.hypot(dx, dy) || 1
-    jelly.tx.v -= (dx / n) * P.shockPush * react() * 0.8
-    jelly.ty.v -= (dy / n) * P.shockPush * react() * 0.8
-    jelly.dsx.v += 0.4 * react()
+    const kick = react() * (1 + shape.g)
+    jelly.tx.v -= (dx / n) * P.shockPush * kick * 0.8
+    jelly.ty.v -= (dy / n) * P.shockPush * kick * 0.8
+    jelly.dsx.v += 0.5 * kick
+    jelly.dsy.v -= 0.35 * kick
     wake()
   }
 
@@ -858,18 +946,23 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     const ex = t.end.x.x
     const ey = t.end.y.x
     const len = Math.hypot(ex - t.ax, ey - t.ay)
-    if (!t.holding && len < 0.6 && Math.hypot(t.end.x.v, t.end.y.v) < 20) {
+    const ropesHome = t.extra.every(
+      (r) => Math.hypot(r.end.x.x - r.ax, r.end.y.x - r.ay) < 0.6 && Math.hypot(r.end.x.v, r.end.y.v) < 20,
+    )
+    if (!t.holding && len < 0.6 && Math.hypot(t.end.x.v, t.end.y.v) < 20 && ropesHome) {
       endTaffy()
       return false
     }
-    // Volume ~ r^2 * length: the string thins as it stretches, but stays visible.
     const vanish = gooVanishRadius(gooParamsOf(tuning))
-    const r0 = tuning.dripSize * (0.9 + 0.25 * Math.min(2, tuning.taffy))
-    const vol = r0 * r0 * r0 * 3
-    const rMid = Math.max(vanish * 1.08, Math.min(r0, Math.sqrt(vol / Math.max(len, r0 * 3))))
+    const { r0, rEnd, rNeck, g, p } = taffyShape(len)
     const grow = Math.min(1, len / (r0 * 0.8)) // fades in from the edge: no pop
-    const n = clamp(Math.ceil(len / (rMid * 1.4)) + 2, 3, t.blobs.length)
-    const sag = P.taffySag * Math.min(1, len / maxLen) * (t.holding ? 1 : 0.4)
+    const neck = Math.max(vanish * 1.08, rNeck)
+    // Fat rope: circles overlap generously so the filter melts them into one mass.
+    const n = clamp(Math.ceil(len / (neck * 1.1)) + 2, 3, t.blobs.length)
+    // Heavy goo sags more; it also wobbles a bit while held.
+    const sag = P.taffySag * (1 + g) * p * (t.holding ? 1 : 0.4)
+    // Clumps: a few bulbous lumps along the rope (fixed per pull so they don't shimmer).
+    const clumps = Math.max(1, Math.round(len / (r0 * 3)))
     const a = map(t.ax, t.ay)
     for (let i = 0; i < t.blobs.length; i++) {
       const b = t.blobs[i]!
@@ -880,10 +973,69 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
       const f = i / (n - 1)
       const x = a.x + (ex - a.x) * f
       const y = a.y + (ey - a.y) * f + sag * Math.sin(Math.PI * f)
-      // Thick at the root and the end blob, thin in the middle.
-      const ends = Math.pow(Math.abs(2 * f - 1), 3)
-      const rEnd = f < 0.5 ? r0 * 1.1 : r0 * 0.95
-      b.set(x, y, (rMid + (rEnd - rMid) * ends) * grow)
+      const lump = 1 + g * 0.4 * Math.max(0, Math.sin(f * Math.PI * clumps * 2 + 0.6)) * (1 - p * 0.5)
+      // Root and cursor blob are the fattest; the neck between is fat and lumpy.
+      const rootW = Math.pow(1 - f, 6)
+      const endW = Math.pow(f, 5)
+      const r = neck * lump * (1 - rootW - endW) + r0 * 1.15 * rootW + rEnd * endW
+      b.set(x, y, Math.max(0, r) * grow)
+    }
+    // Secondary ropes: thinner, lagging a little, each snapping at its own length.
+    for (const rope of t.extra) {
+      const tx = t.holding && !rope.snapped ? ex + rope.ox : rope.ax
+      const ty = t.holding && !rope.snapped ? ey + rope.oy : rope.ay
+      if (t.holding && !rope.snapped) {
+        const k = 1 - Math.exp(-dt / (P.taffyFollow * 1.8 * tuning.thickness))
+        const nx = rope.end.x.x + (tx - rope.end.x.x) * k
+        const ny = rope.end.y.x + (ty - rope.end.y.x) * k
+        rope.end.x.v = dt > 0 ? (nx - rope.end.x.x) / dt : 0
+        rope.end.y.v = dt > 0 ? (ny - rope.end.y.x) / dt : 0
+        rope.end.x.x = nx
+        rope.end.y.x = ny
+        if (Math.hypot(nx - rope.ax, ny - rope.ay) > maxLen * rope.snapAt) {
+          // Staggered release: this strand lets go first and drops a small glob.
+          rope.snapped = true
+          fluid.spawn({
+            x: nx,
+            y: ny,
+            vx: rope.end.x.v * 0.3,
+            vy: Math.max(0, rope.end.y.v * 0.3),
+            r: r0 * rope.scale * 0.9,
+            oiliness: Math.max(tuning.oiliness, 0.8),
+            gravity: tuning.gravity,
+            vanish,
+            viscosity: tuning.thickness,
+          })
+          rope.end.x.v = (rope.ax - nx) * 9
+          rope.end.y.v = (rope.ay - ny) * 9
+          rope.end.x.x = nx + (rope.ax - nx) * 0.4
+          rope.end.y.x = ny + (rope.ay - ny) * 0.4
+        }
+      } else {
+        stepSpring(rope.end.x, rope.ax, taffyCfg, dt)
+        stepSpring(rope.end.y, rope.ay, taffyCfg, dt)
+      }
+      const rx = rope.end.x.x
+      const ry = rope.end.y.x
+      const rl = Math.hypot(rx - rope.ax, ry - rope.ay)
+      const alive = rl > 0.6 || Math.hypot(rope.end.x.v, rope.end.y.v) > 20
+      const ra = map(rope.ax, rope.ay)
+      const rn = Math.max(vanish * 1.05, neck * rope.scale)
+      const m = clamp(Math.ceil(rl / (rn * 1.1)) + 2, 3, rope.blobs.length)
+      const rgrow = alive ? Math.min(1, rl / (r0 * 0.8)) : 0
+      for (let i = 0; i < rope.blobs.length; i++) {
+        const b = rope.blobs[i]!
+        if (i >= m || !alive) {
+          b.set(rx, ry, 0)
+          continue
+        }
+        const f = i / (m - 1)
+        const x = ra.x + (rx - ra.x) * f
+        const y = ra.y + (ry - ra.y) * f + sag * 0.8 * Math.sin(Math.PI * f)
+        const rootW = Math.pow(1 - f, 6)
+        const r = rn * (1 - rootW) + r0 * rope.scale * 1.1 * rootW
+        b.set(x, y, r * rgrow)
+      }
     }
     return true
   }
@@ -893,6 +1045,9 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
   const reachAmt: SpringState = { x: 0, v: 0 }
   const reachPt = { x: 0, y: 0, nx: 0, ny: 0, has: false }
   let reachCfg = springConfig(P.reachSpring, tuning.thickness)
+  let reachLumpCfg = springConfig(P.reachLumpSpring, tuning.thickness)
+  let reachShown = 0
+  let reachGlobs: { slot: number; size: number; length: number; lag: number; lump: { x: SpringState; y: SpringState } | null }[] = []
   /** Client-space host rect, refreshed lazily (no per-frame layout reads). */
   let rect: DOMRect | null = null
   let rectAt = 0
@@ -921,44 +1076,110 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
   }
   const stepReach = (dt: number, map: (x: number, y: number) => { x: number; y: number }): boolean => {
     let target = 0
+    let cursor: { x: number; y: number } | null = null
+    let toward = 0
     if (tuning.reach > 0 && !hovered && !pressed && canInteract() && visible) {
       const s = pointer.sample()
       const r = hostRect()
       const k = width ? r.width / width : 1
       const lx = (s.x - r.left) / k
       const ly = (s.y - r.top) / k
+      // Nearest point on ANY edge: top, sides, bottom.
       const e = edgePoint(lx, ly)
       const gap = Math.hypot(lx - e.x, ly - e.y)
       if (gap > 0.5 && gap < tuning.reach) {
         const nx = (lx - e.x) / gap
         const ny = (ly - e.y) / gap
-        const toward = Math.max(0, -(s.vx * nx + s.vy * ny)) / P.speedRef
-        target = Math.min(1.6, Math.pow(1 - gap / tuning.reach, 2) * (1 + toward * P.reachSpeedBoost) * react())
-        const sm = reachPt.has ? 1 - Math.exp(-dt / 0.05) : 1
+        toward = Math.max(0, -(s.vx * nx + s.vy * ny)) / P.speedRef
+        target = Math.min(1.6, Math.pow(1 - gap / tuning.reach, 1.2) * (1 + toward * P.reachSpeedBoost) * react())
+        const sm = reachPt.has ? 1 - Math.exp(-dt / 0.06) : 1
         reachPt.x += (e.x - reachPt.x) * sm
         reachPt.y += (e.y - reachPt.y) * sm
         reachPt.nx += (nx - reachPt.nx) * sm
         reachPt.ny += (ny - reachPt.ny) * sm
         reachPt.has = true
+        cursor = { x: lx, y: ly }
       }
     }
     stepSpring(reachAmt, target, reachCfg, dt)
-    const amt = Math.max(0, reachAmt.x)
-    if (amt < 0.004 && target === 0 && Math.abs(reachAmt.v) < 0.05) {
+    // Rate-limited so lumps swell and melt back smoothly, never in a frame or two.
+    const maxStep = P.reachMaxRate * dt
+    reachShown += clamp(Math.max(0, reachAmt.x) - reachShown, -maxStep, maxStep)
+    const amt = reachShown
+    if (amt < 0.004 && target === 0 && Math.abs(reachAmt.v) < 0.05 && reachAmt.x < 0.004) {
       for (const b of reachBlobs) b.remove()
       reachBlobs = []
       reachPt.has = false
+      reachGlobs = []
       return false
     }
-    if (!reachBlobs.length) reachBlobs = [renderer.createBlob(), renderer.createBlob()]
-    const base = map(reachPt.x, reachPt.y)
-    const len = P.reachBulge * amt
-    const rr = tuning.dripSize * P.reachSize * Math.sqrt(Math.min(1, amt))
-    reachBlobs[0]!.set(base.x + reachPt.nx * len * 0.35, base.y + reachPt.ny * len * 0.35, rr)
-    reachBlobs[1]!.set(base.x + reachPt.nx * len, base.y + reachPt.ny * len, rr * 0.75)
-    // A pointer resting nearby keeps a static bulge: stop ticking once it has settled
+    // Several globs: the main one at the nearest point, more fanning out along the edge as
+    // the pointer gets nearer / faster. Each has its own seeded size, length and lag.
+    const K = Math.max(1, Math.round(tuning.reachGlobs))
+    if (reachGlobs.length !== K) {
+      for (const b of reachBlobs) b.remove()
+      reachBlobs = []
+      const rng = seeded((opts.seed ?? stableSeed(host)) ^ 0x5eed)
+      const v = tuning.dripVariance
+      reachGlobs = Array.from({ length: K }, (_, i) => {
+        const side = i % 2 === 0 ? 1 : -1
+        return {
+          slot: i === 0 ? 0 : side * Math.ceil(i / 2),
+          size: i === 0 ? 1 : (0.55 + 0.3 * rng()) * (1 + (rng() - 0.5) * v * 0.4),
+          length: i === 0 ? 1 : (0.5 + 0.45 * rng()) * (1 + (rng() - 0.5) * v * 0.5),
+          lag: 1 + 0.6 * rng() * i,
+          lump: null as { x: SpringState; y: SpringState } | null,
+        }
+      })
+      for (let i = 0; i < K * 3; i++) reachBlobs.push(renderer.createBlob())
+    }
+    const g = tuning.globbiness
+    const tanX = -reachPt.ny
+    const tanY = reachPt.nx
+    const am = Math.min(1.2, amt)
+    let moving = !isSpringSettled(reachAmt, target, 0.003, 0.02) || Math.abs(reachShown - Math.max(0, reachAmt.x)) > 0.002
+    for (let i = 0; i < K; i++) {
+      const gl = reachGlobs[i]!
+      // Secondary globs join as the pull grows (nearer / faster = more).
+      const join = i === 0 ? 1 : smoothstep(0.02 + 0.1 * i, 0.5 + 0.1 * i, am + toward * 0.4)
+      const a = am * join
+      const swell = a < 0.39 ? a * 1.6 : Math.sqrt(a)
+      const R = tuning.dripSize * tuning.reachSize * swell * gl.size
+      const len = (P.reachBulge + R * (0.9 + 0.6 * g)) * Math.min(1.2, a) * gl.length
+      // Anchor along the edge, kept on the element's edge.
+      const spread = tuning.dripSize * tuning.reachSize * 1.1 * gl.slot
+      const ep = edgePoint(reachPt.x + tanX * spread - reachPt.nx * 0.5, reachPt.y + tanY * spread - reachPt.ny * 0.5)
+      let dx = reachPt.nx
+      let dy = reachPt.ny
+      if (cursor) {
+        const cx = cursor.x - ep.x
+        const cy = cursor.y - ep.y
+        const cl = Math.hypot(cx, cy) || 1
+        // Lean: mostly outward, partly toward the cursor (side globs converge on it).
+        dx = reachPt.nx * 0.5 + (cx / cl) * 0.5
+        dy = reachPt.ny * 0.5 + (cy / cl) * 0.5
+        const dl = Math.hypot(dx, dy) || 1
+        dx /= dl
+        dy /= dl
+      }
+      const tx = ep.x + dx * len
+      const ty = ep.y + dy * len
+      if (!gl.lump) gl.lump = { x: { x: ep.x, v: 0 }, y: { x: ep.y, v: 0 } }
+      stepSpring(gl.lump.x, tx, reachLumpCfg, dt / gl.lag)
+      stepSpring(gl.lump.y, ty, reachLumpCfg, dt / gl.lag)
+      const lx = gl.lump.x.x
+      const ly = gl.lump.y.x
+      const base = map(ep.x, ep.y)
+      const lump = map(lx, ly)
+      const mid = map(ep.x + (lx - ep.x) * 0.5, ep.y + (ly - ep.y) * 0.5)
+      reachBlobs[i * 3]!.set(base.x, base.y, R * (0.7 + 0.2 * g))
+      reachBlobs[i * 3 + 1]!.set(mid.x, mid.y, R * (0.55 + 0.35 * g))
+      reachBlobs[i * 3 + 2]!.set(lump.x, lump.y, R)
+      if (!isSpringSettled(gl.lump.x, tx, 0.05, 0.5) || !isSpringSettled(gl.lump.y, ty, 0.05, 0.5)) moving = true
+    }
+    // A pointer resting nearby keeps static lumps: stop ticking once settled
     // (pointer moves wake us again).
-    return !isSpringSettled(reachAmt, target, 0.003, 0.02)
+    return moving
   }
 
   // ---- sim -----------------------------------------------------------------
@@ -1189,6 +1410,30 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     }
   }
 
+  /**
+   * Momentum hit: a fast pointer entry / swipe / exit fires the same family as a click (edge
+   * ripple, particle ring, jelly pulse, a bit of click goop) at the contact point, aimed along
+   * the pointer velocity and scaled by speed (capped like a click). Rate-limited.
+   * `hitEffect` picks shockwave, the punch-through glob, both, or nothing.
+   */
+  const hit = (x: number, y: number, vx: number, vy: number): boolean => {
+    if (!canInteract() || hitEffect === 'none') return false
+    const speed = Math.hypot(vx, vy)
+    const n = speed / P.speedRef
+    if (n < tuning.splashMinSpeed) return false
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
+    if (now - lastHit < P.hitCooldown * 1000) return false
+    lastHit = now
+    const over = Math.min(1.5, n - tuning.splashMinSpeed)
+    if ((hitEffect === 'shockwave' || hitEffect === 'both') && tuning.shockwave > 0) {
+      const strength = Math.min(tuning.shockwave * P.hitMaxStrength, tuning.shockwave * (P.hitBaseStrength + over * 0.6))
+      if (tuning.clickGoop > 0) addGoop(tuning.clickGoop * P.hitGoop * Math.min(1, 0.6 + over), x)
+      shockwave(clamp(x, 0, width), clamp(y, 0, height), strength, { vx, vy })
+    }
+    if (hitEffect === 'splash' || hitEffect === 'both') splashThrough(x, y, vx, vy)
+    return true
+  }
+
   const startHover = (x?: number, e?: { clientX: number; clientY: number }, y?: number): void => {
     if (!canInteract()) return
     if (e) pointer.feed(e)
@@ -1201,9 +1446,8 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
       ptr.has = true
     }
     impact(s, false)
-    // Hard enough: punch through and splash out the far side.
-    const n = s.speed / P.speedRef
-    if (x !== undefined && n >= tuning.splashMinSpeed) splashThrough(x, y ?? height / 2, s.vx, s.vy)
+    // Hard enough: a momentum hit (click-like shockwave and/or punch-through glob).
+    if (x !== undefined) hit(x, y ?? height / 2, s.vx, s.vy)
     if (dripsOn()) {
       field.setFed(true) // re-feed drips that were retracting: interruptible
       const sn = speedOf(s) * react()
@@ -1238,6 +1482,8 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     prevV = null
     nextDrip = Number.POSITIVE_INFINITY
     if (canInteract()) {
+      // A fast exit is a hit too, where the pointer left.
+      if (ptr.has) hit(ptr.x, ptr.y, s.vx, s.vy)
       impact(s, true)
       // A fast exit heading down tears fat drips off and flings them along.
       const n = speedOf(s) * react()
@@ -1351,6 +1597,11 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
       ptr.x = p.x
       ptr.y = p.y
       ptr.has = true
+      // A fast swipe across the element is a hit (rate-limited inside hit()).
+      if (!pressed) {
+        const sm = pointer.sample()
+        hit(p.x, p.y, sm.vx, sm.vy)
+      }
     }
     wake()
   }
@@ -1384,9 +1635,12 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     clearTaffyTimer()
     taffyArmed = false
     release()
-    // Releasing an unsnapped string retracts it springily.
+    // Releasing an unsnapped pull slurps it back with a big wobble.
     if (taffy && taffy.holding) {
       taffy.holding = false
+      const k = react() * (1 + tuning.globbiness)
+      jelly.dsy.v += 0.45 * k
+      jelly.dsx.v -= 0.3 * k
       wake()
     }
     const p = local(e)
@@ -1534,7 +1788,10 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
       sl.blob.remove()
       sl.blob = make()
     }
-    if (taffy) taffy.blobs = taffy.blobs.map((b) => (b.remove(), make()))
+    if (taffy) {
+      taffy.blobs = taffy.blobs.map((b) => (b.remove(), make()))
+      for (const rope of taffy.extra) rope.blobs = rope.blobs.map((b) => (b.remove(), make()))
+    }
     reachBlobs = reachBlobs.map((b) => (b.remove(), make()))
     old.destroy()
     lastLabel = '\u0000'
@@ -1561,6 +1818,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
       resolved = resolveTuning(host, opts)
       tuning = resolved.tuning
       splashMode = readSplashMode(host, opts.splash, resolved.preset)
+      hitEffect = readHitEffect(host, opts.hitEffect, resolved.preset)
       if (splashMode !== 'escape' && escape) {
         escape.release()
         escape = null
