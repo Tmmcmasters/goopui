@@ -9,18 +9,18 @@ const NuxtLink = resolveComponent('NuxtLink')
 // sits above the goo, unfiltered. Under reduced motion the sheen and drips hold still.
 const oilCard: GoopOptions = {
   finish: 'oil',
-  blur: 8,
-  threshold: 0.5,
-  contrast: 24,
+  softness: 8,
+  edge: 0.5,
+  edgeSharpness: 24,
   squish: 0,
-  reactivity: 0.3,
+  pointerReaction: 0.3,
   inertia: 0.6,
-  clickMass: 0.25,
+  clickGoop: 0.25,
   shockwave: 1.2,
   dripCount: 2,
   dripSize: 16,
   dripLength: 64,
-  fall: 90,
+  fallDistance: 90,
   maxDrips: 12,
   restingDrips: [0.3, 0.68],
   oiliness: 0.9,
@@ -73,8 +73,10 @@ const current = computed(() => snippets[tab.value])
               data-size="lg"
               :options="ctaOptions"
             >
-              Installation guide
-              <SiteIcon name="arrowRight" :size="16" />
+              <span data-goop-label class="inline-flex items-center gap-2">
+                Installation guide
+                <SiteIcon name="arrowRight" :size="16" />
+              </span>
             </GoopHost>
           </div>
         </div>
@@ -106,7 +108,7 @@ const current = computed(() => snippets[tab.value])
   /* The goo body paints the card; the host stays transparent. */
   --goop-color: oklch(0.15 0.008 60);
   --goop-oil-intensity: 0.62;
-  --goop-oil-scale: 1.5;
+  --goop-oil-band-size: 1.5;
   color: var(--foreground);
 }
 .install-cta {

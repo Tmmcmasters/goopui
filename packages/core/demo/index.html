@@ -144,6 +144,14 @@
             <option value="off">off</option>
           </select>
         </label>
+        <label>Hit effect
+          <select id="hit">
+            <option value="shockwave" selected>shockwave (default)</option>
+            <option value="splash">splash glob</option>
+            <option value="both">both</option>
+            <option value="none">none</option>
+          </select>
+        </label>
         <label>Finish
           <select id="finish">
             <option value="">per button</option>
@@ -270,10 +278,10 @@
         ['clickGoop', 'Click adds goop', { clickGoop: 0 }],
         ['splash', 'Splash-through', { splashAmount: 0 }],
         ['strands', 'Strands', { strands: 0 }],
-        ['puddles', 'Puddles', { puddles: false }],
+        ['puddles', 'Puddles (opt-in)', { puddles: false }, { puddles: true }],
         ['scrollSlosh', 'Scroll slosh', { scrollSlosh: 0 }],
         ['keyboard', 'Keyboard', { keyboard: false }],
-        ['gloss', 'Gloss', { gloss: false }],
+        ['gloss', 'Gloss (opt-in)', { gloss: false }, { gloss: true }],
         ['labelRide', 'Label ride', { labelRide: false }],
         ['idle', 'Idle breathing', { idle: false }],
       ]
@@ -281,16 +289,16 @@
       const featureOn = {}
       const featureOpts = () => {
         const o = { preset: document.getElementById('preset').value }
-        for (const [key, , off] of FEATURES) {
-          for (const k of Object.keys(off)) o[k] = featureOn[key] ? undefined : off[k]
+        for (const [key, , off, on] of FEATURES) {
+          for (const k of Object.keys(off)) o[k] = featureOn[key] ? (on ? on[k] : undefined) : off[k]
         }
         return o
       }
       const applyFeatures = () => handles.forEach((h) => h.update(featureOpts()))
-      for (const [key, label] of FEATURES) {
+      for (const [key, label, , on] of FEATURES) {
         const row = document.createElement('label')
-        row.innerHTML = `<input type="checkbox" checked> ${label}`
-        featureOn[key] = true
+        row.innerHTML = `<input type="checkbox" ${on ? '' : 'checked'}> ${label}`
+        featureOn[key] = !on
         row.querySelector('input').addEventListener('change', (e) => {
           featureOn[key] = e.target.checked
           applyFeatures()
@@ -298,6 +306,7 @@
         featuresEl.append(row)
       }
       document.getElementById('preset').addEventListener('change', applyFeatures)
+      document.getElementById('hit').addEventListener('change', (e) => handles.forEach((h) => h.update({ hitEffect: e.target.value })))
       document.getElementById('splash').addEventListener('change', (e) => handles.forEach((h) => h.update({ splash: e.target.value })))
       const goopEls = [...document.querySelectorAll('button[data-goop]')]
       document.getElementById('finish').addEventListener('change', (e) =>
