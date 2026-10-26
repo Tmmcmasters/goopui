@@ -34,7 +34,7 @@ const points = [
 
         <div v-reveal class="mt-10 rounded-2xl border border-border bg-card">
           <div class="still-stage grid h-48 place-items-center pb-6">
-            <GoopButtonDemo size="lg" :options="{ restingDrips: 2 }">{{ still ? 'Still goo' : 'Hover me' }}</GoopButtonDemo>
+            <GoopButton size="lg" :resting-drips="2">{{ still ? 'Still goo' : 'Hover me' }}</GoopButton>
           </div>
           <div class="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
             <MotionSwitch label="Reduce motion on this site" />

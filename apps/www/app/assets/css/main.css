@@ -31,6 +31,9 @@
   --color-goo-ink: var(--goo-ink);
   --color-slime: var(--slime);
   --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-oil: var(--oil);
+  --color-oil-foreground: var(--oil-foreground);
 
   --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
@@ -64,6 +67,10 @@
   /* Readable slime for text on the paper background (#1fa64a itself is ~3:1 there). */
   --goo-ink: oklch(0.5 0.13 148);
   --ring: oklch(0.2 0.012 60);
+  --input: oklch(0.88 0.008 85);
+  /* Crude-oil ink for the oil-finish button. */
+  --oil: oklch(0.17 0.01 60);
+  --oil-foreground: oklch(0.97 0.005 90);
   --header-h: 60px;
   --radius: 0.625rem;
   color-scheme: light;
@@ -90,6 +97,9 @@
   --goo-foreground: oklch(0.15 0.02 150);
   --goo-ink: oklch(0.74 0.17 148);
   --ring: oklch(0.955 0.006 88);
+  --input: oklch(1 0 0 / 0.15);
+  --oil: oklch(0.17 0.01 60);
+  --oil-foreground: oklch(0.97 0.005 90);
   color-scheme: dark;
 }
 
@@ -119,7 +129,7 @@ body {
   color: var(--goo-foreground);
 }
 
-:focus-visible {
+:focus-visible:where(:not([data-slot="button"])) {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
   border-radius: 4px;
@@ -190,75 +200,6 @@ html[data-reduced-motion='true'] [data-reveal] {
 }
 
 @layer components {
-/* ---------------------------------------------------------------------------
-   Goop demo buttons. The goo body paints the fill; the host is transparent and
-   only sets --goop-color, so the label stays crisp above the filter.
---------------------------------------------------------------------------- */
-.goop-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  height: 2.5rem;
-  padding: 0 1.125rem;
-  border: 0;
-  border-radius: 0.5rem;
-  background: transparent;
-  font: inherit;
-  font-size: 0.875rem;
-  font-weight: 500;
-  line-height: 1;
-  white-space: nowrap;
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
-  --goop-color: var(--primary);
-  color: var(--primary-foreground);
-}
-.goop-btn[data-variant='destructive'] {
-  --goop-color: var(--destructive);
-  color: var(--destructive-foreground);
-}
-.goop-btn[data-variant='secondary'] {
-  --goop-color: var(--secondary);
-  color: var(--secondary-foreground);
-}
-.goop-btn[data-variant='oil'] {
-  --goop-color: oklch(0.17 0.01 60);
-  --goop-oil-intensity: 0.6;
-  color: oklch(0.97 0.005 90);
-}
-.goop-btn[data-variant='goo'] {
-  --goop-color: var(--goo);
-  color: var(--goo-foreground);
-}
-.goop-btn[data-size='sm'] {
-  height: 2rem;
-  padding: 0 0.75rem;
-  font-size: 0.8125rem;
-}
-.goop-btn[data-size='lg'] {
-  height: 3rem;
-  padding: 0 1.5rem;
-  font-size: 0.9375rem;
-  border-radius: 0.75rem;
-}
-.goop-btn[data-shape='pill'] {
-  border-radius: 9999px;
-}
-.goop-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-.goop-btn:focus-visible {
-  outline-offset: 3px;
-  border-radius: 0.5rem;
-}
-.goop-btn[data-shape='pill']:focus-visible {
-  border-radius: 9999px;
-}
-
 /* ---------------------------------------------------------------------------
    Docs prose. Hand-rolled so it matches the site, not a plugin's defaults.
 --------------------------------------------------------------------------- */

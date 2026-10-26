@@ -2,12 +2,12 @@
 // A live demo frame for docs pages. Put any goo demo in the default slot; the controls
 // (Drip, Slow-mo, Let it fly) reach every goo inside through the stage.
 withDefaults(defineProps<{ caption?: string; controls?: boolean; splash?: boolean }>(), { controls: true, splash: true })
-const stage = ref<HTMLElement | null>(null)
+const stage = createGoopStage()
 </script>
 
 <template>
   <div class="preview not-prose my-6 overflow-hidden rounded-xl border border-border bg-card">
-    <div ref="stage" data-goop-stage class="stage flex min-h-56 flex-wrap items-center justify-center gap-4 px-4 pb-14 pt-10">
+    <div class="stage flex min-h-56 flex-wrap items-center justify-center gap-4 px-4 pb-14 pt-10">
       <slot />
     </div>
     <div v-if="controls || caption" class="flex flex-wrap items-center justify-between gap-3 border-t border-border px-3 py-2">

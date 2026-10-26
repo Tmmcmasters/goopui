@@ -19,10 +19,10 @@ useSeoMeta({ title: () => (notFound.value ? 'Page not found' : 'Something broke'
           {{ notFound ? "There's nothing at this address." : error.statusMessage }}
         </p>
         <div class="mt-8 flex gap-3">
-          <button type="button" class="goop-btn" @click="clearError({ redirect: '/' })">Home</button>
-          <button type="button" class="goop-btn" data-variant="secondary" @click="clearError({ redirect: '/docs/getting-started/introduction' })">
+          <GoopButton size="lg" @click="clearError({ redirect: '/' })">Home</GoopButton>
+          <GoopButton size="lg" variant="secondary" @click="clearError({ redirect: '/docs/getting-started/introduction' })">
             Docs
-          </button>
+          </GoopButton>
         </div>
       </div>
     </section>
@@ -35,11 +35,5 @@ useSeoMeta({ title: () => (notFound.value ? 'Page not found' : 'Something broke'
   height: 56px;
   border-radius: 999px;
   --goop-color: var(--goo);
-}
-.goop-btn {
-  background: var(--primary);
-}
-.goop-btn[data-variant='secondary'] {
-  background: var(--secondary);
 }
 </style>

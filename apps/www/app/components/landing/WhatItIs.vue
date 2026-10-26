@@ -5,7 +5,7 @@ const code = `<!-- shadcn-vue -->
 <Button variant="destructive">Delete</Button>
 
 <!-- goopUI: same props, plus goo -->
-<GoopButton variant="destructive" goo="lg">
+<GoopButton variant="destructive" preset="wild">
   Delete
 </GoopButton>`
 
@@ -53,7 +53,7 @@ const points = [
             </label>
           </div>
           <div class="stage grid h-56 place-items-center pb-8">
-            <GoopButtonDemo variant="destructive" size="lg" :options="{ restingDrips: 2 }">Delete project</GoopButtonDemo>
+            <GoopButton variant="destructive" size="lg" :resting-drips="2">Delete project</GoopButton>
           </div>
           <Transition name="legend">
             <ul v-if="xray" class="legend absolute bottom-3 left-4 right-4 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px]">
@@ -62,7 +62,7 @@ const points = [
             </ul>
           </Transition>
         </div>
-        <CodeSnippet :code="code" lang="vue" filename="Planned API" />
+        <CodeSnippet :code="code" lang="vue" filename="Usage" />
       </div>
     </div>
   </section>
@@ -86,7 +86,7 @@ const points = [
 .anatomy[data-xray] :deep([data-goop='blob']) {
   opacity: 0.45;
 }
-.anatomy[data-xray] :deep(.goop-btn) {
+.anatomy[data-xray] :deep([data-slot="button"]) {
   outline: 1px solid var(--foreground);
   outline-offset: 0;
 }

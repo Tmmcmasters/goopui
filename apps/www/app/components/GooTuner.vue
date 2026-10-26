@@ -7,7 +7,7 @@
 //   - A tab per var group; each slider shows the engine's label, value + unit, and its
 //     one-line description. A var core adds later appears in its group automatically.
 // Sliders write CSS custom properties on the stage (what you'd do in your own CSS); modes
-// and switches are JS options pushed through the stage (utils/goopStage.ts).
+// and switches are JS options passed to the buttons through the `goop` prop.
 // Used on the landing page and the Theming docs page.
 import { GOOP_DEFAULT_PRESET, GOOP_PRESETS, type GoopOptions, type GoopPreset } from '@goopui/core'
 
@@ -64,11 +64,11 @@ watch(preset, () => {
   resetModes()
 })
 
+const stage = createGoopStage()
 const changed = computed(() =>
   groups.flatMap((g) => g.vars).filter((m) => values[m.option] !== Number(presetDefault(m, preset.value))),
 )
 
-const stage = ref<HTMLElement | null>(null)
 const stageStyle = computed(() => Object.fromEntries(changed.value.map((m) => [m.name, String(values[m.option])])))
 
 const stageOpts = computed<GoopOptions>(() => {
@@ -77,9 +77,9 @@ const stageOpts = computed<GoopOptions>(() => {
   return o as GoopOptions
 })
 
-// Let Vue write the CSS vars first, then every instance re-reads vars + options.
-watch([stageStyle, stageOpts], () => nextTick(() => setStageOptions(stage.value, stageOpts.value)), { deep: true })
-onMounted(() => setStageOptions(stage.value, stageOpts.value))
+// Let Vue write the CSS vars first, then every button re-reads them. (Option changes reach
+// the buttons through the `goop` prop; CSS vars need an explicit refresh.)
+watch(stageStyle, () => nextTick(() => stage.refresh()), { deep: true })
 
 const css = computed(() => {
   const lines: string[] = []
@@ -176,11 +176,13 @@ const fmt = (m: VarMeta) => `${values[m.option]}${unitSuffix(m)}`
             <span class="dot" aria-hidden="true" />{{ f.label }}
           </button>
         </div>
-        <div ref="stage" data-goop-stage class="stage grid min-h-72 flex-1 place-items-center px-4 pb-16 pt-12" :style="stageStyle">
+        <div class="stage grid min-h-72 flex-1 place-items-center px-4 pb-16 pt-12" :style="stageStyle">
           <div class="flex flex-wrap items-center justify-center gap-4">
-            <GoopButtonDemo>Button</GoopButtonDemo>
-            <GoopButtonDemo variant="goo" shape="pill">Pill</GoopButtonDemo>
-            <GoopButtonDemo variant="destructive" size="lg">Delete</GoopButtonDemo>
+            <GoopButton :ref="stage.register" v-bind="stage.props" :goop="stageOpts">Button</GoopButton>
+            <GoopButton :ref="stage.register" v-bind="stage.props" :goop="stageOpts" class="rounded-full bg-goo text-goo-foreground [--goop-color:var(--goo)]">
+              Pill
+            </GoopButton>
+            <GoopButton :ref="stage.register" v-bind="stage.props" :goop="stageOpts" variant="destructive" size="lg">Delete</GoopButton>
           </div>
         </div>
         <div class="flex flex-wrap items-center justify-between gap-2 border-t border-border px-3 py-2">
