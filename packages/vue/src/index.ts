@@ -2,6 +2,7 @@
 // Import the styles once: `@import "@goopui/vue/goop.css";` in your Tailwind entry CSS.
 
 export * from './components/button'
+export * from './components/spinner'
 export { GOOP_CONFIG_KEY, GoopPlugin, provideGoopConfig, useGoopConfig, type GoopConfig } from './config'
 export {
   CSS_VAR_KEYS,

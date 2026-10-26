@@ -43,4 +43,29 @@ describe('SSR', () => {
       delete (globalThis as Record<string, unknown>).window
     }
   })
+
+  it('GoopSpinner renders a static goo SVG with no document/window access', async () => {
+    const { GoopSpinner } = await import('../src')
+    const app = () =>
+      createSSRApp({
+        render: () => [h(GoopSpinner), h(GoopSpinner, { class: 'size-12', blobs: 6, preset: 'wild' })],
+      })
+    const apps = [app(), app()]
+    trap('document')
+    trap('window')
+    try {
+      const a = await renderToString(apps[0]!)
+      const b = await renderToString(apps[1]!)
+      expect(a).toBe(b)
+      expect(a).toContain('role="status"')
+      expect(a).toContain('aria-label="Loading"')
+      expect(a).toContain('<filter id="goop-spinner-')
+      expect(a.match(/<circle /g)!.length).toBeGreaterThanOrEqual(4 + 6)
+      expect(a).not.toContain('data-goop-active')
+      expect(a).not.toContain('data-goop="layer"')
+    } finally {
+      delete (globalThis as Record<string, unknown>).document
+      delete (globalThis as Record<string, unknown>).window
+    }
+  })
 })
