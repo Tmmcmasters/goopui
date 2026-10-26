@@ -71,7 +71,8 @@ const wiggle = (t0: number, t1: number, cx: number, cy: number, ax: number, ay: 
   return { x: cx + ax * env * Math.cos(ph), y: cy + ay * env * Math.sin(2 * ph) }
 }
 
-const clicksA = [5.18, 5.44, 5.67, 5.88, 6.07, 6.25, 6.46].map((d, i) => ({ down: d, up: d + 0.07 + (i % 2) * 0.012 }))
+// Unhurried enough that each jelly wobble rings out before the next hit.
+const clicksA = [5.15, 5.6, 6.03, 6.43, 6.8].map((d, i) => ({ down: d, up: d + 0.09 + (i % 2) * 0.015 }))
 /** Small hand drift between clicks. */
 const clickOffsets: Pt[] = [
   { x: 0, y: 0 },
@@ -119,14 +120,17 @@ export const scriptA: GooScript = {
   cursor: cursorA,
   clicks: clicksA,
   actions: [
-    // Clicks: each shockwave throws a light ring of goo across the frame.
+    // Clicks: the jelly hit. No particles (splash 'off' keeps the shockwave's edge ripple
+    // and body pulse); a deeper press squish, more goop per click, stronger ripple + jelly.
     {
       t: 4.9,
       run: (h) =>
         h.update({
-          splash: 'escape',
-          oiliness: 0.6,
-          shockwave: 0.5,
+          splash: 'off',
+          squish: 0.2,
+          clickMass: 0.55,
+          shockwave: 2.4,
+          reactivity: 1.8,
         }),
     },
     // Before the punch: splash flies across the page in oily, stringy clumps. (Above ~0.7
@@ -137,6 +141,7 @@ export const scriptA: GooScript = {
       run: (h) =>
         h.update({
           splash: 'escape',
+          reactivity: 1.3,
           oiliness: 0.6,
           dripSize: 6,
           splashAmount: 2.2,
