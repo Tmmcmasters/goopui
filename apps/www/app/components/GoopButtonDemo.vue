@@ -40,6 +40,7 @@ defineExpose({
     :disabled="disabled"
     :options="opts"
   >
-    <slot />
+    <!-- [data-goop-label]: the label rides along with the goo (labelRide). -->
+    <span data-goop-label class="inline-flex items-center gap-2"><slot /></span>
   </GoopHost>
 </template>

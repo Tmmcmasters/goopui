@@ -1,52 +1,22 @@
 <script setup lang="ts">
-// Generated from @goopui/core: names, defaults, and ranges come straight from the
-// engine's exports, so this table can't drift. Words and grouping live in
-// utils/goopDocs.ts; a knob core adds later shows up under "More" automatically.
-//   :goop-vars-table                 -> every tuning group
-//   :goop-vars-table{group="splash"} -> one group
-//   :goop-vars-table{group="finish"} -> the oil finish vars
-import { GOOP_DEFAULT_SPLASH, GOOP_SPLASH_VAR } from '@goopui/core'
-
+// Every --goop-* var, straight from GOOP_VAR_META in @goopui/core: name, JS option,
+// default, range/unit, description, cost and what reduced motion does. Grouped as the
+// engine groups them, so new vars appear without touching this file.
+//   :goop-vars-table                 -> every group
+//   :goop-vars-table{group="Splash"} -> one group (Shape, Drips, Motion, Touch, Splash, Finish, Features)
 const props = defineProps<{ group?: string }>()
-
-const sections = computed(() => {
-  const groups = knobGroups()
-    .filter((g) => !props.group || g.id === props.group)
-    .map((g) => ({
-      id: g.id,
-      label: g.label,
-      rows: g.keys.map((k) => {
-        const r = tuningRow(k)
-        return { name: r.name, def: String(r.def), range: `${r.range[0]} to ${r.range[1]}`, desc: r.desc }
-      }),
-    }))
-  if (!props.group || props.group === 'splash') {
-    const splash = groups.find((g) => g.id === 'splash')
-    splash?.rows.unshift({
-      name: GOOP_SPLASH_VAR,
-      def: GOOP_DEFAULT_SPLASH,
-      range: 'near · escape · off',
-      desc: "Where splash and shockwave particles go: 'near' stays within about 70px of the element, 'escape' flies across the page in a shared overlay, 'off' has none.",
-    })
-  }
-  if (!props.group || props.group === 'finish') {
-    groups.push({
-      id: 'finish',
-      label: 'Finish',
-      rows: [
-        { name: '--goop-finish', def: 'solid', range: 'solid · oil', desc: "'oil' adds a thin-film iridescent sheen. Read when the goo attaches; picks the canvas renderer." },
-        ...FINISH_ROWS.map((r) => ({ name: r.name, def: String(r.def), range: '', desc: r.desc })),
-      ],
-    })
-  }
-  return groups
-})
-const showHeadings = computed(() => !props.group)
+const sections = computed(() => varGroups().filter((g) => !props.group || g.group.toLowerCase() === props.group.toLowerCase()))
 </script>
 
 <template>
   <div class="vars-table my-6 overflow-x-auto rounded-xl border border-border" data-lenis-prevent-horizontal>
-    <table class="!my-0 min-w-[38rem]">
+    <table class="!my-0 w-full min-w-[38rem] table-fixed">
+      <colgroup>
+        <col class="w-[28%]" />
+        <col class="w-[9%]" />
+        <col class="w-[14%]" />
+        <col />
+      </colgroup>
       <thead>
         <tr>
           <th class="!pl-4">Variable</th>
@@ -55,15 +25,26 @@ const showHeadings = computed(() => !props.group)
           <th>What it does</th>
         </tr>
       </thead>
-      <tbody v-for="s in sections" :key="s.id">
-        <tr v-if="showHeadings" class="group-row">
-          <th colspan="4" class="!pl-4">{{ s.label }}</th>
+      <tbody v-for="s in sections" :key="s.group">
+        <tr v-if="!group" class="group-row">
+          <th colspan="4" class="!pl-4">{{ s.group }}</th>
         </tr>
-        <tr v-for="r in s.rows" :key="r.name">
-          <td class="!pl-4"><code class="whitespace-nowrap">{{ r.name }}</code></td>
-          <td class="font-mono text-[13px] tabular-nums">{{ r.def }}</td>
-          <td class="whitespace-nowrap font-mono text-[13px] tabular-nums text-muted-foreground">{{ r.range }}</td>
-          <td class="text-muted-foreground">{{ r.desc }}</td>
+        <tr v-for="m in s.vars" :key="m.name">
+          <td class="!pl-4">
+            <code class="break-all">{{ m.name }}</code>
+            <div class="mt-1 font-mono text-[11px] text-subtle">{{ m.option }}</div>
+          </td>
+          <td class="font-mono text-[13px] tabular-nums">{{ m.default }}</td>
+          <td class="font-mono text-[12px] tabular-nums text-muted-foreground">
+            {{ rangeText(m) }}
+            <div v-if="!m.values && m.unit" class="text-subtle">{{ m.unit }}</div>
+          </td>
+          <td class="!pr-4 text-muted-foreground">
+            <span class="text-foreground/85">{{ m.label }}.</span> {{ m.description }}
+            <div class="mt-1 text-[12px] text-subtle">
+              Cost: {{ m.cost }} · Reduced motion: {{ m.reducedMotion }}
+            </div>
+          </td>
         </tr>
       </tbody>
     </table>
