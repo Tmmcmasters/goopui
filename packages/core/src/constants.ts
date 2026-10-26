@@ -77,6 +77,7 @@ export interface GoopTuning {
   taffyStrands: number
   globbiness: number
   strands: number
+  hitVariety: number
   puddles: number
   puddleLife: number
   labelRide: number
@@ -208,6 +209,8 @@ const TUNING_META: { readonly [K in keyof GoopTuning]: TuningMeta & { option: K 
     description: 'Splash character: 0 is a watery spray of droplets, 1 is slow oily clumps that stretch.' },
   strands: { name: '--goop-strands', option: 'strands', label: 'Strand strength', unit: '0-1', default: 0.5, min: 0, max: 1, step: 0.05, group: 'Splash', cost: 'low', reducedMotion: OFF, aliases: ['--goop-stringiness'],
     description: 'How long splashes stay joined in strings before they snap; 0 gives loose clumps.' },
+  hitVariety: { name: '--goop-hit-variety', option: 'hitVariety', label: 'Hit variety', unit: '0-1', default: 0.7, min: 0, max: 1, step: 0.05, group: 'Splash', cost: 'none', reducedMotion: OFF,
+    description: 'How different each punch-through looks: big lead globs, medium drops and fine specks, a varied cone, tear-off spot and neck; 0 makes every hit the same.' },
 }
 
 /** Keyword and finish vars (not part of GoopTuning numbers). */
@@ -345,6 +348,7 @@ export const GOOP_PRESETS: Readonly<Record<GoopPreset, GoopPresetValues>> = Obje
       splashMinSpeed: 0.7,
       oiliness: 0.85,
       strands: 1,
+      hitVariety: 0.9,
       scrollSlosh: 1.5,
       gloss: 0.5,
       taffy: 1.5,
@@ -631,8 +635,20 @@ export const GOOP_PHYSICS = Object.freeze({
   eruptMaxLumps: 4,
   /** Droplets torn off the far edge per hit: min, max, and extra per unit of hit speed. */
   eruptDropsMin: 4,
-  eruptDropsMax: 10,
+  eruptDropsMax: 14,
   eruptDropsPerSpeed: 1.5,
+  /** Hit spray size classes (x the usual splash droplet) and speeds (x the base throw): big
+   *  slow lead globs, medium drops, fast fine specks. Below `eruptSlowSpeed` (x speedRef over
+   *  the splash threshold) a hit only oozes out 1-3 fat drops that barely leave. */
+  eruptLeadSize: 2.1,
+  eruptLeadSpeed: 0.6,
+  eruptMidSize: 1.15,
+  eruptMidSpeed: 0.95,
+  eruptSpeckSize: 0.4,
+  eruptSpeckSpeed: 1.5,
+  eruptSlowSpeed: 0.1,
+  /** Lead-glob neck: how long (s) it stays stretched on a thin neck before it snaps. */
+  eruptNeckTime: 0.09,
   /** Shockwave body pulse: jelly velocity kick away from the click point. */
   shockPush: 26,
   shockSquash: 0.5,

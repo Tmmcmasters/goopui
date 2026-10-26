@@ -536,9 +536,10 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     speed: number,
     rand: number,
     bond = false,
+    sizeMul = 1,
   ): void => {
     const fp = fluidParams(tuning.oiliness, tuning.thickness)
-    const r = tuning.dripSize * fp.size * (0.8 + 0.4 * rand)
+    const r = tuning.dripSize * fp.size * (0.8 + 0.4 * rand) * sizeMul
     const base: Omit<ParticleSpawn, 'x' | 'y' | 'vx' | 'vy'> = {
       r,
       oiliness: tuning.oiliness,
@@ -772,13 +773,22 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     size: number
     out: SpringState
     maxOut: number
-    /** Droplets this lump tears off as when it peaks (0 = none, it just springs back). */
-    drops: number
-    /** Hit speed in speedRef units: scales launch speed, narrows the cone. */
-    speedN: number
-    /** Hit direction angle. */
-    dirA: number
+    /** Droplets this lump tears off when it peaks (empty = none, it just springs back). */
+    spray: SprayDrop[]
+    /** Seconds the lead glob hangs on a thin neck before it snaps (0 = it tears off at once). */
+    neck: number
+    /** 0 rising, 1 hanging on its neck, 2 torn (recoiling). */
+    stage: 0 | 1 | 2
+    hold: number
     blobs: GoopBlob[]
+  }
+  interface SprayDrop {
+    /** Size (x the usual splash droplet), launch speed (px/s) and angle. */
+    size: number
+    speed: number
+    a: number
+    /** Lead globs wait for the neck to snap. */
+    lead: boolean
   }
   const hitWaves: HitWave[] = []
   const erupts: Erupt[] = []
@@ -826,14 +836,27 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     jelly.ty.v += w.dy * P.shockPush * 1.1 * s * react()
     jelly.dsx.v += (Math.abs(w.dx) - Math.abs(w.dy) * 0.5) * 0.6 * s * react()
     jelly.dsy.v += (Math.abs(w.dy) - Math.abs(w.dx) * 0.5) * 0.6 * s * react()
-    // Globby lumps push out of the far edge: one big one where it exits, smaller ones beside.
-    const count = clamp(Math.round(1 + s * 1.5 + g), 1, P.eruptMaxLumps)
+    // Every hit is a little different (--goop-hit-variety): rv() is a seeded +-1 jitter scaled
+    // by the variety, so 0 makes every hit the same.
+    const v = clamp(tuning.hitVariety ?? 0.7, 0, 1)
+    const rv = (): number => (random() * 2 - 1) * v
     const tx = -ny
     const ty = nx
+    const nSpeed = Math.hypot(w.vx, w.vy) / P.speedRef
+    const over = Math.max(0, nSpeed - tuning.splashMinSpeed)
+    const power = clamp(over / 0.8, 0, 1)
+    // Glancing hits (coming in at an angle to the edge) skid along it.
+    const glance = clamp(1 - Math.abs(w.dx * nx + w.dy * ny), 0, 1)
+    const side = Math.sign(w.dx * tx + w.dy * ty) || 1
+    // Globby lumps push out of the far edge: one big one where it exits, smaller ones beside.
+    // The tear-off spot wanders along the edge (and skids with a glancing hit).
+    const count = clamp(Math.round(1 + s * 1.5 + g), 1, P.eruptMaxLumps)
     const base = tuning.dripSize * (0.9 + 0.8 * g) * (0.7 + 0.4 * s)
+    const shift = (rv() * 1.4 + side * glance * 0.8) * base
+    const first = erupts.length
     for (let i = 0; i < count; i++) {
       const slot = i === 0 ? 0 : (i % 2 === 1 ? 1 : -1) * Math.ceil(i / 2)
-      const along = slot * base * 1.6 * (0.8 + 0.4 * random())
+      const along = shift + slot * base * 1.6 * (0.8 + 0.4 * random())
       const a = edgePoint(w.fx + tx * along - nx * 0.5, w.fy + ty * along - ny * 0.5)
       const size = base * (i === 0 ? 1 : 0.55 + 0.3 * random())
       const maxOut = size * (1.2 + 0.9 * s) * (i === 0 ? 1 : 0.75)
@@ -846,24 +869,49 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
         size,
         out: { x: 0, v: maxOut * P.eruptKick },
         maxOut,
-        drops: 0,
-        speedN: 0,
-        dirA: 0,
+        spray: [],
+        neck: 0,
+        stage: 0,
+        hold: 0,
         blobs,
       })
     }
-    // Every hit tears droplets off the far edge: more and bigger-sprayed with speed.
+    // Every hit tears droplets off the far edge as a cone along its momentum: a size hierarchy
+    // of one or two big slow lead globs, a few medium drops and a fast scatter of fine specks.
+    // Faster = more specks, longer throws; slow = just 1-3 fat drops that ooze off.
     if (splashMode !== 'off') {
-      const nSpeed = Math.hypot(w.vx, w.vy) / P.speedRef
-      const total = Math.min(
-        clamp(Math.round(P.eruptDropsMin + P.eruptDropsPerSpeed * nSpeed + 2 * g), P.eruptDropsMin, P.eruptDropsMax),
-        particleRoom(),
-      )
-      for (let i = 0; i < total; i++) erupts[erupts.length - 1 - (i % count)]!.drops++
-      for (const e of erupts) {
-        e.speedN = nSpeed
-        e.dirA = Math.atan2(w.dy, w.dx)
+      const tier = 0.3 + 0.7 * v
+      const k = (x: number): number => 1 + (x - 1) * tier
+      const ax = w.dx + tx * side * glance * 0.9
+      const ay = w.dy + ty * side * glance * 0.9
+      const axis = Math.atan2(ay, ax) + rv() * 0.35
+      const cone = (P.splashCone / (1 + over * 1.5)) * (1 + rv() * 0.5) * (1 + glance * 0.8)
+      const thrw = P.splashSpeed * 0.6 + P.splashSpeedPerSpeed * Math.min(3, nSpeed)
+      const room = Math.min(P.eruptDropsMax, particleRoom())
+      const spray: SprayDrop[] = []
+      const add = (size: number, speed: number, spread: number, lead: boolean): void => {
+        if (spray.length < room) spray.push({ size, speed: thrw * speed, a: axis + (random() * 2 - 1) * cone * spread, lead })
       }
+      const slow = over < P.eruptSlowSpeed
+      if (slow) {
+        const fat = clamp(Math.round(2 + rv() * 1.4), 1, 3)
+        for (let i = 0; i < fat; i++) add(k(P.eruptLeadSize * 0.85) * (0.85 + 0.3 * random()), 0.3 * (0.8 + 0.4 * random()), 0.5, i === 0)
+      } else {
+        const leads = random() < v * (0.2 + 0.4 * power) ? 2 : 1
+        for (let i = 0; i < leads; i++)
+          add(k(P.eruptLeadSize) * (i ? 0.75 : 1) * (0.9 + 0.2 * random()), k(P.eruptLeadSpeed) * (0.85 + 0.3 * random()), 0.4, true)
+        const mids = clamp(Math.round(2 + power * 1.5 + g + rv() * 1.2), 1, 5)
+        for (let i = 0; i < mids; i++) add(k(P.eruptMidSize) * (0.8 + 0.4 * random()), k(P.eruptMidSpeed) * (0.8 + 0.4 * random()), 1, false)
+        const specks = clamp(Math.round((2 + 7 * power) * (1 + rv() * 0.5)), 1, 10)
+        for (let i = 0; i < specks; i++)
+          add(k(P.eruptSpeckSize) * (0.8 + 0.4 * random()), k(P.eruptSpeckSpeed) * (0.8 + 0.5 * random()), 1.5 + glance, false)
+      }
+      // Sometimes a second tear-off point right beside the first fires too.
+      const lead = erupts[first]!
+      const twin = count > 1 && random() < v * (0.25 + 0.35 * power) ? erupts[first + 1]! : null
+      spray.forEach((d, i) => (twin && !d.lead && i % 3 === 0 ? twin : lead).spray.push(d))
+      // Sometimes the lead glob hangs on a short neck before it snaps.
+      if (random() < (slow ? 0.3 + 0.5 * v : 0.6 * v)) lead.neck = P.eruptNeckTime * (0.7 + 0.6 * random()) * (1 + 0.5 * g)
     }
     if (tuning.clickGoop > 0) addGoop(tuning.clickGoop * P.hitGoop * Math.min(1, s), w.fx)
   }
@@ -904,31 +952,49 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
       const e = erupts[i]!
       stepSpring(e.out, 0, eruptCfg, dt)
       const out = e.out.x
-      if (e.drops > 0 && out > e.maxOut * 0.4 && e.out.v < e.maxOut * 6) {
-        // Tear-off: the bulge peaks, then sheds droplets in a cone along the hit's momentum
-        // (same particles as the click shockwave) and the stub recoils with a wobble.
-        const tip = e.ax + e.nx * out
-        const tipY = e.ay + e.ny * out
+      const tipX = e.ax + e.nx * out
+      const tipY = e.ay + e.ny * out
+      const fire = (lead: boolean): void => {
         readColor()
-        const over = Math.max(0, e.speedN - tuning.splashMinSpeed)
-        const cone = P.splashCone / (1 + over * 1.5)
-        const base = e.dirA
-        for (let k = 0; k < e.drops; k++) {
-          const a = base + (random() * 2 - 1) * cone
-          const ux = Math.cos(a)
-          const uy = Math.sin(a)
-          const sp = (P.splashSpeed * 0.6 + P.splashSpeedPerSpeed * Math.min(2, e.speedN)) * (0.6 + 0.8 * random())
-          launch(tip + ux * e.size * 0.3, tipY + uy * e.size * 0.3, ux, uy, sp, random())
+        for (const d of e.spray) {
+          if (d.lead !== lead) continue
+          const ux = Math.cos(d.a)
+          const uy = Math.sin(d.a)
+          const off = e.size * (lead ? 0.1 : 0.3)
+          launch(tipX + ux * off, tipY + uy * off, ux, uy, d.speed, random(), false, d.size)
         }
-        e.drops = 0
-        e.out.x = out * 0.45
+      }
+      const recoil = (): void => {
+        e.stage = 2
+        e.out.x = e.out.x * 0.45
         e.out.v = -e.maxOut * 6
+      }
+      if (e.stage === 0 && e.spray.length > 0 && out > e.maxOut * 0.4 && e.out.v < e.maxOut * 6) {
+        // Tear-off: the bulge peaks, then sheds droplets in a cone along the hit's momentum
+        // (same particles as the click shockwave) and the stub recoils with a wobble. With a
+        // neck, the lead glob first hangs on, stretching, then snaps.
+        fire(false)
+        if (e.neck > 0 && e.spray.some((d) => d.lead)) e.stage = 1
+        else {
+          fire(true)
+          recoil()
+        }
+      } else if (e.stage === 1) {
+        e.hold += dt
+        e.out.v = 0
+        e.out.x += dt * e.maxOut * 2.5
+        if (e.hold >= e.neck) {
+          fire(true)
+          recoil()
+        }
       }
       const f = clamp(e.out.x / e.maxOut, 0, 1)
       const r = e.size * (f < 0.3 ? f / 0.3 * 0.55 : 0.55 + 0.45 * Math.sqrt((f - 0.3) / 0.7))
       const tip = map(e.ax + e.nx * e.out.x, e.ay + e.ny * e.out.x)
       const neck = map(e.ax + e.nx * e.out.x * 0.45, e.ay + e.ny * e.out.x * 0.45)
-      e.blobs[0]!.set(neck.x, neck.y, r * 0.8)
+      // A hanging neck thins as it stretches toward the snap.
+      const thin = e.stage === 1 ? 1 - 0.7 * Math.min(1, e.hold / e.neck) : 1
+      e.blobs[0]!.set(neck.x, neck.y, r * 0.8 * thin)
       e.blobs[1]!.set(tip.x, tip.y, r)
       if (isSpringSettled(e.out, 0, 0.05, 1)) {
         for (const b of e.blobs) b.remove()
