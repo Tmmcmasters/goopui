@@ -115,3 +115,19 @@ export { isReducedMotion, watchReducedMotion } from './reduced-motion'
 /** @deprecated Use GOOP_DEFAULTS. Kept so existing imports keep compiling. */
 export const defaultGoopOptions = GOOP_DEFAULTS
 export { trackPointer, type PointerSample, type PointerTracker } from './pointer'
+export {
+  SPINNER_DEFAULT_BLOBS,
+  SPINNER_FEEL,
+  SPINNER_MAX_BLOBS,
+  SPINNER_MIN_BLOBS,
+  attachSpinner,
+  spinnerCircleCount,
+  spinnerGooParams,
+  spinnerPose,
+  spinnerStaticPose,
+  type SpinnerCircle,
+  type SpinnerFeel,
+  type SpinnerHandle,
+  type SpinnerNeckState,
+  type SpinnerOptions,
+} from './spinner'
