@@ -66,11 +66,41 @@ describe('spinnerPose', () => {
   })
 })
 
+describe('spinner drips', () => {
+  it('sheds drips that fall below the ring center; none when off', () => {
+    const vanish = 0.066
+    const n = 4
+    const base = spinnerCircleCount(n)
+    const alive = (p: number) => spinnerPose(p, n, SPINNER_FEEL.playful, { necked: true }, { vanish }).slice(base).filter((c) => c.r > 0)
+    expect(spinnerPose(1, n)).toHaveLength(base)
+    expect(spinnerPose(1, n, SPINNER_FEEL.playful, { necked: true }, { vanish })).toHaveLength(spinnerCircleCount(n, true))
+    let fell = false
+    for (let p = 0.6; p < 3; p += 0.01) {
+      const a = alive(p)
+      const b = alive(p + 0.02)
+      expect(a.length).toBeLessThanOrEqual(3 * 3)
+      for (const c of a) if (c.y > 0.05 && b.some((d) => Math.abs(d.x - c.x) < 1e-9 && d.y > c.y)) fell = true
+    }
+    expect(fell).toBe(true)
+  })
+
+  it('attachSpinner allocates drip blobs only when drips are on', () => {
+    const on = host()
+    const a = attachSpinner(on, { blobs: 4 })
+    const el = host()
+    const off = attachSpinner(el, { blobs: 4, drips: false })
+    expect(blobs(on)).toHaveLength(spinnerCircleCount(4, true))
+    expect(blobs(el)).toHaveLength(spinnerCircleCount(4))
+    a.destroy()
+    off.destroy()
+  })
+})
+
 describe('attachSpinner', () => {
   it('draws blobs (no body) on the shared loop and cleans up fully', () => {
     const el = host()
     const h = attachSpinner(el, { blobs: 5 })
-    expect(blobs(el)).toHaveLength(spinnerCircleCount(5))
+    expect(blobs(el)).toHaveLength(spinnerCircleCount(5, true))
     expect(el.querySelector<HTMLElement>(`[${GOOP_PART_ATTR}="body"]`)!.style.transform).toContain('scale(0.0000')
     expect(el.querySelector(`[${GOOP_PART_ATTR}="layer"]`)!.getAttribute('aria-hidden')).toBe('true')
     expect(h.running).toBe(true)
@@ -119,7 +149,7 @@ describe('attachSpinner', () => {
     const el = host()
     const h = attachSpinner(el, { blobs: 3 })
     h.update({ blobs: 6 })
-    expect(blobs(el)).toHaveLength(spinnerCircleCount(6))
+    expect(blobs(el)).toHaveLength(spinnerCircleCount(6, true))
     h.destroy()
   })
 })

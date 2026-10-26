@@ -4,11 +4,13 @@ import type { GoopPreset, GoopRendererName } from '@goopui/core'
 /** Spinner props from the panel, applied to every GoopSpinner on the page. */
 const blobs = ref(4)
 const speed = ref(1)
+const drips = ref(true)
 const preset = ref<GoopPreset | ''>('')
 const renderer = ref<GoopRendererName | ''>('')
 const engine = computed(() => ({
   blobs: blobs.value,
   speed: speed.value,
+  drips: drips.value,
   preset: preset.value || undefined,
   renderer: renderer.value || undefined,
 }))
@@ -29,6 +31,10 @@ const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
         <label class="grid gap-1">
           <span class="text-xs text-muted-foreground">speed: {{ speed.toFixed(2) }}x</span>
           <input v-model.number="speed" type="range" min="0.25" max="3" step="0.05" class="w-28">
+        </label>
+        <label class="flex items-center gap-2 pb-1">
+          <input v-model="drips" type="checkbox">
+          <span class="text-xs text-muted-foreground">drips</span>
         </label>
         <label class="grid gap-1">
           <span class="text-xs text-muted-foreground">preset</span>

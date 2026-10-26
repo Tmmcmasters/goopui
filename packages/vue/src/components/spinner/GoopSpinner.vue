@@ -31,6 +31,8 @@ const props = defineProps({
   speed: { type: Number, default: 1 },
   /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
   preset: { type: String as PropType<GoopPreset>, default: undefined },
+  /** A couple of drips fall through the middle as it turns. */
+  drips: { type: Boolean, default: true },
   /** 'svg' (default) | 'canvas' | a custom renderer factory. */
   renderer: { type: [String, Function] as PropType<GoopRendererOption>, default: undefined },
 })
@@ -42,6 +44,7 @@ const id = useId()
 const options = computed<SpinnerOptions>(() => ({
   blobs: props.blobs,
   speed: props.speed,
+  drips: props.drips,
   preset: props.preset ?? config.preset,
   renderer: props.renderer ?? config.renderer,
   reducedMotion: config.reducedMotion,
