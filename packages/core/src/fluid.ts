@@ -58,6 +58,13 @@ export interface ParticleSpawn {
   rand?: number
   /** CSS color for renderers that need it per circle (shared overlay). */
   color?: string
+  /** Chain this particle to the previously spawned one (stringiness): a persistent bond
+   *  that keeps strings together until stretched past `bondBreak` x its rest length. */
+  bond?: boolean
+  /** Bond stiffness per 1/60 s (0..1). */
+  bondStiffness?: number
+  /** Snap when stretched past this multiple of the rest length. */
+  bondBreak?: number
 }
 
 interface Particle {
@@ -82,6 +89,22 @@ interface Particle {
   vanish: number
   nbrs: number
   blob: GoopBlob
+  dead: boolean
+  bond: Particle | null
+  bondRest: number
+  bondK: number
+  bondBreak: number
+  color?: string
+}
+
+/** Where a particle touched the floor (see ParticleFluid.floor / onLand). */
+export interface ParticleLanding {
+  x: number
+  y: number
+  r: number
+  vx: number
+  vanish: number
+  color?: string
 }
 
 /** Optional soft box (same space as particles). Outside it particles are braked hard and
@@ -112,9 +135,14 @@ export function drainRadius(rA: number, rm: number, q: number): number {
 export class ParticleFluid {
   private ps: Particle[] = []
   private grid = new Map<number, number[]>()
+  private lastSpawned: Particle | null = null
+  /** Optional floor (same space as particles). Particles that reach it are handed to `onLand`
+   *  (which should draw a replacement circle this frame) and removed. */
+  floor: number | undefined = undefined
+  onLand: ((l: ParticleLanding) => void) | null = null
 
   constructor(
-    private readonly createBlob: (color?: string) => GoopBlob,
+    private createBlob: (color?: string) => GoopBlob,
     readonly max: number = P.maxParticles,
   ) {}
 
@@ -133,7 +161,8 @@ export class ParticleFluid {
     const rand = s.rand ?? Math.random()
     // Lone droplets must stay clearly above the filter's vanish radius or water spray is invisible.
     const r0 = Math.max(s.r, s.vanish * 1.35)
-    this.ps.push({
+    const prev = s.bond && this.lastSpawned && !this.lastSpawned.dead ? this.lastSpawned : null
+    const p: Particle = {
       x: s.x,
       y: s.y,
       vx: s.vx,
@@ -154,7 +183,15 @@ export class ParticleFluid {
       vanish: s.vanish,
       nbrs: 0,
       blob: this.createBlob(s.color),
-    })
+      dead: false,
+      bond: prev,
+      bondRest: prev ? Math.max(r0, Math.hypot(prev.x - s.x, prev.y - s.y)) : 0,
+      bondK: clamp(s.bondStiffness ?? 0, 0, 0.9),
+      bondBreak: Math.max(1.2, s.bondBreak ?? 3),
+      color: s.color,
+    }
+    this.ps.push(p)
+    this.lastSpawned = p
     globalLive++
     return true
   }
@@ -165,7 +202,7 @@ export class ParticleFluid {
    */
   step(dt: number, bounds?: FluidBounds, ox = 0, oy = 0): boolean {
     if (this.ps.length === 0) return false
-    const n = Math.max(1, Math.ceil(dt / P.fluidSubstep - 1e-9))
+    const n = dt > 0 ? Math.max(1, Math.ceil(dt / P.fluidSubstep - 1e-9)) : 0
     const h = dt / n
     // Stiffness/viscosity are tuned per 1/60 s; convert to this substep so the result
     // doesn't depend on how many substeps run.
@@ -178,15 +215,23 @@ export class ParticleFluid {
       const target = Math.max(p.r0 * crowd, Math.min(p.r0, p.vanish * 1.3))
       p.rs += (target - p.rs) * (1 - Math.exp(-dt / 0.06))
       let r = p.rs
+      // A stretched chain link thins (volume ~ r^2 * length), but stays visible.
+      if (p.bond && !p.bond.dead) {
+        const d = Math.hypot(p.bond.x - p.x, p.bond.y - p.y)
+        if (d > p.bondRest) r = Math.max(p.vanish * 1.1, r * Math.sqrt(p.bondRest / d))
+      }
       if (p.drip >= 0) {
         const q = (p.drip / p.dripLife) * 1.25
         if (q >= 1.25) {
-          p.blob.remove()
-          this.ps.splice(i, 1)
-          globalLive--
+          this.kill(i)
           continue
         }
-        r = drainRadius(p.rs, p.vanish * 0.98, q)
+        r = drainRadius(r, p.vanish * 0.98, q)
+      }
+      if (this.floor !== undefined && this.onLand && p.vy > 0 && p.y + r >= this.floor && r > 0.3) {
+        this.onLand({ x: p.x, y: this.floor, r, vx: p.vx, vanish: p.vanish, color: p.color })
+        this.kill(i)
+        continue
       }
       const stretch = 1 + Math.min(P.dropMaxStretch, Math.abs(p.vy) * P.dropStretch * 0.6)
       p.blob.set(p.x - ox, p.y - oy, r, 1, 1 / Math.sqrt(stretch), stretch)
@@ -269,6 +314,33 @@ export class ParticleFluid {
         }
       }
     }
+    // 3b. chain bonds (stringiness): distance constraints that persist until they snap
+    for (const p of ps) {
+      const b = p.bond
+      if (!b) continue
+      if (b.dead) {
+        p.bond = null
+        continue
+      }
+      const dx = b.x - p.x
+      const dy = b.y - p.y
+      const d = Math.hypot(dx, dy)
+      if (d > p.bondRest * p.bondBreak) {
+        p.bond = null // snap
+        continue
+      }
+      if (d < 1e-6 || p.bondK <= 0) continue
+      const k = 1 - Math.pow(1 - p.bondK, kScale)
+      const corr = clamp((d - p.bondRest) * k, -p.bondRest, p.bondRest) * 0.5
+      const nx = dx / d
+      const ny = dy / d
+      p.x += nx * corr
+      p.y += ny * corr
+      b.x -= nx * corr
+      b.y -= ny * corr
+      p.nbrs++
+      b.nbrs++
+    }
     // 4. PBD velocity
     for (const p of ps) {
       p.vx = (p.x - p.px) / h
@@ -288,11 +360,32 @@ export class ParticleFluid {
     }
   }
 
+  private kill(i: number): void {
+    const p = this.ps[i]!
+    p.dead = true
+    p.blob.remove()
+    this.ps.splice(i, 1)
+    globalLive--
+  }
+
   /** Remove everything now (reduced motion / destroy). */
   clear(): void {
-    for (const p of this.ps) p.blob.remove()
+    for (const p of this.ps) {
+      p.dead = true
+      p.blob.remove()
+    }
     globalLive -= this.ps.length
     this.ps.length = 0
+    this.lastSpawned = null
+  }
+
+  /** Re-create every particle's circle with a new factory (hot renderer swap). */
+  rebind(createBlob: (color?: string) => GoopBlob): void {
+    this.createBlob = createBlob
+    for (const p of this.ps) {
+      p.blob.remove()
+      p.blob = createBlob(p.color)
+    }
   }
 
   /** For tests / devtools. */

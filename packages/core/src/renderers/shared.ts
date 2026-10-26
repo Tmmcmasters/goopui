@@ -42,6 +42,8 @@ export interface PreparedItem {
   color: readonly [number, number, number, number]
   /** Oil finish parameters, or null for solid. */
   oil: GlOil | null
+  /** 0..1 wet-look gloss. */
+  gloss?: number
 }
 
 export interface CanvasShared {
@@ -334,7 +336,7 @@ class SharedImpl {
         if (cy + h + gap > atlasH) {
           flush()
         }
-        const item: GlItem = { x: cx, y: cy, w: p.w, h: p.h, color: p.color, threshold: p.threshold, contrast: p.contrast, oil: p.oil }
+        const item: GlItem = { x: cx, y: cy, w: p.w, h: p.h, color: p.color, threshold: p.threshold, contrast: p.contrast, oil: p.oil, gloss: p.gloss }
         batch.items.push(item)
         owners.push(inst)
         inst.collect(batch.shapes, cx / n, cy / n, p.kx / n, p.ky / n)

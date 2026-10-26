@@ -6,162 +6,335 @@
 //                   via attachGoop(el, { ... }). Precedence: JS option > CSS var > default.
 //   GOOP_PHYSICS  : engine-level constants (spring feel, timings, shape ratios). Not
 //                   exposed as CSS vars; edit here while dialing in the feel.
+//
+// Precedence everywhere: JS option > `--goop-*` CSS var > preset (GOOP_PRESETS) > default.
+//
+// ---- features ------------------------------------------------------------------------------
+// Every feature is individually toggleable and tunable. "Off" = the option/var value that
+// disables it. Cost = extra work when it is ON (everything sleeps when nothing moves).
+//
+// feature          option (off)              CSS var                     default  cost
+// drips            drips (false)             --goop-drip-count (0)       3        low: <=8 circles/drip
+// rhythm           dripInterval              --goop-drip-interval        0.9s     none (timer)
+// click mass       clickMass (0)             --goop-click-mass           0.35     low
+// squish           squish (0)                --goop-squish               0.08     none
+// inertia/slosh    inertia (0)               --goop-inertia              1        none (one spring)
+// flow to cursor   flow (0)                  --goop-flow                 1        none
+// pointer jelly    reactivity (0)            --goop-reactivity           1        none
+// scroll slosh     scrollSlosh (0)           --goop-scroll-slosh         1        low: 1 shared scroll listener
+// tilt             tilt (false, opt-in)      --goop-tilt                 1        low: 1 shared listener
+// keyboard         keyboard (false)          --goop-keyboard (0)         1        none
+// splash-through   splashAmount (0)          --goop-splash-amount        1        med: <=28 particles/burst
+//   reach mode     splash ('off')            --goop-splash               near     escape: shared overlay
+// shockwave        shockwave (0)             --goop-shockwave            1        med: <=22 particles + 8 circles
+// oiliness         oiliness                  --goop-oiliness             0.65     none (fluid params)
+// strings          stringiness (0)           --goop-stringiness          0.5      low: 1 bond/particle
+// puddles          puddles (false)           --goop-puddles (0)          1        low: 1 circle/puddle
+// gloss            gloss (false)             --goop-gloss (0)            0.6      SVG: static filter prims;
+//                                                                                 canvas: shader branch
+// taffy pull       taffy (false)             --goop-taffy (0)            1        low: <=24 circles while held
+// reach            reach (false)             --goop-reach (0, px)        60       low: 2 circles, wakes only
+//                                                                                 within radius, on screen
+// label ride       labelRide (false)         --goop-label-ride (0)       0.6      low: 1 transform write/frame
+// finish (oil)     finish ('solid')          --goop-finish               solid    canvas: ~free; SVG: static
+//
+// Presets ('subtle' | 'playful' | 'wild', option `preset` or `--goop-preset`) only change
+// the defaults column; see GOOP_PRESETS at the bottom of this file.
 
-/** Per-element tuning knobs. Every field maps 1:1 to a `--goop-*` CSS custom property. */
+/** Per-element tuning knobs. Every field maps 1:1 to a `--goop-*` CSS custom property; the
+ *  full description, unit, range and group of each lives in GOOP_VAR_META below. */
 export interface GoopTuning {
-  /** `--goop-blur` (px). Gaussian blur stdDeviation of the goo filter. Higher = blobbier,
-   *  wider necks and fillets, rounder corners on the body. Keep it below ~dripSize or
-   *  small drips vanish under the alpha threshold. */
-  blur: number
-  /** `--goop-contrast`. Alpha multiplier after the blur. Higher = crisper goo edge,
-   *  lower = softer / more aliased-looking edge. */
-  contrast: number
-  /** `--goop-threshold` (0..1). Blurred alpha level that becomes the goo edge. Lower =
-   *  shapes bulge outward and merge from further away; higher = tighter, thinner necks. */
-  threshold: number
-  /** `--goop-drip-count`. Max drips spawned per hover (a random 1..N, capped by width). */
+  softness: number
+  edgeSharpness: number
+  edge: number
   dripCount: number
-  /** `--goop-drip-length` (px). How far the bulb hangs below the edge before it detaches. */
   dripLength: number
-  /** `--goop-drip-size` (px). Bulb radius at full swell (randomized +/- GOOP_PHYSICS.sizeJitter). */
   dripSize: number
-  /** `--goop-viscosity`. Global thickness multiplier. 1 = default. >1 = slower swell,
-   *  slower hang, less bounce (honey). <1 = quicker and springier (syrup/water). */
-  viscosity: number
-  /** `--goop-fall` (px). Mean distance a detached drop falls before it is gone
-   *  (randomized +/- GOOP_PHYSICS.fallJitter, so 32 gives roughly 24-40). */
-  fall: number
-  /** `--goop-gravity` (px/s^2). Acceleration of detached drops. */
+  thickness: number
+  fallDistance: number
   gravity: number
-  /** `--goop-squish` (0..0.4). How much the body compresses vertically on press. 0 disables. */
   squish: number
-  /** `--goop-resting-drips`. Static drips that always hang off the bottom edge (no motion).
-   *  These are also what remains in reduced-motion mode. */
   restingDrips: number
-  /** `--goop-drip-interval` (s). Mean time between new drips while the pointer rests on the
-   *  element. Movement and recent clicks shorten it (see GOOP_PHYSICS.rhythm*). */
   dripInterval: number
-  /** `--goop-reactivity`. Scales every pointer-driven reaction: entry impact, hover lean,
-   *  skew/wobble, drip sway, exit pull. 0 = goo ignores pointer motion, 2 = very jelly. */
-  reactivity: number
-  /** `--goop-click-mass`. Goop added per click (dimensionless; capped at
-   *  GOOP_PHYSICS.maxMass). Swells the body, speeds dripping, spawns a splash drip. 0 disables. */
-  clickMass: number
-  /** `--goop-mass-decay` (s). Time constant for click-added goop to drain back to rest. */
-  massDecay: number
-  /** `--goop-splash-threshold`. Entry speed (in units of GOOP_PHYSICS.speedRef px/s, so
-   *  1 = 1200 px/s) above which the pointer punches goo out through the far side. */
-  splashThreshold: number
-  /** `--goop-splash-amount`. Particle count multiplier for punch-through splashes. 0 disables. */
+  pointerReaction: number
+  clickGoop: number
+  clickGoopFade: number
+  splashMinSpeed: number
   splashAmount: number
-  /** `--goop-oiliness` (0..1). 0 = watery: fast, loose spray of separate droplets.
-   *  1 = oily: slow, cohesive clumps that stretch into strings and tendrils before snapping. */
   oiliness: number
-  /** `--goop-shockwave`. Strength of the click shockwave (particle ring + edge ripple). 0 disables. */
   shockwave: number
-  /** `--goop-inertia`. How strongly the goo carries pointer momentum (slosh opposite to the
-   *  pointer's acceleration: drips swing, mass shifts to the leading side). 0 disables. */
   inertia: number
-  /** `--goop-flow`. How far hanging drips creep along the edge toward the cursor. 0 disables. */
-  flow: number
-  /** `--goop-scroll-slosh`. Page scroll sloshes the goo (scroll down fast -> drips lag up,
-   *  then swing). 0 disables; negative flips the direction. */
+  flowToCursor: number
   scrollSlosh: number
-  /** `--goop-tilt`. Device tilt shifts gravity sideways (mobile). Only used when the element
-   *  opts in with `tilt: true` (needs requestTiltPermission() on iOS). 0 disables. */
   tiltStrength: number
-  /** `--goop-max-drips`. Cap on live drips for this element (wide edges can raise it). */
   maxDrips: number
+  gloss: number
+  taffy: number
+  taffyLength: number
+  reach: number
+  strands: number
+  puddles: number
+  puddleLife: number
+  labelRide: number
+  keyboard: number
+  dripVariance: number
+  idle: number
 }
 
+export type GoopVarGroup = 'Shape' | 'Drips' | 'Motion' | 'Touch' | 'Splash' | 'Finish' | 'Features'
+export type GoopVarCost = 'none' | 'low' | 'medium' | 'high'
+
+/** Everything a docs page, a tuner UI or a newcomer needs to know about one `--goop-*` var. */
+export interface GoopVarMeta {
+  /** The CSS custom property. */
+  name: string
+  /** The JS option key (camelCase of the same words). */
+  option: string
+  /** 2-4 word label. */
+  label: string
+  /** One plain-English sentence: what it does and when you'd change it. */
+  description: string
+  /** px, s, x (multiplier), 0-1, deg/s..., or 'keyword'. */
+  unit: string
+  default: number | string
+  min?: number
+  max?: number
+  step?: number
+  /** Allowed values for keyword vars. */
+  values?: readonly string[]
+  group: GoopVarGroup
+  cost: GoopVarCost
+  /** What happens under prefers-reduced-motion / data-reduced-motion. */
+  reducedMotion: string
+  /** Old names still read (deprecated aliases). */
+  aliases?: readonly string[]
+}
+
+type TuningMeta = GoopVarMeta & { option: keyof GoopTuning; default: number; min: number; max: number; step: number }
+
+const STATIC = 'Unchanged (static).'
+const OFF = 'Off.'
+
+/** Tuning vars, keyed by option. Source of truth for GOOP_DEFAULTS / GOOP_CSS_VARS / GOOP_LIMITS. */
+const TUNING_META: { readonly [K in keyof GoopTuning]: TuningMeta & { option: K } } = {
+  // ---- Shape
+  softness: { name: '--goop-softness', option: 'softness', label: 'Softness', unit: 'px', default: 4, min: 0, max: 40, step: 0.5, group: 'Shape', cost: 'none', reducedMotion: STATIC, aliases: ['--goop-blur'],
+    description: 'How far apart shapes start to melt together; higher looks blobbier with rounder corners, lower looks crisper.' },
+  edgeSharpness: { name: '--goop-edge-sharpness', option: 'edgeSharpness', label: 'Edge sharpness', unit: 'x', default: 20, min: 1, max: 100, step: 1, group: 'Shape', cost: 'none', reducedMotion: STATIC, aliases: ['--goop-contrast'],
+    description: 'How hard the goo outline is; lower gives a soft, slightly fuzzy edge.' },
+  edge: { name: '--goop-edge', option: 'edge', label: 'Edge position', unit: '0-1', default: 0.4, min: 0.05, max: 0.95, step: 0.01, group: 'Shape', cost: 'none', reducedMotion: STATIC, aliases: ['--goop-threshold'],
+    description: 'Where the outline sits on the melted shape; lower makes everything fatter and merge from further away, higher makes necks thinner.' },
+  gloss: { name: '--goop-gloss', option: 'gloss', label: 'Wet gloss', unit: '0-1', default: 0.6, min: 0, max: 1, step: 0.05, group: 'Shape', cost: 'low', reducedMotion: STATIC,
+    description: 'A soft top-left highlight and rim shading so the goo looks wet and 3D; 0 is flat color.' },
+
+  // ---- Drips
+  dripCount: { name: '--goop-drip-count', option: 'dripCount', label: 'Drips per hover', unit: 'count', default: 3, min: 0, max: 8, step: 1, group: 'Drips', cost: 'low', reducedMotion: OFF,
+    description: 'Most drips hanging at once while hovered; 0 turns hover drips off.' },
+  dripLength: { name: '--goop-drip-length', option: 'dripLength', label: 'Drip length', unit: 'px', default: 14, min: 0, max: 200, step: 1, group: 'Drips', cost: 'none', reducedMotion: STATIC,
+    description: 'How far a drip stretches below the edge before it lets go.' },
+  dripSize: { name: '--goop-drip-size', option: 'dripSize', label: 'Drip size', unit: 'px', default: 7, min: 1, max: 60, step: 0.5, group: 'Drips', cost: 'none', reducedMotion: STATIC,
+    description: 'Radius of a drip bulb when it is full.' },
+  dripInterval: { name: '--goop-drip-interval', option: 'dripInterval', label: 'Drip rhythm', unit: 's', default: 0.9, min: 0.1, max: 10, step: 0.05, group: 'Drips', cost: 'none', reducedMotion: OFF,
+    description: 'Average time between new drips while the pointer rests on the element; moving and clicking make it faster.' },
+  dripVariance: { name: '--goop-drip-variance', option: 'dripVariance', label: 'Drip variety', unit: '0-1', default: 0.6, min: 0, max: 1, step: 0.05, group: 'Drips', cost: 'none', reducedMotion: STATIC,
+    description: 'How different drips look from each other (length, size, neck, spacing); 0 makes them identical.' },
+  restingDrips: { name: '--goop-resting-drips', option: 'restingDrips', label: 'Resting drips', unit: 'count', default: 0, min: 0, max: 8, step: 1, group: 'Drips', cost: 'low', reducedMotion: STATIC,
+    description: 'Drips that always hang off the bottom edge, even when nothing happens.' },
+  idle: { name: '--goop-idle', option: 'idle', label: 'Idle breathing', unit: 'on/off', default: 1, min: 0, max: 1, step: 1, group: 'Drips', cost: 'low', reducedMotion: OFF,
+    description: 'Resting drips swell very slowly so the element never looks frozen.' },
+  maxDrips: { name: '--goop-max-drips', option: 'maxDrips', label: 'Drip cap', unit: 'count', default: 10, min: 0, max: 48, step: 1, group: 'Drips', cost: 'none', reducedMotion: OFF,
+    description: 'Hard limit on drips alive at once on this element; raise it for very wide elements.' },
+  fallDistance: { name: '--goop-fall-distance', option: 'fallDistance', label: 'Fall distance', unit: 'px', default: 32, min: 0, max: 400, step: 1, group: 'Drips', cost: 'none', reducedMotion: OFF, aliases: ['--goop-fall'],
+    description: 'How far a released drop falls before it has drained away (when puddles are off).' },
+  gravity: { name: '--goop-gravity', option: 'gravity', label: 'Gravity', unit: 'px/s²', default: 700, min: 0, max: 10000, step: 50, group: 'Drips', cost: 'none', reducedMotion: OFF,
+    description: 'How fast drops and splashes speed up as they fall.' },
+  puddles: { name: '--goop-puddles', option: 'puddles', label: 'Puddles', unit: 'on/off', default: 1, min: 0, max: 1, step: 1, group: 'Drips', cost: 'low', reducedMotion: OFF,
+    description: 'Falling drops land on a floor below the element, spread flat, then drain.' },
+  puddleLife: { name: '--goop-puddle-life', option: 'puddleLife', label: 'Puddle life', unit: 's', default: 1.4, min: 0.2, max: 10, step: 0.1, group: 'Drips', cost: 'none', reducedMotion: OFF,
+    description: 'How long a puddle lasts before it has fully drained.' },
+
+  // ---- Motion
+  thickness: { name: '--goop-thickness', option: 'thickness', label: 'Thickness', unit: 'x', default: 1, min: 0.2, max: 5, step: 0.05, group: 'Motion', cost: 'none', reducedMotion: STATIC, aliases: ['--goop-viscosity'],
+    description: 'How syrupy the goo is: above 1 is slower and less bouncy like honey, below 1 is quicker and springier.' },
+  pointerReaction: { name: '--goop-pointer-reaction', option: 'pointerReaction', label: 'Pointer reaction', unit: 'x', default: 1, min: 0, max: 4, step: 0.05, group: 'Motion', cost: 'none', reducedMotion: OFF, aliases: ['--goop-reactivity'],
+    description: 'Master strength for everything the pointer does to the goo (impact, lean, wobble, sway); 0 ignores pointer motion.' },
+  inertia: { name: '--goop-inertia', option: 'inertia', label: 'Inertia', unit: 'x', default: 1, min: 0, max: 4, step: 0.05, group: 'Motion', cost: 'none', reducedMotion: OFF,
+    description: 'How much the goo sloshes behind sudden pointer moves, so drips swing and goo piles up on the leading side.' },
+  flowToCursor: { name: '--goop-flow-to-cursor', option: 'flowToCursor', label: 'Flow to cursor', unit: 'x', default: 1, min: 0, max: 2, step: 0.05, group: 'Motion', cost: 'none', reducedMotion: OFF, aliases: ['--goop-flow'],
+    description: 'How far hanging drips creep along the edge toward the cursor.' },
+  scrollSlosh: { name: '--goop-scroll-slosh', option: 'scrollSlosh', label: 'Scroll slosh', unit: 'x', default: 1, min: -3, max: 3, step: 0.05, group: 'Motion', cost: 'low', reducedMotion: OFF,
+    description: 'Fast page scrolling sloshes the goo; negative flips the direction, 0 turns it off.' },
+  tiltStrength: { name: '--goop-tilt-strength', option: 'tiltStrength', label: 'Tilt strength', unit: 'x', default: 1, min: 0, max: 3, step: 0.05, group: 'Motion', cost: 'low', reducedMotion: OFF, aliases: ['--goop-tilt'],
+    description: 'How much tilting a phone pulls goo sideways (only with the tilt option on).' },
+  labelRide: { name: '--goop-label-ride', option: 'labelRide', label: 'Label ride', unit: '0-1', default: 0.6, min: 0, max: 1, step: 0.05, group: 'Motion', cost: 'low', reducedMotion: OFF,
+    description: 'How much content marked [data-goop-label] moves and squishes along with the goo.' },
+
+  // ---- Touch
+  squish: { name: '--goop-squish', option: 'squish', label: 'Press squish', unit: '0-1', default: 0.08, min: 0, max: 0.4, step: 0.01, group: 'Touch', cost: 'none', reducedMotion: OFF,
+    description: 'How much the body flattens while pressed.' },
+  clickGoop: { name: '--goop-click-goop', option: 'clickGoop', label: 'Goop per click', unit: 'x', default: 0.35, min: 0, max: 2, step: 0.05, group: 'Touch', cost: 'low', reducedMotion: OFF, aliases: ['--goop-click-mass'],
+    description: 'Extra goo each click adds: the body swells, drips come faster and a splash drip falls.' },
+  clickGoopFade: { name: '--goop-click-goop-fade', option: 'clickGoopFade', label: 'Click goop fade', unit: 's', default: 1.2, min: 0.1, max: 10, step: 0.1, group: 'Touch', cost: 'none', reducedMotion: OFF, aliases: ['--goop-mass-decay'],
+    description: 'How long the extra goo from clicks takes to drain back to normal.' },
+  keyboard: { name: '--goop-keyboard', option: 'keyboard', label: 'Keyboard squish', unit: 'on/off', default: 1, min: 0, max: 1, step: 1, group: 'Touch', cost: 'none', reducedMotion: OFF,
+    description: 'Space or Enter on the focused element squishes it from the top and adds goop.' },
+  taffy: { name: '--goop-taffy', option: 'taffy', label: 'Taffy pull', unit: 'x', default: 1, min: 0, max: 2, step: 0.05, group: 'Touch', cost: 'low', reducedMotion: OFF,
+    description: 'Press and drag off the element to pull a stretchy goo string; 0 turns it off.' },
+  taffyLength: { name: '--goop-taffy-length', option: 'taffyLength', label: 'Taffy snap length', unit: 'px', default: 90, min: 20, max: 400, step: 5, group: 'Touch', cost: 'none', reducedMotion: OFF,
+    description: 'How far the string stretches past the edge before it snaps.' },
+  reach: { name: '--goop-reach', option: 'reach', label: 'Reach distance', unit: 'px', default: 60, min: 0, max: 300, step: 5, group: 'Touch', cost: 'low', reducedMotion: OFF,
+    description: 'The edge bulges toward a pointer closer than this, before it touches; 0 turns it off.' },
+
+  // ---- Splash
+  splashMinSpeed: { name: '--goop-splash-min-speed', option: 'splashMinSpeed', label: 'Splash speed', unit: 'x1200 px/s', default: 1, min: 0.1, max: 5, step: 0.05, group: 'Splash', cost: 'none', reducedMotion: OFF, aliases: ['--goop-splash-threshold'],
+    description: 'How fast the pointer must enter (1 = 1200 px/s) to punch goo out of the far side.' },
+  splashAmount: { name: '--goop-splash-amount', option: 'splashAmount', label: 'Splash amount', unit: 'x', default: 1, min: 0, max: 3, step: 0.05, group: 'Splash', cost: 'medium', reducedMotion: OFF,
+    description: 'How much goo a punch-through throws; 0 turns splashes off.' },
+  shockwave: { name: '--goop-shockwave', option: 'shockwave', label: 'Click shockwave', unit: 'x', default: 1, min: 0, max: 3, step: 0.05, group: 'Splash', cost: 'medium', reducedMotion: OFF,
+    description: 'Strength of the ring of goo and the edge ripple on each click; 0 turns it off.' },
+  oiliness: { name: '--goop-oiliness', option: 'oiliness', label: 'Oiliness', unit: '0-1', default: 0.65, min: 0, max: 1, step: 0.05, group: 'Splash', cost: 'none', reducedMotion: OFF,
+    description: 'Splash character: 0 is a watery spray of droplets, 1 is slow oily clumps that stretch.' },
+  strands: { name: '--goop-strands', option: 'strands', label: 'Strand strength', unit: '0-1', default: 0.5, min: 0, max: 1, step: 0.05, group: 'Splash', cost: 'low', reducedMotion: OFF, aliases: ['--goop-stringiness'],
+    description: 'How long splashes stay joined in strings before they snap; 0 gives loose clumps.' },
+}
+
+/** Keyword and finish vars (not part of GoopTuning numbers). */
+const OTHER_META: Readonly<Record<string, GoopVarMeta>> = {
+  preset: { name: '--goop-preset', option: 'preset', label: 'Preset', unit: 'keyword', default: 'playful', values: ['subtle', 'playful', 'wild'], group: 'Features', cost: 'none', reducedMotion: 'Motion features off whatever the preset.',
+    description: 'Starting point for every feature: subtle for dense UIs, playful by default, wild for hero sections.' },
+  splash: { name: '--goop-splash', option: 'splash', label: 'Splash reach', unit: 'keyword', default: 'near', values: ['near', 'escape', 'off'], group: 'Splash', cost: 'medium', reducedMotion: OFF,
+    description: 'Where splash goo may fly: near the element, across the whole page (escape), or nowhere.' },
+  finish: { name: '--goop-finish', option: 'finish', label: 'Finish', unit: 'keyword', default: 'solid', values: ['solid', 'oil'], group: 'Finish', cost: 'low', reducedMotion: 'Static sheen.',
+    description: 'Surface look: plain color, or an oily rainbow sheen at the edges.' },
+  oilIntensity: { name: '--goop-oil-intensity', option: 'oilIntensity', label: 'Oil sheen', unit: '0-1', default: 0.3, min: 0, max: 1, step: 0.05, group: 'Finish', cost: 'none', reducedMotion: STATIC,
+    description: 'How strong the oily rainbow sheen is.' },
+  oilBandSize: { name: '--goop-oil-band-size', option: 'oilBandSize', label: 'Oil band size', unit: 'x', default: 1, min: 0.1, max: 10, step: 0.05, group: 'Finish', cost: 'none', reducedMotion: STATIC, aliases: ['--goop-oil-scale'],
+    description: 'Size of the rainbow bands; 2 makes them twice as large.' },
+  oilHueShift: { name: '--goop-oil-hue-shift', option: 'oilHueShift', label: 'Oil hue shift', unit: 'cycles', default: 0, min: 0, max: 1, step: 0.02, group: 'Finish', cost: 'none', reducedMotion: STATIC, aliases: ['--goop-oil-shift'],
+    description: 'Rotates which colors show in the sheen, like a slightly thicker or thinner oil film.' },
+  oilFollowPointer: { name: '--goop-oil-follow-pointer', option: 'oilFollowPointer', label: 'Oil follows pointer', unit: '0-2', default: 0, min: 0, max: 2, step: 0.05, group: 'Finish', cost: 'low', reducedMotion: OFF, aliases: ['--goop-oil-react'],
+    description: 'Lets the rainbow bands drift and swirl with the mouse; 0 keeps them calm.' },
+}
+
+/** One entry per `--goop-*` var, keyed by JS option name. The single source of truth for
+ *  names, labels, descriptions, units, defaults, ranges, groups, cost and reduced motion. */
+export const GOOP_VAR_META: Readonly<Record<string, GoopVarMeta>> = Object.freeze({ ...TUNING_META, ...OTHER_META })
+
+const TUNING_KEYS = Object.keys(TUNING_META) as (keyof GoopTuning)[]
+
+export const GOOP_DEFAULTS: Readonly<GoopTuning> = Object.freeze(
+  Object.fromEntries(TUNING_KEYS.map((k) => [k, TUNING_META[k].default])) as unknown as GoopTuning,
+)
+
+/** CSS custom property name for each tuning knob. */
+export const GOOP_CSS_VARS: Readonly<Record<keyof GoopTuning, string>> = Object.freeze(
+  Object.fromEntries(TUNING_KEYS.map((k) => [k, TUNING_META[k].name])) as Record<keyof GoopTuning, string>,
+)
+
+/** Sanity clamps applied after reading CSS / options, so a bad value can't explode the sim. */
+export const GOOP_LIMITS: Readonly<Record<keyof GoopTuning, readonly [number, number]>> = Object.freeze(
+  Object.fromEntries(TUNING_KEYS.map((k) => [k, [TUNING_META[k].min, TUNING_META[k].max] as const])) as Record<
+    keyof GoopTuning,
+    readonly [number, number]
+  >,
+)
+
+/** Deprecated CSS var name -> new name (old names keep working, with a one-time dev warning). */
+export const GOOP_VAR_RENAMES: Readonly<Record<string, string>> = Object.freeze(
+  Object.fromEntries(
+    Object.values(GOOP_VAR_META).flatMap((m) => (m.aliases ?? []).map((a) => [a, m.name] as const)),
+  ),
+)
+
+/** Deprecated JS option name -> new option name. */
+export const GOOP_OPTION_RENAMES: Readonly<Record<string, string>> = Object.freeze({
+  blur: 'softness',
+  contrast: 'edgeSharpness',
+  threshold: 'edge',
+  viscosity: 'thickness',
+  fall: 'fallDistance',
+  reactivity: 'pointerReaction',
+  clickMass: 'clickGoop',
+  massDecay: 'clickGoopFade',
+  splashThreshold: 'splashMinSpeed',
+  flow: 'flowToCursor',
+  stringiness: 'strands',
+  oilScale: 'oilBandSize',
+  oilShift: 'oilHueShift',
+  oilReact: 'oilFollowPointer',
+})
 
 /** Where splash / shockwave particles may go. `--goop-splash: near | escape | off`. */
 export type GoopSplashMode = 'near' | 'escape' | 'off'
 export const GOOP_SPLASH_VAR = '--goop-splash'
 export const GOOP_DEFAULT_SPLASH: GoopSplashMode = 'near'
 
+// ---- presets --------------------------------------------------------------------------
+//
+// `preset: 'subtle' | 'playful' | 'wild'` (or `--goop-preset`) replaces the defaults above
+// for the knobs it lists. Precedence: JS option > CSS var > preset > GOOP_DEFAULTS.
+// 'playful' is the default and equals GOOP_DEFAULTS.
 
-export const GOOP_DEFAULTS: Readonly<GoopTuning> = Object.freeze({
-  blur: 4,
-  contrast: 20,
-  threshold: 0.4,
-  dripCount: 3,
-  dripLength: 14,
-  dripSize: 7,
-  viscosity: 1,
-  fall: 32,
-  gravity: 700,
-  squish: 0.08,
-  restingDrips: 0,
-  dripInterval: 0.9,
-  reactivity: 1,
-  clickMass: 0.35,
-  massDecay: 1.2,
-  splashThreshold: 1,
-  splashAmount: 1,
-  oiliness: 0.65,
-  shockwave: 1,
-  inertia: 1,
-  flow: 1,
-  scrollSlosh: 1,
-  tiltStrength: 1,
-  maxDrips: 10,
-})
+export type GoopPreset = 'subtle' | 'playful' | 'wild'
+export const GOOP_PRESET_VAR = '--goop-preset'
+export const GOOP_DEFAULT_PRESET: GoopPreset = 'playful'
 
-/** CSS custom property name for each tuning knob. */
-export const GOOP_CSS_VARS: Readonly<Record<keyof GoopTuning, string>> = Object.freeze({
-  blur: '--goop-blur',
-  contrast: '--goop-contrast',
-  threshold: '--goop-threshold',
-  dripCount: '--goop-drip-count',
-  dripLength: '--goop-drip-length',
-  dripSize: '--goop-drip-size',
-  viscosity: '--goop-viscosity',
-  fall: '--goop-fall',
-  gravity: '--goop-gravity',
-  squish: '--goop-squish',
-  restingDrips: '--goop-resting-drips',
-  dripInterval: '--goop-drip-interval',
-  reactivity: '--goop-reactivity',
-  clickMass: '--goop-click-mass',
-  massDecay: '--goop-mass-decay',
-  splashThreshold: '--goop-splash-threshold',
-  splashAmount: '--goop-splash-amount',
-  oiliness: '--goop-oiliness',
-  shockwave: '--goop-shockwave',
-  inertia: '--goop-inertia',
-  flow: '--goop-flow',
-  scrollSlosh: '--goop-scroll-slosh',
-  tiltStrength: '--goop-tilt',
-  maxDrips: '--goop-max-drips',
-})
+export interface GoopPresetValues {
+  tuning: Partial<GoopTuning>
+  splash: GoopSplashMode
+}
 
-/** Sanity clamps applied after reading CSS / options, so a bad value can't explode the sim. */
-export const GOOP_LIMITS: Readonly<Record<keyof GoopTuning, readonly [number, number]>> = Object.freeze({
-  blur: [0, 40],
-  contrast: [1, 100],
-  threshold: [0.05, 0.95],
-  dripCount: [0, 8],
-  dripLength: [0, 200],
-  dripSize: [1, 60],
-  viscosity: [0.2, 5],
-  fall: [0, 400],
-  gravity: [0, 10000],
-  squish: [0, 0.4],
-  restingDrips: [0, 8],
-  dripInterval: [0.1, 10],
-  reactivity: [0, 4],
-  clickMass: [0, 2],
-  massDecay: [0.1, 10],
-  splashThreshold: [0.1, 5],
-  splashAmount: [0, 3],
-  oiliness: [0, 1],
-  shockwave: [0, 3],
-  inertia: [0, 4],
-  flow: [0, 2],
-  scrollSlosh: [-3, 3],
-  tiltStrength: [0, 3],
-  maxDrips: [0, 48],
+export const GOOP_PRESETS: Readonly<Record<GoopPreset, GoopPresetValues>> = Object.freeze({
+  /** Calm enough for a dense dashboard: one slow drip, small reactions, no flying goo. */
+  subtle: {
+    splash: 'off',
+    tuning: {
+      dripCount: 1,
+      dripInterval: 2.2,
+      pointerReaction: 0.45,
+      inertia: 0.5,
+      flowToCursor: 0.4,
+      squish: 0.05,
+      clickGoop: 0.12,
+      shockwave: 0.35,
+      splashAmount: 0,
+      scrollSlosh: 0,
+      gloss: 0.35,
+      taffy: 0,
+      reach: 0,
+      strands: 0,
+      puddles: 0,
+      labelRide: 0.3,
+    },
+  },
+  /** The default: everything on at shadcn-friendly strengths. */
+  playful: { splash: 'near', tuning: {} },
+  /** Hero sections: big, fast, sloppy. Splashes escape across the page. */
+  wild: {
+    splash: 'escape',
+    tuning: {
+      dripCount: 5,
+      dripInterval: 0.5,
+      pointerReaction: 1.6,
+      inertia: 1.6,
+      flowToCursor: 1.3,
+      squish: 0.12,
+      clickGoop: 0.5,
+      shockwave: 2,
+      splashAmount: 2,
+      splashMinSpeed: 0.7,
+      oiliness: 0.85,
+      strands: 1,
+      scrollSlosh: 1.5,
+      gloss: 0.9,
+      taffy: 1.5,
+      taffyLength: 150,
+      reach: 90,
+      puddles: 1,
+      puddleLife: 2.2,
+      labelRide: 0.8,
+    },
+  },
 })
 
 /**
@@ -333,6 +506,32 @@ export const GOOP_PHYSICS = Object.freeze({
   oilDrift: 6,
   /** Resting film swirl (contour bend); pointer speed adds to it only with --goop-oil-react. */
   oilSwirl: 0.3,
+
+  // ---- resting drips: idle breathing ---------------------------------------------
+  /** Breathing swell amplitude (fraction) and period (s). Redrawn at idleFps only. */
+  idleSwell: 0.07,
+  idlePeriod: 3.6,
+  idleFps: 12,
+
+  // ---- puddles / strings / taffy / reach / gloss ---------------------------------
+  /** Flattest a puddle gets (minor/major radius ratio before area-preserving spread). */
+  puddleFlatten: 0.5,
+  /** Chain bonds (stringiness): stiffness per 1/60 s at stringiness 1, and the stretch
+   *  factor at which a bond snaps (rest x (2 + this x stringiness)). */
+  bondStiffness: 0.35,
+  bondBreak: 6,
+  /** Taffy: string circle count, sag (px at full length), recoil spring, follow lag (s). */
+  taffySegments: 9,
+  taffySag: 10,
+  taffyFollow: 0.06,
+  taffySpring: { response: 0.32, dampingRatio: 0.42 } as SpringFeel,
+  /** Touch long-press before taffy can start (s). */
+  taffyLongPress: 0.35,
+  /** Reach: bulge length (px) at full strength, blob radius (x dripSize), speed boost. */
+  reachBulge: 9,
+  reachSize: 1.25,
+  reachSpeedBoost: 0.6,
+  reachSpring: { response: 0.22, dampingRatio: 0.65 } as SpringFeel,
 
   // ---- particle fluid (splash-through + shockwave) ---------------------------
   /** Hard caps: particles per element, and across the whole page (all elements + overlay). */

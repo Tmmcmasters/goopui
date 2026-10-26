@@ -31,11 +31,21 @@ export {
   GOOP_DEFAULT_SPLASH,
   GOOP_PHYSICS,
   GOOP_SPLASH_VAR,
+  GOOP_VAR_META,
+  GOOP_VAR_RENAMES,
+  GOOP_OPTION_RENAMES,
+  GOOP_PRESETS,
+  GOOP_PRESET_VAR,
+  GOOP_DEFAULT_PRESET,
+  type GoopPreset,
+  type GoopVarMeta,
+  type GoopVarGroup,
+  type GoopVarCost,
   type GoopSplashMode,
   type GoopTuning,
   type SpringFeel,
 } from './constants'
-export { readTuning } from './tuning'
+export { gooParamsOf, readPreset, readTuning, renameOptions } from './tuning'
 export {
   GOO_DEFS_ATTR,
   GOO_FILTER_REGION,

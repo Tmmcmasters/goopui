@@ -14,6 +14,8 @@ export interface GooFilterParams {
   contrast: number
   /** Alpha level (0..1) that becomes the goo edge. */
   threshold: number
+  /** 0..1 wet look: top-left specular rim + bottom-right shading (see glossPrimitives). */
+  gloss?: number
 }
 
 /**
@@ -28,8 +30,13 @@ const round = (n: number, d = 2): number => {
   return Math.round(n * p) / p
 }
 
-function normalize(p: GooFilterParams): GooFilterParams {
-  return { blur: round(Math.max(0, p.blur)), contrast: round(Math.max(0, p.contrast)), threshold: round(p.threshold, 3) }
+function normalize(p: GooFilterParams): Required<GooFilterParams> {
+  return {
+    blur: round(Math.max(0, p.blur)),
+    contrast: round(Math.max(0, p.contrast)),
+    threshold: round(p.threshold, 3),
+    gloss: round(Math.max(0, Math.min(1, p.gloss ?? 0))),
+  }
 }
 
 const idPart = (n: number): string => String(n).replace('-', 'm').replace('.', '_')
@@ -37,7 +44,8 @@ const idPart = (n: number): string => String(n).replace('-', 'm').replace('.', '
 /** Deterministic, CSS-safe id for a parameter set. Same params -> same id. */
 export function gooFilterId(params: GooFilterParams): string {
   const p = normalize(params)
-  return `goop-goo-b${idPart(p.blur)}-c${idPart(p.contrast)}-t${idPart(p.threshold)}`
+  const g = p.gloss > 0 ? `-g${idPart(p.gloss)}` : ''
+  return `goop-goo-b${idPart(p.blur)}-c${idPart(p.contrast)}-t${idPart(p.threshold)}${g}`
 }
 
 /** The feColorMatrix `values` string: keep RGB, alpha' = contrast * alpha - contrast * threshold. */
@@ -61,25 +69,84 @@ export function gooVanishRadius(params: GooFilterParams): number {
   return p.blur * Math.sqrt(-2 * Math.log(1 - edge))
 }
 
+type Primitive = readonly [tag: string, attrs: Record<string, string>]
+
+/**
+ * The filter pipeline as data. Base: blur the source -> crush alpha to a hard-ish edge (the
+ * "goo") -> draw the original pixels atop that shape so color comes from the source.
+ *
+ * Gloss (cheap, static, no lighting primitives): the blurred alpha is a height field. Its
+ * difference with a copy shifted down-right is ~ the slope facing the top-left light, so
+ * `blur - shifted` lights the top-left rim (specular, white) and `shiftedOpposite - blur`
+ * darkens the bottom-right rim (shading). Both are sharpened, clipped to the goo and
+ * composited over the base. Nothing here changes per frame.
+ */
+export function gooFilterPrimitives(params: GooFilterParams): Primitive[] {
+  const p = normalize(params)
+  const out: Primitive[] = [
+    ['feGaussianBlur', { in: 'SourceGraphic', stdDeviation: String(p.blur), result: 'blur' }],
+    ['feColorMatrix', { in: 'blur', mode: 'matrix', values: gooColorMatrix(p), result: 'goo' }],
+  ]
+  if (p.gloss <= 0 || p.blur <= 0) {
+    out.push(['feComposite', { in: 'SourceGraphic', in2: 'goo', operator: 'atop' }])
+    return out
+  }
+  const g = p.gloss
+  const d = String(round(Math.max(1, p.blur * 0.7)))
+  const nd = String(-Number(d))
+  out.push(
+    ['feComposite', { in: 'SourceGraphic', in2: 'goo', operator: 'atop', result: 'base' }],
+    // specular: surface facing up-left
+    ['feOffset', { in: 'blur', dx: d, dy: d, result: 'down' }],
+    ['feComposite', { in: 'blur', in2: 'down', operator: 'arithmetic', k1: '0', k2: '1', k3: '-1', k4: '0', result: 'facing' }],
+    ['feComponentTransfer', { in: 'facing', result: 'specA' }],
+    ['feFlood', { 'flood-color': '#ffffff', result: 'white' }],
+    ['feComposite', { in: 'white', in2: 'specA', operator: 'in', result: 'spec0' }],
+    ['feComposite', { in: 'spec0', in2: 'goo', operator: 'in', result: 'spec' }],
+    // shading: surface facing down-right
+    ['feOffset', { in: 'blur', dx: nd, dy: nd, result: 'up' }],
+    ['feComposite', { in: 'blur', in2: 'up', operator: 'arithmetic', k1: '0', k2: '1', k3: '-1', k4: '0', result: 'away' }],
+    ['feComponentTransfer', { in: 'away', result: 'shadeA' }],
+    ['feFlood', { 'flood-color': '#000000', result: 'black' }],
+    ['feComposite', { in: 'black', in2: 'shadeA', operator: 'in', result: 'shade0' }],
+    ['feComposite', { in: 'shade0', in2: 'goo', operator: 'in', result: 'shade' }],
+    ['feMerge', {}],
+  )
+  // Transfer curves (alpha only) are attached as children by the builders below.
+  ;(out as unknown as { glossCurves: [string, string] }).glossCurves = [
+    `${round(3.2 * g, 3)} ${round(-0.05, 3)}`, // spec: slope, intercept
+    `${round(1.6 * g, 3)} 0`, // shade
+  ]
+  return out
+}
+
+const MERGE_NODES = ['base', 'shade', 'spec']
+
 /**
  * Pure markup for one goo filter (useful for SSR output or snapshot tests).
- * Pipeline: blur the source -> crush alpha to a hard-ish edge (the "goo") -> draw the
- * original pixels atop that shape so color/gradients come from the source, not the blur.
  */
 export function gooFilterMarkup(params: GooFilterParams, id: string = gooFilterId(params)): string {
-  const p = normalize(params)
   const r = GOO_FILTER_REGION
-  return (
-    `<filter id="${id}" x="${r.x}" y="${r.y}" width="${r.width}" height="${r.height}" color-interpolation-filters="sRGB">` +
-    `<feGaussianBlur in="SourceGraphic" stdDeviation="${p.blur}" result="blur"/>` +
-    `<feColorMatrix in="blur" mode="matrix" values="${gooColorMatrix(p)}" result="goo"/>` +
-    `<feComposite in="SourceGraphic" in2="goo" operator="atop"/>` +
-    `</filter>`
-  )
+  const prims = gooFilterPrimitives(params)
+  const curves = (prims as unknown as { glossCurves?: [string, string] }).glossCurves
+  let ct = 0
+  const body = prims
+    .map(([tag, attrs]) => {
+      const a = Object.entries(attrs)
+        .map(([k, v]) => `${k}="${v}"`)
+        .join(' ')
+      if (tag === 'feComponentTransfer' && curves) {
+        const [slope, intercept] = curves[ct++]!.split(' ')
+        return `<${tag} ${a}><feFuncA type="linear" slope="${slope}" intercept="${intercept}"/></${tag}>`
+      }
+      if (tag === 'feMerge') return `<feMerge>${MERGE_NODES.map((n) => `<feMergeNode in="${n}"/>`).join('')}</feMerge>`
+      return `<${tag}${a ? ' ' + a : ''}/>`
+    })
+    .join('')
+  return `<filter id="${id}" x="${r.x}" y="${r.y}" width="${r.width}" height="${r.height}" color-interpolation-filters="sRGB">${body}</filter>`
 }
 
 function buildFilterElement(doc: Document, id: string, params: GooFilterParams): SVGFilterElement {
-  const p = normalize(params)
   const r = GOO_FILTER_REGION
   const el = (tag: string, attrs: Record<string, string>): Element => {
     const node = doc.createElementNS(SVG_NS, tag)
@@ -94,11 +161,18 @@ function buildFilterElement(doc: Document, id: string, params: GooFilterParams):
     height: r.height,
     'color-interpolation-filters': 'sRGB',
   }) as SVGFilterElement
-  filter.append(
-    el('feGaussianBlur', { in: 'SourceGraphic', stdDeviation: String(p.blur), result: 'blur' }),
-    el('feColorMatrix', { in: 'blur', mode: 'matrix', values: gooColorMatrix(p), result: 'goo' }),
-    el('feComposite', { in: 'SourceGraphic', in2: 'goo', operator: 'atop' }),
-  )
+  const prims = gooFilterPrimitives(params)
+  const curves = (prims as unknown as { glossCurves?: [string, string] }).glossCurves
+  let ct = 0
+  for (const [tag, attrs] of prims) {
+    const node = el(tag, attrs)
+    if (tag === 'feComponentTransfer' && curves) {
+      const [slope, intercept] = curves[ct++]!.split(' ')
+      node.append(el('feFuncA', { type: 'linear', slope: slope!, intercept: intercept! }))
+    }
+    if (tag === 'feMerge') for (const n of MERGE_NODES) node.append(el('feMergeNode', { in: n }))
+    filter.append(node)
+  }
   return filter
 }
 

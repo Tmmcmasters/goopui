@@ -23,6 +23,7 @@
 
 import { GOOP_PHYSICS, type GoopTuning } from './constants'
 import { gooVanishRadius } from './filter'
+import { gooParamsOf } from './tuning'
 import type { GoopBlob, GoopRenderer } from './renderer'
 import {
   clamp,
@@ -65,6 +66,10 @@ export interface DripContext {
   flowPull?: number
   /** Optional: allowed anchor range [lo, hi] for flowing drips. */
   edge?: readonly [number, number]
+  /** Optional floor y: drops fall to it (no mid-air fade) and are handed to `onLand`, which
+   *  should draw a replacement circle (a puddle) this frame. */
+  floor?: number
+  onLand?: (x: number, y: number, r: number, vx: number) => void
 }
 
 interface Drop {
@@ -97,9 +102,22 @@ export interface Drip {
   /** Set to tear the drip off on the next step (fast exits). */
   yank: { vx: number; vy: number } | null
   readonly size: number
+  /** Per-drip hang length and neck pinch multipliers (organic variation). */
+  readonly lengthScale: number
+  readonly pinchScale: number
   readonly swellTime: number
   readonly fall: number
   readonly blobs: GoopBlob[] // [root, ...neck, bulb]
+}
+
+/** One resting drip: x as a 0..1 fraction of the width, size/length multipliers (1 = the
+ *  tuned dripSize / resting hang), neck pinch 0..0.6, and a breathing phase (radians). */
+export interface RestingDrip {
+  x: number
+  size?: number
+  length?: number
+  pinch?: number
+  phase?: number
 }
 
 export interface SpawnOptions {
@@ -123,7 +141,7 @@ const jitter = (rand: () => number, amount: number): number => 1 + (rand() * 2 -
  * (Opacity stays 1: fading alpha under a threshold filter is itself a pop.)
  */
 export function dropRadius(r0: number, p: number, t: GoopTuning): number {
-  const rm = gooVanishRadius(t) * 0.98
+  const rm = gooVanishRadius(gooParamsOf(t)) * 0.98
   const fade = P.dropFadeStart
   // Never shrink into the threshold zone before the deliberate fade-out.
   const rA = Math.max(r0 * (1 - P.dropShrink * Math.min(p, fade)), Math.min(r0, rm * 1.2))
@@ -149,7 +167,23 @@ export class DripField {
   /** Fired when a drop detaches (owner adds body recoil). */
   onDetach: ((drip: Drip) => void) | null = null
 
-  constructor(private readonly renderer: GoopRenderer) {}
+  constructor(private renderer: GoopRenderer) {}
+
+  /** Move every live and resting drip onto a new renderer (hot renderer swap). Positions are
+   *  redrawn by the next step / drawResting call. */
+  rebind(renderer: GoopRenderer): void {
+    this.renderer = renderer
+    for (const d of this.drips) {
+      for (let i = 0; i < d.blobs.length; i++) {
+        d.blobs[i]!.remove()
+        d.blobs[i] = renderer.createBlob()
+      }
+    }
+    for (let i = 0; i < this.resting.length; i++) {
+      this.resting[i]!.remove()
+      this.resting[i] = renderer.createBlob()
+    }
+  }
 
   private syncSprings(viscosity: number): void {
     if (viscosity === this.viscosity) return
@@ -194,16 +228,20 @@ export class DripField {
       yank: null,
       // Floor: a drop smaller than the filter's vanish radius would blink out at detach.
       size: Math.max(
-        tuning.dripSize * jitter(rand, P.sizeJitter) * (opts.sizeScale ?? 1),
-        gooVanishRadius(tuning) * 1.25,
+        tuning.dripSize *
+          jitter(rand, P.sizeJitter * (0.4 + (tuning.dripVariance ?? 0.6))) *
+          (opts.sizeScale ?? 1),
+        gooVanishRadius(gooParamsOf(tuning)) * 1.25,
       ),
       swellTime:
         P.swellTime *
-        tuning.viscosity *
+        tuning.thickness *
         jitter(rand, P.swellJitter) *
         (forced ? P.tapSwellScale : 1) *
         (opts.swellScale ?? 1),
-      fall: tuning.fall * jitter(rand, P.fallJitter),
+      fall: tuning.fallDistance * jitter(rand, P.fallJitter),
+      lengthScale: 1 + (rand() * 2 - 1) * 0.45 * (tuning.dripVariance ?? 0),
+      pinchScale: 1 + (rand() * 2 - 1) * 0.6 * (tuning.dripVariance ?? 0),
       blobs,
     }
     this.drips.push(drip)
@@ -217,7 +255,7 @@ export class DripField {
 
   /** Advance the sim and draw. Returns true while anything is still moving. */
   step(dt: number, ctx: DripContext): boolean {
-    this.syncSprings(ctx.tuning.viscosity)
+    this.syncSprings(ctx.tuning.thickness)
     const anchor =
       ctx.anchor ??
       ((x: number) => ({
@@ -253,9 +291,9 @@ export class DripField {
       const boost =
         (ctx.pressed ? P.pressFeedBoost : 1) * (ctx.feedBoost ?? 1) * Math.max(0, ctx.feedAt ? ctx.feedAt(d.x) : 1)
       const feed = d.fed ? (1 / Math.max(0.05, d.swellTime)) * boost : 0
-      d.m = d.fed ? Math.min(1, d.m + dt * feed) : Math.max(0, d.m - dt / (P.drainTime * t.viscosity))
+      d.m = d.fed ? Math.min(1, d.m + dt * feed) : Math.max(0, d.m - dt / (P.drainTime * t.thickness))
       const cfg: SpringConfig = d.fed ? this.springs.hang : this.springs.retract
-      const hangT = t.dripLength * Math.pow(d.m, P.hangCurve) + (ctx.stretch ?? 0) * d.m
+      const hangT = t.dripLength * d.lengthScale * Math.pow(d.m, P.hangCurve) + (ctx.stretch ?? 0) * d.m
       stepSpring(d.hang, Math.max(0, hangT), cfg, dt)
       // sqrt(m) (area ~ volume), but linear near 0 so a draining drip never collapses steeply.
       stepSpring(d.rad, d.size * (d.m < 0.25 ? d.m * 2 : Math.sqrt(d.m)), cfg, dt)
@@ -266,13 +304,13 @@ export class DripField {
       // Flow: fed drips creep along the edge toward the pointer with viscous lag.
       if (d.fed && ctx.flowTo !== undefined && ctx.flowPull) {
         const target = lerp(d.x0, ctx.flowTo, clamp(ctx.flowPull, 0, 1))
-        const k = 1 - Math.exp(-dt / (P.flowLag * t.viscosity))
+        const k = 1 - Math.exp(-dt / (P.flowLag * t.thickness))
         let nx = d.x + (target - d.x) * k
         if (ctx.edge) nx = clamp(nx, ctx.edge[0], ctx.edge[1])
         d.x = nx
       }
 
-      const full = d.fed && d.m >= 1 && d.hang.x >= t.dripLength * P.detachAt
+      const full = d.fed && d.m >= 1 && d.hang.x >= t.dripLength * d.lengthScale * P.detachAt
       if (full || (d.yank && d.rad.x > d.size * 0.3)) {
         this.detach(d, ax, ay)
       } else {
@@ -301,12 +339,18 @@ export class DripField {
       drop.vx *= Math.exp(-P.dropDrag * dt)
       drop.x += drop.vx * dt
       const p = d.fall > 0 ? clamp((drop.y.x - drop.y0) / d.fall, 0, 1) : 1
-      if (p >= 1) {
+      const landing = ctx.floor !== undefined && !!ctx.onLand
+      const rNow = dropRadius(drop.r0, landing ? Math.min(p, P.dropFadeStart) : p, t)
+      if (landing && drop.y.x + rNow >= ctx.floor!) {
+        ctx.onLand!(drop.x, ctx.floor!, rNow, drop.vx)
+        bulb.set(0, 0, 0, 0)
+        d.drop = null
+      } else if (!landing && p >= 1) {
         bulb.set(0, 0, 0, 0)
         d.drop = null
       } else {
         const stretch = 1 + Math.min(P.dropMaxStretch, Math.max(0, drop.y.v) * P.dropStretch)
-        bulb.set(drop.x, drop.y.x, dropRadius(drop.r0, p, t), 1, 1 / Math.sqrt(stretch), stretch)
+        bulb.set(drop.x, drop.y.x, rNow, 1, 1 / Math.sqrt(stretch), stretch)
         moving = true
       }
     }
@@ -355,7 +399,7 @@ export class DripField {
     const hang = d.hang.x
     const rootR = bulbR * P.rootScale
     const tipR = bulbR * P.neckTipScale
-    const pinch = P.neckPinch * smoothstep(0.35, 1, d.m)
+    const pinch = clamp(P.neckPinch * d.pinchScale, 0, 0.85) * smoothstep(0.35, 1, d.m)
     const sway = d.sway.x
     d.blobs[0]!.set(ax, ay, rootR)
     for (let i = 1; i <= n; i++) {
@@ -386,21 +430,34 @@ export class DripField {
   }
 
   /** Static resting drips (no motion). Redraw whenever size or tuning changes. */
-  drawResting(ctx: Omit<DripContext, 'pressed' | 'sx' | 'sy'>, positions?: readonly number[]): void {
-    const n = positions ? positions.length : ctx.tuning.restingDrips
+  drawResting(
+    ctx: Omit<DripContext, 'pressed' | 'sx' | 'sy'>,
+    specs?: readonly RestingDrip[],
+    /** Seconds, for the slow idle "breathing" swell; omit for a static pose. */
+    time?: number,
+  ): void {
+    const n = specs ? specs.length : ctx.tuning.restingDrips
     const perDrip = P.neckSegments + 2
     while (this.resting.length < n * perDrip) this.resting.push(this.renderer.createBlob())
     while (this.resting.length > n * perDrip) this.resting.pop()!.remove()
     const ay = ctx.height
-    const hang = ctx.tuning.dripLength * P.restingHang
-    const r = ctx.tuning.dripSize * P.restingSize
     for (let j = 0; j < n; j++) {
-      const ax = positions ? clamp(positions[j]!, 0, 1) * ctx.width : (ctx.width * (j + 1)) / (n + 1)
+      const sp = specs?.[j]
+      const breathe =
+        time === undefined ? 1 : 1 + P.idleSwell * Math.sin((time / P.idlePeriod) * Math.PI * 2 + (sp?.phase ?? j * 2.1))
+      const hang = ctx.tuning.dripLength * P.restingHang * (sp?.length ?? 1) * breathe
+      const r = ctx.tuning.dripSize * P.restingSize * (sp?.size ?? 1) * (1 + (breathe - 1) * 0.5)
+      const pinch = sp?.pinch ?? 0
+      const ax = sp ? clamp(sp.x, 0, 1) * ctx.width : (ctx.width * (j + 1)) / (n + 1)
       const blobs = this.resting.slice(j * perDrip, (j + 1) * perDrip)
       blobs[0]!.set(ax, ay, r * P.rootScale)
       for (let i = 1; i <= P.neckSegments; i++) {
         const f = i / (P.neckSegments + 1)
-        blobs[i]!.set(ax, ay + hang * f, lerp(r * P.rootScale, r * P.neckTipScale, f))
+        blobs[i]!.set(
+          ax,
+          ay + hang * f,
+          lerp(r * P.rootScale, r * P.neckTipScale, f) * (1 - pinch * Math.sin(Math.PI * f)),
+        )
       }
       blobs[perDrip - 1]!.set(ax, ay + hang, r)
     }

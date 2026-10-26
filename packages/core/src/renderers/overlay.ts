@@ -63,9 +63,9 @@ export function goopOverlayCount(doc: Document): number {
 /** Get (or create) a shared page overlay and take a reference on it. */
 export function acquireGoopOverlay(doc: Document, options: GoopOverlayOptions = {}): GoopOverlay {
   const params: GooFilterParams = {
-    blur: options.params?.blur ?? GOOP_DEFAULTS.blur,
-    contrast: options.params?.contrast ?? GOOP_DEFAULTS.contrast,
-    threshold: options.params?.threshold ?? GOOP_DEFAULTS.threshold,
+    blur: options.params?.blur ?? GOOP_DEFAULTS.softness,
+    contrast: options.params?.contrast ?? GOOP_DEFAULTS.edgeSharpness,
+    threshold: options.params?.threshold ?? GOOP_DEFAULTS.edge,
   }
   // No color given: inherit --goop-color / currentColor from <body>. (Setting
   // `--goop-color: var(--goop-color, ...)` on the host would be a self-referencing cycle.)

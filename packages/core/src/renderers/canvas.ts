@@ -118,6 +118,36 @@ function createCanvasRendererImpl(
   layer.append(canvas)
   host.append(layer)
 
+  // GPU path display: a second canvas with an 'bitmaprenderer' context. Each frame the
+  // shared WebGL canvas is cropped with createImageBitmap (a GPU-side snapshot) and handed
+  // over with transferFromImageBitmap, so nothing is read back to the CPU. The previous
+  // path, drawImage(webglCanvas) into a 2D canvas, makes Chrome stall on ReadPixels whenever
+  // that 2D canvas isn't GPU-backed. The 2D canvas stays for the 2D-backend fallback.
+  const canBitmap = typeof createImageBitmap === 'function'
+  let bmp: HTMLCanvasElement | null = null
+  let bctx: ImageBitmapRenderingContext | null = null
+  let blitSeq = 0
+  let dead = false
+  const bitmapCtx = (): ImageBitmapRenderingContext | null => {
+    if (!canBitmap) return null
+    if (!bmp) {
+      bmp = doc.createElement('canvas')
+      bmp.setAttribute(GOOP_PART_ATTR, 'canvas-gpu')
+      bmp.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;'
+      layer.append(bmp)
+      try {
+        bctx = (bmp.getContext('bitmaprenderer') as ImageBitmapRenderingContext | null) ?? null
+      } catch {
+        bctx = null
+      }
+    }
+    return bctx
+  }
+  const hideBitmap = (): void => {
+    blitSeq++
+    if (bmp) bmp.style.display = 'none'
+  }
+
   let ctx: CanvasRenderingContext2D | null | undefined
   const get2d = (): CanvasRenderingContext2D | null => {
     if (ctx === undefined) {
@@ -167,6 +197,10 @@ function createCanvasRendererImpl(
       canvas.width = 0
       canvas.height = 0
     }
+    if (bctx && bmp && bmp.style.display !== 'none') {
+      blitSeq++
+      bctx.transferFromImageBitmap(null)
+    }
     return null
   }
 
@@ -188,14 +222,14 @@ function createCanvasRendererImpl(
     const live = !reduced
     // Pointer coupling is opt-in (--goop-oil-react); by default the film ignores the mouse,
     // drifts slowly on its own (shader time) and uses a fixed top-left key light.
-    const react = live ? finish.oilReact : 0
+    const react = live ? finish.oilFollowPointer : 0
     const speed = react > 0 ? Math.hypot(ptr.vx, ptr.vy) : 0
     const stretch = Math.min(1.2, speed / 900) * react
     const hasPtr = react > 0 && ptr.inside && Number.isFinite(ptr.x)
     return {
       intensity: finish.oilIntensity,
-      scale: finish.oilScale,
-      shift: finish.oilShift,
+      scale: finish.oilBandSize,
+      shift: finish.oilHueShift,
       time: live ? (clock() - born) / 1000 : 0,
       flowX: react > 0 ? ptr.flowX * react : 0,
       flowY: react > 0 ? ptr.flowY * react : 0,
@@ -241,8 +275,11 @@ function createCanvasRendererImpl(
       const k = Math.min(dpr, maxSize / cssW, maxSize / cssH)
       const w = Math.max(1, Math.round(cssW * k))
       const h = Math.max(1, Math.round(cssH * k))
-      if (canvas.width !== w) canvas.width = w
-      if (canvas.height !== h) canvas.height = h
+      // The 2D canvas only needs pixels when it is the display (no bitmap path).
+      if (!bitmapCtx()) {
+        if (canvas.width !== w) canvas.width = w
+        if (canvas.height !== h) canvas.height = h
+      }
       return {
         w,
         h,
@@ -253,6 +290,7 @@ function createCanvasRendererImpl(
         contrast: params.contrast,
         color: shared.color(colorString()),
         oil: oilFor(w / cssW),
+        gloss: params.gloss ?? 0,
       } satisfies PreparedItem
     },
     collect(out, ox, oy, kx, ky) {
@@ -282,6 +320,24 @@ function createCanvasRendererImpl(
       }
     },
     blit(src, x, y, w, h) {
+      const b = bitmapCtx()
+      if (b && bmp) {
+        if (canvas.width || canvas.height) {
+          canvas.width = 0
+          canvas.height = 0
+        }
+        bmp.style.display = 'block'
+        const seq = ++blitSeq
+        createImageBitmap(src, x, y, w, h).then(
+          (img) => {
+            // A newer frame (or teardown) superseded this one: drop it.
+            if (seq !== blitSeq || dead) img.close()
+            else b.transferFromImageBitmap(img)
+          },
+          () => {},
+        )
+        return
+      }
       const c = get2d()
       if (!c) return
       c.setTransform(1, 0, 0, 1, 0, 0)
@@ -290,6 +346,7 @@ function createCanvasRendererImpl(
       c.drawImage(src, x, y, w, h, 0, 0, w, h)
     },
     draw2d(dpr) {
+      hideBitmap()
       const c = get2d()
       const cssW = hostW + pad.side * 2
       const cssH = hostH + pad.side + pad.bottom
@@ -325,6 +382,18 @@ function createCanvasRendererImpl(
         c.fill()
       }
       c.globalAlpha = 1
+      const gloss = params.gloss ?? 0
+      if (gloss > 0 && !oil) {
+        // 2D fallback wet look: a soft top-left highlight clipped to the goo.
+        const r = Math.min(hostW, hostH) * 0.7
+        const g = c.createRadialGradient(hostW * 0.28, hostH * 0.18, 0, hostW * 0.28, hostH * 0.18, r)
+        g.addColorStop(0, `rgba(255,255,255,${(0.28 * gloss).toFixed(3)})`)
+        g.addColorStop(1, 'rgba(255,255,255,0)')
+        c.globalCompositeOperation = 'source-atop'
+        c.fillStyle = g
+        c.fillRect(-pad.side, -pad.side, cssW, cssH)
+        c.globalCompositeOperation = 'source-over'
+      }
       if (oil) {
         // Soft specular, clipped to the goo already drawn (the SVG filter keeps it).
         const lx = oil.lightX - pad.side
@@ -410,11 +479,11 @@ function createCanvasRendererImpl(
     else sheenLast = 0
   }
   const wakeSheen = (): void => {
-    if (!sheenRaf && oilOn() && !reduced && finish.oilReact > 0 && win?.requestAnimationFrame)
+    if (!sheenRaf && oilOn() && !reduced && finish.oilFollowPointer > 0 && win?.requestAnimationFrame)
       sheenRaf = win.requestAnimationFrame(sheen)
   }
   const onPointerMove = (e: PointerEvent): void => {
-    if (!oilOn() || reduced || finish.oilReact <= 0) return
+    if (!oilOn() || reduced || finish.oilFollowPointer <= 0) return
     const rect = host.getBoundingClientRect()
     if (!rect.width || !rect.height) return
     const x = ((e.clientX - rect.left) / rect.width) * hostW
@@ -523,6 +592,8 @@ function createCanvasRendererImpl(
       lease?.release()
       lease = null
       blobs.clear()
+      dead = true
+      blitSeq++
       canvas.width = 0
       canvas.height = 0
       layer.remove()
