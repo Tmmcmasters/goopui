@@ -2,30 +2,53 @@
   "name": "@goopui/vue",
   "version": "0.0.0",
   "private": true,
-  "description": "goopUI components for Vue",
+  "description": "goopUI components for Vue: gooey, dripping shadcn-style components",
   "type": "module",
   "license": "MIT",
-  "sideEffects": false,
+  "sideEffects": [
+    "*.css"
+  ],
   "exports": {
     ".": {
-      "types": "./dist/index.d.mts",
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs"
-    }
+    },
+    "./manifest": {
+      "types": "./dist/manifest.d.ts",
+      "import": "./dist/manifest.mjs"
+    },
+    "./goop.css": "./dist/goop.css"
   },
   "main": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
-  "files": ["dist"],
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "tsdown",
-    "dev": "tsdown --watch",
-    "typecheck": "tsc --noEmit",
+    "build": "node build.mjs",
+    "prepare": "node build.mjs",
+    "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run",
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "@goopui/core": "workspace:*"
+    "@goopui/core": "workspace:*",
+    "class-variance-authority": "^0.7.1",
+    "cn": "^0.5.0",
+    "reka-ui": "^2.11.0"
   },
   "peerDependencies": {
     "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.10",
+    "@vue/test-utils": "^2.5.1",
+    "happy-dom": "^21.0.4",
+    "mkdist": "^2.4.1",
+    "typescript": "~5.9.3",
+    "vue": "^3.5.44",
+    "vue-sfc-transformer": "^0.3.1",
+    "vue-tsc": "^3.3.13"
   },
   "publishConfig": {
     "access": "public"

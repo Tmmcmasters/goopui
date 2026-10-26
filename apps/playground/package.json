@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@goopui/core": "workspace:*",
+    "@goopui/nuxt": "workspace:*",
+    "@goopui/vue": "workspace:*",
     "@lucide/vue": "^1.61.0",
     "@vueuse/core": "^15.0.0",
     "class-variance-authority": "^0.7.1",

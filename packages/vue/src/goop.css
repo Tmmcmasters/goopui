@@ -1,0 +1,67 @@
+/* @goopui/vue/goop.css
+ *
+ * Import once from your Tailwind v4 entry, after `@import "tailwindcss"`:
+ *   @import "@goopui/vue/goop.css";
+ * (@goopui/nuxt does this for you.)
+ *
+ * Engine tuning vars (--goop-drip-size, --goop-preset, ...) are deliberately NOT given
+ * defaults here: core resolves option > --goop-* var > preset > default, so a :root default
+ * would silently beat every preset. Set them on any element or ancestor to tune.
+ *
+ * Everything is in `@layer components`, so Tailwind utilities (and the variant classes that
+ * set --goop-color / --goop-opacity / --goop-fill) always win.
+ */
+
+/* Let Tailwind see the classes our components use (this file sits in dist/). */
+@source "./";
+
+@layer components {
+  :root {
+    /* Fade for --goop-opacity changes (hover tints, ghost). Matches Tailwind's transition-all. */
+    --goop-fade-duration: 150ms;
+    --goop-fade-ease: cubic-bezier(0.4, 0, 0.2, 1);
+    /* Outline variant: width of the gooey border. */
+    --goop-stroke-width: 1px;
+  }
+
+  :where([data-goop-host]) {
+    /* Opacity of this host's goo layer, applied after the goo filter so a translucent shadcn
+       bg (bg-destructive/10, ghost hover, ...) becomes a true tint. Variants set it. Reset per
+       host so nested hosts never inherit it. */
+    --goop-opacity: 1;
+  }
+
+  /* The goo layer core injects into each host. */
+  [data-goop-host] > [data-goop='layer'] {
+    opacity: var(--goop-opacity, 1);
+    transition: opacity var(--goop-fade-duration) var(--goop-fade-ease);
+  }
+
+  /* Stroke style (outline): the goo body is the border color; this fill covers its inside and
+     follows the body's pose (core `cssVars`), leaving a 1px gooey border that can drip. It is
+     z-index -1 like the goo layer but later in tree order, so: goo < fill < label.
+     --goop-fill is the shadcn bg (may be translucent), composited over the page background
+     so the fill stays opaque and hides the goo body underneath. */
+  [data-goop-host='stroke'][data-goop-active]::after {
+    content: '';
+    position: absolute;
+    inset: var(--goop-stroke-width);
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background:
+      linear-gradient(var(--goop-fill, transparent), var(--goop-fill, transparent)),
+      var(--background, Canvas);
+    transform: translate(var(--goop-x, 0px), var(--goop-y, 0px)) skewX(var(--goop-skew, 0deg))
+      scale(var(--goop-sx, 1), var(--goop-sy, 1));
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-goop-host] > [data-goop='layer'] {
+      transition: none;
+    }
+  }
+  html[data-reduced-motion='true'] [data-goop-host] > [data-goop='layer'] {
+    transition: none;
+  }
+}
