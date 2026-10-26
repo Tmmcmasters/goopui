@@ -73,7 +73,7 @@ const soon = [
               <span class="pop-line w-20" /><span class="pop-line w-14" /><span class="pop-line w-16" />
             </GoopHost>
           </div>
-          <GoopHost v-else class="blob" :options="{ ...still, restingDrips: 3, dripSize: 9, dripLength: 22, blur: 6 }" />
+          <GoopHost v-else class="blob" :options="{ ...still, restingDrips: 3, dripSize: 9, dripLength: 22, softness: 6 }" />
         </div>
         <footer class="card-foot">
           <div class="min-w-0">

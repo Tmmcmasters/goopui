@@ -1,170 +1,83 @@
 <script setup lang="ts">
-// The slime slab. A solid rounded panel whose bottom edge is live goo.
+// The slime slab. The whole panel is one goo body (canvas renderer, interactive), so the
+// engine does all of it: hover drips along the bottom edge under the cursor, lean and
+// momentum, a click-like shockwave on fast swipes (hitEffect: 'shockwave') and on clicks,
+// with particles that fly across the page (splash: 'escape'). Organic resting drips are
+// placed per drip ({ x, size, length }). Reduced motion: still shape + resting drips.
 //
-// The edge is one full-width goo body (the "main" edge: pointer drips and shockwaves,
-// shockwaves) plus two short accent bodies that only hold one fat or one small resting
-// drip each. Resting drips take positions now, but every drip on one body shares a size,
-// so the accents are what make the edge uneven: a big long drip, a little one, and two
-// medium ones on the main body. Accent spans overlap the main body, so their softened
-// corners hide under its flat edge.
-//
-// Interaction:
-//   - moving the pointer pours a drip from the edge under the cursor;
-//   - a click on the slab and a hard swipe across it are the same effect: a shockwave
-//     from that point on the edge (fireShockwave). Swipes scale it by speed and are
-//     rate-limited, so a long scrub doesn't machine-gun;
-//   - taps drip on touch; an idle drip keeps it alive while on screen.
-// Reduced motion: the engine ignores all of it and keeps the still resting drips.
+// Until the goo attaches (SSR, slow JS) the panel paints its own background, so it never
+// flashes empty.
 import type { GoopHandle, GoopOptions } from '@goopui/core'
 
 const { reduced } = useMotionPreference()
 const NuxtLink = resolveComponent('NuxtLink')
 
 const section = ref<HTMLElement | null>(null)
-const slab = ref<HTMLElement | null>(null)
+const ready = ref(false)
+let slab: GoopHandle | null = null
 
-/** px/s of pointer travel that counts as a hard swipe. */
-const HARD_SWIPE_SPEED = 2000
-/** Swipe speed that earns a full-strength shockwave. */
-const FULL_SWIPE_SPEED = 5000
-/** Min ms between swipe shockwaves. */
-const SWIPE_COOLDOWN = 250
-/** Shockwave strength range shared by clicks and swipes. */
-const SHOCK_MIN = 0.9
-const SHOCK_MAX = 1.8
-
-const edgeBase: GoopOptions = {
-  interactive: false,
-  squish: 0,
-  blur: 7,
-  contrast: 24,
-  // 0.5 keeps straight goo edges exactly on the box edge, so the bodies meet the slab
-  // (and each other) without a visible step.
-  threshold: 0.5,
-  gravity: 950,
-  viscosity: 1.2,
-}
-
-const MAIN: GoopOptions = {
-  ...edgeBase,
-  dripCount: 1,
+const SLAB: GoopOptions = {
+  renderer: 'canvas',
+  softness: 7,
+  edgeSharpness: 24,
+  // 0.5 keeps the straight edges exactly on the box, so the goo body matches the panel.
+  edge: 0.5,
+  thickness: 1.2,
   dripSize: 15,
   dripLength: 70,
-  fall: 170,
+  dripCount: 2,
+  dripVariance: 0.75,
   maxDrips: 16,
-  restingDrips: [0.25, 0.885],
-  // Shockwave particles (click and swipe alike) fly across the page.
+  fallDistance: 170,
+  gravity: 950,
+  // A big fat drip, a little one beside it, the longest one, a medium one near the corner.
+  restingDrips: [
+    { x: 0.25, size: 1.15, length: 1.3 },
+    { x: 0.37, size: 0.6, length: 0.55 },
+    { x: 0.71, size: 1.45, length: 2.1 },
+    { x: 0.885, size: 0.85, length: 0.9 },
+  ],
+  // A panel this big should barely lean; the goo, not the layout, does the moving.
+  pointerReaction: 0.22,
+  inertia: 0.8,
+  squish: 0.012,
+  clickGoop: 0.12,
+  shockwave: 1.4,
+  hitEffect: 'shockwave',
   splash: 'escape',
   oiliness: 0.6,
-  shockwave: 1.4,
-  clickMass: 0,
-}
-
-interface Accent {
-  from: number
-  to: number
-  options: GoopOptions
-}
-const ACCENTS: Accent[] = [
-  // A small one close beside the left drip.
-  { from: 0.31, to: 0.43, options: { ...edgeBase, drips: false, dripSize: 10, dripLength: 34, restingDrips: [0.5] } },
-  // The biggest, longest drip.
-  { from: 0.62, to: 0.8, options: { ...edgeBase, drips: false, dripSize: 22, dripLength: 112, restingDrips: [0.5] } },
-]
-
-let main: GoopHandle | null = null
-const onMain = (h: GoopHandle) => {
-  main = h
+  // Pulling taffy out of a text panel fights text selection; gloss and puddles stay off.
+  taffy: false,
+  gloss: false,
+  puddles: false,
+  keyboard: false,
 }
 
 const ctaOptions: GoopOptions = { restingDrips: 1, dripSize: 7, dripLength: 14 }
 
-/** Viewport point -> main edge host px, or null if x isn't over the slab. */
-const toEdge = (clientX: number, clientY?: number): { x: number; y: number } | null => {
-  const host = main?.layer.parentElement
-  if (!host) return null
-  const r = host.getBoundingClientRect()
-  const x = clientX - r.left
-  if (x < 0 || x > r.width) return null
-  return { x, y: clientY === undefined ? r.height / 2 : clientY - r.top }
+const onSlab = (h: GoopHandle) => {
+  slab = h
+  ready.value = true
 }
 
-let lastX = -1e9
-let lastT = 0
-let lastSwipe = 0
-let prevX = 0
-let prevY = 0
-let prevT = 0
+// An idle drip now and then keeps the panel alive when nobody's touching it.
 let visible = true
+let lastActive = 0
 let ambientTimer: ReturnType<typeof setTimeout> | undefined
-
-const pour = (clientX: number) => {
-  const p = toEdge(clientX)
-  if (!p) return
-  main?.drip(p.x)
-  lastX = clientX
-  lastT = performance.now()
-}
-
-const onMove = (e: PointerEvent) => {
-  if (e.pointerType !== 'mouse') return
-  const now = performance.now()
-  const dt = Math.max(1, now - prevT) / 1000
-  const vx = prevT ? (e.clientX - prevX) / dt : 0
-  const vy = prevT ? (e.clientY - prevY) / dt : 0
-  prevX = e.clientX
-  prevY = e.clientY
-  prevT = now
-  const speed = Math.hypot(vx, vy)
-  if (speed > HARD_SWIPE_SPEED && now - lastSwipe > SWIPE_COOLDOWN) {
-    // Same effect as a click, scaled by how hard the swipe was.
-    const t = Math.min(1, (speed - HARD_SWIPE_SPEED) / (FULL_SWIPE_SPEED - HARD_SWIPE_SPEED))
-    if (fireShockwave(e.clientX, SHOCK_MIN + t * (SHOCK_MAX - SHOCK_MIN))) {
-      lastSwipe = now
-      return
-    }
-  }
-  // Fewer, fatter drips: one per ~130px of travel, or every ~0.9s in one spot.
-  if (Math.abs(e.clientX - lastX) > 130 || now - lastT > 900) pour(e.clientX)
-}
-
-const onTap = (e: PointerEvent) => {
-  if (e.pointerType !== 'mouse') pour(e.clientX)
-}
-
-/** The one shockwave path for clicks and swipes: a ring from the edge under clientX. */
-const fireShockwave = (clientX: number, strength: number): boolean => {
-  const p = toEdge(clientX)
-  if (!p) return false
-  main?.shockwave(p.x, p.y, Math.min(SHOCK_MAX, Math.max(SHOCK_MIN, strength)))
-  lastT = performance.now()
-  return true
-}
-
-const onClick = (e: MouseEvent) => {
-  // Clicks on the CTAs belong to them (they fire their own shockwave).
-  if ((e.target as Element).closest('a, button')) return
-  // Stronger the closer the click is to the edge.
-  const host = main?.layer.parentElement
-  const dist = host ? Math.max(0, host.getBoundingClientRect().top - e.clientY) : 0
-  fireShockwave(e.clientX, SHOCK_MAX - Math.min(SHOCK_MAX - SHOCK_MIN, dist / 600))
-}
-
 const scheduleAmbient = () => {
   clearTimeout(ambientTimer)
   ambientTimer = setTimeout(
     () => {
-      const el = slab.value
-      // Only when idle, on screen, and the tab is visible.
-      if (el && visible && !document.hidden && performance.now() - lastT > 2200) {
-        const r = el.getBoundingClientRect()
-        pour(r.left + r.width * (0.1 + Math.random() * 0.8))
+      const host = slab?.layer.parentElement
+      if (host && visible && !document.hidden && performance.now() - lastActive > 2200) {
+        slab?.drip(host.offsetWidth * (0.1 + Math.random() * 0.8))
       }
       scheduleAmbient()
     },
     1900 + Math.random() * 2200,
   )
 }
+const markActive = () => (lastActive = performance.now())
 
 let io: IntersectionObserver | null = null
 onMounted(() => {
@@ -192,12 +105,17 @@ const copyInstall = async () => {
     ref="section"
     class="hero relative px-3 pb-16 pt-[calc(var(--header-h)+12px)] sm:px-6 sm:pb-24 sm:pt-[calc(var(--header-h)+20px)]"
     data-goop-splash-zone
-    @pointermove="onMove"
-    @pointerup="onTap"
+    @pointermove.passive="markActive"
   >
     <!-- pb-16/24 below the slab is the runway for falling drops. Shockwave particles leave
          it and fly across the page in the engine's shared overlay. -->
-    <div ref="slab" class="slab relative mx-auto max-w-6xl" :data-reduced="reduced || undefined" @click="onClick">
+    <GoopHost
+      class="slab relative mx-auto max-w-6xl"
+      :data-ready="ready || undefined"
+      :data-reduced="reduced || undefined"
+      :options="SLAB"
+      @ready="onSlab"
+    >
       <div class="relative z-10 px-6 pb-16 pt-14 sm:px-12 sm:pb-24 sm:pt-20 lg:px-16 lg:pb-28 lg:pt-24">
         <p class="intro intro-1 inline-flex items-center gap-2 rounded-full bg-goo-foreground/8 px-3 py-1 font-mono text-xs">
           <span class="size-1.5 rounded-full bg-goo-foreground" />
@@ -212,7 +130,8 @@ const copyInstall = async () => {
           goopUI is the shadcn catalog made gooey. Same components, same API, built on reka-ui, with a tiny physics
           engine that makes them swell, squish, and drip.
         </p>
-        <div class="intro intro-4 mt-9 flex flex-wrap items-center gap-3">
+        <!-- The CTAs have their own goo; keep their presses from also hitting the panel. -->
+        <div class="intro intro-4 mt-9 flex flex-wrap items-center gap-3" @pointerdown.stop>
           <GoopHost
             :as="NuxtLink"
             to="/docs/getting-started/introduction"
@@ -220,8 +139,10 @@ const copyInstall = async () => {
             data-size="lg"
             :options="ctaOptions"
           >
-            Read the docs
-            <SiteIcon name="arrowRight" :size="16" />
+            <span data-goop-label class="inline-flex items-center gap-2">
+              Read the docs
+              <SiteIcon name="arrowRight" :size="16" />
+            </span>
           </GoopHost>
           <button type="button" class="install-chip" :aria-label="copied ? 'Copied' : 'Copy install command'" @click="copyInstall">
             <span class="opacity-60">$</span>
@@ -236,46 +157,26 @@ const copyInstall = async () => {
         </div>
         <p class="intro intro-4 mt-3 font-mono text-[11px] text-goo-foreground/80">Packages publish with v0.1. The engine is live on this page.</p>
         <p class="intro intro-5 mt-14 font-mono text-xs text-goo-foreground/80 sm:absolute sm:bottom-14 sm:right-12 sm:mt-0 lg:right-16">
-          <span class="hidden sm:inline">Run your cursor along the slime ↓</span>
+          <span class="hidden sm:inline">Hover, swipe hard, click ↓</span>
           <span class="sm:hidden">Tap the slime ↓</span>
         </p>
       </div>
 
-      <!-- The dripping edge: one main body plus two accent drips, all in the slab's color. -->
-      <GoopHost class="slab-edge inset-x-0 slab-edge-main" aria-hidden="true" :options="MAIN" @ready="onMain" />
-      <GoopHost
-        v-for="(a, i) in ACCENTS"
-        :key="i"
-        class="slab-edge"
-        aria-hidden="true"
-        :style="{ left: `${a.from * 100}%`, right: `${(1 - a.to) * 100}%` }"
-        :options="a.options"
-      />
-    </div>
-
+    </GoopHost>
   </section>
 </template>
 
 <style scoped>
 .slab {
   --slab-r: clamp(22px, 3vw, 34px);
-  /* The goo strip overlaps the slab's bottom edge in the same color. With threshold 0.5
-     its straight edges land exactly on the box, and its slightly softer corners hide
-     under the slab's own, so the drips read as coming out of the panel itself. */
+  /* Painted by the goo body once it attaches; until then (SSR) the panel paints itself. */
   background: var(--goo);
   color: var(--goo-foreground);
   border-radius: var(--slab-r);
   --goop-color: var(--goo);
 }
-.slab-edge {
-  position: absolute;
-  bottom: 0;
-  height: 40px;
-  pointer-events: none;
-  z-index: 1;
-}
-.slab-edge-main {
-  border-radius: 0 0 var(--slab-r) var(--slab-r);
+.slab[data-ready] {
+  background: transparent;
 }
 .hero-cta {
   --goop-color: var(--goo-foreground);
