@@ -246,6 +246,9 @@ const DEG = Math.PI / 180
 
 const TOGGLES = ['gloss', 'taffy', 'reach', 'puddles', 'labelRide', 'keyboard', 'idle'] as const
 
+/** Strength a `true` toggle gets when its default is off (gloss is opt-in). */
+const TOGGLE_ON_STRENGTH: Partial<Record<(typeof TOGGLES)[number], number>> = { gloss: 0.6 }
+
 /** Numeric tuning overrides from options. Toggles: `false` -> 0, number -> itself, `true` ->
  *  left to CSS / preset (then bumped to the default strength if that resolved to 0). */
 const tuningOverrides = (raw: GoopOptions): Partial<GoopTuning> => {
@@ -263,7 +266,7 @@ const tuningOverrides = (raw: GoopOptions): Partial<GoopTuning> => {
 function resolveTuning(host: Element, o: GoopOptions): { tuning: GoopTuning; preset: GoopPreset } {
   const preset = readPreset(host, o.preset)
   const tuning = readTuning(host, tuningOverrides(o), preset)
-  for (const k of TOGGLES) if (o[k] === true && tuning[k] <= 0) tuning[k] = GOOP_DEFAULTS[k]
+  for (const k of TOGGLES) if (o[k] === true && tuning[k] <= 0) tuning[k] = GOOP_DEFAULTS[k] || TOGGLE_ON_STRENGTH[k] || 1
   return { tuning, preset }
 }
 
