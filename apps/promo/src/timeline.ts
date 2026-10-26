@@ -73,10 +73,10 @@ export const cursorA = cursorPath(
   [
     // Glide in from the bottom right, decelerating onto the button.
     { t0: 0.12, t1: 1.3, via: { x: 400, y: 380 }, to: { x: 302, y: 262 }, ease: ease.outQuart },
-    { t0: 1.3, t1: 2.45, to: { x: 302, y: 264 }, ease: ease.inOutSine },
+    { t0: 1.3, t1: 2.3, to: { x: 302, y: 264 }, ease: ease.inOutSine },
     // Wiggle: the goo leans, skews and sloshes against the acceleration.
-    { t0: 2.45, t1: 4.4, fn: wiggle(2.45, 4.4, 240, 264, 62, 6, 1.3) },
-    { t0: 4.4, t1: 5.05, to: CLICK_AT, ease: ease.inOutSine },
+    { t0: 2.3, t1: 4.5, fn: wiggle(2.3, 4.5, 240, 264, 84, 6, 1.4) },
+    { t0: 4.5, t1: 5.05, to: CLICK_AT, ease: ease.inOutSine },
     // Tiny moves between clicks.
     ...clicksA.slice(1).map((c, i) => ({
       t0: clicksA[i]!.up + 0.01,
@@ -96,7 +96,8 @@ export const cursorA = cursorPath(
 
 export const scriptA: GooScript = {
   seed: 1337,
-  options: { ...demoDefaults },
+  // Busier hover: more drips hanging/falling at once on a quicker rhythm (demo: 3 / 0.9s / 10).
+  options: { ...demoDefaults, dripCount: 7, dripInterval: 0.3, maxDrips: 18 },
   cursor: cursorA,
   clicks: clicksA,
   // No overrides anywhere: the punch-through fires the default momentum hit (an aimed
