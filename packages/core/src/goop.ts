@@ -772,7 +772,12 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     size: number
     out: SpringState
     maxOut: number
-    drip: boolean
+    /** Droplets this lump tears off as when it peaks (0 = none, it just springs back). */
+    drops: number
+    /** Hit speed in speedRef units: scales launch speed, narrows the cone. */
+    speedN: number
+    /** Hit direction angle. */
+    dirA: number
     blobs: GoopBlob[]
   }
   const hitWaves: HitWave[] = []
@@ -841,10 +846,24 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
         size,
         out: { x: 0, v: maxOut * P.eruptKick },
         maxOut,
-        // Hard hits fling the main lump off (it becomes a falling glob).
-        drip: i === 0 && s > P.eruptDripStrength && splashMode !== 'off',
+        drops: 0,
+        speedN: 0,
+        dirA: 0,
         blobs,
       })
+    }
+    // Every hit tears droplets off the far edge: more and bigger-sprayed with speed.
+    if (splashMode !== 'off') {
+      const nSpeed = Math.hypot(w.vx, w.vy) / P.speedRef
+      const total = Math.min(
+        clamp(Math.round(P.eruptDropsMin + P.eruptDropsPerSpeed * nSpeed + 2 * g), P.eruptDropsMin, P.eruptDropsMax),
+        particleRoom(),
+      )
+      for (let i = 0; i < total; i++) erupts[erupts.length - 1 - (i % count)]!.drops++
+      for (const e of erupts) {
+        e.speedN = nSpeed
+        e.dirA = Math.atan2(w.dy, w.dx)
+      }
     }
     if (tuning.clickGoop > 0) addGoop(tuning.clickGoop * P.hitGoop * Math.min(1, s), w.fx)
   }
@@ -885,21 +904,23 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
       const e = erupts[i]!
       stepSpring(e.out, 0, eruptCfg, dt)
       const out = e.out.x
-      if (e.drip && out > e.maxOut * 0.85 && e.out.v < e.maxOut * 2) {
-        // Let the lump go: it becomes a falling glob and the stub springs back.
-        e.drip = false
-        const tip = map(e.ax + e.nx * out, e.ay + e.ny * out)
-        fluid.spawn({
-          x: tip.x,
-          y: tip.y,
-          vx: e.nx * 90,
-          vy: e.ny * 90,
-          r: e.size,
-          oiliness: Math.max(tuning.oiliness, 0.8),
-          gravity: tuning.gravity,
-          vanish: gooVanishRadius(gooParamsOf(tuning)),
-          viscosity: tuning.thickness,
-        })
+      if (e.drops > 0 && out > e.maxOut * 0.4 && e.out.v < e.maxOut * 6) {
+        // Tear-off: the bulge peaks, then sheds droplets in a cone along the hit's momentum
+        // (same particles as the click shockwave) and the stub recoils with a wobble.
+        const tip = e.ax + e.nx * out
+        const tipY = e.ay + e.ny * out
+        readColor()
+        const over = Math.max(0, e.speedN - tuning.splashMinSpeed)
+        const cone = P.splashCone / (1 + over * 1.5)
+        const base = e.dirA
+        for (let k = 0; k < e.drops; k++) {
+          const a = base + (random() * 2 - 1) * cone
+          const ux = Math.cos(a)
+          const uy = Math.sin(a)
+          const sp = (P.splashSpeed * 0.6 + P.splashSpeedPerSpeed * Math.min(2, e.speedN)) * (0.6 + 0.8 * random())
+          launch(tip + ux * e.size * 0.3, tipY + uy * e.size * 0.3, ux, uy, sp, random())
+        }
+        e.drops = 0
         e.out.x = out * 0.45
         e.out.v = -e.maxOut * 6
       }

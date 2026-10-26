@@ -625,12 +625,14 @@ export const GOOP_PHYSICS = Object.freeze({
   hitWaveMin: 0.08,
   hitWaveSize: 0.9,
   /** Far-side eruption: lumps spring out and back on this spring (low damping = wobbly), the
-   *  launch kick (x the lump's max push per second), max lumps, and the strength above which
-   *  the main lump flings off as a falling glob. */
+   *  launch kick (x the lump's max push per second), max lumps. */
   eruptSpring: { response: 0.36, dampingRatio: 0.36 } as SpringFeel,
   eruptKick: 16,
   eruptMaxLumps: 4,
-  eruptDripStrength: 1.25,
+  /** Droplets torn off the far edge per hit: min, max, and extra per unit of hit speed. */
+  eruptDropsMin: 4,
+  eruptDropsMax: 10,
+  eruptDropsPerSpeed: 1.5,
   /** Shockwave body pulse: jelly velocity kick away from the click point. */
   shockPush: 26,
   shockSquash: 0.5,
