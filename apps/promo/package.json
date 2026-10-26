@@ -1,0 +1,28 @@
+{
+  "name": "promo",
+  "private": true,
+  "type": "module",
+  "description": "Remotion promo videos for goopUI (X/Twitter launch clip)",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts GoopPromo out/goopui-x-promo.mp4",
+    "stills": "node scripts/stills.mjs",
+    "check:determinism": "node scripts/stills.mjs --check 9.7",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf out .turbo"
+  },
+  "dependencies": {
+    "@goopui/core": "workspace:*",
+    "@remotion/cli": "4.0.538",
+    "@remotion/google-fonts": "4.0.538",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "remotion": "4.0.538"
+  },
+  "devDependencies": {
+    "@remotion/bundler": "4.0.538",
+    "@remotion/renderer": "4.0.538",
+    "@types/react": "^19.2.0",
+    "typescript": "~5.9.3"
+  }
+}

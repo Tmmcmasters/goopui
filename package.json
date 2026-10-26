@@ -10,6 +10,8 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "dev:playground": "pnpm --filter playground dev",
+    "promo:studio": "pnpm --filter @goopui/core build && pnpm --filter promo studio",
+    "promo:render": "pnpm --filter @goopui/core build && pnpm --filter promo render",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
