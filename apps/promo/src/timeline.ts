@@ -65,7 +65,7 @@ const clickOffsets: Pt[] = [
 ]
 const CLICK_AT: Pt = { x: 258, y: 250 }
 
-export const PUNCH = { from: { x: 200, y: 372 }, to: { x: 312, y: -40 }, t0: 9.02, t1: 9.44 }
+export const PUNCH = { from: { x: 200, y: 372 }, to: { x: 312, y: -40 }, t0: 9.02, t1: 9.32 }
 
 export const cursorA = cursorPath(
   { x: 452, y: 446 },
