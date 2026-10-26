@@ -31,6 +31,9 @@ export {
   GOOP_DEFAULT_SPLASH,
   GOOP_PHYSICS,
   GOOP_SPLASH_VAR,
+  GOOP_HIT_VAR,
+  GOOP_DEFAULT_HIT,
+  type GoopHitEffect,
   GOOP_VAR_META,
   GOOP_VAR_RENAMES,
   GOOP_OPTION_RENAMES,
@@ -86,7 +89,7 @@ export {
   type GoopOverlay,
   type GoopOverlayOptions,
 } from './renderers/overlay'
-export { gooCanvasBackend, gooCanvasRefCount, type CanvasBackend } from './renderers/shared'
+export { gooCanvasBackend, gooCanvasRefCount, isSoftwareGl, type CanvasBackend } from './renderers/shared'
 export {
   GOOP_FINISH_DEFAULTS,
   GOOP_FINISH_VARS,
@@ -96,7 +99,7 @@ export {
   type GoopFinishRenderer,
 } from './renderers/finish'
 export { resolveRenderer, type GoopRendererName, type GoopRendererOption } from './renderers/resolve'
-export { DripField, type Drip, type DripContext, type SpawnOptions } from './drips'
+export { DripField, type Drip, type DripContext, type RestingDrip, type SpawnOptions } from './drips'
 export {
   clampDt,
   isSpringSettled,

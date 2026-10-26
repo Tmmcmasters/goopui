@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Canvas stall check</title>
+    <link rel="icon" href="data:," />
+    <style>
+      body { margin: 0; background: #fff; font: 14px system-ui, sans-serif; }
+      .hero { display: grid; place-items: center; height: 100vh; }
+      .big { width: 720px; height: 320px; border: 0; border-radius: 28px; background: transparent; --goop-color: #18181b; color: #fafafa; font-size: 32px; }
+    </style>
+  </head>
+  <body>
+    <!-- Repro for "GPU stall due to ReadPixels": one large interactive canvas-renderer body. -->
+    <div class="hero"><button class="big" id="big"><span data-goop-label>Get started</span></button></div>
+    <script type="module">
+      import { attachGoop } from '../dist/index.mjs'
+      const params = new URLSearchParams(location.search)
+      window.goop = attachGoop(document.getElementById('big'), {
+        renderer: 'canvas',
+        finish: params.get('finish') || undefined,
+        gloss: params.has('gloss'),
+        restingDrips: 3,
+      })
+    </script>
+  </body>
+</html>
