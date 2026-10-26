@@ -19,7 +19,11 @@ import {
   GOOP_DEFAULTS,
   GOOP_PRESETS,
   GOOP_VAR_META,
+  SWITCH_EFFECTS,
   type GoopOptions,
+  type GoopRendererOption,
+  type SwitchEffect,
+  type SwitchOptions,
   type GoopPreset,
   type GoopTuning,
   type GoopVarMeta,
@@ -246,3 +250,44 @@ export function goopPropMeta(key: string): GoopVarMeta | undefined {
 
 /** Is `key` a feature toggle (accepts a boolean)? */
 export const isGoopFeature = (key: string): key is GoopFeatureKey => FEATURES.has(key)
+
+// ---- GoopSwitch ----------------------------------------------------------------------------
+// The switch has its own small engine (core `attachSwitch`), so its props come from core's
+// SWITCH_EFFECTS plus speed / preset / renderer. Same rules: `false` turns an effect off,
+// `true` (or absent) is the preset's strength, a number scales it.
+
+/** Switch options GoopSwitch sets itself (from v-model and app config). */
+type SwitchAdapterOwned = 'checked' | 'reducedMotion'
+export type GoopSwitchEngineKey = SwitchEffect | 'speed' | 'preset' | 'renderer'
+type SwitchUnhandled = Exclude<keyof SwitchOptions, GoopSwitchEngineKey | SwitchAdapterOwned>
+const _allSwitchOptionsHandled: [SwitchUnhandled] extends [never] ? true : { unhandled: SwitchUnhandled } = true
+void _allSwitchOptionsHandled
+
+export type GoopSwitchPropsDefinition = { [K in SwitchEffect]: PropDef<boolean | number> } & {
+  speed: PropDef<number>
+  preset: PropDef<GoopPreset>
+  renderer: PropDef<GoopRendererOption>
+}
+export type GoopSwitchPropsInput = {
+  [K in keyof GoopSwitchPropsDefinition]?: GoopSwitchPropsDefinition[K] extends PropDef<infer T> ? T : never
+}
+
+/** Spread into `defineProps({ ...goopSwitchProps, ... })`. */
+export const goopSwitchProps = Object.freeze({
+  ...Object.fromEntries(SWITCH_EFFECTS.map((k) => [k, def([Boolean, Number])])),
+  speed: def(Number),
+  preset: def(String),
+  renderer: def([String, Function]),
+}) as unknown as GoopSwitchPropsDefinition
+
+/** Switch options from props, over app config (`preset`, `renderer`, `reducedMotion`). */
+export function toSwitchOptions(props: GoopSwitchPropsInput, config: GoopOptions = {}): SwitchOptions {
+  const out: SwitchOptions = {
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+  if (props.speed !== undefined) out.speed = props.speed
+  for (const k of SWITCH_EFFECTS) if (props[k] !== undefined) out[k] = props[k]
+  return out
+}
