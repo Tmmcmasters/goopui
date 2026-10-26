@@ -87,11 +87,11 @@ describe('renames: old names still work', () => {
       const el = host()
       const v = (m.min! + m.max!) / 2
       el.style.setProperty(oldName, String(v))
-      const got = key in GOOP_DEFAULTS ? (readTuning(el) as Record<string, number>)[key] : (readFinish(el) as unknown as Record<string, number>)[key]
+      const got = key in GOOP_DEFAULTS ? (readTuning(el) as unknown as Record<string, number>)[key] : (readFinish(el) as unknown as Record<string, number>)[key]
       expect(got, oldName).toBeCloseTo(key === 'dripCount' || key === 'maxDrips' || key === 'restingDrips' ? Math.round(v) : v)
       // the new name wins over the old one
       el.style.setProperty(newName, String(m.min))
-      const got2 = key in GOOP_DEFAULTS ? (readTuning(el) as Record<string, number>)[key] : (readFinish(el) as unknown as Record<string, number>)[key]
+      const got2 = key in GOOP_DEFAULTS ? (readTuning(el) as unknown as Record<string, number>)[key] : (readFinish(el) as unknown as Record<string, number>)[key]
       expect(got2, newName).toBeCloseTo(m.min!)
     }
     expect(warn).toHaveBeenCalled()
@@ -103,7 +103,7 @@ describe('renames: old names still work', () => {
       const m = GOOP_VAR_META[newKey]!
       const v = m.max!
       if (newKey in GOOP_DEFAULTS) {
-        expect((readTuning(host(), { [oldKey]: v } as never) as Record<string, number>)[newKey], oldKey).toBe(v)
+        expect((readTuning(host(), { [oldKey]: v } as never) as unknown as Record<string, number>)[newKey], oldKey).toBe(v)
       } else {
         expect((readFinish(host(), { [oldKey]: v } as never) as unknown as Record<string, number>)[newKey], oldKey).toBe(v)
       }
