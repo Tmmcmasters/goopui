@@ -7,6 +7,8 @@
 //                                                  repaint + oil sheen loops -> manual queue
 //   performance.now()                              pointer + scroll velocity trackers, loop
 //                                                  stats, canvas oil film time -> manual clock
+//   setTimeout / clearTimeout                      taffy long-press arming, click suppression
+//                                                  -> timers on the manual clock
 //   Date.now()                                     only a fallback when `performance` is
 //                                                  missing; patched anyway
 //   Math.random()                                  default RNG (we also pass `random`) and
@@ -74,6 +76,8 @@ export function installFakeEnv(seed: number): FakeEnv {
   const saved = {
     raf: win.requestAnimationFrame,
     caf: win.cancelAnimationFrame,
+    st: win.setTimeout,
+    ct: win.clearTimeout,
     RO: win.ResizeObserver,
     IO: win.IntersectionObserver,
     MO: win.MutationObserver,
@@ -88,6 +92,7 @@ export function installFakeEnv(seed: number): FakeEnv {
   let now = FAKE_EPOCH_MS
   let nextId = 1_000_000_000 // far away from real rAF ids
   const queue = new Map<number, FrameRequestCallback>()
+  const timers = new Map<number, { due: number; fn: () => void }>()
   const rng = seededRandom(seed)
 
   win.requestAnimationFrame = (cb: FrameRequestCallback): number => {
@@ -97,6 +102,14 @@ export function installFakeEnv(seed: number): FakeEnv {
   }
   win.cancelAnimationFrame = (id: number): void => {
     queue.delete(id)
+  }
+  win.setTimeout = (fn: unknown, ms = 0, ...args: unknown[]): number => {
+    const id = nextId++
+    if (typeof fn === 'function') timers.set(id, { due: now + Math.max(0, Number(ms) || 0), fn: () => fn(...args) })
+    return id
+  }
+  win.clearTimeout = (id: number): void => {
+    timers.delete(id)
   }
   Object.defineProperty(performance, 'now', { configurable: true, writable: true, value: () => now })
   Date.now = () => Math.round(now)
@@ -117,6 +130,14 @@ export function installFakeEnv(seed: number): FakeEnv {
     pending: () => queue.size,
     advance(ms) {
       now += ms
+      // Timers first (in due order, including ones they schedule), then animation frames.
+      for (;;) {
+        let next: [number, { due: number; fn: () => void }] | undefined
+        for (const e of timers) if (e[1].due <= now && (!next || e[1].due < next[1].due)) next = e
+        if (!next) break
+        timers.delete(next[0])
+        next[1].fn()
+      }
       const due = Array.from(queue.values())
       queue.clear()
       for (const cb of due) cb(now)
@@ -125,6 +146,9 @@ export function installFakeEnv(seed: number): FakeEnv {
       if (!live) return
       live = false
       queue.clear()
+      timers.clear()
+      win.setTimeout = saved.st
+      win.clearTimeout = saved.ct
       win.requestAnimationFrame = saved.raf
       win.cancelAnimationFrame = saved.caf
       win.ResizeObserver = saved.RO

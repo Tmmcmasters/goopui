@@ -1,7 +1,7 @@
 // The promo's script: timings, geometry, cursor paths, clicks and goo option changes.
 // Everything is in composition px (480 x 480, rendered at 2.25x = 1080) and seconds.
 
-import { makeCanvasRenderer, type GoopOptions } from '@goopui/core'
+import type { GoopOptions } from '@goopui/core'
 import { cursorPath, ease, type Pt } from './goo/path'
 import type { GooScript } from './goo/replay'
 
@@ -26,38 +26,18 @@ export const T = {
   cardIn: 13.1,
 }
 
-/** The button: centered, a bit above the middle so drips have room to fall. */
-export const BTN = { cx: SIZE / 2, cy: 246, w: 264, h: 76, radius: 24 }
-const L = BTN.cx - BTN.w / 2
-const R = BTN.cx + BTN.w / 2
-const TOP = BTN.cy - BTN.h / 2
-const BOT = BTN.cy + BTN.h / 2
+/** The button: the core demo's hero button (56px tall, 40px side padding, 10px radius,
+ *  17px label), centered a bit above the middle so drips have room to fall. Its width
+ *  follows the label. */
+export const BTN = { cx: SIZE / 2, cy: 246, h: 56, padX: 40, radius: 10, fontSize: 17 }
 
-/** One shared factory (overlay ref-counting keys on factory identity). Software GL is fine
- *  for a render; on macOS ANGLE gives us Metal anyway. */
-const canvas = makeCanvasRenderer({ allowSoftwareWebGL: true })
-
-const baseOptions: GoopOptions = {
-  renderer: canvas,
-  escapeRenderer: canvas,
-  cssVars: true,
-  splash: 'near',
-  keyboard: false,
-  // A touch bigger than the library default to suit a 76px hero button.
-  dripSize: 12,
-  dripInterval: 0.5,
-  dripLength: 30,
-  reactivity: 1.3,
-  inertia: 1.8,
-  flow: 1.4,
-  fall: 62,
-  blur: 5.2,
-  // Crisper edge ramp: thin, fast-stretching strings otherwise go soft at 1080p.
-  contrast: 34,
-  gravity: 820,
-  dripCount: 4,
-  maxDrips: 12,
-}
+/**
+ * Engine options: the demo's defaults (preset 'playful', splash 'near', hit effect
+ * 'shockwave', SVG renderer, label ride via [data-goop-label]). Nothing is tuned, so hovers
+ * and clicks look exactly like the demo at default settings; only the 2.25x device scale
+ * differs. `random` (seeded) and reducedMotion: false are added by the replayer.
+ */
+const demoDefaults: GoopOptions = {}
 
 // ---- Scene A: dark, slime button ---------------------------------------------------
 
@@ -116,40 +96,11 @@ export const cursorA = cursorPath(
 
 export const scriptA: GooScript = {
   seed: 1337,
-  options: { ...baseOptions },
+  options: { ...demoDefaults },
   cursor: cursorA,
   clicks: clicksA,
-  actions: [
-    // Clicks: the jelly hit. No particles (splash 'off' keeps the shockwave's edge ripple
-    // and body pulse); a deeper press squish, more goop per click, stronger ripple + jelly.
-    {
-      t: 4.9,
-      run: (h) =>
-        h.update({
-          splash: 'off',
-          squish: 0.2,
-          clickMass: 0.55,
-          shockwave: 2.4,
-          reactivity: 1.8,
-        }),
-    },
-    // Before the punch: splash flies across the page in oily, stringy clumps. (Above ~0.7
-    // the escape fluid's cohesion wins and a punch collapses into one ball; 0.6 keeps
-    // tendrils.) Smaller particles + heavier gravity keep the arc inside the frame.
-    {
-      t: 8.4,
-      run: (h) =>
-        h.update({
-          splash: 'escape',
-          reactivity: 1.3,
-          oiliness: 0.6,
-          dripSize: 6,
-          splashAmount: 2.2,
-          gravity: 1500,
-          splashThreshold: 1.0,
-        }),
-    },
-  ],
+  // No overrides anywhere: the punch-through fires the default momentum hit (an aimed
+  // shockwave at the contact point, splash 'near'), so nothing scatters across the frame.
 }
 
 // ---- Scene B: paper, ink button with the oil finish ---------------------------------
@@ -168,7 +119,7 @@ export const cursorB = cursorPath(
 
 export const scriptB: GooScript = {
   seed: 4242,
-  options: { ...baseOptions, finish: 'oil', oiliness: 0.9 },
+  options: { ...demoDefaults, finish: 'oil' },
   cursor: cursorB,
   clicks: clicksB,
 }
@@ -189,4 +140,3 @@ export const CAPTIONS: Caption[] = [
   { text: 'oil finish', from: T.b + 0.45, to: T.bEnd - 0.24, dark: false },
 ]
 
-export const GEOMETRY = { L, R, TOP, BOT }

@@ -42,20 +42,16 @@ export const GooButton: React.FC<GooButtonProps> = ({ script, t, color, labelCol
   const hostStyle = useMemo<CSSProperties>(
     () =>
       ({
-        position: 'absolute',
-        left: BTN.cx - BTN.w / 2,
-        top: BTN.cy - BTN.h / 2,
-        width: BTN.w,
+        // The demo's .btn.hero-btn box.
         height: BTN.h,
+        padding: `0 ${BTN.padX}px`,
         borderRadius: BTN.radius,
         border: 0,
-        padding: 0,
         margin: 0,
         background: 'transparent',
         color: labelColor,
-        font: `600 29px/1 ${DYNAPUFF}`,
-        letterSpacing: '0.005em',
-        display: 'flex',
+        font: `600 ${BTN.fontSize}px/1 ${DYNAPUFF}`,
+        display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
         cursor: 'none',
@@ -104,17 +100,24 @@ export const GooButton: React.FC<GooButtonProps> = ({ script, t, color, labelCol
 
   return (
     <div ref={stage} style={{ position: 'absolute', left: 0, top: 0, width: SIZE, height: SIZE }}>
-      <button ref={host} style={hostStyle} tabIndex={-1}>
-        <span
-          style={{
-            display: 'inline-block',
-            transform: 'translate(calc(var(--goop-x, 0px) * 0.6), calc(var(--goop-y, 0px) * 0.6))',
-            marginTop: -2,
-          }}
-        >
-          Get started
-        </span>
-      </button>
+      {/* Centering row: the host itself stays position:static, as in the demo. */}
+      <div
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          top: BTN.cy - BTN.h / 2,
+          display: 'flex',
+          justifyContent: 'center',
+        }}
+      >
+        <button ref={host} style={hostStyle} tabIndex={-1}>
+          {/* Label rides the goo body (core's default labelRide). */}
+          <span data-goop-label="" style={{ display: 'inline-flex', alignItems: 'center' }}>
+            Get started
+          </span>
+        </button>
+      </div>
     </div>
   )
 }
