@@ -304,7 +304,8 @@ describe('oil finish', () => {
     el.style.setProperty('--goop-finish', 'oil')
     el.style.setProperty('--goop-oil-intensity', '0.9')
     el.style.setProperty('--goop-oil-scale', '2')
-    expect(readFinish(el)).toMatchObject({ finish: 'oil', oilIntensity: 0.9, oilScale: 2, oilShift: 0 })
+    // --goop-oil-scale is the deprecated alias of --goop-oil-band-size
+    expect(readFinish(el)).toMatchObject({ finish: 'oil', oilIntensity: 0.9, oilBandSize: 2, oilHueShift: 0 })
     expect(readFinish(el, { finish: 'solid', oilIntensity: 5 })).toMatchObject({ finish: 'solid', oilIntensity: 1 })
   })
 

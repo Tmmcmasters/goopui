@@ -1,0 +1,388 @@
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+/* DynaPuff (OFL): display only. standard.css carries both the wght (400-700) and wdth (75-100%) axes. */
+@import "@fontsource-variable/dynapuff/standard.css";
+@import "tailwindcss";
+@import "lenis/dist/lenis.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: 'DynaPuff Variable', var(--font-sans);
+  --font-mono: 'Geist Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle: var(--subtle);
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-goo: var(--goo);
+  --color-goo-foreground: var(--goo-foreground);
+  --color-goo-ink: var(--goo-ink);
+  --color-slime: var(--slime);
+  --color-ring: var(--ring);
+
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* ---------------------------------------------------------------------------
+   Tokens. shadcn names on purpose: the goo components read --primary etc.
+   --slime is the brand color (logo drip); --goo is where the site paints with it.
+--------------------------------------------------------------------------- */
+:root {
+  --background: oklch(0.985 0.005 90);
+  --foreground: oklch(0.2 0.012 60);
+  --card: oklch(0.997 0.002 90);
+  --muted: oklch(0.955 0.006 88);
+  --muted-foreground: oklch(0.47 0.012 70);
+  --subtle: oklch(0.6 0.01 75);
+  --border: oklch(0.905 0.008 85);
+  --border-strong: oklch(0.84 0.01 80);
+  --primary: oklch(0.2 0.012 60);
+  --primary-foreground: oklch(0.985 0.005 90);
+  --secondary: oklch(0.93 0.008 85);
+  --secondary-foreground: oklch(0.2 0.012 60);
+  --destructive: oklch(0.57 0.21 27);
+  --destructive-foreground: oklch(0.985 0.005 90);
+  /* Brand: Slime, the logo's drip color. */
+  --slime: #1fa64a;
+  /* The big hero panel and goo accents are Slime itself; ink on it is ~6:1. */
+  --goo: var(--slime);
+  --goo-foreground: oklch(0.15 0.02 150);
+  /* Readable slime for text on the paper background (#1fa64a itself is ~3:1 there). */
+  --goo-ink: oklch(0.5 0.13 148);
+  --ring: oklch(0.2 0.012 60);
+  --header-h: 60px;
+  --radius: 0.625rem;
+  color-scheme: light;
+}
+
+.dark {
+  --background: oklch(0.165 0.006 60);
+  --foreground: oklch(0.955 0.006 88);
+  --card: oklch(0.195 0.007 60);
+  --muted: oklch(0.225 0.008 60);
+  --muted-foreground: oklch(0.72 0.01 80);
+  --subtle: oklch(0.58 0.01 75);
+  --border: oklch(0.27 0.008 60);
+  --border-strong: oklch(0.34 0.01 60);
+  --primary: oklch(0.955 0.006 88);
+  --primary-foreground: oklch(0.18 0.008 60);
+  --secondary: oklch(0.27 0.008 60);
+  --secondary-foreground: oklch(0.955 0.006 88);
+  --destructive: oklch(0.62 0.2 25);
+  --destructive-foreground: oklch(0.985 0.005 90);
+  --slime: #1fa64a;
+  /* The big hero panel and goo accents are Slime itself; ink on it is ~6:1. */
+  --goo: var(--slime);
+  --goo-foreground: oklch(0.15 0.02 150);
+  --goo-ink: oklch(0.74 0.17 148);
+  --ring: oklch(0.955 0.006 88);
+  color-scheme: dark;
+}
+
+/* ---------------------------------------------------------------------------
+   Base
+--------------------------------------------------------------------------- */
+html {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  -webkit-text-size-adjust: 100%;
+  /* Native anchor jumps and Lenis.scrollTo both honor this, so headings clear the header. */
+  scroll-padding-top: calc(var(--header-h) + 24px);
+}
+
+body {
+  background: var(--background);
+  min-height: 100dvh;
+  overflow-x: clip;
+}
+
+::selection {
+  background: var(--goo);
+  color: var(--goo-foreground);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+button,
+[role='button'],
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Theme switches swap every color at once; no transitions during the swap. */
+.theme-switching,
+.theme-switching * {
+  transition: none !important;
+}
+
+/* Horizontal code scroll only: vertical gestures over code keep scrolling the page,
+   including on touch (Lenis' default `contain` would trap vertical swipes). */
+.lenis [data-lenis-prevent-horizontal] {
+  overscroll-behavior: auto;
+}
+
+/* ---------------------------------------------------------------------------
+   Display type. DynaPuff is bubbly by default; slightly condensed, medium-heavy,
+   and tracked in a touch reads chubby and gooey rather than childish.
+--------------------------------------------------------------------------- */
+.type-display {
+  font-family: var(--font-display);
+  font-weight: 560;
+  font-stretch: 95%;
+  letter-spacing: -0.02em;
+  font-kerning: normal;
+  font-optical-sizing: auto;
+}
+
+/* ---------------------------------------------------------------------------
+   Scroll reveal. Only hidden when JS is up and motion is allowed, so content
+   never depends on the observer firing.
+--------------------------------------------------------------------------- */
+html.js:not([data-reduced-motion='true']) [data-reveal]:not([data-revealed]) {
+  opacity: 0;
+  transform: translateY(14px);
+}
+html.js [data-reveal] {
+  transition:
+    opacity 700ms var(--ease-out-strong),
+    transform 900ms var(--ease-out-strong);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.js [data-reveal]:not([data-revealed]) {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  html.js [data-reveal] {
+    transition: none;
+  }
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+}
+html[data-reduced-motion='true'] [data-reveal] {
+  transition: none;
+}
+
+@layer components {
+/* ---------------------------------------------------------------------------
+   Goop demo buttons. The goo body paints the fill; the host is transparent and
+   only sets --goop-color, so the label stays crisp above the filter.
+--------------------------------------------------------------------------- */
+.goop-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 2.5rem;
+  padding: 0 1.125rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  --goop-color: var(--primary);
+  color: var(--primary-foreground);
+}
+.goop-btn[data-variant='destructive'] {
+  --goop-color: var(--destructive);
+  color: var(--destructive-foreground);
+}
+.goop-btn[data-variant='secondary'] {
+  --goop-color: var(--secondary);
+  color: var(--secondary-foreground);
+}
+.goop-btn[data-variant='oil'] {
+  --goop-color: oklch(0.17 0.01 60);
+  --goop-oil-intensity: 0.6;
+  color: oklch(0.97 0.005 90);
+}
+.goop-btn[data-variant='goo'] {
+  --goop-color: var(--goo);
+  color: var(--goo-foreground);
+}
+.goop-btn[data-size='sm'] {
+  height: 2rem;
+  padding: 0 0.75rem;
+  font-size: 0.8125rem;
+}
+.goop-btn[data-size='lg'] {
+  height: 3rem;
+  padding: 0 1.5rem;
+  font-size: 0.9375rem;
+  border-radius: 0.75rem;
+}
+.goop-btn[data-shape='pill'] {
+  border-radius: 9999px;
+}
+.goop-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.goop-btn:focus-visible {
+  outline-offset: 3px;
+  border-radius: 0.5rem;
+}
+.goop-btn[data-shape='pill']:focus-visible {
+  border-radius: 9999px;
+}
+
+/* ---------------------------------------------------------------------------
+   Docs prose. Hand-rolled so it matches the site, not a plugin's defaults.
+--------------------------------------------------------------------------- */
+.prose {
+  color: var(--foreground);
+  font-size: 0.96875rem;
+  line-height: 1.75;
+}
+.prose > :first-child {
+  margin-top: 0;
+}
+.prose p,
+.prose ul,
+.prose ol,
+.prose blockquote,
+.prose table {
+  margin: 1.1em 0;
+}
+.prose p,
+.prose li {
+  color: color-mix(in oklch, var(--foreground) 84%, var(--background));
+  text-wrap: pretty;
+}
+.prose h2 {
+  font-size: 1.5rem;
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  margin: 2.25em 0 0.6em;
+  padding-top: 1.1em;
+  border-top: 1px solid var(--border);
+}
+.prose h3 {
+  font-size: 1.125rem;
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  margin: 2em 0 0.4em;
+}
+.prose h2 + h3 {
+  margin-top: 1em;
+}
+.prose strong {
+  color: var(--foreground);
+  font-weight: 600;
+}
+.prose a:not(.heading-anchor) {
+  color: var(--foreground);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklch, var(--foreground) 30%, transparent);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  transition: text-decoration-color 150ms ease;
+}
+.prose a:not(.heading-anchor):hover {
+  text-decoration-color: var(--foreground);
+}
+.prose ul {
+  list-style: disc;
+  padding-left: 1.25em;
+}
+.prose ol {
+  list-style: decimal;
+  padding-left: 1.4em;
+}
+.prose li {
+  margin: 0.35em 0;
+  padding-left: 0.2em;
+}
+.prose li::marker {
+  color: var(--subtle);
+}
+.prose :not(pre) > code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  padding: 0.15em 0.4em;
+  border-radius: 0.375rem;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  overflow-wrap: anywhere;
+}
+.prose blockquote {
+  border-left: 2px solid var(--border-strong);
+  padding-left: 1em;
+  color: var(--muted-foreground);
+}
+.prose hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 2.5em 0;
+}
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+.prose th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  border-bottom: 1px solid var(--border-strong);
+  padding: 0.5rem 0.75rem 0.5rem 0;
+  white-space: nowrap;
+}
+.prose td {
+  border-bottom: 1px solid var(--border);
+  padding: 0.6rem 0.75rem 0.6rem 0;
+  vertical-align: top;
+}
+
+}
+
+/* Shiki dual themes: tokens carry both colors as CSS vars. */
+.shiki,
+.shiki span {
+  color: var(--shiki-default);
+}
+.dark .shiki,
+.dark .shiki span {
+  color: var(--shiki-dark);
+}
+.code-body .line {
+  display: inline;
+}

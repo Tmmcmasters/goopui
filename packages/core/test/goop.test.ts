@@ -126,11 +126,11 @@ describe('attachGoop', () => {
     host.style.setProperty('--goop-viscosity', 'nonsense')
     host.style.setProperty('--goop-squish', '9')
     const t = readTuning(host, { dripCount: 1 })
-    expect(t.blur).toBe(7)
+    expect(t.softness).toBe(7) // via the deprecated --goop-blur alias
     expect(t.dripCount).toBe(1)
-    expect(t.viscosity).toBe(GOOP_DEFAULTS.viscosity)
+    expect(t.thickness).toBe(GOOP_DEFAULTS.thickness)
     expect(t.squish).toBe(0.4)
-    expect(t.fall).toBe(GOOP_DEFAULTS.fall)
+    expect(t.fallDistance).toBe(GOOP_DEFAULTS.fallDistance)
   })
 
   it('update() re-reads CSS vars and swaps the filter', () => {
@@ -140,7 +140,7 @@ describe('attachGoop', () => {
     const before = h.layer.style.filter
     host.style.setProperty('--goop-blur', '9')
     h.update()
-    expect(h.tuning.blur).toBe(9)
+    expect(h.tuning.softness).toBe(9)
     expect(h.layer.style.filter).not.toBe(before)
     expect(document.querySelectorAll(`svg[${GOO_DEFS_ATTR}] filter`)).toHaveLength(1)
   })
@@ -161,7 +161,7 @@ describe('attachGoop', () => {
     expect(document.querySelector(`svg[${GOO_DEFS_ATTR}]`)).toBeNull()
     expect(host.style.isolation).toBe('auto')
     expect(activeTickerCount()).toBe(0)
-    expect(removeSpy.mock.calls.map((c) => c[0]).sort()).toEqual(['keydown', 'keyup', 'pointerdown', 'pointerenter', 'pointerleave', 'pointermove'])
+    expect(removeSpy.mock.calls.map((c) => c[0]).sort()).toEqual(['click', 'keydown', 'keyup', 'pointerdown', 'pointerenter', 'pointerleave', 'pointermove'])
     host.dispatchEvent(mouse('pointerenter'))
     document.dispatchEvent(mouse('pointerup', { bubbles: true }))
     expect(layerOf(host)).toBeNull()
@@ -303,5 +303,26 @@ describe('backlog options', () => {
     const host = makeHost()
     attach(host, { restingDrips: [0.25, 0.75] })
     expect(blobs(host).length).toBe(2 * (GOOP_PHYSICS.neckSegments + 2))
+  })
+})
+
+describe('hot renderer swap', () => {
+  it('update({ finish / renderer }) swaps the renderer in place and keeps live drips', () => {
+    stubMatchMedia()
+    const host = makeHost()
+    const h = attach(host)
+    host.dispatchEvent(mouse('pointerenter'))
+    const drips = h.inspect().drips
+    expect(drips).toBeGreaterThan(0)
+    const oldLayer = h.layer
+    h.update({ finish: 'oil' }) // oil + no explicit renderer -> canvas
+    expect(h.layer).not.toBe(oldLayer)
+    expect(oldLayer.isConnected).toBe(false)
+    expect(h.layer.querySelector('canvas')).not.toBeNull()
+    expect(h.inspect().drips).toBe(drips)
+    expect(layerOf(host)).toBe(h.layer)
+    h.update({ finish: 'solid', renderer: 'svg' })
+    expect(h.layer.style.filter).toMatch(/goop-goo-/)
+    expect(h.inspect().drips).toBe(drips)
   })
 })
