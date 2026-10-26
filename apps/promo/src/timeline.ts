@@ -97,7 +97,7 @@ export const cursorA = cursorPath(
 export const scriptA: GooScript = {
   seed: 1337,
   // Busier hover: more drips hanging/falling at once on a quicker rhythm (demo: 3 / 0.9s / 10).
-  options: { ...demoDefaults, dripCount: 8, dripInterval: 0.16, maxDrips: 20, restingDrips: 4, dripLength: 30, dripSize: 9 },
+  options: { ...demoDefaults, dripCount: 8, dripInterval: 0.16, maxDrips: 20, restingDrips: 0, dripLength: 30, dripSize: 9 },
   cursor: cursorA,
   clicks: clicksA,
   // No overrides anywhere: the punch-through fires the default momentum hit (an aimed
