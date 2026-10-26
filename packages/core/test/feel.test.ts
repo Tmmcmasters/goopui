@@ -17,6 +17,7 @@ import {
   type GoopHandle,
   type GoopRenderer,
 } from '../src'
+import { ParticleFluid } from '../src/fluid'
 
 // ---- manual clock + rAF pump ------------------------------------------------
 let clock = 0
@@ -486,6 +487,52 @@ describe('splash-through, shockwave, escape overlay', () => {
       return Math.min(...ys) < ys[0]! - 2
     })
     expect(rising.length).toBeGreaterThan(0)
+  })
+
+  /** Radii and speeds of every droplet a fast upward hit tears off (seeded). */
+  const hitSpray = (seedValue: number, opts: Parameters<typeof attachGoop>[1] = {}, stepMs = 2) => {
+    seed = seedValue
+    const spawn = vi.spyOn(ParticleFluid.prototype, 'spawn')
+    const { host } = setup({ hitEffect: 'shockwave', ...opts })
+    const p = { x: 180, y: 220 }
+    clock += 500
+    moveTo(180, 220, 1, p)
+    clock += 500
+    moveTo(180, 220, 1, p)
+    moveTo(180, 120, 10, p, stepMs)
+    host.dispatchEvent(mouse('pointerenter', 180, 120))
+    pump(1)
+    const out = spawn.mock.calls.map(([q]) => ({ r: q.r, v: Math.hypot(q.vx, q.vy), x: q.x }))
+    spawn.mockRestore()
+    return out
+  }
+
+  it('a fast hit sprays a size hierarchy: big slow globs, medium drops, fast specks', () => {
+    const drops = hitSpray(7)
+    expect(drops.length).toBeGreaterThanOrEqual(5)
+    const rs = drops.map((d) => d.r)
+    const min = Math.min(...rs)
+    const max = Math.max(...rs)
+    expect(max).toBeGreaterThan(min * 3)
+    // At least 3 distinct size classes: small, medium, big (log-spaced bins).
+    const bin = (r: number) => Math.min(2, Math.floor((Math.log(r / min) / Math.log(max / min)) * 3))
+    expect(new Set(rs.map(bin)).size).toBeGreaterThanOrEqual(3)
+    // Big ones are slower than the specks.
+    const big = drops.filter((d) => bin(d.r) === 2)
+    const small = drops.filter((d) => bin(d.r) === 0)
+    const avg = (a: typeof drops) => a.reduce((t, d) => t + d.v, 0) / a.length
+    expect(avg(big)).toBeLessThan(avg(small))
+  })
+
+  it('hits are deterministic per seed and differ between seeds', () => {
+    expect(hitSpray(11)).toEqual(hitSpray(11))
+    expect(hitSpray(11)).not.toEqual(hitSpray(12))
+  })
+
+  it('--goop-hit-variety 0 makes every hit the same shape', () => {
+    const a = hitSpray(11, { hitVariety: 0 })
+    const b = hitSpray(12, { hitVariety: 0 })
+    expect(a.length).toBe(b.length)
   })
 
   it('splash particles drain away and the loop sleeps', () => {
