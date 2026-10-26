@@ -609,6 +609,8 @@ export const GOOP_PHYSICS = Object.freeze({
   rippleSize: 3,
   rippleSizePerMass: 2,
   rippleMaxSize: 6.5,
+  /** Strong shockwaves may grow the ripple up to this fraction of the element's short side. */
+  rippleMaxFraction: 0.3,
   maxRipples: 3,
   /** Momentum hits: base and max shockwave strength (x --goop-shockwave), share of click
    *  goop added, and the minimum time between hits (s). */
@@ -616,6 +618,19 @@ export const GOOP_PHYSICS = Object.freeze({
   hitMaxStrength: 1.6,
   hitGoop: 0.5,
   hitCooldown: 0.25,
+  /** Pass-through: the entry dent's share of the hit strength, the wave's travel time across
+   *  the body (s, faster hits travel quicker, min), and the wave's edge bump size (x drip). */
+  hitEntryShare: 0.3,
+  hitWaveTime: 0.15,
+  hitWaveMin: 0.08,
+  hitWaveSize: 0.9,
+  /** Far-side eruption: lumps spring out and back on this spring (low damping = wobbly), the
+   *  launch kick (x the lump's max push per second), max lumps, and the strength above which
+   *  the main lump flings off as a falling glob. */
+  eruptSpring: { response: 0.36, dampingRatio: 0.36 } as SpringFeel,
+  eruptKick: 16,
+  eruptMaxLumps: 4,
+  eruptDripStrength: 1.25,
   /** Shockwave body pulse: jelly velocity kick away from the click point. */
   shockPush: 26,
   shockSquash: 0.5,

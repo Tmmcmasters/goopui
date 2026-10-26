@@ -380,12 +380,52 @@ describe('momentum hits', () => {
     host.dispatchEvent(mouse('pointerenter', 120, 120))
   }
 
-  it("a fast entry fires the click-like shockwave by default (ripple, ring, a bit of goop), no glob", () => {
-    const { host, h, rec } = setup()
-    punch(host)
-    expect(h.inspect().mass).toBeGreaterThan(0) // click goop
-    expect(h.inspect().particles).toBeGreaterThan(4) // ring
-    expect(rec.blobs.length).toBeGreaterThanOrEqual(8) // ripple slots
+  /** Fast straight move from (x0, y0) to (x1, y1) client px, then enter at the end point. */
+  const sweep = (host: HTMLElement, x0: number, y0: number, x1: number, y1: number) => {
+    const p = { x: x0, y: y0 }
+    clock += 500
+    moveTo(x0, y0, 1, p)
+    clock += 500
+    moveTo(x0, y0, 1, p)
+    moveTo(x1, y1, 10, p, 3)
+    host.dispatchEvent(mouse('pointerenter', x1, y1))
+  }
+  /** Largest circle drawn in a region (host px) after the hit has played out a bit. */
+  const biggest = (rec: ReturnType<typeof recordingRenderer>, inRegion: (x: number, y: number) => boolean) => {
+    let best = 0
+    for (const b of rec.blobs) for (const st of b.sets) if (inRegion(st.x, st.y)) best = Math.max(best, st.r)
+    return best
+  }
+
+  it('a fast hit carries THROUGH: entering upward at the bottom erupts at the top', () => {
+    const { host, h, rec } = setup({ drips: false })
+    sweep(host, 180, 220, 180, 139) // upward, entering through the bottom edge (y=140)
+    pump(0.6)
+    const top = biggest(rec, (_x, y) => y < -1)
+    const bottom = biggest(rec, (_x, y) => y > 41)
+    expect(top).toBeGreaterThan(tuningSize(h) * 0.8)
+    expect(top).toBeGreaterThan(bottom * 1.5)
+    expect(h.inspect().mass).toBeGreaterThan(0) // a bit of click goop, added on the far side
+  })
+
+  it('left-to-right erupts on the right; right-to-left on the left', () => {
+    const lr = setup({ drips: false })
+    sweep(lr.host, 20, 120, 101, 120) // rightward, entering through the left edge (x=100)
+    pump(0.6)
+    expect(biggest(lr.rec, (x) => x > 161)).toBeGreaterThan(biggest(lr.rec, (x) => x < -1) * 1.5)
+    const rl = setup({ drips: false })
+    sweep(rl.host, 340, 120, 259, 120) // leftward, entering through the right edge (x=260)
+    pump(0.6)
+    expect(biggest(rl.rec, (x) => x < -1)).toBeGreaterThan(biggest(rl.rec, (x) => x > 161) * 1.5)
+  })
+
+  it('the pass-through settles back completely', () => {
+    const { host, h } = setup({ drips: false })
+    sweep(host, 180, 220, 180, 139)
+    host.dispatchEvent(mouse('pointerleave', 180, 60))
+    pump(4)
+    expect(frames).toHaveLength(0)
+    expect(h.inspect().particles).toBe(0)
   })
 
   it("hitEffect 'none' fires nothing; 'splash' fires only the glob", () => {
@@ -419,10 +459,10 @@ describe('splash-through, shockwave, escape overlay', () => {
   }
 
   it('only a hard enough entry splashes through (threshold gating)', () => {
-    const slow = setup()
+    const slow = setup({ hitEffect: 'splash' })
     punch(slow.host, 40) // ~250 px/s
     expect(slow.h.inspect().particles).toBe(0)
-    const fast = setup()
+    const fast = setup({ hitEffect: 'splash' })
     punch(fast.host, 4) // ~2500 px/s
     expect(fast.h.inspect().particles).toBeGreaterThan(4)
   })
@@ -778,3 +818,7 @@ describe('resting drip variance', () => {
     expect(b[0]!.x).toBeCloseTo(80, 0)
   })
 })
+
+function tuningSize(h: GoopHandle): number {
+  return h.tuning.dripSize
+}

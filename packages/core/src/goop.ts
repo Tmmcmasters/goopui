@@ -191,7 +191,7 @@ export interface GoopHandle {
   /** Click shockwave at (x, y) host px (default center): particle ring + edge ripple.
    *  `aim.vx/vy` (px/s) override the tracked pointer velocity for the directional bias,
    *  e.g. on `interactive: false` hosts that never see the pointer. */
-  shockwave(x?: number, y?: number, strength?: number, aim?: { vx?: number; vy?: number }): void
+  shockwave(x?: number, y?: number, strength?: number, aim?: { vx?: number; vy?: number; ring?: boolean }): void
   /** Drive the pointer from outside (non-interactive hosts): feeds the shared velocity
    *  tracker with a client-space position and, while `hover(true)` is on, steers lean,
    *  inertia, flow and drip placement. */
@@ -377,6 +377,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     taffyCfg = springConfig(P.taffySpring, tuning.thickness)
     reachCfg = springConfig(P.reachSpring, tuning.thickness)
     reachLumpCfg = springConfig(P.reachLumpSpring, tuning.thickness)
+    eruptCfg = springConfig(P.eruptSpring, tuning.thickness)
   }
 
   const readGeometry = (): void => {
@@ -431,6 +432,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     field.clear()
     fluid.clear()
     clearRipples()
+    clearHits()
     puddles.clear()
     endTaffy()
     for (const b of reachBlobs) b.remove()
@@ -623,7 +625,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     x = width / 2,
     y = height / 2,
     strength = tuning.shockwave,
-    aim?: { vx?: number; vy?: number },
+    aim?: { vx?: number; vy?: number; ring?: boolean },
   ): void => {
     if (!canInteract() || strength <= 0) return
     const r = react()
@@ -654,12 +656,16 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
         y,
         t: 0,
         life: Math.max(...corners) / P.rippleSpeed + 0.05,
-        size: Math.min(P.rippleMaxSize, (P.rippleSize + P.rippleSizePerMass * mass) * strength),
+        // Strong clicks ripple visibly: grows with strength, capped relative to the element.
+        size: Math.min(
+          Math.max(P.rippleMaxSize, Math.min(width, height) * P.rippleMaxFraction),
+          (P.rippleSize + P.rippleSizePerMass * mass) * strength,
+        ),
         slots,
       })
     }
     // Particle ring, pushed outward from the center and along the pointer's motion.
-    if (splashMode !== 'off') {
+    if (splashMode !== 'off' && aim?.ring !== false) {
       readColor()
       const count = Math.min(
         P.shockMaxBurst,
@@ -735,6 +741,210 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
       } else active = true
     }
     return active
+  }
+
+  // ---- pass-through hits ---------------------------------------------------------------
+  // A fast hit carries THROUGH the goo: a small dent where the pointer came in, a jelly wave
+  // that travels across the body along the pointer's direction, then the main reaction on
+  // the FAR side: the far edge erupts with globby lumps (springing out and back, the odd one
+  // dripping off), a ripple runs along that edge, and the body jelly-wobbles.
+  interface HitWave {
+    ex: number
+    ey: number
+    fx: number
+    fy: number
+    dx: number
+    dy: number
+    t: number
+    dur: number
+    strength: number
+    vx: number
+    vy: number
+    slots: { blob: GoopBlob; r: number; x: number; y: number }[]
+    erupted: boolean
+  }
+  interface Erupt {
+    /** Anchor on the far edge (host px) and outward normal. */
+    ax: number
+    ay: number
+    nx: number
+    ny: number
+    size: number
+    out: SpringState
+    maxOut: number
+    drip: boolean
+    blobs: GoopBlob[]
+  }
+  const hitWaves: HitWave[] = []
+  const erupts: Erupt[] = []
+  let eruptCfg = springConfig(P.eruptSpring, tuning.thickness)
+
+  /** Outward normal of the edge a point on the boundary belongs to. */
+  const edgeNormal = (x: number, y: number, dx: number, dy: number): { nx: number; ny: number } => {
+    const d = [y, height - y, x, width - x]
+    const m = Math.min(...d)
+    if (m === d[0]) return { nx: 0, ny: -1 }
+    if (m === d[1]) return { nx: 0, ny: 1 }
+    if (m === d[2]) return { nx: -1, ny: 0 }
+    if (m === d[3]) return { nx: 1, ny: 0 }
+    return { nx: dx, ny: dy }
+  }
+
+  const passThrough = (x: number, y: number, vx: number, vy: number, strength: number): void => {
+    const speed = Math.hypot(vx, vy) || 1
+    const dx = vx / speed
+    const dy = vy / speed
+    const ex = clamp(x, 0, width)
+    const ey = clamp(y, 0, height)
+    const far = exitPoint(ex, ey, dx, dy)
+    const dist = Math.hypot(far.x - ex, far.y - ey)
+    // Small dent where it came in.
+    shockwave(ex, ey, strength * P.hitEntryShare, { vx, vy, ring: false })
+    const n = speed / P.speedRef
+    const dur = clamp(P.hitWaveTime / Math.max(0.6, n), P.hitWaveMin, P.hitWaveTime) * clamp(dist / 60, 0.4, 1.4)
+    const slots = []
+    for (let i = 0; i < 2; i++) slots.push({ blob: renderer.createBlob(), r: 0, x: ex, y: ey })
+    hitWaves.push({ ex, ey, fx: far.x, fy: far.y, dx, dy, t: 0, dur, strength, vx, vy, slots, erupted: false })
+    // The body starts leaning with the impact.
+    jelly.tx.v += dx * P.shockPush * 0.6 * strength * react()
+    jelly.ty.v += dy * P.shockPush * 0.6 * strength * react()
+    wake()
+  }
+
+  const erupt = (w: HitWave): void => {
+    const { nx, ny } = edgeNormal(w.fx, w.fy, w.dx, w.dy)
+    const g = tuning.globbiness
+    const s = Math.min(P.hitMaxStrength, w.strength)
+    // The main reaction: ripple along the far edge + jelly pulse along the hit.
+    shockwave(w.fx, w.fy, s, { vx: w.vx, vy: w.vy, ring: splashMode === 'escape' })
+    jelly.tx.v += w.dx * P.shockPush * 1.1 * s * react()
+    jelly.ty.v += w.dy * P.shockPush * 1.1 * s * react()
+    jelly.dsx.v += (Math.abs(w.dx) - Math.abs(w.dy) * 0.5) * 0.6 * s * react()
+    jelly.dsy.v += (Math.abs(w.dy) - Math.abs(w.dx) * 0.5) * 0.6 * s * react()
+    // Globby lumps push out of the far edge: one big one where it exits, smaller ones beside.
+    const count = clamp(Math.round(1 + s * 1.5 + g), 1, P.eruptMaxLumps)
+    const tx = -ny
+    const ty = nx
+    const base = tuning.dripSize * (0.9 + 0.8 * g) * (0.7 + 0.4 * s)
+    for (let i = 0; i < count; i++) {
+      const slot = i === 0 ? 0 : (i % 2 === 1 ? 1 : -1) * Math.ceil(i / 2)
+      const along = slot * base * 1.6 * (0.8 + 0.4 * random())
+      const a = edgePoint(w.fx + tx * along - nx * 0.5, w.fy + ty * along - ny * 0.5)
+      const size = base * (i === 0 ? 1 : 0.55 + 0.3 * random())
+      const maxOut = size * (1.2 + 0.9 * s) * (i === 0 ? 1 : 0.75)
+      const blobs = [renderer.createBlob(), renderer.createBlob()]
+      erupts.push({
+        ax: a.x,
+        ay: a.y,
+        nx,
+        ny,
+        size,
+        out: { x: 0, v: maxOut * P.eruptKick },
+        maxOut,
+        // Hard hits fling the main lump off (it becomes a falling glob).
+        drip: i === 0 && s > P.eruptDripStrength && splashMode !== 'off',
+        blobs,
+      })
+    }
+    if (tuning.clickGoop > 0) addGoop(tuning.clickGoop * P.hitGoop * Math.min(1, s), w.fx)
+  }
+
+  const stepHits = (dt: number, map: (x: number, y: number) => { x: number; y: number }): boolean => {
+    let active = false
+    const k = 1 - Math.exp(-dt / 0.02)
+    for (let i = hitWaves.length - 1; i >= 0; i--) {
+      const w = hitWaves[i]!
+      w.t += dt
+      const u = Math.min(1, w.t / w.dur)
+      // Wave front: the line through the travelling point, across the direction of travel.
+      const px = w.ex + (w.fx - w.ex) * u
+      const py = w.ey + (w.fy - w.ey) * u
+      const hits = frontHits(px, py, w.dx, w.dy)
+      const env = u >= 1 ? 0 : Math.sin(Math.PI * Math.min(1, u * 1.15)) * w.strength
+      w.slots.forEach((sl, j) => {
+        const h = hits[j]
+        const target = h ? tuning.dripSize * P.hitWaveSize * env : 0
+        if (h) {
+          sl.x = h.x
+          sl.y = h.y
+        }
+        sl.r += (target - sl.r) * k
+        const p = map(sl.x, sl.y)
+        sl.blob.set(p.x, p.y, Math.max(0, sl.r))
+      })
+      if (u >= 1 && !w.erupted) {
+        w.erupted = true
+        erupt(w)
+      }
+      if (w.erupted && w.slots.every((sl) => sl.r < 0.05)) {
+        for (const sl of w.slots) sl.blob.remove()
+        hitWaves.splice(i, 1)
+      } else active = true
+    }
+    for (let i = erupts.length - 1; i >= 0; i--) {
+      const e = erupts[i]!
+      stepSpring(e.out, 0, eruptCfg, dt)
+      const out = e.out.x
+      if (e.drip && out > e.maxOut * 0.85 && e.out.v < e.maxOut * 2) {
+        // Let the lump go: it becomes a falling glob and the stub springs back.
+        e.drip = false
+        const tip = map(e.ax + e.nx * out, e.ay + e.ny * out)
+        fluid.spawn({
+          x: tip.x,
+          y: tip.y,
+          vx: e.nx * 90,
+          vy: e.ny * 90,
+          r: e.size,
+          oiliness: Math.max(tuning.oiliness, 0.8),
+          gravity: tuning.gravity,
+          vanish: gooVanishRadius(gooParamsOf(tuning)),
+          viscosity: tuning.thickness,
+        })
+        e.out.x = out * 0.45
+        e.out.v = -e.maxOut * 6
+      }
+      const f = clamp(e.out.x / e.maxOut, 0, 1)
+      const r = e.size * (f < 0.3 ? f / 0.3 * 0.55 : 0.55 + 0.45 * Math.sqrt((f - 0.3) / 0.7))
+      const tip = map(e.ax + e.nx * e.out.x, e.ay + e.ny * e.out.x)
+      const neck = map(e.ax + e.nx * e.out.x * 0.45, e.ay + e.ny * e.out.x * 0.45)
+      e.blobs[0]!.set(neck.x, neck.y, r * 0.8)
+      e.blobs[1]!.set(tip.x, tip.y, r)
+      if (isSpringSettled(e.out, 0, 0.05, 1)) {
+        for (const b of e.blobs) b.remove()
+        erupts.splice(i, 1)
+      } else active = true
+    }
+    return active
+  }
+
+  /** Where the travelling wave front (a line through (px, py), across (dx, dy)) crosses the
+   *  body edges: up to two points. */
+  const frontHits = (px: number, py: number, dx: number, dy: number): ({ x: number; y: number } | null)[] => {
+    const tx = -dy
+    const ty = dx
+    const out: { x: number; y: number }[] = []
+    const tryT = (t: number): void => {
+      const x = px + tx * t
+      const y = py + ty * t
+      if (x >= -0.01 && x <= width + 0.01 && y >= -0.01 && y <= height + 0.01) out.push({ x: clamp(x, 0, width), y: clamp(y, 0, height) })
+    }
+    if (Math.abs(tx) > 1e-6) {
+      tryT((0 - px) / tx)
+      tryT((width - px) / tx)
+    }
+    if (Math.abs(ty) > 1e-6) {
+      tryT((0 - py) / ty)
+      tryT((height - py) / ty)
+    }
+    out.sort((a, b) => (a.x - px) * tx + (a.y - py) * ty - ((b.x - px) * tx + (b.y - py) * ty))
+    return [out[0] ?? null, out.length > 1 ? out[out.length - 1]! : null]
+  }
+
+  const clearHits = (): void => {
+    for (const w of hitWaves) for (const sl of w.slots) sl.blob.remove()
+    hitWaves.length = 0
+    for (const e of erupts) for (const b of e.blobs) b.remove()
+    erupts.length = 0
   }
 
   // ---- labels ride along ------------------------------------------------------------
@@ -1294,6 +1504,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
       maxY: height + Math.max(reach, pad.bottom - tuning.dripSize * 3),
     })
     const ripplesMoving = stepRipples(dt, map)
+    const hitsMoving = stepHits(dt, map)
     // Resting drips breathe: a very slow, tiny swell, redrawn at a low rate (cheap).
     const breathing = tuning.idle > 0 && resting.length > 0 && visible
     if (breathing) {
@@ -1346,6 +1557,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
       dripsMoving ||
       fluidMoving ||
       ripplesMoving ||
+      hitsMoving ||
       puddlesMoving ||
       breathing ||
       taffyMoving ||
@@ -1411,9 +1623,10 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
   }
 
   /**
-   * Momentum hit: a fast pointer entry / swipe / exit fires the same family as a click (edge
-   * ripple, particle ring, jelly pulse, a bit of click goop) at the contact point, aimed along
-   * the pointer velocity and scaled by speed (capped like a click). Rate-limited.
+   * Momentum hit: a fast pointer entry / swipe / exit carries through the goo: a small dent
+   * where it came in, a jelly wave across the body along the pointer velocity, then the click
+   * family (edge ripple, jelly pulse, globby lumps, a bit of click goop) on the FAR side.
+   * Strength scales with speed and caps like a click. Rate-limited.
    * `hitEffect` picks shockwave, the punch-through glob, both, or nothing.
    */
   const hit = (x: number, y: number, vx: number, vy: number): boolean => {
@@ -1427,8 +1640,8 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     const over = Math.min(1.5, n - tuning.splashMinSpeed)
     if ((hitEffect === 'shockwave' || hitEffect === 'both') && tuning.shockwave > 0) {
       const strength = Math.min(tuning.shockwave * P.hitMaxStrength, tuning.shockwave * (P.hitBaseStrength + over * 0.6))
-      if (tuning.clickGoop > 0) addGoop(tuning.clickGoop * P.hitGoop * Math.min(1, 0.6 + over), x)
-      shockwave(clamp(x, 0, width), clamp(y, 0, height), strength, { vx, vy })
+      // Carries THROUGH: small dent here, wave across, the main reaction on the far side.
+      passThrough(x, y, vx, vy, strength)
     }
     if (hitEffect === 'splash' || hitEffect === 'both') splashThrough(x, y, vx, vy)
     return true
@@ -1784,6 +1997,11 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     field.rebind(renderer)
     fluid.rebind(make)
     puddles.rebind(make)
+    for (const w of hitWaves) for (const sl of w.slots) {
+      sl.blob.remove()
+      sl.blob = make()
+    }
+    for (const e of erupts) e.blobs = e.blobs.map((b) => (b.remove(), make()))
     for (const rp of ripples) for (const sl of rp.slots) {
       sl.blob.remove()
       sl.blob = make()
@@ -1875,6 +2093,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
       field.destroy()
       fluid.clear()
       clearRipples()
+      clearHits()
       puddles.clear()
       clearTaffyTimer()
       endTaffy()

@@ -194,6 +194,14 @@ class SharedImpl {
         failIfMajorPerformanceCaveat: !allowSoftware,
       }) as WebGL2RenderingContext | null
       if (!gl || typeof gl.createShader !== 'function') return
+      // Software WebGL (SwiftShader, llvmpipe, ...) composites by reading every frame back to
+      // the CPU ("GPU stall due to ReadPixels", even for a bare on-screen WebGL canvas) and is
+      // slower than Canvas 2D anyway. Some setups don't flag it as a "major performance
+      // caveat", so check the renderer string too, and fall back to 2D.
+      if (!allowSoftware && isSoftwareGl(gl)) {
+        gl.getExtension('WEBGL_lose_context')?.loseContext()
+        return
+      }
       this.engine = new GlGooEngine(canvas, gl)
       this.glCanvas = canvas
       canvas.addEventListener('webglcontextlost', this.onLost, false)
@@ -392,5 +400,16 @@ class SharedImpl {
     this.glCanvas = null
     this.instances.clear()
     this.byCanvas.clear()
+  }
+}
+
+/** True for software-rasterized WebGL (SwiftShader, llvmpipe, Microsoft Basic Render, ...). */
+export function isSoftwareGl(gl: WebGL2RenderingContext): boolean {
+  try {
+    const info = gl.getExtension('WEBGL_debug_renderer_info')
+    const name = String(info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)).toLowerCase()
+    return /swiftshader|llvmpipe|softpipe|software|basic render/.test(name)
+  } catch {
+    return false
   }
 }
