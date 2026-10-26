@@ -1,7 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "dist"
+    "outDir": "dist",
+    "jsx": "preserve",
+    "types": ["node"]
   },
-  "include": ["src"]
+  "include": ["src/**/*.ts", "src/**/*.vue", "test/**/*.ts", "vitest.config.ts"]
 }

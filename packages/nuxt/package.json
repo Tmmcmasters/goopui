@@ -1,0 +1,46 @@
+{
+  "name": "@goopui/nuxt",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Nuxt module for goopUI: auto-imports @goopui/vue components and their styles",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./dist/types.d.mts",
+      "import": "./dist/module.mjs"
+    }
+  },
+  "main": "./dist/module.mjs",
+  "typesVersions": {
+    "*": {
+      ".": [
+        "./dist/types.d.mts"
+      ]
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "nuxt-module-build build",
+    "prepare": "nuxt-module-build build",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@goopui/core": "workspace:*",
+    "@goopui/vue": "workspace:*",
+    "@nuxt/kit": "^4.6.2"
+  },
+  "devDependencies": {
+    "@nuxt/module-builder": "^1.0.3",
+    "@nuxt/schema": "^4.6.2",
+    "nuxt": "^4.6.2",
+    "typescript": "~5.9.3",
+    "vue": "^3.5.44"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

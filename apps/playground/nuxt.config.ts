@@ -1,7 +1,7 @@
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineNuxtConfig({
-  modules: ['shadcn-nuxt'],
+  modules: ['shadcn-nuxt', '@goopui/nuxt'],
   compatibilityDate: '2026-10-25',
   devtools: { enabled: true },
   css: ['~/assets/css/main.css'],

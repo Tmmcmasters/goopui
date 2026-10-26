@@ -96,7 +96,7 @@ export {
   type GoopFinishRenderer,
 } from './renderers/finish'
 export { resolveRenderer, type GoopRendererName, type GoopRendererOption } from './renderers/resolve'
-export { DripField, type Drip, type DripContext, type SpawnOptions } from './drips'
+export { DripField, type Drip, type DripContext, type RestingDrip, type SpawnOptions } from './drips'
 export {
   clampDt,
   isSpringSettled,
