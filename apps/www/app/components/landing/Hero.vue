@@ -10,7 +10,6 @@
 import type { GoopHandle, GoopOptions } from '@goopui/core'
 
 const { reduced } = useMotionPreference()
-const NuxtLink = resolveComponent('NuxtLink')
 
 const section = ref<HTMLElement | null>(null)
 const ready = ref(false)
@@ -52,8 +51,6 @@ const SLAB: GoopOptions = {
   puddles: false,
   keyboard: false,
 }
-
-const ctaOptions: GoopOptions = { restingDrips: 1, dripSize: 7, dripLength: 14 }
 
 const onSlab = (h: GoopHandle) => {
   slab = h
@@ -132,18 +129,19 @@ const copyInstall = async () => {
         </p>
         <!-- The CTAs have their own goo; keep their presses from also hitting the panel. -->
         <div class="intro intro-4 mt-9 flex flex-wrap items-center gap-3" @pointerdown.stop>
-          <GoopHost
-            :as="NuxtLink"
-            to="/docs/getting-started/introduction"
-            class="goop-btn hero-cta"
-            data-size="lg"
-            :options="ctaOptions"
+          <GoopButton
+            as-child
+            size="lg"
+            class="hero-cta h-12 gap-2 px-6 text-base"
+            :resting-drips="1"
+            :drip-size="7"
+            :drip-length="14"
           >
-            <span data-goop-label class="inline-flex items-center gap-2">
+            <NuxtLink to="/docs/getting-started/introduction">
               Read the docs
               <SiteIcon name="arrowRight" :size="16" />
-            </span>
-          </GoopHost>
+            </NuxtLink>
+          </GoopButton>
           <button type="button" class="install-chip" :aria-label="copied ? 'Copied' : 'Copy install command'" @click="copyInstall">
             <span class="opacity-60">$</span>
             <span>pnpm add @goopui/nuxt</span>
@@ -179,8 +177,9 @@ const copyInstall = async () => {
   background: transparent;
 }
 .hero-cta {
-  --goop-color: var(--goo-foreground);
+  background: var(--goo-foreground);
   color: var(--goo);
+  --goop-color: var(--goo-foreground);
 }
 .install-chip {
   display: inline-flex;

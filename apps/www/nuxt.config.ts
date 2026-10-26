@@ -13,7 +13,7 @@ const boot = `(function(){try{var d=document.documentElement;d.classList.add('js
 const dbDir = process.env.CONTENT_DB_DIR || join(tmpdir(), 'goopui-www-content')
 
 export default defineNuxtConfig({
-  modules: ['@nuxt/content'],
+  modules: ['@nuxt/content', '@goopui/nuxt'],
   compatibilityDate: '2026-10-25',
   devtools: { enabled: false },
   css: ['~/assets/css/main.css'],

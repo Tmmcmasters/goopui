@@ -3,7 +3,7 @@ import type { GoopOptions } from '@goopui/core'
 
 // The live card is a goo stage: its controls (Drip, per-instance Slow-mo, Let it fly)
 // reach every button inside it. See utils/goopStage.ts.
-const stage = ref<HTMLElement | null>(null)
+const stage = createGoopStage()
 
 const still: GoopOptions = { interactive: false, drips: false }
 
@@ -26,16 +26,30 @@ const soon = [
     <div class="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <!-- Live: Button -->
       <article v-reveal class="card sm:col-span-2 lg:row-span-2">
-        <div ref="stage" data-goop-stage class="card-stage stage-lg flex-col gap-10">
+        <div class="card-stage stage-lg flex-col gap-10">
           <div class="flex flex-wrap items-center justify-center gap-4 px-4">
-            <GoopButtonDemo>Button</GoopButtonDemo>
-            <GoopButtonDemo variant="destructive">Delete</GoopButtonDemo>
-            <GoopButtonDemo variant="secondary">Secondary</GoopButtonDemo>
+            <GoopButton :ref="stage.register" v-bind="stage.props">Button</GoopButton>
+            <GoopButton :ref="stage.register" v-bind="stage.props" variant="destructive">Delete</GoopButton>
+            <GoopButton :ref="stage.register" v-bind="stage.props" variant="secondary">Secondary</GoopButton>
           </div>
           <div class="flex flex-wrap items-center justify-center gap-4 px-4">
-            <GoopButtonDemo size="sm">Small</GoopButtonDemo>
-            <GoopButtonDemo shape="pill" variant="goo">Pill</GoopButtonDemo>
-            <GoopButtonDemo size="lg" variant="oil">Crude oil</GoopButtonDemo>
+            <GoopButton :ref="stage.register" v-bind="stage.props" size="sm">Small</GoopButton>
+            <GoopButton
+              :ref="stage.register"
+              v-bind="stage.props"
+              class="rounded-full bg-goo text-goo-foreground [--goop-color:var(--goo)]"
+            >
+              Pill
+            </GoopButton>
+            <GoopButton
+              :ref="stage.register"
+              v-bind="stage.props"
+              size="lg"
+              finish="oil"
+              class="bg-oil text-oil-foreground [--goop-color:var(--oil)]"
+            >
+              Crude oil
+            </GoopButton>
           </div>
         </div>
         <footer class="card-foot">

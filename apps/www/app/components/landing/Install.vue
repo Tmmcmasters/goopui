@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import type { GoopOptions } from '@goopui/core'
 
-const NuxtLink = resolveComponent('NuxtLink')
-
 // The dark card is the landing's oil slick: the whole card is a goo body with the oil
 // finish (thin-film iridescence, canvas renderer). It hangs two drips, drips more where
 // you hover, ripples when you click, and leans a little with the pointer. The content
@@ -25,7 +23,6 @@ const oilCard: GoopOptions = {
   restingDrips: [0.3, 0.68],
   oiliness: 0.9,
 }
-const ctaOptions: GoopOptions = { restingDrips: 1, dripSize: 6, dripLength: 12 }
 const tab = ref<'nuxt' | 'vue'>('nuxt')
 
 const snippets = {
@@ -66,18 +63,19 @@ const current = computed(() => snippets[tab.value])
             Add the module or the stylesheet. Then use GoopButton anywhere you'd use Button. The packages publish with v0.1.
           </p>
           <div class="mt-8 flex flex-wrap gap-3">
-            <GoopHost
-              :as="NuxtLink"
-              to="/docs/getting-started/installation"
-              class="goop-btn install-cta"
-              data-size="lg"
-              :options="ctaOptions"
+            <GoopButton
+              as-child
+              size="lg"
+              class="install-cta h-12 gap-2 px-6 text-base"
+              :resting-drips="1"
+              :drip-size="6"
+              :drip-length="12"
             >
-              <span data-goop-label class="inline-flex items-center gap-2">
+              <NuxtLink to="/docs/getting-started/installation">
                 Installation guide
                 <SiteIcon name="arrowRight" :size="16" />
-              </span>
-            </GoopHost>
+              </NuxtLink>
+            </GoopButton>
           </div>
         </div>
 
@@ -112,8 +110,9 @@ const current = computed(() => snippets[tab.value])
   color: var(--foreground);
 }
 .install-cta {
-  --goop-color: var(--goo);
+  background: var(--goo);
   color: var(--goo-foreground);
+  --goop-color: var(--goo);
 }
 .tab {
   height: 2rem;

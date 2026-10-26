@@ -1,52 +1,32 @@
 <script setup lang="ts">
-// Controls for a goo stage (see utils/goopStage.ts). Each toggle is one entry in TOGGLES,
-// so new engine features (round 4) slot in as one more line.
-import type { GoopOptions } from '@goopui/core'
+// Controls for a goo stage (see composables/useGoopStage.ts): Drip calls each button's
+// exposed drip(); Slow-mo sets the `timeScale` prop; Let it fly sets `splash="escape"`.
+import type { GoopStage } from '~/composables/useGoopStage'
 
-const props = withDefaults(defineProps<{ stage: HTMLElement | null; splash?: boolean }>(), { splash: true })
-
-interface Toggle {
-  key: string
-  label: string
-  title: string
-  on: GoopOptions
-  off: GoopOptions
-}
-
-const TOGGLES: Toggle[] = [
-  // Per-instance time scale: only this frame slows down, not the whole page.
-  { key: 'slow', label: 'Slow-mo', title: 'Run this demo at 30% speed', on: { timeScale: 0.3 }, off: { timeScale: 1 } },
-  {
-    key: 'escape',
-    label: 'Let it fly',
-    title: 'Splashes escape the frame and fly across the page',
-    on: { splash: 'escape' },
-    off: { splash: 'near' },
-  },
-]
-
-const visible = computed(() => TOGGLES.filter((t) => props.splash || t.key !== 'escape'))
-const state = reactive<Record<string, boolean>>({})
-
-const flip = (t: Toggle) => {
-  state[t.key] = !state[t.key]
-  setStageOptions(props.stage, state[t.key] ? t.on : t.off)
-}
+withDefaults(defineProps<{ stage: GoopStage; splash?: boolean }>(), { splash: true })
 </script>
 
 <template>
   <div class="flex gap-1.5">
-    <button type="button" class="ctl" title="Drip every goo in this demo" @click="dripStage(stage)">Drip</button>
+    <button type="button" class="ctl" title="Drip every goo in this demo" @click="stage.drip()">Drip</button>
     <button
-      v-for="t in visible"
-      :key="t.key"
       type="button"
       class="ctl"
-      :title="t.title"
-      :aria-pressed="!!state[t.key]"
-      @click="flip(t)"
+      title="Run this demo at 30% speed"
+      :aria-pressed="stage.slow.value"
+      @click="stage.slow.value = !stage.slow.value"
     >
-      {{ t.label }}
+      Slow-mo
+    </button>
+    <button
+      v-if="splash"
+      type="button"
+      class="ctl"
+      title="Splashes escape the frame and fly across the page"
+      :aria-pressed="stage.escape.value"
+      @click="stage.escape.value = !stage.escape.value"
+    >
+      Let it fly
     </button>
   </div>
 </template>

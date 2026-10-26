@@ -1,8 +1,8 @@
 <template>
   <div class="not-prose my-6 overflow-hidden rounded-xl border border-border bg-card">
     <div class="stage flex min-h-48 flex-wrap items-center justify-center gap-4 px-4 pb-12 pt-10">
-      <GoopButtonDemo :options="{ restingDrips: 2 }">Resting drips</GoopButtonDemo>
-      <GoopButtonDemo variant="destructive">Hover me</GoopButtonDemo>
+      <GoopButton :resting-drips="2">Resting drips</GoopButton>
+      <GoopButton variant="destructive">Hover me</GoopButton>
     </div>
     <div class="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-2.5">
       <MotionSwitch label="Reduce motion on this site" />
