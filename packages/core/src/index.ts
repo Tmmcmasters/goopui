@@ -135,3 +135,12 @@ export {
   type SpinnerOptions,
   type SpinnerVariant,
 } from './spinner'
+export {
+  SPINNER_GRAB_LUMPS,
+  SPINNER_INTERACT,
+  SPINNER_NO_INTERACTION,
+  createSpinnerJelly,
+  type SpinnerInteractFlags,
+  type SpinnerJelly,
+  type SpinnerPointer,
+} from './spinner-interact'

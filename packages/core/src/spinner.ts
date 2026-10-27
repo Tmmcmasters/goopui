@@ -20,6 +20,14 @@ import type { GoopBlob, GoopRenderer } from './renderer'
 import { resolveRenderer, type GoopRendererOption } from './renderers/resolve'
 import { readPreset } from './tuning'
 import { removeTicker, wakeTicker, type Ticker } from './loop'
+import { trackPointer, type PointerTracker } from './pointer'
+import {
+  createSpinnerJelly,
+  SPINNER_GRAB_LUMPS,
+  SPINNER_INTERACT,
+  SPINNER_NO_INTERACTION,
+  type SpinnerInteractFlags,
+} from './spinner-interact'
 
 export const SPINNER_MIN_BLOBS = 3
 export const SPINNER_MAX_BLOBS = 6
@@ -109,8 +117,12 @@ const toVariant = (v: string | undefined): SpinnerVariant =>
   SPINNER_VARIANTS.includes(v as SpinnerVariant) ? (v as SpinnerVariant) : SPINNER_DEFAULT_VARIANT
 
 /** Circles drawn for `blobs` blobs of `variant`. Orbit: a head and a tail each, plus the neck
- *  (and drip slots). Pulse: a core plus a satellite and a neck per blob. Others are fixed. */
-export const spinnerCircleCount = (blobs: number, drips = false, variant: SpinnerVariant = 'orbit'): number => {
+ *  (and drip slots). Pulse: a core plus a satellite and a neck per blob. Others are fixed.
+ *  `grab` adds SPINNER_GRAB_LUMPS slots for the grab stretch. */
+export const spinnerCircleCount = (blobs: number, drips = false, variant: SpinnerVariant = 'orbit', grab = false): number =>
+  poseCircleCount(blobs, drips, variant) + (grab ? SPINNER_GRAB_LUMPS : 0)
+
+const poseCircleCount = (blobs: number, drips: boolean, variant: SpinnerVariant): number => {
   switch (toVariant(variant)) {
     case 'comet':
       return COMET_CIRCLES
@@ -407,9 +419,18 @@ export interface SpinnerOptions {
   preset?: GoopPreset
   /** 'svg' (default), 'canvas', or a custom renderer factory. */
   renderer?: GoopRendererOption
-  /** Drips hang off the bottom of the orbit and fall away as it turns. Default true; orbit
+  /** Drips hang off the bottom of the orbit and fall away as it turns. Default false; orbit
    *  only, skipped below SPINNER_DRIP_MIN_SIZE px and under reduced motion. */
   drips?: boolean
+  /** Master switch for pointer play (slosh, grab, pop). Default true. Never under reduced motion. */
+  interactive?: boolean
+  /** Moving the pointer over (and a little around) it sloshes the goo. Default true. */
+  slosh?: boolean
+  /** Press and drag pulls the goo out in fat lumps; release snaps it back. Default true.
+   *  Uses pointer capture and `touch-action: none` on the host; never cancels clicks. */
+  grab?: boolean
+  /** Click / tap squishes it, then it swells back with a ripple. Default true. */
+  pop?: boolean
   /** true / false force it; 'auto' (default) follows prefers-reduced-motion and
    *  `<html data-reduced-motion="true">`, live. */
   reducedMotion?: boolean | 'auto'
@@ -439,9 +460,12 @@ export function attachSpinner(host: HTMLElement, options: SpinnerOptions = {}): 
   let blobs: GoopBlob[] = []
   let count = clampBlobs(opts.blobs)
   let variant = toVariant(opts.variant)
-  let withDrips = opts.drips !== false && variant === 'orbit'
+  let withDrips = opts.drips === true && variant === 'orbit'
   let builtDrips = false
   const neck: SpinnerNeckState = { necked: true }
+  const jelly = createSpinnerJelly()
+  /** Play level the layer was built for: 0 none, 1 slosh/pop (small pad), 2 grab (lump slots + big pad). */
+  let builtPlay = 0
   let phase = 0
   let destroyed = false
   let visible = true
@@ -450,6 +474,10 @@ export function attachSpinner(host: HTMLElement, options: SpinnerOptions = {}): 
   const readReduced = (): boolean =>
     opts.reducedMotion === true || (opts.reducedMotion !== false && isReducedMotion(doc))
   let reduced = readReduced()
+  const wants = (k: 'slosh' | 'grab' | 'pop'): boolean => opts.interactive !== false && opts[k] !== false
+  const playLevel = (): number => (wants('grab') ? 2 : wants('slosh') || wants('pop') ? 1 : 0)
+  const flags = (): SpinnerInteractFlags =>
+    reduced ? SPINNER_NO_INTERACTION : { slosh: wants('slosh'), grab: builtPlay === 2, pop: wants('pop') }
 
   const measure = (): number => {
     const w = host.clientWidth || host.offsetWidth
@@ -458,9 +486,17 @@ export function attachSpinner(host: HTMLElement, options: SpinnerOptions = {}): 
     return s > 0 ? s : 16
   }
 
-  const pad = (): number => Math.ceil(params.blur * 3)
+  // Room for slosh / ripple (and the grab stretch) to reach past the box.
+  const playPad = (): number =>
+    builtPlay === 2
+      ? Math.ceil(size * (SPINNER_INTERACT.grabReach + SPINNER_INTERACT.grabEnd * 1.4))
+      : builtPlay === 1
+        ? Math.ceil(size * (SPINNER_INTERACT.maxSlosh + 0.06))
+        : 0
+  const pad = (): number => Math.ceil(params.blur * 3) + playPad()
   // Room for drips to fall a little below the box.
-  const bottomPad = (): number => pad() + (builtDrips ? Math.ceil(size * SPINNER_DRIP_OVERHANG) : 0)
+  const bottomPad = (): number =>
+    Math.ceil(params.blur * 3) + Math.max(playPad(), builtDrips ? Math.ceil(size * SPINNER_DRIP_OVERHANG) : 0)
 
   const draw = (circles: SpinnerCircle[]): void => {
     if (!renderer) return
@@ -474,24 +510,104 @@ export function attachSpinner(host: HTMLElement, options: SpinnerOptions = {}): 
   }
 
   const dripping = (): boolean => withDrips && !reduced && size >= SPINNER_DRIP_MIN_SIZE
-  const drawNow = (): void =>
-    draw(
-      reduced
-        ? spinnerStaticPose(count, feel, variant)
-        : spinnerVariantPose(variant, phase, count, feel, neck, dripping() ? { vanish: gooVanishRadius(params) / size } : undefined),
-    )
+  const basePose = (): SpinnerCircle[] =>
+    reduced
+      ? spinnerStaticPose(count, feel, variant)
+      : spinnerVariantPose(variant, phase, count, feel, neck, dripping() ? { vanish: gooVanishRadius(params) / size } : undefined)
+  const deform = (base: SpinnerCircle[]): SpinnerCircle[] =>
+    builtPlay > 0 && !reduced ? jelly.apply(base, flags(), gooVanishRadius(params) / size) : base
+  const drawNow = (): void => draw(deform(basePose()))
+
+  // ---- pointer play ----
+  const now = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now())
+  let tracker: PointerTracker | null = null
+  let rect: DOMRect | null = null
+  let rectAt = -Infinity
+  let pid: number | null = null
+  const readRect = (fresh = false): DOMRect => {
+    const t = now()
+    if (fresh || !rect || t - rectAt > 150) {
+      rect = host.getBoundingClientRect()
+      rectAt = t
+    }
+    return rect
+  }
+  const toUnit = (cx: number, cy: number, fresh = false): { x: number; y: number } => {
+    const r = readRect(fresh)
+    return { x: (cx - (r.left + r.width / 2)) / size, y: (cy - (r.top + r.height / 2)) / size }
+  }
+  /** Hovering pointer in unit space (null when still or away). Velocity is scaled by
+   *  sqrt(size * ref), so small spinners move a bit more relative to their size, less in px. */
+  const hoverPointer = () => {
+    if (!tracker) return null
+    const s = tracker.sample()
+    if (s.speed < 1) return null
+    const u = toUnit(s.x, s.y)
+    const m = 0.5 + SPINNER_INTERACT.hoverMargin
+    if (Math.abs(u.x) > m || Math.abs(u.y) > m) return null
+    const k = Math.sqrt(size * SPINNER_INTERACT.sloshRefSize)
+    return { x: u.x, y: u.y, vx: s.vx / k, vy: s.vy / k }
+  }
+  const syncPlay = (): void => {
+    const wantTrack = !reduced && !destroyed && wants('slosh')
+    if (wantTrack && !tracker) tracker = trackPointer(doc)
+    else if (!wantTrack && tracker) {
+      tracker.release()
+      tracker = null
+    }
+    host.style.touchAction = wants('grab') ? 'none' : prevTouchAction
+    if (reduced || builtPlay === 0) {
+      endPress(false)
+      jelly.reset()
+    }
+  }
+  const endPress = (click: boolean): void => {
+    if (pid === null) return
+    const id = pid
+    pid = null
+    jelly.release(click)
+    try {
+      if (host.hasPointerCapture?.(id)) host.releasePointerCapture(id)
+    } catch {
+      /* already released */
+    }
+  }
+  // Never preventDefault / stopPropagation: it often sits inside a button that must still click.
+  const onDown = (e: PointerEvent): void => {
+    const f = flags()
+    if ((!f.grab && !f.pop) || pid !== null) return
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    pid = e.pointerId
+    try {
+      host.setPointerCapture?.(e.pointerId)
+    } catch {
+      /* capture unsupported: moves still arrive while over the host */
+    }
+    const u = toUnit(e.clientX, e.clientY, true)
+    jelly.press(u.x, u.y)
+  }
+  const onMove = (e: PointerEvent): void => {
+    if (e.pointerId !== pid) return
+    const u = toUnit(e.clientX, e.clientY)
+    const T = SPINNER_INTERACT
+    jelly.drag(u.x, u.y, flags().grab ? Math.max(T.grabThreshold, T.grabThresholdPx / size) : Infinity)
+  }
+  const onUp = (e: PointerEvent): void => {
+    if (e.pointerId === pid) endPress(e.type === 'pointerup')
+  }
 
   const build = (): void => {
     for (const b of blobs) b.remove()
     renderer?.destroy()
     size = measure()
     builtDrips = withDrips && !reduced
+    builtPlay = playLevel()
     params = spinnerGooParams(size, feel)
     renderer = resolveRenderer(opts.renderer)(host, params)
     // No body: the spinner is only blobs.
     renderer.setBodyScale(0, 0)
     renderer.setPadding({ side: pad(), bottom: bottomPad() })
-    blobs = Array.from({ length: spinnerCircleCount(count, builtDrips, variant) }, () => renderer!.createBlob())
+    blobs = Array.from({ length: spinnerCircleCount(count, builtDrips, variant, builtPlay === 2) }, () => renderer!.createBlob())
     drawNow()
   }
 
@@ -514,7 +630,13 @@ export function attachSpinner(host: HTMLElement, options: SpinnerOptions = {}): 
     if (!shouldRun()) return false
     phase += (dt * Math.max(0, opts.speed ?? 1)) / feel.period
     if (phase > 1e6) phase -= Math.floor(phase)
-    drawNow()
+    const base = basePose()
+    if (builtPlay > 0) {
+      const f = flags()
+      jelly.setPointer(f.slosh ? hoverPointer() : null)
+      jelly.step(base, dt, f)
+    }
+    draw(deform(base))
     return true
   }
   const sync = (): void => {
@@ -524,10 +646,17 @@ export function attachSpinner(host: HTMLElement, options: SpinnerOptions = {}): 
 
   const prevIsolation = host.style.isolation
   const prevPosition = host.style.position
+  const prevTouchAction = host.style.touchAction
   if (win?.getComputedStyle(host).position === 'static') host.style.position = 'relative'
   host.style.isolation = 'isolate'
 
   build()
+  syncPlay()
+  host.addEventListener('pointerdown', onDown)
+  host.addEventListener('pointermove', onMove)
+  host.addEventListener('pointerup', onUp)
+  host.addEventListener('pointercancel', onUp)
+  host.addEventListener('lostpointercapture', onUp)
 
   const IO = win?.IntersectionObserver
   const io = IO
@@ -547,6 +676,7 @@ export function attachSpinner(host: HTMLElement, options: SpinnerOptions = {}): 
   doc.addEventListener('visibilitychange', onVisibility)
   const unwatch = watchReducedMotion(doc, () => {
     reduced = readReduced()
+    syncPlay()
     if (withDrips && !reduced !== builtDrips) build()
     else drawNow()
     sync()
@@ -562,12 +692,13 @@ export function attachSpinner(host: HTMLElement, options: SpinnerOptions = {}): 
       const nextFeel = SPINNER_FEEL[readPreset(host, opts.preset)]
       const nextCount = clampBlobs(opts.blobs)
       const nextVariant = toVariant(opts.variant)
-      const nextDrips = opts.drips !== false && nextVariant === 'orbit'
+      const nextDrips = opts.drips === true && nextVariant === 'orbit'
       const rebuild =
         rendererChanged ||
         nextVariant !== variant ||
         nextCount !== count ||
         nextDrips !== withDrips ||
+        playLevel() !== builtPlay ||
         (nextDrips && !readReduced()) !== builtDrips ||
         nextFeel.softness !== feel.softness
       feel = nextFeel
@@ -576,7 +707,8 @@ export function attachSpinner(host: HTMLElement, options: SpinnerOptions = {}): 
       withDrips = nextDrips
       reduced = readReduced()
       if (rebuild) build()
-      else drawNow()
+      syncPlay()
+      drawNow()
       sync()
     },
     resize,
@@ -590,6 +722,13 @@ export function attachSpinner(host: HTMLElement, options: SpinnerOptions = {}): 
       if (destroyed) return
       destroyed = true
       removeTicker(tick)
+      endPress(false)
+      syncPlay()
+      host.removeEventListener('pointerdown', onDown)
+      host.removeEventListener('pointermove', onMove)
+      host.removeEventListener('pointerup', onUp)
+      host.removeEventListener('pointercancel', onUp)
+      host.removeEventListener('lostpointercapture', onUp)
       io?.disconnect()
       ro?.disconnect()
       doc.removeEventListener('visibilitychange', onVisibility)
@@ -600,6 +739,7 @@ export function attachSpinner(host: HTMLElement, options: SpinnerOptions = {}): 
       renderer = null
       host.style.isolation = prevIsolation
       host.style.position = prevPosition
+      host.style.touchAction = prevTouchAction
     },
   }
 }

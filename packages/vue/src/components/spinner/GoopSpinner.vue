@@ -7,7 +7,9 @@
 // reduced-motion pose (its own tiny goo filter, scaled with the viewBox), so first paint and
 // hydration match. On mount core's `attachSpinner` takes over: a goo renderer layer driven by
 // a ticker on the shared rAF loop, paused offscreen / in hidden tabs / under reduced motion.
-// Color is currentColor, like the lucide icon.
+// Color is currentColor, like the lucide icon. It is playful by default (`interactive`): pointer
+// moves slosh it, press-and-drag pulls it out in lumps, click/tap pops it. `:interactive="false"`
+// turns all three off (and makes it pointer-events: none again); `slosh`/`grab`/`pop` each.
 import {
   attachSpinner,
   gooColorMatrix,
@@ -38,7 +40,15 @@ const props = defineProps({
   /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
   preset: { type: String as PropType<GoopPreset>, default: undefined },
   /** Drips hang off the bottom and fall away as it turns (orbit only). */
-  drips: { type: Boolean, default: true },
+  drips: { type: Boolean, default: false },
+  /** Pointer play: master switch for slosh, grab and pop. Off under reduced motion. */
+  interactive: { type: Boolean, default: true },
+  /** Moving the pointer over it sloshes the goo. */
+  slosh: { type: Boolean, default: true },
+  /** Press and drag pulls the goo out in lumps; release snaps it back. */
+  grab: { type: Boolean, default: true },
+  /** Click / tap squishes it, then it swells back with a ripple. */
+  pop: { type: Boolean, default: true },
   /** 'svg' (default) | 'canvas' | a custom renderer factory. */
   renderer: { type: [String, Function] as PropType<GoopRendererOption>, default: undefined },
 })
@@ -52,6 +62,10 @@ const options = computed<SpinnerOptions>(() => ({
   blobs: props.blobs,
   speed: props.speed,
   drips: props.drips,
+  interactive: props.interactive,
+  slosh: props.slosh,
+  grab: props.grab,
+  pop: props.pop,
   preset: props.preset ?? config.preset,
   renderer: props.renderer ?? config.renderer,
   reducedMotion: config.reducedMotion,
@@ -100,7 +114,7 @@ defineExpose({
     data-slot="spinner"
     :data-variant="props.variant"
     :data-goop-active="active ? '' : undefined"
-    :class="cn('relative inline-block size-4 shrink-0 pointer-events-none', props.class)"
+    :class="cn('relative inline-block size-4 shrink-0', !props.interactive && 'pointer-events-none', props.class)"
     style="--goop-color: currentColor"
   >
     <svg

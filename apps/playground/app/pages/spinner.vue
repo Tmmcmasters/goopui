@@ -5,7 +5,11 @@ import { SPINNER_VARIANTS, type GoopPreset, type GoopRendererName, type SpinnerV
 const variant = ref<SpinnerVariant>('orbit')
 const blobs = ref(4)
 const speed = ref(1)
-const drips = ref(true)
+const drips = ref(false)
+const interactive = ref(true)
+const slosh = ref(true)
+const grab = ref(true)
+const pop = ref(true)
 const preset = ref<GoopPreset | ''>('')
 const renderer = ref<GoopRendererName | ''>('')
 const engine = computed(() => ({
@@ -13,9 +17,19 @@ const engine = computed(() => ({
   blobs: blobs.value,
   speed: speed.value,
   drips: drips.value,
+  interactive: interactive.value,
+  slosh: slosh.value,
+  grab: grab.value,
+  pop: pop.value,
   preset: preset.value || undefined,
   renderer: renderer.value || undefined,
 }))
+
+const toggles = [
+  { label: 'slosh', model: slosh },
+  { label: 'grab', model: grab },
+  { label: 'pop', model: pop },
+]
 
 const sizes = ['size-3', 'size-4', 'size-6', 'size-8', 'size-12']
 const colors = ['text-primary', 'text-destructive', 'text-muted-foreground', 'text-sky-500', 'text-emerald-500']
@@ -43,6 +57,14 @@ const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
         <label class="flex items-center gap-2 pb-1">
           <input v-model="drips" type="checkbox">
           <span class="text-xs text-muted-foreground">drips</span>
+        </label>
+        <label class="flex items-center gap-2 pb-1">
+          <input v-model="interactive" type="checkbox">
+          <span class="text-xs text-muted-foreground">interactive</span>
+        </label>
+        <label v-for="f in toggles" :key="f.label" class="flex items-center gap-2 pb-1" :class="!interactive && 'opacity-50'">
+          <input v-model="f.model.value" type="checkbox" :disabled="!interactive">
+          <span class="text-xs text-muted-foreground">{{ f.label }}</span>
         </label>
         <label class="grid gap-1">
           <span class="text-xs text-muted-foreground">preset</span>
