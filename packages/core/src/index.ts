@@ -117,17 +117,21 @@ export const defaultGoopOptions = GOOP_DEFAULTS
 export { trackPointer, type PointerSample, type PointerTracker } from './pointer'
 export {
   SPINNER_DEFAULT_BLOBS,
+  SPINNER_DEFAULT_VARIANT,
   SPINNER_FEEL,
   SPINNER_MAX_BLOBS,
   SPINNER_MIN_BLOBS,
+  SPINNER_VARIANTS,
   attachSpinner,
   spinnerCircleCount,
   spinnerGooParams,
   spinnerPose,
   spinnerStaticPose,
+  spinnerVariantPose,
   type SpinnerCircle,
   type SpinnerFeel,
   type SpinnerHandle,
   type SpinnerNeckState,
   type SpinnerOptions,
+  type SpinnerVariant,
 } from './spinner'

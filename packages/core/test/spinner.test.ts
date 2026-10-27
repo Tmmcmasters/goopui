@@ -8,6 +8,8 @@ import {
   spinnerCircleCount,
   spinnerPose,
   spinnerStaticPose,
+  spinnerVariantPose,
+  SPINNER_VARIANTS,
 } from '../src'
 
 const blobs = (host: Element) => host.querySelectorAll<HTMLElement>(`[${GOOP_PART_ATTR}="blob"]`)
@@ -48,7 +50,7 @@ describe('spinnerPose', () => {
     expect(gapAt(0.55)).toBeGreaterThan(0) // apart: split
   })
 
-  it('the neck stretches, snaps, and only reconnects on contact', () => {
+  it('the neck stretches, snaps, and only reconnects when nearly touching', () => {
     const neck = { necked: true }
     const neckR = (p: number) => spinnerPose(p, 4, SPINNER_FEEL.playful, neck).at(-1)!.r
     const seen: number[] = []
@@ -63,6 +65,50 @@ describe('spinnerPose', () => {
     const [a, b] = pose
     expect(Math.hypot(a!.x - b!.x, a!.y - b!.y)).toBeLessThan(a!.r + b!.r)
     expect(pose.at(-1)!.r).toBeGreaterThan(0)
+  })
+})
+
+describe('spinner variants', () => {
+  it('every variant is deterministic, fixed-length and stays inside the box', () => {
+    for (const v of SPINNER_VARIANTS) {
+      for (const n of [3, 4, 6]) {
+        const len = spinnerCircleCount(n, false, v)
+        for (let p = 0; p < 2.5; p += 0.04) {
+          const pose = spinnerVariantPose(v, p, n)
+          expect(pose).toHaveLength(len)
+          expect(pose).toEqual(spinnerVariantPose(v, p, n))
+          for (const c of pose) {
+            expect(c.r).toBeGreaterThanOrEqual(0)
+            expect(Math.hypot(c.x, c.y) + c.r).toBeLessThanOrEqual(0.5)
+          }
+        }
+      }
+      expect(spinnerStaticPose(4, SPINNER_FEEL.playful, v)).toHaveLength(spinnerCircleCount(4, false, v))
+    }
+  })
+
+  it('orbit is spinnerPose; unknown variants fall back to orbit', () => {
+    expect(spinnerVariantPose('orbit', 0.3, 4)).toEqual(spinnerPose(0.3, 4))
+    expect(spinnerVariantPose('nope' as never, 0.3, 4)).toEqual(spinnerPose(0.3, 4))
+  })
+
+  it('never stalls: the leader keeps more than half its average speed', () => {
+    const angle = (p: number) => Math.atan2(spinnerPose(p, 4)[0]!.y, spinnerPose(p, 4)[0]!.x)
+    const avg = (2 * Math.PI) / 100
+    for (let p = 0; p < 1; p += 0.01) {
+      let d = angle(p + 0.01) - angle(p)
+      d -= 2 * Math.PI * Math.round(d / (2 * Math.PI))
+      expect(d).toBeGreaterThan(avg * 0.5)
+    }
+  })
+
+  it('attachSpinner allocates blobs for the variant and rebuilds on change', () => {
+    const el = host()
+    const h = attachSpinner(el, { variant: 'comet' })
+    expect(blobs(el)).toHaveLength(spinnerCircleCount(4, false, 'comet'))
+    h.update({ variant: 'pulse', blobs: 5 })
+    expect(blobs(el)).toHaveLength(spinnerCircleCount(5, false, 'pulse'))
+    h.destroy()
   })
 })
 

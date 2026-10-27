@@ -28,9 +28,11 @@ export const SPINNER_DEFAULT_BLOBS = 4
 export const SPINNER_MAX_DRIPS = 3
 /** Turns between drip sheds, on average. */
 export const SPINNER_DRIP_SPACING = 0.5
-/** Turns a drip spends swelling off its blob, then falling to the bottom of the box. */
-export const SPINNER_DRIP_SWELL = 0.12
+/** Turns a drip spends swelling and hanging off its blob, then falling away below the box. */
+export const SPINNER_DRIP_SWELL = 0.24
 export const SPINNER_DRIP_FALL = 0.6
+/** How far below the box (fraction of the size) a drip falls before it vanishes. */
+export const SPINNER_DRIP_OVERHANG = 0.35
 /** Below this size (px) drips are noise and skipped. */
 export const SPINNER_DRIP_MIN_SIZE = 10
 
@@ -50,11 +52,23 @@ export interface SpinnerFeel {
   softness: number
 }
 
+// Surge stays well under 1 so the slowest point of a turn still moves at more than half speed:
+// the spinner never looks like it stalls.
 export const SPINNER_FEEL: Readonly<Record<GoopPreset, Readonly<SpinnerFeel>>> = Object.freeze({
-  subtle: Object.freeze({ period: 1.4, surge: 0.7, lag: 0.06, gap: 0.54, stretch: 0.6, softness: 0.055 }),
-  playful: Object.freeze({ period: 1.15, surge: 0.85, lag: 0.08, gap: 0.48, stretch: 1, softness: 0.06 }),
-  wild: Object.freeze({ period: 0.95, surge: 0.92, lag: 0.1, gap: 0.42, stretch: 1.4, softness: 0.065 }),
+  subtle: Object.freeze({ period: 1.3, surge: 0.3, lag: 0.07, gap: 0.36, stretch: 0.6, softness: 0.055 }),
+  playful: Object.freeze({ period: 1.1, surge: 0.42, lag: 0.09, gap: 0.34, stretch: 1, softness: 0.06 }),
+  wild: Object.freeze({ period: 0.9, surge: 0.55, lag: 0.11, gap: 0.32, stretch: 1.4, softness: 0.065 }),
 })
+
+/**
+ * Spinner shapes. `orbit`: blobs chasing round a circle, merging and splitting (drips only
+ * here). `comet`: one goo arc that grows and shrinks as it spins. `ring`: a goo donut with a
+ * fat bead rolling round it. `dots`: three dots, a bead rolls back and forth and swells each
+ * one it passes. `pulse`: a core that buds satellites which stretch out and get pulled back.
+ */
+export type SpinnerVariant = 'orbit' | 'comet' | 'ring' | 'dots' | 'pulse'
+export const SPINNER_VARIANTS: readonly SpinnerVariant[] = Object.freeze(['orbit', 'comet', 'ring', 'dots', 'pulse'])
+export const SPINNER_DEFAULT_VARIANT: SpinnerVariant = 'orbit'
 
 /** One circle of the pose, in unit space: center (0,0), the spinner spans -0.5..0.5. */
 export interface SpinnerCircle {
@@ -85,9 +99,31 @@ const DRIP_CIRCLES = 1 + DRIP_NECK
 const clampBlobs = (n: number | undefined): number =>
   Math.min(SPINNER_MAX_BLOBS, Math.max(SPINNER_MIN_BLOBS, Math.round(Number.isFinite(n) ? (n as number) : SPINNER_DEFAULT_BLOBS)))
 
-/** Circles drawn for `blobs` blobs: a head and a tail each, plus the neck (and drip slots). */
-export const spinnerCircleCount = (blobs: number, drips = false): number =>
-  clampBlobs(blobs) * 2 + NECK_CIRCLES + (drips ? SPINNER_MAX_DRIPS * DRIP_CIRCLES : 0)
+const COMET_CIRCLES = 14
+const RING_CIRCLES = 16
+const RING_BEAD = 3
+const DOTS = 3
+const DOTS_BEAD = 3
+
+const toVariant = (v: string | undefined): SpinnerVariant =>
+  SPINNER_VARIANTS.includes(v as SpinnerVariant) ? (v as SpinnerVariant) : SPINNER_DEFAULT_VARIANT
+
+/** Circles drawn for `blobs` blobs of `variant`. Orbit: a head and a tail each, plus the neck
+ *  (and drip slots). Pulse: a core plus a satellite and a neck per blob. Others are fixed. */
+export const spinnerCircleCount = (blobs: number, drips = false, variant: SpinnerVariant = 'orbit'): number => {
+  switch (toVariant(variant)) {
+    case 'comet':
+      return COMET_CIRCLES
+    case 'ring':
+      return RING_CIRCLES + RING_BEAD
+    case 'dots':
+      return DOTS + DOTS_BEAD
+    case 'pulse':
+      return 1 + clampBlobs(blobs) * 2
+    default:
+      return clampBlobs(blobs) * 2 + NECK_CIRCLES + (drips ? SPINNER_MAX_DRIPS * DRIP_CIRCLES : 0)
+  }
+}
 
 const smooth = (x: number): number => {
   const t = Math.max(0, Math.min(1, x))
@@ -123,21 +159,22 @@ function crossing(near: number, i: number, phi: number, feel: SpinnerFeel): numb
 }
 
 /**
- * Drip slots at phase `p`. Event e sheds from blob e % n near the top of the orbit, around
- * phase e * SPACING. It swells under the blob, necks, detaches, then falls straight down
- * (gravity is screen-down whatever the rotation) and shrinks onto the goo vanish radius at
- * the bottom of the box. Slots with nothing alive are zero-radius circles.
+ * Drip slots at phase `p`. Event e sheds from blob e % n as it passes the bottom of the orbit,
+ * around phase e * SPACING. It swells under the blob, hangs and stretches on a neck, detaches,
+ * then falls straight down (gravity is screen-down whatever the rotation) and shrinks onto the
+ * goo vanish radius SPINNER_DRIP_OVERHANG below the box. Empty slots are zero-radius circles.
  */
 function dripCircles(p: number, n: number, feel: SpinnerFeel, vanish: number): SpinnerCircle[] {
   const out: SpinnerCircle[] = Array.from({ length: SPINNER_MAX_DRIPS * DRIP_CIRCLES }, () => ({ x: 0, y: 0, r: 0 }))
-  const rBase = Math.min(0.11, Math.max(0.085, vanish * 1.5))
-  if (vanish * 1.3 > 0.11) return out
+  const rBase = Math.min(0.13, Math.max(0.11, vanish * 1.8))
+  if (vanish * 1.3 > 0.13) return out
   const SW = SPINNER_DRIP_SWELL
   const FALL = SPINNER_DRIP_FALL
   const e0 = Math.floor(p / SPINNER_DRIP_SPACING)
   for (let e = Math.max(0, e0 - 3); e <= e0 + 3; e++) {
     const i = e % n
-    const phi = -Math.PI / 2 + 0.45 * Math.sin(e * 2.399)
+    // Shed from (nearly) dead top, so the drop falls straight through the center.
+    const phi = Math.PI / 2 + 0.06 * Math.sin(e * 2.399)
     const ps = crossing(e * SPINNER_DRIP_SPACING, i, phi, feel)
     if (p < ps - SW || p >= ps + FALL) continue
     const rd = rBase * (1 + 0.12 * Math.sin(e * 1.7 + 1))
@@ -146,10 +183,11 @@ function dripCircles(p: number, n: number, feel: SpinnerFeel, vanish: number): S
       const u = (p - (ps - SW)) / SW
       const s = smooth(u)
       const h = headAt(p, i, n, feel)
-      const off = (0.5 * h.r + 0.7 * rd) * s
+      // Hang: swell under the blob, then stretch away on a lengthening neck before letting go.
+      const off = (0.5 * h.r + 0.7 * rd) * s + 0.9 * rd * smooth((u - 0.45) / 0.55)
       const d = { x: h.x, y: h.y + off, r: rd * (0.4 + 0.6 * s) }
       out[slot] = d
-      const neckR = rd * 0.7 * (1 - smooth((u - 0.5) / 0.5))
+      const neckR = rd * (0.7 - 0.35 * smooth((u - 0.4) / 0.4)) * (1 - smooth((u - 0.82) / 0.18))
       for (let k = 1; k <= DRIP_NECK; k++) {
         const f = k / (DRIP_NECK + 1)
         out[slot + k] = { x: h.x, y: h.y + off * f, r: neckR }
@@ -157,8 +195,8 @@ function dripCircles(p: number, n: number, feel: SpinnerFeel, vanish: number): S
     } else {
       const q = (p - ps) / FALL
       const h = headAt(ps, i, n, feel)
-      const y0 = h.y + 0.5 * h.r + 0.7 * rd
-      const yEnd = 0.5 - 0.02
+      const y0 = h.y + 0.5 * h.r + 1.6 * rd
+      const yEnd = 0.5 + SPINNER_DRIP_OVERHANG
       const fade = 0.55
       const rm = vanish * 0.98
       const rA = Math.max(rd * (1 - 0.25 * Math.min(q, fade)), Math.min(rd, rm * 1.2))
@@ -207,15 +245,15 @@ export function spinnerPose(
   }
 
   // Neck between the last two blobs: thins as they part, then snaps (radius 0) once the gap
-  // between their edges passes ~one small radius. Reconnects only when they touch again.
+  // between their edges passes ~one small radius. Reconnects only once they're nearly touching.
   const A = heads[n - 2]!
   const B = heads[n - 1]!
   const d = Math.hypot(A.x - B.x, A.y - B.y)
   const touch = (A.r + B.r) * 0.92
   const snap = touch + B.r * 1.15
-  if (d <= touch) neck.necked = true
-  else if (d >= snap) neck.necked = false
   const stretch = Math.max(0, Math.min(1, (d - touch) / (snap - touch)))
+  if (stretch <= 0.15) neck.necked = true
+  else if (d >= snap) neck.necked = false
   const neckR = neck.necked ? B.r * (0.62 - 0.27 * stretch) : 0
   const ta = angles[n - 2]!
   const tb = angles[n - 1]!
@@ -230,10 +268,125 @@ export function spinnerPose(
   return drips ? [...heads, ...tails, ...necks, ...dripCircles(p, n, feel, drips.vanish)] : [...heads, ...tails, ...necks]
 }
 
-/** The still pose for reduced motion (and the SSR fallback): the chain eased and merged. */
-export function spinnerStaticPose(blobs: number = SPINNER_DEFAULT_BLOBS, feel: SpinnerFeel = SPINNER_FEEL.playful): SpinnerCircle[] {
-  // Phase 0.03: just past the slowest point, so the chain sits merged with a hint of tail.
-  return spinnerPose(0.03, blobs, feel, { necked: true })
+const TAU = Math.PI * 2
+const bell = (d: number, w: number): number => Math.exp(-(d * d) / (w * w))
+/** Signed angle difference wrapped to -π..π. */
+const wrapAngle = (a: number): number => a - TAU * Math.round(a / TAU)
+
+/** Comet: an arc that spins at a steady rate while its length breathes (every two turns). */
+function cometPose(p: number, feel: SpinnerFeel): SpinnerCircle[] {
+  const breathe = 0.5 - 0.5 * Math.cos(Math.PI * p)
+  const len = Math.PI * (0.45 + 0.85 * breathe)
+  // The head runs ahead while the arc grows and the tail catches up while it shrinks.
+  const head = TAU * p + 0.5 * len
+  const out: SpinnerCircle[] = []
+  for (let k = 0; k < COMET_CIRCLES; k++) {
+    const f = k / (COMET_CIRCLES - 1)
+    const th = head - len * f
+    // A slight inward sag toward the tail, so it reads as liquid flung round, not a stroke.
+    const rr = 0.3 - 0.025 * f * f * feel.stretch
+    const r = 0.135 * (1 - 0.7 * Math.pow(f, 0.85))
+    out.push({ x: rr * Math.cos(th), y: rr * Math.sin(th), r })
+  }
+  return out
+}
+
+/** Ring: a goo donut. A bead rolls round it at a steady rate, swelling the ring as it goes. */
+function ringPose(p: number, feel: SpinnerFeel): SpinnerCircle[] {
+  const bead = TAU * p
+  const out: SpinnerCircle[] = []
+  for (let k = 0; k < RING_CIRCLES; k++) {
+    const th = (TAU * k) / RING_CIRCLES
+    const near = bell(wrapAngle(th - bead), 0.7)
+    // The bead pushes the ring out a little where it passes, and the far side thins.
+    const rr = 0.3 + 0.012 * near
+    out.push({ x: rr * Math.cos(th), y: rr * Math.sin(th), r: 0.078 + 0.03 * near })
+  }
+  for (let k = 0; k < RING_BEAD; k++) {
+    const th = bead - k * 0.32 * feel.stretch
+    const r = 0.13 * (1 - 0.25 * k)
+    out.push({ x: 0.3 * Math.cos(th), y: 0.3 * Math.sin(th), r })
+  }
+  return out
+}
+
+/** Dots: three dots in a row. A bead rolls back and forth along them (eased at the ends),
+ *  and each dot swells, lifts and leans toward it as it passes. */
+function dotsPose(p: number, feel: SpinnerFeel): SpinnerCircle[] {
+  const X = 0.3
+  const s = Math.sin(TAU * p * 0.5)
+  const bx = X * s
+  // Velocity sign, for the trailing smear behind the bead.
+  const dir = Math.cos(TAU * p * 0.5)
+  const out: SpinnerCircle[] = []
+  for (let k = 0; k < DOTS; k++) {
+    const x0 = (k - 1) * X
+    const near = bell(bx - x0, 0.14)
+    out.push({ x: x0 + 0.045 * (bx - x0) * near, y: -0.05 * near, r: 0.1 + 0.035 * near })
+  }
+  for (let k = 0; k < DOTS_BEAD; k++) {
+    const x = bx - k * 0.07 * dir * feel.stretch
+    out.push({ x, y: -0.03, r: 0.11 * (1 - 0.3 * k) })
+  }
+  return out
+}
+
+/** Pulse: a breathing core that buds `n` satellites. Each stretches out on a neck, the neck
+ *  snaps, and it gets pulled back in, staggered, while the whole thing turns slowly. */
+function pulsePose(p: number, n: number, feel: SpinnerFeel): SpinnerCircle[] {
+  const out: SpinnerCircle[] = [{ x: 0, y: 0, r: 0.14 + 0.02 * Math.sin(TAU * p) }]
+  const spin = TAU * p * 0.25
+  for (let k = 0; k < n; k++) {
+    const t = (((p * 0.9 + k / n) % 1) + 1) % 1
+    const reach = Math.pow(Math.sin(Math.PI * t), 1.4)
+    const d = 0.32 * reach
+    const th = spin + (TAU * k) / n
+    const r = 0.11 * (1 - 0.2 * reach)
+    out.push({ x: d * Math.cos(th), y: d * Math.sin(th), r })
+    // The neck thins as the satellite reaches out and is gone near full reach.
+    const neck = 0.07 * Math.max(0, 1 - reach / (0.6 + 0.1 * feel.stretch))
+    out.push({ x: 0.5 * d * Math.cos(th), y: 0.5 * d * Math.sin(th), r: neck })
+  }
+  return out
+}
+
+/**
+ * The circles of `variant` at phase `p` (in turns). Pure. `orbit` is `spinnerPose` (pass the
+ * same `neck` object every frame, and `drips` to shed drips); other variants ignore both.
+ */
+export function spinnerVariantPose(
+  variant: SpinnerVariant,
+  p: number,
+  blobs: number = SPINNER_DEFAULT_BLOBS,
+  feel: SpinnerFeel = SPINNER_FEEL.playful,
+  neck: SpinnerNeckState = { necked: true },
+  drips?: SpinnerDripOptions,
+): SpinnerCircle[] {
+  switch (toVariant(variant)) {
+    case 'comet':
+      return cometPose(p, feel)
+    case 'ring':
+      return ringPose(p, feel)
+    case 'dots':
+      return dotsPose(p, feel)
+    case 'pulse':
+      return pulsePose(p, clampBlobs(blobs), feel)
+    default:
+      return spinnerPose(p, blobs, feel, neck, drips)
+  }
+}
+
+/** Phase of each variant's still pose (reduced motion, SSR fallback). */
+const STATIC_PHASE: Record<SpinnerVariant, number> = { orbit: 0.03, comet: 0.6, ring: 0.1, dots: 0.12, pulse: 0.35 }
+
+/** The still pose for reduced motion (and the SSR fallback). Orbit: the chain eased and merged. */
+export function spinnerStaticPose(
+  blobs: number = SPINNER_DEFAULT_BLOBS,
+  feel: SpinnerFeel = SPINNER_FEEL.playful,
+  variant: SpinnerVariant = SPINNER_DEFAULT_VARIANT,
+): SpinnerCircle[] {
+  const v = toVariant(variant)
+  return spinnerVariantPose(v, STATIC_PHASE[v], blobs, feel, { necked: true })
 }
 
 /** Goo filter parameters for a spinner of `size` px (blur scales with size). */
@@ -244,7 +397,9 @@ export function spinnerGooParams(size: number, feel: SpinnerFeel = SPINNER_FEEL.
 }
 
 export interface SpinnerOptions {
-  /** Number of blobs, 3..6. Default 4. */
+  /** Shape: 'orbit' (default) | 'comet' | 'ring' | 'dots' | 'pulse'. */
+  variant?: SpinnerVariant
+  /** Number of blobs, 3..6 (orbit and pulse). Default 4. */
   blobs?: number
   /** Orbit speed multiplier. Default 1. */
   speed?: number
@@ -252,8 +407,8 @@ export interface SpinnerOptions {
   preset?: GoopPreset
   /** 'svg' (default), 'canvas', or a custom renderer factory. */
   renderer?: GoopRendererOption
-  /** A couple of drips shed down through the middle as it turns. Default true; skipped
-   *  below SPINNER_DRIP_MIN_SIZE px and under reduced motion. */
+  /** Drips hang off the bottom of the orbit and fall away as it turns. Default true; orbit
+   *  only, skipped below SPINNER_DRIP_MIN_SIZE px and under reduced motion. */
   drips?: boolean
   /** true / false force it; 'auto' (default) follows prefers-reduced-motion and
    *  `<html data-reduced-motion="true">`, live. */
@@ -283,7 +438,8 @@ export function attachSpinner(host: HTMLElement, options: SpinnerOptions = {}): 
   let renderer: GoopRenderer | null = null
   let blobs: GoopBlob[] = []
   let count = clampBlobs(opts.blobs)
-  let withDrips = opts.drips !== false
+  let variant = toVariant(opts.variant)
+  let withDrips = opts.drips !== false && variant === 'orbit'
   let builtDrips = false
   const neck: SpinnerNeckState = { necked: true }
   let phase = 0
@@ -303,6 +459,8 @@ export function attachSpinner(host: HTMLElement, options: SpinnerOptions = {}): 
   }
 
   const pad = (): number => Math.ceil(params.blur * 3)
+  // Room for drips to fall a little below the box.
+  const bottomPad = (): number => pad() + (builtDrips ? Math.ceil(size * SPINNER_DRIP_OVERHANG) : 0)
 
   const draw = (circles: SpinnerCircle[]): void => {
     if (!renderer) return
@@ -319,8 +477,8 @@ export function attachSpinner(host: HTMLElement, options: SpinnerOptions = {}): 
   const drawNow = (): void =>
     draw(
       reduced
-        ? spinnerStaticPose(count, feel)
-        : spinnerPose(phase, count, feel, neck, dripping() ? { vanish: gooVanishRadius(params) / size } : undefined),
+        ? spinnerStaticPose(count, feel, variant)
+        : spinnerVariantPose(variant, phase, count, feel, neck, dripping() ? { vanish: gooVanishRadius(params) / size } : undefined),
     )
 
   const build = (): void => {
@@ -332,8 +490,8 @@ export function attachSpinner(host: HTMLElement, options: SpinnerOptions = {}): 
     renderer = resolveRenderer(opts.renderer)(host, params)
     // No body: the spinner is only blobs.
     renderer.setBodyScale(0, 0)
-    renderer.setPadding({ side: pad(), bottom: pad() })
-    blobs = Array.from({ length: spinnerCircleCount(count, builtDrips) }, () => renderer!.createBlob())
+    renderer.setPadding({ side: pad(), bottom: bottomPad() })
+    blobs = Array.from({ length: spinnerCircleCount(count, builtDrips, variant) }, () => renderer!.createBlob())
     drawNow()
   }
 
@@ -347,7 +505,7 @@ export function attachSpinner(host: HTMLElement, options: SpinnerOptions = {}): 
       params = p
       renderer.setParams(params)
     }
-    renderer.setPadding({ side: pad(), bottom: pad() })
+    renderer.setPadding({ side: pad(), bottom: bottomPad() })
     drawNow()
   }
 
@@ -403,10 +561,18 @@ export function attachSpinner(host: HTMLElement, options: SpinnerOptions = {}): 
       opts = { ...opts, ...next }
       const nextFeel = SPINNER_FEEL[readPreset(host, opts.preset)]
       const nextCount = clampBlobs(opts.blobs)
-      const nextDrips = opts.drips !== false
-      const rebuild = rendererChanged || nextCount !== count || nextDrips !== withDrips || (nextDrips && !readReduced()) !== builtDrips || nextFeel.softness !== feel.softness
+      const nextVariant = toVariant(opts.variant)
+      const nextDrips = opts.drips !== false && nextVariant === 'orbit'
+      const rebuild =
+        rendererChanged ||
+        nextVariant !== variant ||
+        nextCount !== count ||
+        nextDrips !== withDrips ||
+        (nextDrips && !readReduced()) !== builtDrips ||
+        nextFeel.softness !== feel.softness
       feel = nextFeel
       count = nextCount
+      variant = nextVariant
       withDrips = nextDrips
       reduced = readReduced()
       if (rebuild) build()

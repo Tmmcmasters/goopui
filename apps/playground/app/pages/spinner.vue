@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import type { GoopPreset, GoopRendererName } from '@goopui/core'
+import { SPINNER_VARIANTS, type GoopPreset, type GoopRendererName, type SpinnerVariant } from '@goopui/core'
 
 /** Spinner props from the panel, applied to every GoopSpinner on the page. */
+const variant = ref<SpinnerVariant>('orbit')
 const blobs = ref(4)
 const speed = ref(1)
 const drips = ref(true)
 const preset = ref<GoopPreset | ''>('')
 const renderer = ref<GoopRendererName | ''>('')
 const engine = computed(() => ({
+  variant: variant.value,
   blobs: blobs.value,
   speed: speed.value,
   drips: drips.value,
@@ -24,6 +26,12 @@ const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
   <ComparePage path="/spinner">
     <template #controls>
       <section class="mb-6 flex flex-wrap items-end gap-4 rounded-xl border p-4 text-sm" aria-label="Spinner props">
+        <label class="grid gap-1">
+          <span class="text-xs text-muted-foreground">variant</span>
+          <select v-model="variant" :class="selectClass">
+            <option v-for="v in SPINNER_VARIANTS" :key="v" :value="v">{{ v }}</option>
+          </select>
+        </label>
         <label class="grid gap-1">
           <span class="text-xs text-muted-foreground">blobs: {{ blobs }}</span>
           <input v-model.number="blobs" type="range" min="3" max="6" step="1" class="w-28">
@@ -62,6 +70,15 @@ const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
       </template>
       <template #goop>
         <GoopSpinner v-bind="engine" />
+      </template>
+    </CompareRow>
+
+    <CompareRow label="variants" note="orbit, comet, ring, dots, pulse (size-12)">
+      <template #shadcn>
+        <Spinner v-for="v in SPINNER_VARIANTS" :key="v" class="size-12" />
+      </template>
+      <template #goop>
+        <GoopSpinner v-for="v in SPINNER_VARIANTS" :key="v" class="size-12" v-bind="engine" :variant="v" :title="v" />
       </template>
     </CompareRow>
 
