@@ -3,6 +3,7 @@
 
 export * from './components/button'
 export * from './components/spinner'
+export * from './components/popover'
 export { GOOP_CONFIG_KEY, GoopPlugin, provideGoopConfig, useGoopConfig, type GoopConfig } from './config'
 export {
   CSS_VAR_KEYS,

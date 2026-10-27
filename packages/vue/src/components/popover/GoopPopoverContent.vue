@@ -1,0 +1,168 @@
+<script setup lang="ts">
+// GoopPopoverContent: shadcn-vue's PopoverContent (reka-ui PopoverContent in a portal, same
+// props/emits, `class` merge, align center / sideOffset 4) whose panel oozes out of the
+// trigger. Core's `attachEmerge` draws the panel's background as goo on an aria-hidden
+// surface behind the real, unfiltered content: a bulb swells from the trigger edge facing
+// `side`, the panel inflates out of it, the neck stretches and snaps; close sucks it back.
+//
+// The panel's shadcn background, ring and shadow move onto the goo (`--goop-color`, a
+// drop-shadow on the surface). Content opacity follows `--goop-emerge-content`, and a hold
+// animation (goop.css) keeps reka's Presence mounted while the close plays. With
+// `:goo="false"` it is exactly shadcn's PopoverContent. Reduced motion: plain open/close.
+import { attachEmerge, type EmergeHandle, type EmergeOptions, type GoopPreset, type GoopRendererOption } from '@goopui/core'
+import { cn } from 'cn'
+import type { PopoverContentEmits, PopoverContentProps } from 'reka-ui'
+import { PopoverContent, PopoverPortal, injectPopoverRootContext, useForwardPropsEmits } from 'reka-ui'
+import { computed, onBeforeUnmount, shallowRef, useTemplateRef, watch, type HTMLAttributes } from 'vue'
+import { useGoopConfig } from '../../config'
+import { injectGoopPopover } from './context'
+
+defineOptions({
+  inheritAttrs: false,
+})
+
+const props = withDefaults(
+  defineProps<
+    PopoverContentProps & {
+      class?: HTMLAttributes['class']
+      /** Master switch. `false` renders a plain shadcn PopoverContent. */
+      goo?: boolean
+      /** Bulb + lumpy neck between trigger and panel. */
+      bridge?: boolean
+      /** Jelly overshoot and wobble. */
+      wobble?: boolean
+      /** Momentum launch away from the trigger that stretches and snaps the neck. */
+      momentum?: boolean
+      /** Content fades in once the goo settles. */
+      fade?: boolean
+      /** Animation speed multiplier. */
+      speed?: number
+      /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+      preset?: GoopPreset
+      /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+      renderer?: GoopRendererOption
+    }
+  >(),
+  {
+    align: 'center',
+    sideOffset: 4,
+    goo: true,
+    bridge: true,
+    wobble: true,
+    momentum: true,
+    fade: true,
+    speed: 1,
+    preset: undefined,
+    renderer: undefined,
+  },
+)
+const emits = defineEmits<PopoverContentEmits>()
+
+const delegated = computed(() => {
+  const {
+    class: _class,
+    goo: _goo,
+    bridge: _bridge,
+    wobble: _wobble,
+    momentum: _momentum,
+    fade: _fade,
+    speed: _speed,
+    preset: _preset,
+    renderer: _renderer,
+    ...rest
+  } = props
+  return rest
+})
+const forwarded = useForwardPropsEmits(delegated, emits)
+
+const root = injectPopoverRootContext()
+const goopCtx = injectGoopPopover()
+const config = useGoopConfig()
+const surface = useTemplateRef<HTMLElement>('surface')
+const handle = shallowRef<EmergeHandle | null>(null)
+
+const SHADCN =
+  'bg-popover text-popover-foreground data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 ring-foreground/10 flex flex-col gap-2.5 rounded-lg p-2.5 text-sm shadow-md ring-1 duration-100 z-50 w-72 max-w-(--reka-popover-content-available-width) origin-(--reka-popover-content-transform-origin) outline-hidden'
+// The goo paints the background (popover color), ring and shadow; no CSS enter/exit.
+const GOO =
+  'text-popover-foreground [--goop-color:var(--popover)] flex flex-col gap-2.5 rounded-lg p-2.5 text-sm z-50 w-72 max-w-(--reka-popover-content-available-width) outline-hidden'
+
+const classes = computed(() => cn(props.goo ? GOO : SHADCN, props.class))
+
+const options = computed<EmergeOptions>(() => ({
+  bridge: props.bridge,
+  wobble: props.wobble,
+  momentum: props.momentum,
+  fade: props.fade,
+  speed: props.speed,
+  preset: props.preset ?? config.preset,
+  renderer: props.renderer ?? config.renderer,
+  reducedMotion: config.reducedMotion,
+}))
+
+const anchorRect = () => {
+  const el = goopCtx?.anchor.value ?? root.triggerElement.value
+  if (!el) return null
+  const r = el.getBoundingClientRect()
+  return { x: r.left, y: r.top, width: r.width, height: r.height }
+}
+
+/** reka parks the floating wrapper at translate(0, -200%) until floating-ui has placed it. */
+const positioned = (host: HTMLElement) => {
+  const wrap = host.parentElement
+  return !wrap?.hasAttribute('data-reka-popper-content-wrapper') || !wrap.style.transform.includes('-200%')
+}
+
+const attach = () => {
+  const el = surface.value
+  const host = el?.parentElement
+  if (!el || !host) return
+  if (handle.value) detach()
+  handle.value = attachEmerge(host, { ...options.value, surface: el, anchor: anchorRect, ready: () => positioned(host) })
+  if (root.open.value) handle.value.open()
+}
+const detach = () => {
+  handle.value?.destroy()
+  handle.value = null
+}
+
+// The content element mounts on every open (reka's Presence, often via a deferred teleport),
+// and the surface only exists while `goo` is on: attach whenever it appears.
+watch(surface, (el) => (el ? attach() : detach()), { flush: 'post' })
+onBeforeUnmount(detach)
+watch(options, (next) => handle.value?.update(next), { flush: 'post' })
+// Before render, so the hold animation picks up the close duration as data-state flips.
+watch(
+  () => root.open.value,
+  (open) => {
+    if (open) handle.value?.open()
+    else handle.value?.close()
+  },
+)
+
+defineExpose({
+  /** The live emerge handle (null before mount / when goo is off). */
+  get handle() {
+    return handle.value
+  },
+})
+</script>
+
+<template>
+  <PopoverPortal>
+    <PopoverContent
+      data-slot="popover-content"
+      v-bind="{ ...$attrs, ...forwarded }"
+      :class="classes"
+    >
+      <span
+        v-if="goo"
+        ref="surface"
+        data-goop="surface"
+        aria-hidden="true"
+        style="position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: inherit"
+      />
+      <slot />
+    </PopoverContent>
+  </PopoverPortal>
+</template>

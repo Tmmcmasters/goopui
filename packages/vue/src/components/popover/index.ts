@@ -1,0 +1,7 @@
+export { default as GoopPopover } from './GoopPopover.vue'
+export { default as GoopPopoverAnchor } from './GoopPopoverAnchor.vue'
+export { default as GoopPopoverContent } from './GoopPopoverContent.vue'
+export { default as GoopPopoverDescription } from './GoopPopoverDescription.vue'
+export { default as GoopPopoverHeader } from './GoopPopoverHeader.vue'
+export { default as GoopPopoverTitle } from './GoopPopoverTitle.vue'
+export { default as GoopPopoverTrigger } from './GoopPopoverTrigger.vue'
