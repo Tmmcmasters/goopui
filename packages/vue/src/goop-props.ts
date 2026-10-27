@@ -19,7 +19,11 @@ import {
   GOOP_DEFAULTS,
   GOOP_PRESETS,
   GOOP_VAR_META,
+  MENU_EFFECTS,
   SWITCH_EFFECTS,
+  type EmergeOptions,
+  type MenuEffect,
+  type MenuHighlightOptions,
   type GoopOptions,
   type GoopRendererOption,
   type SwitchEffect,
@@ -290,4 +294,94 @@ export function toSwitchOptions(props: GoopSwitchPropsInput, config: GoopOptions
   if (props.speed !== undefined) out.speed = props.speed
   for (const k of SWITCH_EFFECTS) if (props[k] !== undefined) out[k] = props[k]
   return out
+}
+
+// ---- GoopDropdownMenu -----------------------------------------------------------------------
+// The menu panel reuses core's emerge engine (same toggles as GoopPopoverContent) and adds
+// core's MENU_EFFECTS: the goo highlight blob, the select pop, and goo submenus. Every toggle
+// is a boolean; `undefined` (absent) means "inherit" (a submenu takes its parent menu's value),
+// then on.
+
+/** Emerge toggles shared with GoopPopoverContent. */
+export const EMERGE_EFFECT_KEYS = ['bridge', 'wobble', 'momentum', 'fade'] as const
+/** Every GoopDropdownMenuContent / SubContent engine prop. */
+export const MENU_PROP_KEYS = [
+  'goo',
+  ...EMERGE_EFFECT_KEYS,
+  ...MENU_EFFECTS,
+  'speed',
+  'preset',
+  'renderer',
+] as const
+
+/** Engine props of GoopDropdownMenuContent / GoopDropdownMenuSubContent. */
+export interface GoopMenuProps {
+  /** Master switch. `false` renders plain shadcn DropdownMenu parts. */
+  goo?: boolean
+  /** Bulb + lumpy neck between trigger (or submenu row) and panel. */
+  bridge?: boolean
+  /** Jelly overshoot: panel wobble, highlight overshoot and grow-in. */
+  wobble?: boolean
+  /** Momentum: the panel's launch, and the highlight's stretch + neck while it travels. */
+  momentum?: boolean
+  /** Content fades in once the goo settles. */
+  fade?: boolean
+  /** Item highlight is a goo blob that slides between items (false: shadcn's flat bg). */
+  highlight?: boolean
+  /** Jelly squish of the highlight when an item is selected, before the menu closes. */
+  pop?: boolean
+  /** Submenus emerge from their row (false: plain shadcn submenus). */
+  submenus?: boolean
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+/** Compile-time guards: every emerge / highlight option core grows must be handled here. */
+type MenuAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'find' | 'reducedMotion'
+type MenuUnhandled = Exclude<
+  keyof EmergeOptions | keyof MenuHighlightOptions | MenuEffect,
+  keyof GoopMenuProps | MenuAdapterOwned
+>
+const _allMenuOptionsHandled: [MenuUnhandled] extends [never] ? true : { unhandled: MenuUnhandled } = true
+void _allMenuOptionsHandled
+type MenuPropsListed = Exclude<keyof GoopMenuProps, (typeof MENU_PROP_KEYS)[number]>
+const _allMenuPropsListed: [MenuPropsListed] extends [never] ? true : { unlisted: MenuPropsListed } = true
+void _allMenuPropsListed
+
+/** Fully resolved menu settings (no undefined toggles). */
+export interface ResolvedMenuProps extends Required<Omit<GoopMenuProps, 'preset' | 'renderer'>> {
+  preset?: GoopPreset
+  renderer?: GoopRendererOption
+}
+
+const MENU_TOGGLES = ['goo', ...EMERGE_EFFECT_KEYS, ...MENU_EFFECTS] as const
+
+/** Resolve menu props over a parent menu's resolved settings (submenus) or the defaults. */
+export function resolveMenuProps(props: GoopMenuProps, parent?: ResolvedMenuProps | null): ResolvedMenuProps {
+  const out = { speed: props.speed ?? parent?.speed ?? 1 } as ResolvedMenuProps
+  for (const k of MENU_TOGGLES) out[k] = props[k] ?? parent?.[k] ?? true
+  out.preset = props.preset ?? parent?.preset
+  out.renderer = props.renderer ?? parent?.renderer
+  return out
+}
+
+/** Core options for the panel (emerge) and the highlight, over app config. */
+export function toMenuOptions(
+  menu: ResolvedMenuProps,
+  config: GoopOptions = {},
+): { emerge: EmergeOptions; highlight: MenuHighlightOptions | null } {
+  const common = {
+    speed: menu.speed,
+    preset: menu.preset ?? config.preset,
+    renderer: menu.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+  return {
+    emerge: { ...common, bridge: menu.bridge, wobble: menu.wobble, momentum: menu.momentum, fade: menu.fade },
+    highlight: menu.goo && menu.highlight ? { ...common, wobble: menu.wobble, momentum: menu.momentum, pop: menu.pop } : null,
+  }
 }

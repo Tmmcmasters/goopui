@@ -13,6 +13,21 @@ export const goopComponents = [
   'GoopPopoverHeader',
   'GoopPopoverTitle',
   'GoopPopoverTrigger',
+  'GoopDropdownMenu',
+  'GoopDropdownMenuCheckboxItem',
+  'GoopDropdownMenuContent',
+  'GoopDropdownMenuGroup',
+  'GoopDropdownMenuItem',
+  'GoopDropdownMenuLabel',
+  'GoopDropdownMenuPortal',
+  'GoopDropdownMenuRadioGroup',
+  'GoopDropdownMenuRadioItem',
+  'GoopDropdownMenuSeparator',
+  'GoopDropdownMenuShortcut',
+  'GoopDropdownMenuSub',
+  'GoopDropdownMenuSubContent',
+  'GoopDropdownMenuSubTrigger',
+  'GoopDropdownMenuTrigger',
 ] as const
 
 export type GoopComponentName = (typeof goopComponents)[number]
