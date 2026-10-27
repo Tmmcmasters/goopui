@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "nuxt dev",
+    "dev": "node -e \"for (const d of ['.nuxt','node_modules/.cache','node_modules/.vite']) require('fs').rmSync(d,{recursive:true,force:true})\" && nuxt dev",
     "build": "nuxt build",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",

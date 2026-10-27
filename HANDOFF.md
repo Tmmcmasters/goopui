@@ -63,7 +63,7 @@ Also add a cache-clearing step to the playground dev script so package rebuilds 
 ## Gotchas learned this session
 
 - **exFAT drive:** macOS writes `._*` files everywhere. `pnpm clean:dot` deletes them. Nuxt/Nitro builds randomly fail with `ENOENT … chmod ._*.json` in `.output`/`.nuxt`; delete the app's `.output` and `.nuxt` and retry. Nuxt Content's SQLite can't live on exFAT (www keeps its DB in the OS temp dir; set `CONTENT_DB_DIR` for deploys).
-- **Stale package builds in apps:** after rebuilding `packages/*`, the playground/www dev servers can keep serving the old build. Stop the server, delete the app's `.nuxt` and `node_modules/.cache`, restart, and hard-reload the browser. Component additions also need a restart because the Nuxt module reads the manifest at startup.
+- **Stale package builds in apps:** after rebuilding `packages/*`, the playground/www dev servers can keep serving the old build. `pnpm dev` in each app now deletes its `.nuxt`, `node_modules/.cache` and `node_modules/.vite` before starting, so restart the server after a package rebuild and hard-reload the browser. Component additions also need a restart because the Nuxt module reads the manifest at startup.
 - **Typecheck after core renames:** run root `pnpm typecheck` before merging core changes. Round 4's renames broke www once.
 - **mkdist:** if a public core option uses an unexported type, vue-tsc silently emits an empty SFC `.d.ts`. `packages/vue/build.mjs` now fails on that.
 - **Nuxt dev lock:** a stale lock from a killed server blocks restart; use `NUXT_IGNORE_LOCK=1`.
