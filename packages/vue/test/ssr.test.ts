@@ -68,4 +68,31 @@ describe('SSR', () => {
       delete (globalThis as Record<string, unknown>).window
     }
   })
+
+  it('GoopSwitch renders a plain shadcn switch with no document/window access', async () => {
+    const { GoopSwitch } = await import('../src')
+    const app = () =>
+      createSSRApp({
+        render: () => [h(GoopSwitch), h(GoopSwitch, { modelValue: true, size: 'sm', bridge: false })],
+      })
+    const apps = [app(), app()]
+    trap('document')
+    trap('window')
+    try {
+      const a = await renderToString(apps[0]!)
+      const b = await renderToString(apps[1]!)
+      expect(a).toBe(b)
+      expect(a).toContain('role="switch"')
+      expect(a).toContain('aria-checked="false"')
+      expect(a).toContain('aria-checked="true"')
+      expect(a).toContain('data-slot="switch-thumb"')
+      expect(a).toContain('data-goop-host="switch"')
+      expect(a).toContain('data-checked:bg-primary')
+      expect(a).not.toContain('data-goop-active')
+      expect(a).not.toContain('data-goop="layer"')
+    } finally {
+      delete (globalThis as Record<string, unknown>).document
+      delete (globalThis as Record<string, unknown>).window
+    }
+  })
 })

@@ -3,6 +3,7 @@
 
 export * from './components/button'
 export * from './components/spinner'
+export * from './components/switch'
 export { GOOP_CONFIG_KEY, GoopPlugin, provideGoopConfig, useGoopConfig, type GoopConfig } from './config'
 export {
   CSS_VAR_KEYS,
@@ -11,16 +12,21 @@ export {
   GOOP_TUNING_KEYS,
   diffOptions,
   goopPropMeta,
+  goopSwitchProps,
   goopProps,
   isGoopFeature,
   toGoopOptions,
   toGoopStyle,
+  toSwitchOptions,
   type GoopCssVarKey,
   type GoopEngineKey,
   type GoopFeatureKey,
   type GoopPropValue,
   type GoopPropsDefinition,
   type GoopPropsInput,
+  type GoopSwitchEngineKey,
+  type GoopSwitchPropsDefinition,
+  type GoopSwitchPropsInput,
 } from './goop-props'
 export { goopComponents, type GoopComponentName } from './manifest'
 export { seedFrom, useGoop, type UseGoopReturn } from './use-goop'
