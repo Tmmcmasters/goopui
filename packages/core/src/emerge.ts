@@ -16,6 +16,12 @@
 // are panel-local (0,0 = panel top-left), the renderer's host space.
 
 import type { GoopPreset } from './constants'
+import {
+  EMERGE_MOMENTUM_CIRCLES,
+  emergeMomentum,
+  emergeMomentumEnd,
+  type EmergeMomentumEffects,
+} from './emerge-momentum'
 import type { GooFilterParams } from './filter'
 import { removeTicker, wakeTicker, type Ticker } from './loop'
 import { isReducedMotion, watchReducedMotion } from './reduced-motion'
@@ -407,7 +413,7 @@ export function emergeOverflow(pose: EmergePose, width: number, height: number):
 
 export type EmergeState = 'closed' | 'opening' | 'open' | 'closing'
 
-export interface EmergeOptions extends EmergeEffects {
+export interface EmergeOptions extends EmergeEffects, EmergeMomentumEffects {
   /** What the goo emerges from: an element, or a getter returning its rect (same space as
    *  `host.getBoundingClientRect()`). */
   anchor?: Element | (() => EmergeRect | null | undefined) | null
@@ -466,7 +472,8 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
   const doc = host.ownerDocument
   const win = doc.defaultView
   let opts: EmergeOptions = { ...options }
-  let feel = EMERGE_FEEL[readPreset(host, opts.preset)]
+  let presetName = readPreset(host, opts.preset)
+  let feel = EMERGE_FEEL[presetName]
   let params = emergeGooParams(feel)
   let renderer: GoopRenderer | null = null
   let blobs: GoopBlob[] = []
@@ -475,6 +482,11 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
   let waited = 0
   let destroyed = false
   let pad = -1
+  // Momentum clock (speed-scaled seconds since the phase began; keeps running past an open),
+  // per-open seed, and whether this open started from closed (drops only then).
+  let mt = Infinity
+  let seed = 0
+  let fresh = false
 
   const readReduced = (): boolean =>
     opts.reducedMotion === true || (opts.reducedMotion !== false && isReducedMotion(doc))
@@ -564,9 +576,20 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
 
   const drawNow = (): void => {
     const b = bridge()
-    if (state === 'open' || (reduced && state === 'opening')) draw(emergeRestPose(b), b)
-    else if (state === 'closed' || (reduced && state === 'closing')) draw(emergePose(1, b, 'close', feel, opts), b)
-    else draw(emergePose(t, b, state === 'opening' ? 'open' : 'close', feel, opts), b)
+    let pose: EmergePose
+    if (state === 'open' || (reduced && state === 'opening')) pose = emergeRestPose(b)
+    else if (state === 'closed' || (reduced && state === 'closing')) pose = emergePose(1, b, 'close', feel, opts)
+    else pose = emergePose(t, b, state === 'opening' ? 'open' : 'close', feel, opts)
+    const phase: EmergePhase = state === 'open' || state === 'opening' ? 'open' : 'close'
+    if (!reduced && state !== 'closed' && mt < emergeMomentumEnd(phase)) {
+      const fx = { ...opts, openDrips: fresh ? opts.openDrips : false }
+      pose = emergeMomentum(pose, b, phase, mt, fx, {
+        preset: presetName,
+        seed,
+        bodyAt: (sec) => emergePose(sec / feel.open, b, 'open', feel, opts).body,
+      })
+    }
+    draw(pose, b)
   }
 
   /** `hold`: ms a stylesheet should keep the host mounted once closing. Left alone while a
@@ -587,23 +610,31 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
     params = emergeGooParams(feel)
     renderer = resolveRenderer(opts.renderer)(surface, params)
     pad = -1
-    blobs = Array.from({ length: EMERGE_CIRCLES }, () => renderer!.createBlob())
+    blobs = Array.from({ length: EMERGE_CIRCLES + EMERGE_MOMENTUM_CIRCLES }, () => renderer!.createBlob())
     drawNow()
   }
 
   const tick: Ticker = (dt) => {
-    if (destroyed || (state !== 'opening' && state !== 'closing')) return false
+    if (destroyed) return false
+    if (state === 'open' && !reduced && mt < emergeMomentumEnd('open')) {
+      // Open finished; the slosh and drops play out.
+      mt += dt * speed()
+      drawNow()
+      return mt < emergeMomentumEnd('open')
+    }
+    if (state !== 'opening' && state !== 'closing') return false
     if (state === 'opening' && t === 0 && opts.ready && !opts.ready() && waited++ < READY_MAX_FRAMES) {
       drawNow()
       return true
     }
     const dur = (state === 'opening' ? feel.open : feel.close) / speed()
     t = Math.min(1, t + dt / dur)
+    mt += dt * speed()
     if (t >= 1) {
       state = state === 'opening' ? 'open' : 'closed'
       syncAttrs()
       drawNow()
-      return false
+      return state === 'open' && !reduced && mt < emergeMomentumEnd('open')
     }
     drawNow()
     return true
@@ -649,6 +680,9 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
       }
       state = 'opening'
       t = start
+      mt = start * feel.open
+      fresh = start === 0
+      seed++
       waited = 0
       syncAttrs()
       drawNow()
@@ -665,6 +699,7 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
       const e = extent()
       state = 'closing'
       t = 0.9 * Math.sqrt(clamp(1 - e))
+      mt = 0
       const ms = Math.round(((1 - t) * feel.close * 1000) / speed())
       syncAttrs(ms)
       drawNow()
@@ -675,7 +710,8 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
       if (destroyed) return
       const rendererChanged = 'renderer' in next && next.renderer !== opts.renderer
       opts = { ...opts, ...next }
-      const nextFeel = EMERGE_FEEL[readPreset(host, opts.preset)]
+      presetName = readPreset(host, opts.preset)
+      const nextFeel = EMERGE_FEEL[presetName]
       const rebuild = rendererChanged || nextFeel.softness !== feel.softness
       feel = nextFeel
       reduced = readReduced()

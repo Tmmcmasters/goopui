@@ -11,6 +11,9 @@ const bridge = ref(true)
 const wobble = ref(true)
 const momentum = ref(true)
 const fade = ref(true)
+const openSlosh = ref(true)
+const openDrips = ref(true)
+const closeSlosh = ref(true)
 const speed = ref(1)
 const preset = ref<GoopPreset | ''>('')
 const renderer = ref<GoopRendererName | ''>('')
@@ -20,11 +23,14 @@ const engine = computed(() => ({
   wobble: wobble.value,
   momentum: momentum.value,
   fade: fade.value,
+  openSlosh: openSlosh.value,
+  openDrips: openDrips.value,
+  closeSlosh: closeSlosh.value,
   speed: speed.value,
   preset: preset.value || undefined,
   renderer: renderer.value || undefined,
 }))
-const toggles = { goo, bridge, wobble, momentum, fade }
+const toggles = { goo, bridge, wobble, momentum, fade, openSlosh, openDrips, closeSlosh }
 
 const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
 </script>

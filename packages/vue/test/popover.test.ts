@@ -1,4 +1,4 @@
-import { EMERGE_CIRCLES, activeTickerCount, isLoopRunning } from '@goopui/core'
+import { EMERGE_CIRCLES, EMERGE_MOMENTUM_CIRCLES, activeTickerCount, isLoopRunning } from '@goopui/core'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref, type PropType } from 'vue'
@@ -66,7 +66,7 @@ describe('GoopPopover', () => {
     expect(surface.getAttribute('data-goop')).toBe('surface')
     expect(surface.getAttribute('aria-hidden')).toBe('true')
     expect(surface.querySelector('[data-goop="layer"]')).not.toBeNull()
-    expect(surface.querySelectorAll('[data-goop="blob"]')).toHaveLength(EMERGE_CIRCLES)
+    expect(surface.querySelectorAll('[data-goop="blob"]')).toHaveLength(EMERGE_CIRCLES + EMERGE_MOMENTUM_CIRCLES)
     expect(el.hasAttribute('data-goop-emerge')).toBe(true)
     expect(el.textContent).toBe('DimensionsSet the dimensions.')
     expect(isLoopRunning()).toBe(true)

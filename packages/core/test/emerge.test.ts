@@ -3,6 +3,7 @@ import {
   EMERGE_CIRCLES,
   EMERGE_CONTENT_VAR,
   EMERGE_FEEL,
+  EMERGE_MOMENTUM_CIRCLES,
   GOOP_PART_ATTR,
   activeTickerCount,
   attachEmerge,
@@ -197,7 +198,7 @@ describe('attachEmerge', () => {
     expect(host.firstElementChild).toBe(surface)
     expect(host.textContent).toBe('Panel text')
     expect(surface.querySelector(`[${GOOP_PART_ATTR}="layer"]`)).not.toBeNull()
-    expect(host.querySelectorAll(`[${GOOP_PART_ATTR}="blob"]`)).toHaveLength(EMERGE_CIRCLES)
+    expect(host.querySelectorAll(`[${GOOP_PART_ATTR}="blob"]`)).toHaveLength(EMERGE_CIRCLES + EMERGE_MOMENTUM_CIRCLES)
     expect(h.state).toBe('closed')
     expect(host.getAttribute('data-goop-emerge')).toBe('closed')
     expect(host.style.getPropertyValue(EMERGE_CONTENT_VAR)).toBe('0')

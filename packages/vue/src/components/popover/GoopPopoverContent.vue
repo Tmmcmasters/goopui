@@ -4,6 +4,8 @@
 // trigger. Core's `attachEmerge` draws the panel's background as goo on an aria-hidden
 // surface behind the real, unfiltered content: a bulb swells from the trigger edge facing
 // `side`, the panel inflates out of it, the neck stretches and snaps; close sucks it back.
+// Momentum (openSlosh / openDrips / closeSlosh): the far edge sloshes and sheds drops on
+// open, the near edge sloshes against the trigger on close.
 //
 // The panel's shadcn background, ring and shadow move onto the goo (`--goop-color`, a
 // drop-shadow on the surface). Content opacity follows `--goop-emerge-content`, and a hold
@@ -35,6 +37,12 @@ const props = withDefaults(
       momentum?: boolean
       /** Content fades in once the goo settles. */
       fade?: boolean
+      /** Open: the far edge bulges past rest, rebounds and wobbles. `true`, `false` or a 0..2 strength. */
+      openSlosh?: boolean | number
+      /** Open: fat drops neck off the far edge, fly on, then fall and fade. `true`, `false` or 0..2. */
+      openDrips?: boolean | number
+      /** Close: the goo lags and the near edge sloshes against the trigger. `true`, `false` or 0..2. */
+      closeSlosh?: boolean | number
       /** Animation speed multiplier. */
       speed?: number
       /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
@@ -51,6 +59,9 @@ const props = withDefaults(
     wobble: true,
     momentum: true,
     fade: true,
+    openSlosh: true,
+    openDrips: true,
+    closeSlosh: true,
     speed: 1,
     preset: undefined,
     renderer: undefined,
@@ -66,6 +77,9 @@ const delegated = computed(() => {
     wobble: _wobble,
     momentum: _momentum,
     fade: _fade,
+    openSlosh: _openSlosh,
+    openDrips: _openDrips,
+    closeSlosh: _closeSlosh,
     speed: _speed,
     preset: _preset,
     renderer: _renderer,
@@ -94,6 +108,9 @@ const options = computed<EmergeOptions>(() => ({
   wobble: props.wobble,
   momentum: props.momentum,
   fade: props.fade,
+  openSlosh: props.openSlosh,
+  openDrips: props.openDrips,
+  closeSlosh: props.closeSlosh,
   speed: props.speed,
   preset: props.preset ?? config.preset,
   renderer: props.renderer ?? config.renderer,

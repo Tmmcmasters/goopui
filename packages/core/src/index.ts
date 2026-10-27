@@ -199,3 +199,15 @@ export {
   type EmergeSide,
   type EmergeState,
 } from './emerge'
+export {
+  EMERGE_MOMENTUM,
+  EMERGE_MOMENTUM_CIRCLES,
+  EMERGE_MOMENTUM_DRIPS,
+  emergeCloseSlosh,
+  emergeMomentum,
+  emergeMomentumEnd,
+  emergeMomentumStrength,
+  emergeSloshOffset,
+  type EmergeMomentumContext,
+  type EmergeMomentumEffects,
+} from './emerge-momentum'
