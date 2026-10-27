@@ -5,23 +5,30 @@ export * from './components/button'
 export * from './components/spinner'
 export * from './components/switch'
 export * from './components/popover'
+export * from './components/dropdown-menu'
 export { GOOP_CONFIG_KEY, GoopPlugin, provideGoopConfig, useGoopConfig, type GoopConfig } from './config'
 export {
   CSS_VAR_KEYS,
   ENGINE_OPTION_KEYS,
+  EMERGE_EFFECT_KEYS,
   FEATURE_KEYS,
+  MENU_PROP_KEYS,
   GOOP_TUNING_KEYS,
   diffOptions,
   goopPropMeta,
   goopSwitchProps,
   goopProps,
   isGoopFeature,
+  resolveMenuProps,
+  toMenuOptions,
   toGoopOptions,
   toGoopStyle,
   toSwitchOptions,
   type GoopCssVarKey,
   type GoopEngineKey,
   type GoopFeatureKey,
+  type GoopMenuProps,
+  type ResolvedMenuProps,
   type GoopPropValue,
   type GoopPropsDefinition,
   type GoopPropsInput,
