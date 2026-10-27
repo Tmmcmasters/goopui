@@ -255,7 +255,7 @@ const DEG = Math.PI / 180
 const TOGGLES = ['gloss', 'taffy', 'reach', 'puddles', 'labelRide', 'keyboard', 'idle'] as const
 
 /** Strength a `true` toggle gets when its default is off (gloss is opt-in). */
-const TOGGLE_ON_STRENGTH: Partial<Record<(typeof TOGGLES)[number], number>> = { gloss: 0.6, puddles: 1 }
+const TOGGLE_ON_STRENGTH: Partial<Record<(typeof TOGGLES)[number], number>> = { gloss: 0.6, puddles: 1, reach: 80 }
 
 /** Numeric tuning overrides from options. Toggles: `false` -> 0, number -> itself, `true` ->
  *  left to CSS / preset (then bumped to the default strength if that resolved to 0). */

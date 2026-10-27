@@ -33,7 +33,7 @@
 // gloss            gloss (false)             --goop-gloss (0)            0 (on: 0.6)     SVG: static filter prims;
 //                                                                                 canvas: shader branch
 // taffy pull       taffy (false)             --goop-taffy (0)            1        low: <=24 circles while held
-// reach            reach (false)             --goop-reach (0, px)        60       low: 2 circles, wakes only
+// reach            reach (false, opt-in)     --goop-reach (0, px)        0 (on: 80)     low: 2 circles, wakes only
 //                                                                                 within radius, on screen
 // label ride       labelRide (false)         --goop-label-ride (0)       0.6      low: 1 transform write/frame
 // finish (oil)     finish ('solid')          --goop-finish               solid    canvas: ~free; SVG: static
@@ -187,8 +187,8 @@ const TUNING_META: { readonly [K in keyof GoopTuning]: TuningMeta & { option: K 
     description: 'Press and drag off the element to pull a stretchy goo string; 0 turns it off.' },
   taffyLength: { name: '--goop-taffy-length', option: 'taffyLength', label: 'Taffy snap length', unit: 'px', default: 90, min: 20, max: 400, step: 5, group: 'Touch', cost: 'none', reducedMotion: OFF,
     description: 'How far the string stretches past the edge before it snaps.' },
-  reach: { name: '--goop-reach', option: 'reach', label: 'Reach distance', unit: 'px', default: 80, min: 0, max: 300, step: 5, group: 'Touch', cost: 'low', reducedMotion: OFF,
-    description: 'A lump of goo swells out of the edge toward a pointer closer than this, before it touches; 0 turns it off.' },
+  reach: { name: '--goop-reach', option: 'reach', label: 'Reach distance', unit: 'px', default: 0, min: 0, max: 300, step: 5, group: 'Touch', cost: 'low', reducedMotion: OFF,
+    description: 'Opt-in: a lump of goo swells out of the edge toward a pointer closer than this, before it touches. Off (0) by default; `reach: true` uses 80.' },
   reachSize: { name: '--goop-reach-size', option: 'reachSize', label: 'Reach lump size', unit: 'x drip size', default: 2.6, min: 0.5, max: 5, step: 0.1, group: 'Touch', cost: 'none', reducedMotion: OFF,
     description: 'How big the lump that reaches toward the pointer gets, as a multiple of the drip size.' },
   reachGlobs: { name: '--goop-reach-globs', option: 'reachGlobs', label: 'Reach globs', unit: 'count', default: 3, min: 1, max: 4, step: 1, group: 'Touch', cost: 'low', reducedMotion: OFF,

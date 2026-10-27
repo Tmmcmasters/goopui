@@ -776,6 +776,18 @@ describe('reach', () => {
     pump(0.3)
     expect(h.inspect().reach).toBe(0)
   })
+
+  it('is off by default; reach: true turns it on', () => {
+    const off = setup({})
+    near(180, 85)
+    pump(0.3)
+    expect(off.h.inspect().reach).toBe(0)
+    off.h.destroy()
+    const on = setup({ reach: true })
+    near(180, 85)
+    pump(0.3)
+    expect(on.h.inspect().reach).toBeGreaterThan(0.1)
+  })
 })
 
 describe('puddles', () => {
