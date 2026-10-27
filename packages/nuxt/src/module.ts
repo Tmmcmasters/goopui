@@ -55,11 +55,13 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     // and Vite's esbuild dep optimizer, which can't read .vue).
     nuxt.options.build.transpile.push('@goopui/vue')
     nuxt.options.vite.optimizeDeps ||= {}
-    nuxt.options.vite.optimizeDeps.exclude = [...(nuxt.options.vite.optimizeDeps.exclude ?? []), '@goopui/vue']
+    // Core is dependency-free ESM, so it's served as-is too: one shared instance, and a rebuilt
+    // core shows up on reload (pre-bundled deps are cached by the browser as immutable).
+    nuxt.options.vite.optimizeDeps.exclude = [...(nuxt.options.vite.optimizeDeps.exclude ?? []), '@goopui/vue', '@goopui/core']
     // ...but do pre-bundle its plain-JS deps, or Vite discovers them at runtime and reloads.
     nuxt.options.vite.optimizeDeps.include = [
       ...(nuxt.options.vite.optimizeDeps.include ?? []),
-      ...['@goopui/core', 'reka-ui', 'cn', 'class-variance-authority'].map((dep) => `@goopui/vue > ${dep}`),
+      ...['reka-ui', 'cn', 'class-variance-authority'].map((dep) => `@goopui/vue > ${dep}`),
     ]
 
     for (const name of goopComponents) {
