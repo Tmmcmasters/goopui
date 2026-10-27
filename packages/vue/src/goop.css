@@ -56,6 +56,22 @@
       scale(var(--goop-sx, 1), var(--goop-sy, 1));
   }
 
+  /* Emerging surfaces (GoopPopoverContent): core draws the panel as goo on an aria-hidden
+     surface and publishes the content's opacity; the goo gets shadcn's ring + shadow as a
+     drop-shadow that follows its silhouette, bridge included. */
+  [data-goop-emerge] {
+    --goop-surface-shadow: drop-shadow(0 0 0.5px color-mix(in oklab, var(--foreground, #000) 30%, transparent))
+      drop-shadow(0 4px 6px rgb(0 0 0 / 0.1));
+  }
+  [data-goop-emerge] > :not([data-goop='surface']) {
+    opacity: var(--goop-emerge-content, 1);
+  }
+  /* Keeps reka's Presence mounted while the goo closes (it waits for this animation). Off
+     under reduced motion (core sets data-goop-still), so close is instant. */
+  [data-goop-emerge][data-state='closed']:not([data-goop-still]) {
+    animation: goop-emerge-hold var(--goop-emerge-close, 0ms) linear both;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     [data-goop-host] > [data-goop='layer'] {
       transition: none;
@@ -63,5 +79,12 @@
   }
   html[data-reduced-motion='true'] [data-goop-host] > [data-goop='layer'] {
     transition: none;
+  }
+}
+
+@keyframes goop-emerge-hold {
+  from,
+  to {
+    visibility: visible;
   }
 }

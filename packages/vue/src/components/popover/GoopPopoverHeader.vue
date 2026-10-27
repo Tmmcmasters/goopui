@@ -1,0 +1,18 @@
+<script setup lang="ts">
+// GoopPopoverHeader: shadcn-vue's PopoverHeader.
+import type { HTMLAttributes } from 'vue'
+import { cn } from 'cn'
+
+const props = defineProps<{
+  class?: HTMLAttributes['class']
+}>()
+</script>
+
+<template>
+  <div
+    data-slot="popover-header"
+    :class="cn('flex flex-col gap-0.5 text-sm', props.class)"
+  >
+    <slot />
+  </div>
+</template>
