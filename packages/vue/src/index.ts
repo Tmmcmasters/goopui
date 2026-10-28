@@ -6,6 +6,7 @@ export * from './components/spinner'
 export * from './components/switch'
 export * from './components/popover'
 export * from './components/dropdown-menu'
+export * from './components/sonner'
 export { GOOP_CONFIG_KEY, GoopPlugin, provideGoopConfig, useGoopConfig, type GoopConfig } from './config'
 export {
   CSS_VAR_KEYS,
@@ -24,6 +25,9 @@ export {
   toGoopOptions,
   toGoopStyle,
   toSwitchOptions,
+  TOASTER_PROP_KEYS,
+  toToasterOptions,
+  type GoopToasterProps,
   type GoopCssVarKey,
   type GoopEngineKey,
   type GoopFeatureKey,
