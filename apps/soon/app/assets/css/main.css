@@ -1,0 +1,118 @@
+@import "@fontsource-variable/geist";
+/* DynaPuff (OFL): display only. standard.css carries both the wght and wdth axes. */
+@import "@fontsource-variable/dynapuff/standard.css";
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: 'DynaPuff Variable', var(--font-sans);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-goo: var(--goo);
+  --color-goo-foreground: var(--goo-foreground);
+  --color-goo-ink: var(--goo-ink);
+  --color-slime: var(--slime);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Tokens match apps/www (shadcn names: the goo components read --primary etc.).
+   No theme toggle here, so dark follows the system. */
+:root {
+  --background: oklch(0.985 0.005 90);
+  --foreground: oklch(0.2 0.012 60);
+  --card: oklch(0.997 0.002 90);
+  --muted: oklch(0.955 0.006 88);
+  --muted-foreground: oklch(0.47 0.012 70);
+  --border: oklch(0.905 0.008 85);
+  --primary: oklch(0.2 0.012 60);
+  --primary-foreground: oklch(0.985 0.005 90);
+  --secondary: oklch(0.93 0.008 85);
+  --secondary-foreground: oklch(0.2 0.012 60);
+  --destructive: oklch(0.57 0.21 27);
+  --destructive-foreground: oklch(0.985 0.005 90);
+  --accent: var(--muted);
+  --accent-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --slime: #1fa64a;
+  --goo: var(--slime);
+  --goo-foreground: oklch(0.15 0.02 150);
+  --goo-ink: oklch(0.5 0.13 148);
+  --ring: oklch(0.2 0.012 60);
+  --input: oklch(0.88 0.008 85);
+  --radius: 0.625rem;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: oklch(0.165 0.006 60);
+    --foreground: oklch(0.955 0.006 88);
+    --card: oklch(0.195 0.007 60);
+    --muted: oklch(0.225 0.008 60);
+    --muted-foreground: oklch(0.72 0.01 80);
+    --border: oklch(0.27 0.008 60);
+    --primary: oklch(0.955 0.006 88);
+    --primary-foreground: oklch(0.18 0.008 60);
+    --secondary: oklch(0.27 0.008 60);
+    --secondary-foreground: oklch(0.955 0.006 88);
+    --destructive: oklch(0.62 0.2 25);
+    --goo-ink: oklch(0.74 0.17 148);
+    --ring: oklch(0.955 0.006 88);
+    --input: oklch(1 0 0 / 0.15);
+    color-scheme: dark;
+  }
+}
+
+html {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--background);
+  min-height: 100dvh;
+  overflow-x: clip;
+}
+
+::selection {
+  background: var(--goo);
+  color: var(--goo-foreground);
+}
+
+:focus-visible:where(:not([data-slot="button"])) {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+button,
+[role='button'],
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* DynaPuff, slightly condensed and tracked in: chubby and gooey rather than childish. */
+.type-display {
+  font-family: var(--font-display);
+  font-weight: 560;
+  font-stretch: 95%;
+  letter-spacing: -0.02em;
+  font-kerning: normal;
+}
