@@ -16,7 +16,7 @@ export default defineNuxtConfig({
   modules: ['@nuxt/content', '@goopui/nuxt'],
   compatibilityDate: '2026-10-25',
   devtools: { enabled: false },
-  css: ['~/assets/css/main.css'],
+  css: ['~/assets/css/main.css', 'vue-sonner/style.css'],
   vite: {
     plugins: [tailwindcss()],
     optimizeDeps: { include: ['lenis'] },
