@@ -266,7 +266,11 @@ function bulge(b: Frame, s: Span, edge: number, sign: 1 | -1, d: number, crossAt
     const p = parts[i]!
     const r = R * p.k
     const dk = Math.min(d * p.dd, r)
-    const c = clamp(cross + p.dc * R, s.lo + r * 0.5, s.hi - r * 0.5)
+    // Whole circle (plus a little goo margin) inside the cross range: the dome only pushes
+    // out of `edge`. Sitting `r - dk` behind the edge, a flank circle that crossed the
+    // panel's sides would bulge them out as big lobes for the whole slosh (tall panels).
+    const m = r * 1.15
+    const c = clamp(cross + p.dc * R, s.lo + m, Math.max(s.lo + m, s.hi - m))
     const pt = toLocal(b, edge + sign * (dk - r), c)
     out[at + i] = { x: pt.x, y: pt.y, r }
   }
