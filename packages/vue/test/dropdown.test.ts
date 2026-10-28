@@ -131,10 +131,16 @@ describe('GoopDropdownMenu', () => {
     for (const item of el.querySelectorAll('[role^="menuitem"]')) {
       expect(item.className.split(' ')).not.toContain('focus:bg-accent')
     }
-    // The goo paints the panel; the list scrolls.
+    // The goo paints the panel; a scroller around the list scrolls.
     const cls = el.className.split(' ')
     for (const c of ['bg-popover', 'ring-1', 'shadow-md', 'overflow-y-auto']) expect(cls).not.toContain(c)
-    expect(list.className).toContain('overflow-y-auto')
+    const scroll = list.parentElement!
+    expect(scroll.getAttribute('data-slot')).toBe('dropdown-menu-scroll')
+    expect(scroll.className.split(' ')).toContain('overflow-y-auto')
+    // The list clips the blob's padded goo layer without being a scroll container, so the blob
+    // never adds scroll overflow (a short menu grew a scrollbar while the blob moved).
+    expect(list.className.split(' ')).toEqual(expect.arrayContaining(['overflow-clip', 'p-1']))
+    expect(list.className).not.toMatch(/overflow-(auto|hidden|scroll)|overflow-[xy]-/)
     w.unmount()
     expect(activeTickerCount()).toBe(0)
   })
@@ -251,7 +257,10 @@ describe('GoopDropdownMenu', () => {
     expect(el).not.toBeNull()
     expect(el.hasAttribute('data-goop-emerge')).toBe(true)
     expect(el.querySelector('[data-goop="surface"]')).not.toBeNull()
-    expect(el.querySelector('[data-goop="highlight"]')).not.toBeNull()
+    const subList = el.querySelector<HTMLElement>('[data-slot="dropdown-menu-list"]')!
+    expect(subList.firstElementChild!.getAttribute('data-goop')).toBe('highlight')
+    expect(subList.className.split(' ')).toContain('overflow-clip')
+    expect(subList.parentElement!.getAttribute('data-slot')).toBe('dropdown-menu-scroll')
     expect(w.findComponent(GoopDropdownMenuSubContent).vm.handle).not.toBeNull()
     // The parent's highlight ignores the nested items.
     el.querySelector('#nested')!.setAttribute('data-highlighted', '')

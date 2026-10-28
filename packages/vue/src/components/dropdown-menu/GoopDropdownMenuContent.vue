@@ -5,9 +5,10 @@
 // highlight is a goo blob (core `attachMenuHighlight`) that slides between items, follows
 // keyboard focus, and squishes when an item is selected.
 //
-// Goo layout: the panel (reka content) holds the aria-hidden emerge surface and an item list
-// that scrolls (shadcn's padding, max-height and overflow move onto it), so the goo bridge can
-// leave the panel and the background never scrolls away. With `:goo="false"` it is exactly
+// Goo layout: the panel (reka content) holds the aria-hidden emerge surface and a scroller
+// (shadcn's max-height and overflow move onto it) around the item list (shadcn's padding; it
+// holds the highlight and clips its goo), so the goo bridge can leave the panel, the
+// background never scrolls away, and the blob never adds scroll overflow. With `:goo="false"` it is exactly
 // shadcn's DropdownMenuContent. Reduced motion: plain open/close, the blob snaps, no pop.
 import { cn } from 'cn'
 import type { DropdownMenuContentEmits, DropdownMenuContentProps } from 'reka-ui'
@@ -61,7 +62,11 @@ const SHADCN =
 // The goo paints the background (popover color), ring and shadow; no CSS enter/exit.
 const GOO =
   'text-popover-foreground [--goop-color:var(--popover)] min-w-32 rounded-lg z-50 max-h-(--reka-dropdown-menu-content-available-height) w-(--reka-dropdown-menu-trigger-width) flex flex-col outline-hidden'
-const LIST = 'min-h-0 flex-1 rounded-[inherit] p-1 overflow-x-hidden overflow-y-auto'
+const SCROLL = 'min-h-0 flex-1 rounded-[inherit] overflow-x-hidden overflow-y-auto'
+// The highlight blob's goo layer overshoots the items; `overflow: clip` (not a scroll
+// container) keeps that overshoot out of SCROLL's scrollable overflow, so a short menu never
+// grows a scrollbar or scrolls while the blob moves or pops.
+const LIST = 'relative overflow-clip p-1'
 
 const classes = computed(() => cn(menu.value.goo ? GOO : SHADCN, props.class))
 
@@ -111,11 +116,16 @@ defineExpose({
           style="position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: inherit"
         />
         <div
-          ref="list"
-          data-slot="dropdown-menu-list"
-          :class="LIST"
+          data-slot="dropdown-menu-scroll"
+          :class="SCROLL"
         >
-          <slot />
+          <div
+            ref="list"
+            data-slot="dropdown-menu-list"
+            :class="LIST"
+          >
+            <slot />
+          </div>
         </div>
       </template>
       <slot v-else />

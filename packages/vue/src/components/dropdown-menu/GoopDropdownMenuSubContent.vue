@@ -56,7 +56,11 @@ const SHADCN =
   'data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 ring-foreground/10 bg-popover text-popover-foreground min-w-[96px] rounded-lg p-1 shadow-lg ring-1 duration-100 cn-menu-translucent z-50 max-w-(--reka-dropdown-menu-content-available-width) origin-(--reka-dropdown-menu-content-transform-origin) overflow-hidden'
 const GOO =
   'text-popover-foreground [--goop-color:var(--popover)] min-w-[96px] rounded-lg z-50 max-w-(--reka-dropdown-menu-content-available-width) flex flex-col outline-hidden'
-const LIST = 'min-h-0 flex-1 rounded-[inherit] p-1 overflow-hidden'
+const SCROLL = 'min-h-0 flex-1 rounded-[inherit] overflow-hidden'
+// The highlight blob's goo layer overshoots the items; `overflow: clip` (not a scroll
+// container) keeps that overshoot out of SCROLL's scrollable overflow, so a short menu never
+// grows a scrollbar or scrolls while the blob moves or pops.
+const LIST = 'relative overflow-clip p-1'
 
 const classes = computed(() => cn(menu.value.goo ? GOO : SHADCN, props.class))
 
@@ -107,11 +111,16 @@ defineExpose({
         style="position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: inherit"
       />
       <div
-        ref="list"
-        data-slot="dropdown-menu-list"
-        :class="LIST"
+        data-slot="dropdown-menu-scroll"
+        :class="SCROLL"
       >
-        <slot />
+        <div
+          ref="list"
+          data-slot="dropdown-menu-list"
+          :class="LIST"
+        >
+          <slot />
+        </div>
       </div>
     </template>
     <slot v-else />
