@@ -155,6 +155,41 @@ describe('track wave', () => {
     expect(visible(switchStaticPose(false, G).fill)).toHaveLength(0)
   })
 
+  it('the fill stays inside the track (plus a small slosh margin) through both toggles', () => {
+    for (const feel of Object.values(SWITCH_FEEL)) {
+      for (const geo of [G, { width: 44, height: 24 }, { width: 24, height: 14 }]) {
+        const end = switchToggleEnd(feel)
+        for (const [from, to] of [[1, 0], [0, 1]] as const) {
+          for (let i = 0; i <= 400; i++) {
+            const p = switchPose((end * i) / 400, from, to, geo, feel)
+            for (const c of visible(p.fill)) {
+              const hh = geo.height / 2
+              // fillR overdraws the track by 0.35px; the crest/slosh may bulge 25% past it.
+              const margin = 0.25 * hh + 0.5
+              expect(c.r * c.sy).toBeLessThanOrEqual(hh + margin)
+              expect(c.x - c.r * c.sx).toBeGreaterThanOrEqual(-margin)
+              expect(c.x + c.r * c.sx).toBeLessThanOrEqual(geo.width + margin)
+            }
+          }
+        }
+      }
+    }
+  })
+
+  it('the draining remainder hugs the right end cap instead of balling up', () => {
+    const ps = run(1, 0, fx(), 200)
+    const h = G.height / 2
+    for (const p of ps) {
+      const vis = visible(p.fill)
+      if (!vis.length || p.coverage > 0.5) continue
+      for (const c of vis) {
+        // Right edge on the wall, about the track's height at most (a fading crest).
+        expect(c.x + c.r * c.sx).toBeCloseTo(G.width, 5)
+        expect(c.r * c.sy).toBeLessThanOrEqual((h + 0.35) * 1.1)
+      }
+    }
+  })
+
   it('wave off: old color until impact, then switches at once', () => {
     const off = fx({ wave: 0 })
     expect(switchPose(SWITCH_TRAVEL * 0.99, 0, 1, G, f, off).coverage).toBe(0)

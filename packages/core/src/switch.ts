@@ -156,8 +156,9 @@ export const SWITCH_WAVE = Object.freeze({
   crest: 0.2,
   /** Slosh: how far the front piles up the far wall (sy) per unit of overshoot. */
   slosh: 1.6,
-  /** Largest swell (sy) of the front circle. */
-  maxSwell: 1.45,
+  /** Largest swell (sy) of the front circle: how far a crest or slosh may bulge past the
+   *  track's top and bottom edges (1.2 = 20% of the half-height, ~2px on a default switch). */
+  maxSwell: 1.2,
 })
 
 /** The switch's individually toggleable effects. Each takes a boolean or a multiplier
@@ -431,9 +432,14 @@ function waveFill(
   }
   swell = Math.min(SWITCH_WAVE.maxSwell, swell)
   if (len < 2 * R) {
-    // A puddle shrinking into (or growing out of) the right end.
-    const rr = (fillR * len) / (2 * R)
-    for (let i = 0; i < SWITCH_FILL_CIRCLES; i++) out.push({ x: W - len / 2, y: cy, r: rr, sx: 1, sy: i === 0 ? swell : 1 })
+    // The last of the goo draining into (or the first flooding out of) the right end cap: a
+    // thin lens against the right wall, `len` wide. Its height b = sqrt(a * fillR) keeps it
+    // inside the cap's curve (an ellipse tangent to the wall fits a circle of radius fillR when
+    // b^2 <= a * fillR), so it never balloons past the track. The crest fades out with it.
+    const a = len / 2
+    const b = Math.min(fillR, Math.sqrt(a * fillR))
+    const sy = 1 + (swell - 1) * (a / R) ** 2
+    for (let i = 0; i < SWITCH_FILL_CIRCLES; i++) out.push({ x: W - a, y: cy, r: b, sx: a / b, sy: i === 0 ? sy : 1 })
     return out
   }
   const xf = W - len + R
