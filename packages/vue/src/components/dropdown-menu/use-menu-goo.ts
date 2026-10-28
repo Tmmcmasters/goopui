@@ -35,13 +35,6 @@ export function useMenuGoo(input: MenuGooInput) {
   const highlight = shallowRef<MenuHighlightHandle | null>(null)
   let timer: ReturnType<typeof setTimeout> | undefined
 
-  const anchorRect = () => {
-    const el = input.anchor()
-    if (!el) return null
-    const r = el.getBoundingClientRect()
-    return { x: r.left, y: r.top, width: r.width, height: r.height }
-  }
-
   const detachEmerge = () => {
     emerge.value?.destroy()
     emerge.value = null
@@ -50,7 +43,7 @@ export function useMenuGoo(input: MenuGooInput) {
     detachEmerge()
     const host = el?.parentElement
     if (!el || !host) return
-    emerge.value = attachEmerge(host, { ...input.emerge.value, surface: el, anchor: anchorRect, ready: () => positioned(host) })
+    emerge.value = attachEmerge(host, { ...input.emerge.value, surface: el, anchor: () => input.anchor() ?? null, ready: () => positioned(host) })
     if (input.open()) emerge.value.open()
   }
 

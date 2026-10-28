@@ -172,4 +172,38 @@ describe('GoopPopover', () => {
     expect(content()!.hasAttribute('data-goop-emerge')).toBe(true)
     w.unmount()
   })
+
+  describe('surface color', () => {
+    const Styled = defineComponent({
+      props: { surface: { type: String, default: undefined } },
+      setup(props) {
+        return () =>
+          h(GoopPopover, { open: true }, () => [
+            h(GoopPopoverTrigger, { style: 'background-color: rgb(30, 30, 30); color: rgb(255, 255, 255)' }, () => 'Open'),
+            h(GoopPopoverContent, props.surface ? { surface: props.surface } : {}, () => 'Body'),
+          ])
+      },
+    })
+
+    it("defaults to the trigger's background and text color", async () => {
+      const w = mount(Styled, { attachTo: document.body })
+      await flushPromises()
+      const el = content()!
+      expect(el.hasAttribute('data-goop-tint')).toBe(true)
+      expect(el.style.getPropertyValue('--goop-surface')).toBe('rgb(30 30 30)')
+      expect(el.style.getPropertyValue('--goop-surface-foreground')).toBe('rgb(255 255 255)')
+      w.unmount()
+    })
+
+    it("'popover' keeps the shadcn tokens; a CSS color is used as-is", async () => {
+      const w = mount(Styled, { props: { surface: 'popover' }, attachTo: document.body })
+      await flushPromises()
+      expect(content()!.hasAttribute('data-goop-tint')).toBe(false)
+      await w.setProps({ surface: '#00f' })
+      await flushPromises()
+      expect(content()!.style.getPropertyValue('--goop-surface')).toBe('#00f')
+      expect(content()!.style.getPropertyValue('--goop-surface-foreground')).toBe('rgb(255 255 255)')
+      w.unmount()
+    })
+  })
 })

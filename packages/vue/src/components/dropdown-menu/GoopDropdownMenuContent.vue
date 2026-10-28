@@ -40,6 +40,7 @@ const props = withDefaults(defineProps<DropdownMenuContentProps & GoopMenuProps 
   highlight: undefined,
   pop: undefined,
   submenus: undefined,
+  surface: undefined,
   speed: undefined,
   preset: undefined,
   renderer: undefined,
@@ -80,6 +81,7 @@ provideGoopMenuContent({
   menu,
   blob: computed(() => options.value.highlight !== null),
   select: goo.select,
+  colors: () => goo.emerge.value?.colors ?? null,
 })
 
 defineExpose({

@@ -22,6 +22,7 @@ import {
   MENU_EFFECTS,
   SWITCH_EFFECTS,
   type EmergeOptions,
+  type EmergeSurfaceColor,
   type MenuEffect,
   type MenuHighlightOptions,
   type GoopOptions,
@@ -312,6 +313,7 @@ export const MENU_PROP_KEYS = [
   ...EMERGE_EFFECT_KEYS,
   ...EMERGE_DRIP_KEYS,
   ...MENU_EFFECTS,
+  'surface',
   'speed',
   'preset',
   'renderer',
@@ -349,6 +351,10 @@ export interface GoopMenuProps {
   pop?: boolean
   /** Submenus emerge from their row (false: plain shadcn submenus). */
   submenus?: boolean
+  /** Panel color: 'trigger' (default: the trigger's background and text color, falling back
+   *  to the theme's primary when the trigger has none), 'popover' (shadcn's popover tokens),
+   *  or any CSS color. Submenus that leave it unset reuse their parent menu's resolved colors. */
+  surface?: EmergeSurfaceColor
   /** Animation speed multiplier. */
   speed?: number
   /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
@@ -358,7 +364,8 @@ export interface GoopMenuProps {
 }
 
 /** Compile-time guards: every emerge / highlight option core grows must be handled here. */
-type MenuAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'find' | 'reducedMotion'
+// `surface` (the element) is the adapter's; `surfaceColor` comes from the `surface` prop.
+type MenuAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'surfaceColor' | 'find' | 'reducedMotion'
 type MenuUnhandled = Exclude<
   keyof EmergeOptions | keyof MenuHighlightOptions | MenuEffect,
   keyof GoopMenuProps | MenuAdapterOwned
@@ -387,6 +394,7 @@ export function resolveMenuProps(props: GoopMenuProps, parent?: ResolvedMenuProp
     const v = props[k] ?? parent?.[k]
     if (v !== undefined) out[k] = v
   }
+  out.surface = props.surface ?? parent?.surface ?? 'trigger'
   out.preset = props.preset ?? parent?.preset
   out.renderer = props.renderer ?? parent?.renderer
   return out
@@ -417,6 +425,7 @@ export function toMenuOptions(
       openDripSize: menu.openDripSize,
       openDripFling: menu.openDripFling,
       openDripVariety: menu.openDripVariety,
+      surfaceColor: menu.surface,
     },
     highlight: menu.goo && menu.highlight ? { ...common, wobble: menu.wobble, momentum: menu.momentum, pop: menu.pop } : null,
   }

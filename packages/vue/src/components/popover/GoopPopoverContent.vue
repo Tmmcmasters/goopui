@@ -8,10 +8,20 @@
 // open, the near edge sloshes against the trigger on close.
 //
 // The panel's shadcn background, ring and shadow move onto the goo (`--goop-color`, a
-// drop-shadow on the surface). Content opacity follows `--goop-emerge-content`, and a hold
+// drop-shadow on the surface). `surface` picks the color: by default the whole emerged surface
+// (panel, bridge, drops) takes the trigger's background and the content its text color (core
+// resolves it on every open, falling back to the theme's primary when the trigger has no
+// background of its own); goop.css retints the popover / muted / border / accent tokens inside. Content opacity follows `--goop-emerge-content`, and a hold
 // animation (goop.css) keeps reka's Presence mounted while the close plays. With
 // `:goo="false"` it is exactly shadcn's PopoverContent. Reduced motion: plain open/close.
-import { attachEmerge, type EmergeHandle, type EmergeOptions, type GoopPreset, type GoopRendererOption } from '@goopui/core'
+import {
+  attachEmerge,
+  type EmergeHandle,
+  type EmergeOptions,
+  type EmergeSurfaceColor,
+  type GoopPreset,
+  type GoopRendererOption,
+} from '@goopui/core'
 import { cn } from 'cn'
 import type { PopoverContentEmits, PopoverContentProps } from 'reka-ui'
 import { PopoverContent, PopoverPortal, injectPopoverRootContext, useForwardPropsEmits } from 'reka-ui'
@@ -51,6 +61,9 @@ const props = withDefaults(
       openDripVariety?: number
       /** Close: the goo lags and the near edge sloshes against the trigger. `true`, `false` or 0..2. */
       closeSlosh?: boolean | number
+      /** Panel color: 'trigger' (default: the trigger's background and text color, theme
+       *  primary when the trigger has none), 'popover' (shadcn's popover tokens), or a CSS color. */
+      surface?: EmergeSurfaceColor
       /** Animation speed multiplier. */
       speed?: number
       /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
@@ -74,6 +87,7 @@ const props = withDefaults(
     openDripFling: undefined,
     openDripVariety: undefined,
     closeSlosh: true,
+    surface: 'trigger',
     speed: 1,
     preset: undefined,
     renderer: undefined,
@@ -96,6 +110,7 @@ const delegated = computed(() => {
     openDripFling: _openDripFling,
     openDripVariety: _openDripVariety,
     closeSlosh: _closeSlosh,
+    surface: _surface,
     speed: _speed,
     preset: _preset,
     renderer: _renderer,
@@ -131,18 +146,15 @@ const options = computed<EmergeOptions>(() => ({
   openDripFling: props.openDripFling,
   openDripVariety: props.openDripVariety,
   closeSlosh: props.closeSlosh,
+  surfaceColor: props.surface,
   speed: props.speed,
   preset: props.preset ?? config.preset,
   renderer: props.renderer ?? config.renderer,
   reducedMotion: config.reducedMotion,
 }))
 
-const anchorRect = () => {
-  const el = goopCtx?.anchor.value ?? root.triggerElement.value
-  if (!el) return null
-  const r = el.getBoundingClientRect()
-  return { x: r.left, y: r.top, width: r.width, height: r.height }
-}
+/** The element the goo emerges from (and takes its color from). */
+const anchorEl = () => goopCtx?.anchor.value ?? root.triggerElement.value ?? null
 
 /** reka parks the floating wrapper at translate(0, -200%) until floating-ui has placed it. */
 const positioned = (host: HTMLElement) => {
@@ -155,7 +167,7 @@ const attach = () => {
   const host = el?.parentElement
   if (!el || !host) return
   if (handle.value) detach()
-  handle.value = attachEmerge(host, { ...options.value, surface: el, anchor: anchorRect, ready: () => positioned(host) })
+  handle.value = attachEmerge(host, { ...options.value, surface: el, anchor: anchorEl, ready: () => positioned(host) })
   if (root.open.value) handle.value.open()
 }
 const detach = () => {

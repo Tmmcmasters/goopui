@@ -28,6 +28,14 @@ import { removeTicker, wakeTicker, type Ticker } from './loop'
 import { isReducedMotion, watchReducedMotion } from './reduced-motion'
 import type { GoopBlob, GoopRenderer } from './renderer'
 import { resolveRenderer, type GoopRendererOption } from './renderers/resolve'
+import {
+  EMERGE_SURFACE_FOREGROUND_VAR,
+  EMERGE_SURFACE_VAR,
+  EMERGE_TINT_ATTR,
+  resolveSurfaceColors,
+  type EmergeSurfaceColor,
+  type EmergeSurfaceColors,
+} from './surface-color'
 import { readPreset } from './tuning'
 
 /** Side of the anchor the panel sits on (reka/floating-ui `side`). */
@@ -432,7 +440,7 @@ export type EmergeState = 'closed' | 'opening' | 'open' | 'closing'
 export interface EmergeOptions extends EmergeEffects, EmergeMomentumEffects, EmergeDripOptions {
   /** What the goo emerges from: an element, or a getter returning its rect (same space as
    *  `host.getBoundingClientRect()`). */
-  anchor?: Element | (() => EmergeRect | null | undefined) | null
+  anchor?: Element | (() => Element | EmergeRect | null | undefined) | null
   /** Side of the anchor the panel is on. Default: the host's `data-side`, then 'bottom'. */
   side?: EmergeSide | (() => EmergeSide | null | undefined)
   /** Animation speed multiplier. Default 1. */
@@ -449,6 +457,12 @@ export interface EmergeOptions extends EmergeEffects, EmergeMomentumEffects, Eme
   ready?: () => boolean
   /** Use this element as the goo surface instead of creating one (must be a child of host). */
   surface?: HTMLElement
+  /** Color of the goo panel, bridge and drops, and of the content text: 'trigger' (default:
+   *  the anchor element's background, see surface-color.ts for the rule and its fallback),
+   *  'popover' (the host's own CSS, `--goop-color`), a CSS color, a resolved pair, or a
+   *  getter. Resolved on every `open()` and published as `--goop-surface` /
+   *  `--goop-surface-foreground` on the host (with `data-goop-tint`). */
+  surfaceColor?: EmergeSurfaceColor
 }
 
 export interface EmergeHandle {
@@ -464,6 +478,8 @@ export interface EmergeHandle {
   readonly reducedMotion: boolean
   /** Close duration in ms for the current options (0 under reduced motion). */
   readonly closeDuration: number
+  /** The surface colors resolved at the last open (null: the host's own CSS). */
+  readonly colors: EmergeSurfaceColors | null
   destroy(): void
 }
 
@@ -531,11 +547,32 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
     const r = el.getBoundingClientRect()
     return { x: r.left, y: r.top, width: r.width, height: r.height }
   }
-  const anchorRect = (): EmergeRect | null => {
+  const anchorTarget = (): Element | EmergeRect | null => {
     const a = opts.anchor
     if (!a) return null
-    if (typeof a === 'function') return a() ?? null
-    return rectOf(a)
+    return typeof a === 'function' ? (a() ?? null) : a
+  }
+  const anchorRect = (): EmergeRect | null => {
+    const a = anchorTarget()
+    if (!a) return null
+    return 'getBoundingClientRect' in a ? rectOf(a) : a
+  }
+
+  let colors: EmergeSurfaceColors | null = null
+  /** Resolve the surface colors now (on open, so a reopen picks up theme / trigger changes). */
+  const applyColors = (): void => {
+    const a = anchorTarget()
+    colors = resolveSurfaceColors(opts.surfaceColor, a && 'getBoundingClientRect' in a ? a : null, host)
+    if (colors) {
+      host.style.setProperty(EMERGE_SURFACE_VAR, colors.background)
+      host.style.setProperty(EMERGE_SURFACE_FOREGROUND_VAR, colors.foreground)
+      host.setAttribute(EMERGE_TINT_ATTR, '')
+    } else clearColors()
+  }
+  const clearColors = (): void => {
+    host.style.removeProperty(EMERGE_SURFACE_VAR)
+    host.style.removeProperty(EMERGE_SURFACE_FOREGROUND_VAR)
+    host.removeAttribute(EMERGE_TINT_ATTR)
   }
   const isSide = (s: unknown): s is EmergeSide => s === 'top' || s === 'right' || s === 'bottom' || s === 'left'
   const side = (): EmergeSide => {
@@ -685,6 +722,7 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
   return {
     open() {
       if (destroyed || state === 'open' || state === 'opening') return
+      applyColors()
       if (reduced) {
         state = 'open'
         syncAttrs()
@@ -729,7 +767,9 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
     update(next = {}) {
       if (destroyed) return
       const rendererChanged = 'renderer' in next && next.renderer !== opts.renderer
+      const colorChanged = 'surfaceColor' in next && next.surfaceColor !== opts.surfaceColor
       opts = { ...opts, ...next }
+      if (colorChanged && state !== 'closed') applyColors()
       presetName = readPreset(host, opts.preset)
       const nextFeel = EMERGE_FEEL[presetName]
       const rebuild = rendererChanged || nextFeel.softness !== feel.softness
@@ -756,6 +796,9 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
     get closeDuration() {
       return closeMs()
     },
+    get colors() {
+      return colors
+    },
     destroy() {
       if (destroyed) return
       destroyed = true
@@ -769,6 +812,7 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
       else surface.style.cssText = prevSurfaceCss
       host.removeAttribute(EMERGE_STATE_ATTR)
       host.removeAttribute(EMERGE_STILL_ATTR)
+      clearColors()
       host.style.removeProperty(EMERGE_CONTENT_VAR)
       host.style.removeProperty(EMERGE_CLOSE_VAR)
       host.style.isolation = prevIsolation

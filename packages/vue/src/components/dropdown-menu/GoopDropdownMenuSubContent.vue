@@ -29,6 +29,7 @@ const props = withDefaults(defineProps<DropdownMenuSubContentProps & GoopMenuPro
   highlight: undefined,
   pop: undefined,
   submenus: undefined,
+  surface: undefined,
   speed: undefined,
   preset: undefined,
   renderer: undefined,
@@ -67,7 +68,10 @@ const goo = useMenuGoo({
   list,
   open: () => (sub ?? { open: fallbackOpen }).open.value,
   anchor: () => sub?.trigger.value,
-  emerge: computed(() => options.value.emerge),
+  // A submenu without its own `surface` reuses the parent panel's resolved colors.
+  emerge: computed(() =>
+    props.surface === undefined && parent ? { ...options.value.emerge, surfaceColor: () => parent.colors() } : options.value.emerge,
+  ),
   highlight: computed(() => options.value.highlight),
   close: () => root.onOpenChange(false),
 })
@@ -76,6 +80,7 @@ provideGoopMenuContent({
   menu,
   blob: computed(() => options.value.highlight !== null),
   select: goo.select,
+  colors: () => goo.emerge.value?.colors ?? null,
 })
 
 defineExpose({

@@ -1,4 +1,5 @@
 import { inject, provide, shallowRef, type ComputedRef, type InjectionKey, type Ref, type ShallowRef } from 'vue'
+import type { EmergeSurfaceColors } from '@goopui/core'
 import type { ResolvedMenuProps } from '../../goop-props'
 
 /** Provided by GoopDropdownMenuContent / SubContent to their items (and nested submenus). */
@@ -9,6 +10,8 @@ export interface GoopMenuContentContext {
   blob: ComputedRef<boolean>
   /** An item was selected: play the pop, and hold the close until it has played. */
   select(event: Event): void
+  /** This panel's resolved surface colors (submenus reuse them); null: popover tokens. */
+  colors(): EmergeSurfaceColors | null
 }
 
 const CONTENT: InjectionKey<GoopMenuContentContext> = Symbol('goopui.menu.content')

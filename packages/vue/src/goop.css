@@ -66,6 +66,23 @@
   [data-goop-emerge] > :not([data-goop='surface']) {
     opacity: var(--goop-emerge-content, 1);
   }
+  /* Surface color (`surface` prop, default 'trigger'): core resolves the trigger's colors on
+     open and sets --goop-surface / --goop-surface-foreground + data-goop-tint on the panel.
+     The panel's tokens are retinted from that pair, so the goo (--goop-color: var(--popover))
+     and everything inside (text, muted text, borders, inputs, focus rings, the menu highlight)
+     follow it. Muted text is the foreground at reduced opacity, readable on dark surfaces. */
+  [data-goop-emerge][data-goop-tint] {
+    --popover: var(--goop-surface);
+    --popover-foreground: var(--goop-surface-foreground);
+    --muted-foreground: color-mix(in oklab, var(--goop-surface-foreground) 72%, transparent);
+    --border: color-mix(in oklab, var(--goop-surface-foreground) 20%, transparent);
+    --input: color-mix(in oklab, var(--goop-surface-foreground) 24%, transparent);
+    --ring: color-mix(in oklab, var(--goop-surface-foreground) 55%, transparent);
+    --accent: color-mix(in oklab, var(--goop-surface-foreground) 16%, var(--goop-surface));
+    --accent-foreground: var(--goop-surface-foreground);
+    --goop-color: var(--goop-surface);
+    color: var(--goop-surface-foreground);
+  }
   /* Keeps reka's Presence mounted while the goo closes (it waits for this animation). Off
      under reduced motion (core sets data-goop-still), so close is instant. */
   [data-goop-emerge][data-state='closed']:not([data-goop-still]) {

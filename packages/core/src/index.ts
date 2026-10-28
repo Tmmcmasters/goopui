@@ -221,6 +221,19 @@ export {
   type EmergeMomentumEffects,
 } from './emerge-momentum'
 export {
+  EMERGE_SURFACE_FOREGROUND_VAR,
+  EMERGE_SURFACE_VAR,
+  EMERGE_TINT_ATTR,
+  compositeColor,
+  pageBackdrop,
+  parseCssColor,
+  resolveCssColor,
+  resolveSurfaceColors,
+  type EmergeSurfaceColor,
+  type EmergeSurfaceColors,
+  type Rgba,
+} from './surface-color'
+export {
   MENU_CONTAINER_ATTR,
   MENU_EFFECTS,
   MENU_FEEL,

@@ -261,6 +261,17 @@ describe('GoopDropdownMenu', () => {
     w.unmount()
   })
 
+  it('submenus reuse the parent panel\'s resolved surface colors', async () => {
+    const w = mount(Demo, { props: { subOpen: true, content: { surface: '#123456' } }, attachTo: document.body })
+    await flushPromises()
+    expect(content()!.style.getPropertyValue('--goop-surface')).toBe('#123456')
+    const el = subContent()!
+    expect(el.hasAttribute('data-goop-tint')).toBe(true)
+    expect(el.style.getPropertyValue('--goop-surface')).toBe('#123456')
+    expect(el.style.getPropertyValue('--goop-surface-foreground')).toBe('rgb(255 255 255)')
+    w.unmount()
+  })
+
   it(':submenus="false" renders plain shadcn submenus', async () => {
     const w = mount(Demo, { props: { subOpen: true, content: { submenus: false } }, attachTo: document.body })
     await flushPromises()
@@ -281,6 +292,12 @@ describe('menu props', () => {
     expect(opts.emerge).toMatchObject({ wobble: false, preset: 'subtle', speed: 2 })
     expect(opts.highlight).toMatchObject({ pop: false, wobble: false })
     expect(toMenuOptions(resolveMenuProps({ highlight: false })).highlight).toBeNull()
+  })
+
+  it("surface defaults to 'trigger', is inherited, and maps to core surfaceColor", () => {
+    expect(toMenuOptions(resolveMenuProps({})).emerge.surfaceColor).toBe('trigger')
+    const root = resolveMenuProps({ surface: 'popover' })
+    expect(toMenuOptions(resolveMenuProps({}, root)).emerge.surfaceColor).toBe('popover')
   })
 
   it('pass the open/close momentum toggles to the panel, inherited by submenus', () => {

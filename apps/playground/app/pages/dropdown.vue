@@ -27,6 +27,15 @@ const closeSlosh = ref(true)
 const speed = ref(1)
 const preset = ref<GoopPreset | ''>('')
 const renderer = ref<GoopRendererName | ''>('')
+/** Panel color: the trigger's (default), shadcn's popover tokens, or a fixed CSS color. */
+const surface = ref('trigger')
+const surfaces = [
+  ['trigger', 'trigger (default)'],
+  ['popover', 'popover tokens'],
+  ['oklch(0.62 0.19 150)', 'green'],
+  ['oklch(0.55 0.22 290)', 'purple'],
+  ['oklch(0.9 0.15 95)', 'yellow'],
+] as const
 const engine = computed(() => ({
   goo: goo.value,
   highlight: highlight.value,
@@ -42,6 +51,7 @@ const engine = computed(() => ({
   speed: speed.value,
   preset: preset.value || undefined,
   renderer: renderer.value || undefined,
+  surface: surface.value,
 }))
 const toggles = { goo, highlight, pop, submenus, bridge, wobble, momentum, fade, openSlosh, openDrips, closeSlosh }
 
@@ -75,6 +85,14 @@ const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
             <option value="">auto (svg)</option>
             <option value="svg">svg</option>
             <option value="canvas">canvas</option>
+          </select>
+        </label>
+        <label class="grid gap-1">
+          <span class="text-xs text-muted-foreground">surface</span>
+          <select v-model="surface" :class="selectClass">
+            <option v-for="[value, label] in surfaces" :key="value" :value="value">
+              {{ label }}
+            </option>
           </select>
         </label>
       </section>
