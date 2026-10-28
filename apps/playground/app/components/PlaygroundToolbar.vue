@@ -12,12 +12,12 @@ const systemLabel = computed(() => {
 
 <template>
   <header class="sticky top-0 z-40 border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
-    <div class="mx-auto flex h-12 w-full max-w-5xl items-center gap-4 px-4 sm:px-6">
+    <div class="mx-auto flex min-h-12 w-full max-w-5xl items-center gap-4 px-4 py-1.5 sm:px-6">
       <NuxtLink to="/" class="text-sm font-semibold tracking-tight">
         goopUI
       </NuxtLink>
 
-      <nav class="-mx-1 flex min-w-0 flex-1 gap-0.5 overflow-x-auto" aria-label="Components">
+      <nav class="-mx-1 flex min-w-0 flex-1 flex-wrap gap-0.5" aria-label="Components">
         <NuxtLink
           v-for="entry in catalog"
           :key="entry.path"
