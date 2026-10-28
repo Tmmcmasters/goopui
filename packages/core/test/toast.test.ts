@@ -5,6 +5,7 @@ import {
   attachToaster,
   toastDropEnd,
   toastDropPose,
+  toastFadeBody,
   toastLeaveEnd,
   toastLeavePose,
   toastNeck,
@@ -142,6 +143,25 @@ describe('toastLeavePose', () => {
   })
 })
 
+describe('toastFadeBody', () => {
+  it('is the rect when opaque, nothing when faded out', () => {
+    expect(toastFadeBody(rect, 1, 8)).toEqual({ x: 100, y: 500, w: 356, h: 56, r: 8 })
+    expect(toastFadeBody(rect, 0)).toBeNull()
+  })
+  it('inflates from the middle, monotonically, as the toast fades in', () => {
+    let prev = 0
+    for (let i = 1; i <= 20; i++) {
+      const b = toastFadeBody(rect, i / 20)
+      if (!b) continue
+      expect(b.h).toBeGreaterThanOrEqual(prev)
+      expect(b.y + b.h / 2).toBeCloseTo(rect.y + rect.height / 2)
+      expect(b.x + b.w / 2).toBeCloseTo(rect.x + rect.width / 2)
+      prev = b.h
+    }
+    expect(prev).toBe(rect.height)
+  })
+})
+
 describe('attachToaster (DOM)', () => {
   afterEach(() => {
     document.body.innerHTML = ''
@@ -189,6 +209,75 @@ describe('attachToaster (DOM)', () => {
     await new Promise((r) => setTimeout(r, 0))
     expect(h.count).toBe(2)
     expect(li.hasAttribute(TOAST_GOO_ATTR)).toBe(true)
+    h.destroy()
+  })
+
+  // Live rects / opacity per toast (happy-dom has no layout).
+  const stub = (el: HTMLElement, r: EmergeRect, opacity = 1) => {
+    el.getBoundingClientRect = () => ({ left: r.x, top: r.y, width: r.width, height: r.height, right: r.x + r.width, bottom: r.y + r.height, x: r.x, y: r.y, toJSON: () => r }) as DOMRect
+    el.style.opacity = String(opacity)
+  }
+  const translate = (t: string) => {
+    const m = /translate\(([-\d.]+)px,\s*([-\d.]+)px\)/.exec(t)!
+    return { x: Number(m[1]), y: Number(m[2]) }
+  }
+  /** Painted bodies in viewport space: top edge and height. */
+  const bodies = (h: { layer: HTMLElement }) => {
+    const layer = h.layer.querySelector<HTMLElement>('[data-goop="layer"]')!
+    const o = translate(layer.style.transform)
+    return [...layer.querySelectorAll<HTMLElement>('[data-goop="body"]')]
+      .filter((b) => b.style.display !== 'none')
+      .map((b) => ({ y: o.y + translate(b.style.transform).y, h: Number.parseFloat(b.style.height) }))
+  }
+  const flush = () => new Promise((r) => setTimeout(r, 0))
+
+  it('a leaving body follows the toast, and stays put (no jump back) once it unmounts', async () => {
+    const section = mount()
+    const li = section.querySelector('li')!
+    stub(li, { x: 0, y: 100, width: 300, height: 50 })
+    const h = attachToaster(section, { reducedMotion: false })
+    li.setAttribute('data-removed', 'true')
+    await flush()
+    // Sonner's removal lift moves it 40px down while it fades.
+    stub(li, { x: 0, y: 140, width: 300, height: 50 })
+    h.refresh()
+    const [live] = bodies(h)
+    expect(live!.y).toBeGreaterThan(140 - 1)
+    li.remove()
+    await flush()
+    h.refresh()
+    const [gone] = bodies(h)
+    expect(Math.abs(gone!.y - live!.y)).toBeLessThan(2)
+    h.destroy()
+  })
+
+  it('follows sonner fading a toast in (no pop), and skips faded-out ones', () => {
+    const section = mount()
+    const li = section.querySelector('li')!
+    stub(li, { x: 0, y: 100, width: 300, height: 50 }, 0)
+    const h = attachToaster(section, { reducedMotion: false })
+    expect(bodies(h)).toHaveLength(0)
+    stub(li, { x: 0, y: 100, width: 300, height: 50 }, 0.3)
+    h.refresh()
+    const [half] = bodies(h)
+    expect(half!.h).toBeGreaterThan(0)
+    expect(half!.h).toBeLessThan(50)
+    stub(li, { x: 0, y: 100, width: 300, height: 50 }, 1)
+    h.refresh()
+    expect(bodies(h)[0]).toEqual({ y: 100, h: 50 })
+    h.destroy()
+  })
+
+  it('a toast that leaves while faded out (past visibleToasts) does not drip', async () => {
+    const section = mount()
+    const li = section.querySelector('li')!
+    stub(li, { x: 0, y: 100, width: 300, height: 50 }, 0)
+    const h = attachToaster(section, { reducedMotion: false })
+    li.setAttribute('data-removed', 'true')
+    await flush()
+    h.refresh()
+    expect(bodies(h)).toHaveLength(0)
+    expect(h.layer.querySelectorAll('[data-goop="blob"]').length).toBe(0)
     h.destroy()
   })
 })

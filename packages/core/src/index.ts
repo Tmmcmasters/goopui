@@ -407,6 +407,7 @@ export {
   attachToaster,
   toastDropEnd,
   toastDropPose,
+  toastFadeBody,
   toastGooParams,
   toastLeaveEnd,
   toastLeavePose,

@@ -251,6 +251,30 @@ export function toastDropPose(sec: number, rect: EmergeRect, edge: ToastEdge, o:
   return { body, circles }
 }
 
+/**
+ * A settled toast's body while sonner fades the toast itself in or out (`opacity` is the
+ * toast's live computed opacity: sonner fades toasts past `visibleToasts`, and the one that
+ * becomes visible when a toast above it is removed). The goo filter thresholds alpha, so the
+ * body can't fade with it: it inflates from a thin bar at the toast's middle instead (full
+ * width at opacity 1, half at 0), so it never pops in or out ahead of the real toast.
+ * null below a sliver. Pure.
+ */
+export function toastFadeBody(rect: EmergeRect, opacity: number, radius = 8): ToastBody | null {
+  const op = Number.isFinite(opacity) ? clamp(opacity) : 1
+  if (op >= 0.999) return restBody(rect, radius)
+  const e = smooth(op)
+  const w = rect.width * lerp(0.5, 1, e)
+  const h = rect.height * e
+  if (w <= 0.5 || h <= 0.5) return null
+  return {
+    x: rect.x + (rect.width - w) / 2,
+    y: rect.y + (rect.height - h) / 2,
+    w,
+    h,
+    r: Math.min(radius, w / 2, h / 2),
+  }
+}
+
 // ---- 2. stack merge -------------------------------------------------------------------------
 
 /** Neck columns across the shared width: fraction and size. Edge columns fill the corners
@@ -520,6 +544,10 @@ interface ToastState {
   /** Rect when it started leaving (drops live there). */
   leftRect: EmergeRect | null
   rect: EmergeRect
+  /** The settled body as drawn this frame (rect, or shrunk while sonner fades the toast). */
+  drawn: EmergeRect
+  /** It started leaving while not drawn (faded out by sonner): no drip. */
+  hidden: boolean
   radius: number
   color: string
   edge: ToastEdge
@@ -533,6 +561,7 @@ interface PairState {
   seen: boolean
 }
 
+const NONE: EmergeRect = Object.freeze({ x: 0, y: 0, width: 0, height: 0 })
 const fmt = (n: number): string => (Math.round(n * 100) / 100).toString()
 const isSwipe = (v: string | null): v is ToastSwipe => v === 'left' || v === 'right' || v === 'up' || v === 'down'
 /** Fully transparent color: `transparent`, `rgba(r, g, b, 0)` or `... / 0)`. */
@@ -602,6 +631,10 @@ export function attachToaster(root: HTMLElement, options: ToasterOptions = {}): 
     return d
   }
 
+  const opacityOf = (el: Element): number => {
+    const v = Number.parseFloat(win?.getComputedStyle(el).opacity ?? '')
+    return Number.isFinite(v) ? v : 1
+  }
   const rectOf = (el: Element): EmergeRect => {
     const r = el.getBoundingClientRect()
     return { x: r.left, y: r.top, width: r.width, height: r.height }
@@ -659,6 +692,8 @@ export function attachToaster(root: HTMLElement, options: ToasterOptions = {}): 
           swipe: null,
           leftRect: null,
           rect: rectOf(node),
+          drawn: NONE,
+          hidden: false,
           radius: 8,
           color: '',
           edge: node.getAttribute('data-y-position') === 'top' ? 'top' : 'bottom',
@@ -678,6 +713,8 @@ export function attachToaster(root: HTMLElement, options: ToasterOptions = {}): 
     s.swipe = s.el.getAttribute('data-swipe-out') === 'true' && isSwipe(swipe) ? swipe : null
     if (s.el.isConnected) s.rect = rectOf(s.el)
     s.leftRect = { ...s.rect }
+    // Not drawn last frame (sonner had it faded out): it leaves without goo.
+    s.hidden = s.drawn.width <= 0 && clock > s.born
   }
 
   const strength = (k: keyof ToasterEffects): number => (reduced ? 0 : emergeMomentumStrength(opts[k]))
@@ -697,8 +734,8 @@ export function attachToaster(root: HTMLElement, options: ToasterOptions = {}): 
       if (s.el.isConnected) s.rect = rectOf(s.el)
       if (s.left !== null) {
         const age = clock - s.left
-        if (reduced || !s.goo || age >= leaveEnd) {
-          // Done (or no goo to drip): the toast shows its own look while sonner fades it.
+        if (reduced || !s.goo || s.hidden || age >= leaveEnd) {
+          // Done (or no goo to drip, or it was faded out, past `visibleToasts`): the toast shows its own look while sonner fades it.
           if (s.el.hasAttribute(TOAST_GOO_ATTR)) setOverrides(s.el, false)
           if (!s.el.isConnected) toasts.delete(s.el)
           continue
@@ -711,21 +748,40 @@ export function attachToaster(root: HTMLElement, options: ToasterOptions = {}): 
             radius: s.radius,
             seed: s.seed,
             swipe: s.swipe,
-            bodyRect: s.el.isConnected ? s.rect : (s.leftRect ?? s.rect),
+            // Unmounted mid-drip: stay where the toast last was (s.rect isn't re-measured
+            // once it's gone). Falling back to where it started leaving would jump the body
+            // back over sonner's removal lift.
+            bodyRect: s.rect,
           }),
           color: s.color,
         })
         continue
       }
-      if (!s.goo || s.el.getAttribute('data-visible') === 'false') continue
+      s.drawn = NONE
+      if (!s.goo) continue
       const { x, y, width, height } = s.rect
       if (width <= 0 || height <= 0) continue
-      sig += `${x | 0},${y | 0},${width | 0},${height | 0};`
       const age = clock - s.born
-      if (age < dropEnd && dropK > 0) {
+      const dropping = age < dropEnd && dropK > 0
+      // Sonner fades toasts in/out (past `visibleToasts`, the one revealed when a toast above
+      // it leaves): follow its live opacity so the goo never pops ahead of the toast (a new
+      // toast's mount fade is covered by the drop-in). Reduced motion: no inflate, the static
+      // body shows once the toast is mostly there.
+      const op = dropping ? 1 : opacityOf(s.el)
+      if (op <= 0.001 || (reduced && op < 0.5)) continue
+      sig += `${x | 0},${y | 0},${width | 0},${height | 0},${(op * 100) | 0};`
+      let drawn: EmergeRect = s.rect
+      if (dropping) {
         busy = true
         shapes.push({ ...toastDropPose(age, s.rect, s.edge, { preset, strength: dropK, radius: s.radius, seed: s.seed }), color: s.color })
-      } else shapes.push({ body: restBody(s.rect, s.radius), circles: [], color: s.color })
+      } else {
+        const body = reduced ? restBody(s.rect, s.radius) : toastFadeBody(s.rect, op, s.radius)
+        if (!body) continue
+        if (op < 0.999 && !reduced) busy = true
+        drawn = { x: body.x, y: body.y, width: body.w, height: body.h }
+        shapes.push({ body, circles: [], color: s.color })
+      }
+      s.drawn = drawn
       const list = s.el.parentElement
       if (list) {
         const arr = lists.get(list) ?? []
@@ -737,12 +793,12 @@ export function attachToaster(root: HTMLElement, options: ToasterOptions = {}): 
     for (const p of pairs.values()) p.seen = false
     if (mergeK > 0) {
       for (const arr of lists.values()) {
-        arr.sort((a, b) => a.rect.y + a.rect.height / 2 - (b.rect.y + b.rect.height / 2))
+        arr.sort((a, b) => a.drawn.y + a.drawn.height / 2 - (b.drawn.y + b.drawn.height / 2))
         for (let i = 0; i + 1 < arr.length; i++) {
           const a = arr[i]!
           const b = arr[i + 1]!
           const key = `${a.id}:${b.id}`
-          const gap = toastNeckGap(a.rect, b.rect)
+          const gap = toastNeckGap(a.drawn, b.drawn)
           let p = pairs.get(key)
           if (!p) {
             const attached = gap < feel.mergeGap
@@ -761,7 +817,7 @@ export function attachToaster(root: HTMLElement, options: ToasterOptions = {}): 
           }
           const grow = p.attached ? smooth(p.age / NECK_GROW) : 1
           if ((p.attached && grow < 1) || (!p.attached && p.age < feel.recoil)) busy = true
-          const circles = toastNeck(a.rect, b.rect, {
+          const circles = toastNeck(a.drawn, b.drawn, {
             preset,
             strength: mergeK,
             grow,
