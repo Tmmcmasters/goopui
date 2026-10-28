@@ -251,18 +251,23 @@ export function toastDropPose(sec: number, rect: EmergeRect, edge: ToastEdge, o:
   return { body, circles }
 }
 
+/** Opacity at which a fading toast's goo body is fully inflated. */
+const FADE_FULL = 0.4
+
 /**
  * A settled toast's body while sonner fades the toast itself in or out (`opacity` is the
  * toast's live computed opacity: sonner fades toasts past `visibleToasts`, and the one that
  * becomes visible when a toast above it is removed). The goo filter thresholds alpha, so the
  * body can't fade with it: it inflates from a thin bar at the toast's middle instead (full
  * width at opacity 1, half at 0), so it never pops in or out ahead of the real toast.
- * null below a sliver. Pure.
+ * The inflate finishes by `FADE_FULL` opacity: the toast's text fades linearly, so a body
+ * that only filled out at full opacity left faint text and icon floating over the dark
+ * background with a thin sliver of goo beneath. null below a sliver. Pure.
  */
 export function toastFadeBody(rect: EmergeRect, opacity: number, radius = 8): ToastBody | null {
   const op = Number.isFinite(opacity) ? clamp(opacity) : 1
   if (op >= 0.999) return restBody(rect, radius)
-  const e = smooth(op)
+  const e = smooth(Math.min(1, op / FADE_FULL))
   const w = rect.width * lerp(0.5, 1, e)
   const h = rect.height * e
   if (w <= 0.5 || h <= 0.5) return null
