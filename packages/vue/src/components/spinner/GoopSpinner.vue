@@ -6,7 +6,7 @@
 // Before mount, during SSR, and while hydrating it renders a static inline SVG of the merged
 // reduced-motion pose (its own tiny goo filter, scaled with the viewBox), so first paint and
 // hydration match. On mount core's `attachSpinner` takes over: a goo renderer layer driven by
-// a ticker on the shared rAF loop, paused offscreen / in hidden tabs / under reduced motion.
+// a ticker on the shared rAF loop, paused offscreen / under reduced motion (hidden tabs pause rAF itself).
 // Color is currentColor, like the lucide icon. It is playful by default (`interactive`): pointer
 // moves slosh it, press-and-drag pulls it out in lumps, click/tap pops it. `:interactive="false"`
 // turns all three off (and makes it pointer-events: none again); `slosh`/`grab`/`pop` each.

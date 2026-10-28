@@ -180,21 +180,26 @@ describe('attachSpinner', () => {
     h.destroy()
   })
 
-  it('pauses while the tab is hidden', () => {
-    const el = host()
-    const h = attachSpinner(el)
-    const desc = Object.getOwnPropertyDescriptor(Document.prototype, 'visibilityState')
+  // Regression: headless / multi-tab renderers (Remotion's parallel tabs) report 'hidden' but
+  // still run rAF and paint. Gating on visibilityState froze those spinners on their first
+  // pose, so rendered frames flashed between a moving and a frozen spinner. Real hidden tabs
+  // are paused by the browser stopping rAF.
+  it('keeps animating when the document reports hidden (rAF decides)', async () => {
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' })
-    document.dispatchEvent(new Event('visibilitychange'))
-    expect(h.running).toBe(false)
-    expect(activeTickerCount()).toBe(0)
-    if (desc) Object.defineProperty(document, 'visibilityState', desc)
-    else delete (document as { visibilityState?: unknown }).visibilityState
-    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' })
-    document.dispatchEvent(new Event('visibilitychange'))
-    expect(h.running).toBe(true)
-    h.destroy()
-    delete (document as { visibilityState?: unknown }).visibilityState
+    try {
+      const el = host()
+      const h = attachSpinner(el, { interactive: false })
+      expect(h.running).toBe(true)
+      expect(activeTickerCount()).toBe(1)
+      const before = blobs(el)[0]!.style.transform
+      await new Promise((r) => setTimeout(r, 80))
+      expect(blobs(el)[0]!.style.transform).not.toBe(before)
+      document.dispatchEvent(new Event('visibilitychange'))
+      expect(h.running).toBe(true)
+      h.destroy()
+    } finally {
+      delete (document as { visibilityState?: unknown }).visibilityState
+    }
   })
 
   it('update rebuilds for a new blob count', () => {
