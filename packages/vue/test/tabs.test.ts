@@ -61,9 +61,22 @@ describe('GoopTabs', () => {
     expect(pw!.className.split(' ')).toContain('px-4')
     expect(pw!.className.split(' ')).not.toContain('px-1.5')
     for (const t of triggers()) {
-      expect(t.className).not.toContain('data-active:bg-background')
-      expect(t.className).toContain('data-active:text-foreground')
+      expect(t.className).not.toContain('data-[state=active]:bg-background')
+      expect(t.className).toContain('data-[state=active]:text-foreground')
     }
+    w.unmount()
+  })
+
+  it('orientation classes target data-orientation (reka never sets data-horizontal/vertical)', async () => {
+    const w = mount(Demo, { attachTo: document.body })
+    await flushPromises()
+    const root = document.querySelector<HTMLElement>('[data-slot="tabs"]')!
+    expect(root.getAttribute('data-orientation')).toBe('horizontal')
+    expect(root.className).toContain('data-[orientation=horizontal]:flex-col')
+    expect(list().className).toContain('group-data-[orientation=vertical]/tabs:flex-col')
+    expect(list().className).toContain('group-data-[orientation=horizontal]/tabs:h-8')
+    expect(triggers()[0]!.className).toContain('group-data-[orientation=vertical]/tabs:w-full')
+    for (const el of [root, list(), ...triggers()]) expect(el.className).not.toMatch(/(?<![\w\]-])(group-)?data-(horizontal|vertical|active)\b/)
     w.unmount()
   })
 
@@ -87,7 +100,7 @@ describe('GoopTabs', () => {
       await flushPromises()
       expect(blob()).toBeNull()
       expect(list().hasAttribute('data-goop-tabs')).toBe(false)
-      for (const t of triggers()) expect(t.className).toContain('data-active:bg-background')
+      for (const t of triggers()) expect(t.className).toContain('data-[state=active]:bg-background')
       w.unmount()
     }
   })

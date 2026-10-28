@@ -81,7 +81,7 @@ describe('GoopPopover', () => {
     expect(cls).toContain('w-56')
     expect(cls).not.toContain('w-72')
     expect(cls).toContain('[--goop-color:var(--popover)]')
-    for (const c of ['bg-popover', 'ring-1', 'shadow-md', 'data-open:animate-in']) expect(cls.split(' ')).not.toContain(c)
+    for (const c of ['bg-popover', 'ring-1', 'shadow-md', 'data-[state=open]:animate-in']) expect(cls.split(' ')).not.toContain(c)
     w.unmount()
   })
 
