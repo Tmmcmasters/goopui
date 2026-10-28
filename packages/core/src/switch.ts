@@ -21,8 +21,15 @@
 //   droplets: on impact 2-4 fat drops neck off the thumb's wall side, fly up/out past the wall,
 //     arc over under screen-down gravity and fall back (merging into the goo, or shrinking away).
 //     They are drawn in the fill layer (primary color) so they read on any page background.
-//   The primary fill runs from the left end of the track to the thumb, so checking floods the
-//   track with goo behind the thumb and unchecking drains it back.
+//   wave: the track keeps the OLD state's color while the thumb travels (so the thumb always
+//     contrasts it), and the colors only change at impact. Then the new color floods from the
+//     wall the thumb hit as a liquid wave: checking, the primary goo races from the right wall
+//     to the left one with a rounded crest, sloshes up against it, rebounds and settles;
+//     unchecking, the primary drains away from the left wall into the right end the same way.
+//     The wave is a damped spring on `coverage` (fraction of the track covered by primary,
+//     always anchored at the right end), so an interrupted wave just keeps moving and the next
+//     impact retargets it from wherever it is: no color flash. The thumb color and the real
+//     track background follow `pose.shown` (published as SWITCH_SHOWN_ATTR on the host).
 //
 // Coordinates are host px (border-box, 0,0 = top-left). Nothing here touches
 // `document`/`window` until `attachSwitch` is called (SSR-safe).
@@ -46,6 +53,10 @@ export const SWITCH_DROP_CIRCLES = 4
 /** CSS vars the two goo layers paint with (set them on the host or an ancestor). */
 export const SWITCH_THUMB_COLOR_VAR = '--goop-switch-thumb'
 export const SWITCH_FILL_COLOR_VAR = '--goop-switch-fill'
+/** Host attribute ('checked' | 'unchecked') with the state the colors currently SHOW: it flips
+ *  at impact, not on click (aria-checked / data-state flip immediately). Style the thumb color
+ *  and the track background from it while the switch is attached. */
+export const SWITCH_SHOWN_ATTR = 'data-goop-switch-state'
 
 /** Per-preset feel. */
 export interface SwitchFeel {
@@ -67,6 +78,12 @@ export interface SwitchFeel {
   droplets: number
   /** Droplets per impact at strength 1 (2..4). */
   dropCount: number
+  /** Track wave slosh strength: overshoot against the far wall and crest height (0 = none). */
+  wave: number
+  /** Seconds for the wave front to first reach the far wall (the slosh and settle follow). */
+  waveCross: number
+  /** Seconds from impact until the wave has settled flat. */
+  waveSettle: number
 }
 
 export const SWITCH_FEEL: Readonly<Record<GoopPreset, Readonly<SwitchFeel>>> = Object.freeze({
@@ -80,6 +97,9 @@ export const SWITCH_FEEL: Readonly<Record<GoopPreset, Readonly<SwitchFeel>>> = O
     settle: 0.5,
     droplets: 0.7,
     dropCount: 2,
+    wave: 0.6,
+    waveCross: 0.13,
+    waveSettle: 0.45,
   }),
   playful: Object.freeze({
     duration: 0.52,
@@ -91,6 +111,9 @@ export const SWITCH_FEEL: Readonly<Record<GoopPreset, Readonly<SwitchFeel>>> = O
     settle: 0.6,
     droplets: 1,
     dropCount: 3,
+    wave: 1,
+    waveCross: 0.15,
+    waveSettle: 0.6,
   }),
   wild: Object.freeze({
     duration: 0.66,
@@ -102,6 +125,9 @@ export const SWITCH_FEEL: Readonly<Record<GoopPreset, Readonly<SwitchFeel>>> = O
     settle: 0.7,
     droplets: 1.25,
     dropCount: 4,
+    wave: 1.4,
+    waveCross: 0.18,
+    waveSettle: 0.7,
   }),
 })
 
@@ -132,9 +158,25 @@ export const SWITCH_SPLAT = Object.freeze({
   ]),
 })
 
+/** Track wave shape constants (feel-independent). */
+export const SWITCH_WAVE = Object.freeze({
+  /** Damping ratio at wave strength 0 (barely sloshes); each unit of strength lowers it. */
+  damping: 0.7,
+  /** Damping ratio removed per unit of strength (playful: 0.7 - 0.3 = 0.4: ~25% slosh, a visible rebound). */
+  dampingPerStrength: 0.3,
+  /** Lowest damping ratio (strong waves still settle). */
+  minDamping: 0.22,
+  /** Crest: how much the moving front swells (sy) at full speed, per unit of strength. */
+  crest: 0.2,
+  /** Slosh: how far the front piles up the far wall (sy) per unit of overshoot. */
+  slosh: 1.6,
+  /** Largest swell (sy) of the front circle. */
+  maxSwell: 1.45,
+})
+
 /** The switch's individually toggleable effects. Each takes a boolean or a multiplier
  *  (1 = the preset's strength, 0 = off). `fill` is on/off only. */
-export const SWITCH_EFFECTS = ['stretch', 'bridge', 'squish', 'fill', 'splat', 'droplets'] as const
+export const SWITCH_EFFECTS = ['stretch', 'bridge', 'squish', 'fill', 'splat', 'droplets', 'wave'] as const
 export type SwitchEffect = (typeof SWITCH_EFFECTS)[number]
 export type SwitchEffects = Record<SwitchEffect, number>
 /** Every effect on at preset strength (the default). */
@@ -145,6 +187,7 @@ export const SWITCH_ALL_EFFECTS: Readonly<SwitchEffects> = Object.freeze({
   fill: 1,
   splat: 1,
   droplets: 1,
+  wave: 1,
 })
 
 /** One circle, host px. sx/sy stretch it (1 = round). */
@@ -171,6 +214,21 @@ export interface SwitchPose {
   drops: SwitchCircle[]
   /** Thumb position along the track, 0 (unchecked) .. 1 (checked). */
   position: number
+  /** Fraction of the track the primary color covers, from the right end (0..1; the wave may
+   *  briefly overshoot either way while it sloshes). */
+  coverage: number
+  /** The state the colors show (thumb color, track background): the old state until impact. */
+  shown: boolean
+}
+
+/** One wave: from `start` (toggle progress, may be < 0 for a wave that began in an earlier
+ *  toggle) the coverage springs from `from` (moving at `velocity`, coverage/s) to `to`. Before
+ *  `start` it holds at `from`. */
+export interface SwitchWave {
+  from: number
+  to: number
+  velocity: number
+  start: number
 }
 
 const clamp = (x: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, x))
@@ -201,8 +259,55 @@ export function switchToggleEnd(
   feel: SwitchFeel = SWITCH_FEEL.playful,
   effects: SwitchEffects = SWITCH_ALL_EFFECTS,
 ): number {
-  if (!(effects.splat > 0 && feel.splat > 0) && !(effects.droplets > 0 && feel.droplets > 0)) return 1
-  return Math.max(1, SWITCH_TRAVEL + feel.settle / Math.max(0.01, feel.duration))
+  const dur = Math.max(0.01, feel.duration)
+  const wave = waveStrength(feel, effects) > 0 ? SWITCH_TRAVEL + feel.waveSettle / dur : 1
+  if (!(effects.splat > 0 && feel.splat > 0) && !(effects.droplets > 0 && feel.droplets > 0)) return Math.max(1, wave)
+  return Math.max(1, wave, SWITCH_TRAVEL + feel.settle / dur)
+}
+
+/** Effective wave strength (0 = the color switches at impact without a wave). */
+export const switchWaveStrength = (feel: SwitchFeel, effects: SwitchEffects): number =>
+  effects.fill > 0 ? Math.max(0, effects.wave ?? 1) * feel.wave : 0
+const waveStrength = switchWaveStrength
+
+/** The single-toggle wave (no interruption): the old state's coverage until impact, then a
+ *  wave to the new one. `from`/`to` are thumb positions. */
+export function switchDefaultWave(from: number, to: number): SwitchWave {
+  const target = to >= 0.5 ? 1 : 0
+  const old = from === to ? target : to > from ? 0 : 1
+  return { from: old, to: target, velocity: 0, start: SWITCH_TRAVEL }
+}
+
+function waveRaw(a: number, w: SwitchWave, feel: SwitchFeel, strength: number): number {
+  const settle = Math.max(0.05, feel.waveSettle)
+  if (a >= settle) return w.to
+  const zeta = clamp(SWITCH_WAVE.damping - SWITCH_WAVE.dampingPerStrength * strength, SWITCH_WAVE.minDamping, 0.95)
+  // Damped frequency so the front first reaches the far wall after `waveCross` seconds.
+  const wd = (Math.PI - Math.acos(zeta)) / Math.max(0.02, feel.waveCross)
+  const w0 = wd / Math.sqrt(1 - zeta * zeta)
+  const A = w.from - w.to
+  const B = (w.velocity + zeta * w0 * A) / wd
+  // Fade the residue out over the last 40% so it lands exactly on `to` at `settle`.
+  const ramp = 1 - smooth((a / settle - 0.6) / 0.4)
+  return w.to + Math.exp(-zeta * w0 * a) * (A * Math.cos(wd * a) + B * Math.sin(wd * a)) * ramp
+}
+
+/** Track coverage and its velocity (coverage/s) at toggle progress `t` for wave `w`. Pure.
+ *  `strength` 0 = no wave: the coverage jumps to `to` at `start`. */
+export function switchWaveAt(
+  t: number,
+  w: SwitchWave,
+  feel: SwitchFeel = SWITCH_FEEL.playful,
+  strength = feel.wave,
+): { coverage: number; velocity: number } {
+  const a = (t - w.start) * feel.duration
+  if (a < 0) return { coverage: w.from, velocity: 0 }
+  if (!(strength > 0) || a >= feel.waveSettle) return { coverage: w.to, velocity: 0 }
+  const h = 1e-3
+  const lo = Math.max(0, a - h)
+  const coverage = waveRaw(a, w, feel, strength)
+  const velocity = (waveRaw(a + h, w, feel, strength) - waveRaw(lo, w, feel, strength)) / (a + h - lo)
+  return { coverage, velocity }
 }
 
 /** Splat deformation `a` seconds after impact: > 0 flattened against the wall, < 0 rebounding
@@ -234,6 +339,7 @@ export function switchPose(
   geometry: SwitchGeometry,
   feel: SwitchFeel = SWITCH_FEEL.playful,
   effects: SwitchEffects = SWITCH_ALL_EFFECTS,
+  wave: SwitchWave = switchDefaultWave(from, to),
 ): SwitchPose {
   const { cy, r, x0, x1, fillR } = switchMetrics(geometry)
   const span = x1 - x0
@@ -332,18 +438,59 @@ export function switchPose(
     tails.push(ks < 0.02 ? none(headX, cy) : { x, y: cy, r: r * (i === 1 ? 0.62 : 0.4), sx: 1, sy: 1 })
   }
 
-  // Fill: from the left end of the track to the thumb, swelling in over the first stretch.
-  const fill: SwitchCircle[] = []
-  const fr = effects.fill > 0 ? fillR * smooth(position / 0.4) : 0
-  const xEnd = x0 + span * position
-  for (let i = 0; i < SWITCH_FILL_CIRCLES; i++) {
-    const x = x0 + ((xEnd - x0) * i) / (SWITCH_FILL_CIRCLES - 1)
-    fill.push(fr > 0.01 ? { x, y: cy, r: fr, sx: 1, sy: 1 } : none(x, cy))
-  }
+  // Fill: the primary color covers `coverage` of the track from its right end. It holds the
+  // old state while the thumb travels and runs as a wave from impact (see switchWaveAt).
+  const strength = waveStrength(feel, effects)
+  const wv = done ? { coverage: wave.to, velocity: 0 } : switchWaveAt(tt, wave, feel, strength)
+  const shown = (done || (tt - wave.start) * feel.duration >= 0 ? wave.to : wave.from) >= 0.5
+  const fill = effects.fill > 0 ? waveFill(wv.coverage, wv.velocity, geometry, feel, strength) : []
+  while (fill.length < SWITCH_FILL_CIRCLES) fill.push(none(x1, cy))
 
   const drops = splashDrops(age, done, dir, wallX, cy, r, sy, impact, feel, Math.max(0, effects.droplets))
 
-  return { thumb: [head, ...tails, anchor, ...necks, ...corners], fill, drops, position }
+  return { thumb: [head, ...tails, anchor, ...necks, ...corners], fill, drops, position, coverage: wv.coverage, shown }
+}
+
+/** Fill circles for `coverage` of the track (from the right end). The front circle (index 0)
+ *  swells into a rounded crest while the wave moves, and piles up against the left wall when
+ *  the flood overshoots it (the slosh). */
+function waveFill(
+  coverage: number,
+  velocity: number,
+  geometry: SwitchGeometry,
+  feel: SwitchFeel,
+  strength: number,
+): SwitchCircle[] {
+  const { cy, x0, x1, fillR } = switchMetrics(geometry)
+  const R = x0
+  const W = x1 + R
+  const len = W * clamp(coverage, 0, 1)
+  const out: SwitchCircle[] = []
+  if (len < 0.05) return out
+  const speed = clamp((Math.abs(velocity) * Math.max(0.02, feel.waveCross)) / 1.5, 0, 1)
+  let swell = 1 + SWITCH_WAVE.crest * Math.min(strength, 2) * speed
+  let squash = 1
+  if (coverage > 1) {
+    // Overshoot: the flood runs up the left wall.
+    const over = coverage - 1
+    swell += SWITCH_WAVE.slosh * over
+    squash = Math.max(0.6, 1 - 0.8 * over)
+  }
+  swell = Math.min(SWITCH_WAVE.maxSwell, swell)
+  if (len < 2 * R) {
+    // A puddle shrinking into (or growing out of) the right end.
+    const rr = (fillR * len) / (2 * R)
+    for (let i = 0; i < SWITCH_FILL_CIRCLES; i++) out.push({ x: W - len / 2, y: cy, r: rr, sx: 1, sy: i === 0 ? swell : 1 })
+    return out
+  }
+  const xf = W - len + R
+  for (let i = 0; i < SWITCH_FILL_CIRCLES; i++) {
+    const x = xf + ((x1 - xf) * i) / (SWITCH_FILL_CIRCLES - 1)
+    out.push({ x, y: cy, r: fillR, sx: 1, sy: 1 })
+  }
+  // Squashed against the left wall, its outer edge stays on the wall.
+  out[0] = { x: xf - fillR * (1 - squash), y: cy, r: fillR, sx: squash, sy: swell }
+  return out
 }
 
 /** Splash droplets `age` seconds after impact. Each necks off the wall side of the thumb,
@@ -442,6 +589,9 @@ export interface SwitchOptions {
   splat?: boolean | number
   /** Fat goo drops splash off the wall on impact and fall back. Default true. */
   droplets?: boolean | number
+  /** The new track color floods from the wall the thumb hit as a sloshing wave. Off: the color
+   *  still waits for the impact, then switches at once. Needs `fill`. Default true. */
+  wave?: boolean | number
   /** true / false force it; 'auto' (default) follows prefers-reduced-motion and
    *  `<html data-reduced-motion="true">`, live. */
   reducedMotion?: boolean | 'auto'
@@ -467,6 +617,7 @@ const effectsOf = (o: SwitchOptions): SwitchEffects => ({
   fill: switchEffectValue(o.fill) > 0 ? 1 : 0,
   splat: switchEffectValue(o.splat),
   droplets: switchEffectValue(o.droplets),
+  wave: switchEffectValue(o.wave),
 })
 
 /** Attach a goo thumb and fill to a switch track `host` (the element with role="switch"; it
@@ -486,6 +637,9 @@ export function attachSwitch(host: HTMLElement, options: SwitchOptions = {}): Sw
   let to = opts.checked ? 1 : 0
   let from = to
   let t = switchToggleEnd(feel, effects)
+  // The track wave. `impacted`: this toggle's thumb has hit the wall (the wave retargeted).
+  let wave: SwitchWave = { from: to, to, velocity: 0, start: 0 }
+  let impacted = true
   let last: SwitchPose | null = null
   let destroyed = false
 
@@ -513,7 +667,18 @@ export function attachSwitch(host: HTMLElement, options: SwitchOptions = {}): Sw
   }
   const draw = (): void => {
     if (!fillLayer || !thumbLayer) return
-    last = reduced ? switchStaticPose(to === 1, geom, feel, effects) : switchPose(t, from, to, geom, feel, effects)
+    if (reduced) {
+      wave = { from: to, to, velocity: 0, start: 0 }
+      impacted = true
+    } else if (!impacted && t >= SWITCH_TRAVEL) {
+      // Impact: the wave retargets from wherever the last one is, exactly at the impact.
+      impacted = true
+      const now = switchWaveAt(SWITCH_TRAVEL, wave, feel, waveStrength(feel, effects))
+      wave = { from: now.coverage, to, velocity: now.velocity, start: SWITCH_TRAVEL }
+    }
+    last = reduced ? switchStaticPose(to === 1, geom, feel, effects) : switchPose(t, from, to, geom, feel, effects, wave)
+    const shown = last.shown ? 'checked' : 'unchecked'
+    if (host.getAttribute(SWITCH_SHOWN_ATTR) !== shown) host.setAttribute(SWITCH_SHOWN_ATTR, shown)
     drawSet(fillBlobs, [...last.fill, ...last.drops])
     drawSet(thumbBlobs, last.thumb)
     fillLayer.flush()
@@ -583,9 +748,12 @@ export function attachSwitch(host: HTMLElement, options: SwitchOptions = {}): Sw
   const setChecked = (checked: boolean): void => {
     const next = checked ? 1 : 0
     if (next === to) return
-    // Interrupting a toggle starts the new one from wherever the thumb is now.
+    // Interrupting a toggle starts the new one from wherever the thumb is now; a running wave
+    // keeps going (re-based onto the new toggle's clock) until the next impact retargets it.
     from = reduced ? next : (last?.position ?? to)
     to = next
+    wave = { ...wave, start: wave.start - t }
+    impacted = reduced
     t = reduced ? end() : 0
   }
 
@@ -651,6 +819,7 @@ export function attachSwitch(host: HTMLElement, options: SwitchOptions = {}): Sw
       ro?.disconnect()
       unwatch()
       teardown()
+      host.removeAttribute(SWITCH_SHOWN_ATTR)
       host.style.isolation = prevIsolation
       host.style.position = prevPosition
     },

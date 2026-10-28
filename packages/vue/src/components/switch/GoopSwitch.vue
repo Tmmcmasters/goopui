@@ -3,7 +3,9 @@
 // merge, same classes) whose thumb is a goo blob. On mount core's `attachSwitch` adds two
 // aria-hidden goo layers inside the track: the primary fill, and the thumb on top of it. The
 // real thumb stays in place (transparent) and reka keeps role="switch", aria-checked and
-// keyboard handling. Before mount, during SSR, or with `:goo="false"` it is a plain shadcn
+// keyboard handling. aria-checked / data-state flip on click; the colors (thumb, track) wait
+// for the thumb to hit the wall (core's `data-goop-switch-state`), then the new color floods in
+// as a wave. Before mount, during SSR, or with `:goo="false"` it is a plain shadcn
 // Switch, so first paint and hydration match exactly.
 import { attachSwitch, type SwitchHandle } from '@goopui/core'
 import { cn } from 'cn'
@@ -11,7 +13,15 @@ import { SwitchRoot, SwitchThumb } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch, type HTMLAttributes, type PropType } from 'vue'
 import { useGoopConfig } from '../../config'
 import { goopSwitchProps, toSwitchOptions } from '../../goop-props'
-import { goopSwitchColors, goopSwitchFilledTrack, switchThumbVariants, switchVariants, type SwitchSize } from './variants'
+import {
+  goopSwitchColors,
+  goopSwitchFilledTrack,
+  goopSwitchShownColors,
+  goopSwitchShownTrack,
+  switchThumbVariants,
+  switchVariants,
+  type SwitchSize,
+} from './variants'
 
 const props = defineProps({
   ...goopSwitchProps,
@@ -78,7 +88,13 @@ watch(options, (next) => handle.value?.update(next), { flush: 'post' })
 
 const fillOn = computed(() => props.fill !== false && props.fill !== 0)
 const classes = computed(() =>
-  cn(switchVariants(), props.goo && goopSwitchColors, active.value && fillOn.value && goopSwitchFilledTrack, props.class),
+  cn(
+    switchVariants(),
+    // Attached, the colors follow core's shown state (old state until impact), not data-state.
+    props.goo && (active.value ? goopSwitchShownColors : goopSwitchColors),
+    active.value && (fillOn.value ? goopSwitchFilledTrack : goopSwitchShownTrack),
+    props.class,
+  ),
 )
 
 defineExpose({

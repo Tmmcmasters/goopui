@@ -12,9 +12,20 @@ export const switchThumbVariants = cva(
 export type SwitchSize = 'sm' | 'default'
 export type SwitchVariants = VariantProps<typeof switchVariants>
 
-/** Goo colors, from the same tokens as the thumb (core reads --goop-switch-thumb/-fill). */
+/** Goo colors before core attaches (from data-state; same tokens as the thumb). */
 export const goopSwitchColors =
   '[--goop-switch-thumb:var(--background)] dark:data-unchecked:[--goop-switch-thumb:var(--foreground)] dark:data-checked:[--goop-switch-thumb:var(--primary-foreground)] [--goop-switch-fill:var(--primary)]'
 
-/** While the goo fill is attached the track stays muted; the primary fill is goo. */
+/** Goo colors while attached: from core's `data-goop-switch-state` (SWITCH_SHOWN_ATTR), which
+ *  keeps the old state until the thumb hits the wall, so the thumb contrasts the track the
+ *  whole way across (data-state flips on click). */
+export const goopSwitchShownColors =
+  '[--goop-switch-thumb:var(--background)] dark:data-[goop-switch-state=unchecked]:[--goop-switch-thumb:var(--foreground)] dark:data-[goop-switch-state=checked]:[--goop-switch-thumb:var(--primary-foreground)] [--goop-switch-fill:var(--primary)]'
+
+/** While the goo fill is attached the track stays muted; the primary fill (and its wave) is goo. */
 export const goopSwitchFilledTrack = 'data-checked:bg-input dark:data-checked:bg-input/80'
+
+/** Attached with `fill` off: the real track color follows the shown state, switching at impact.
+ *  Important, to beat shadcn's data-state colors (same specificity, unrelated variants). */
+export const goopSwitchShownTrack =
+  'data-[goop-switch-state=checked]:bg-primary! data-[goop-switch-state=unchecked]:bg-input! dark:data-[goop-switch-state=unchecked]:bg-input/80!'
