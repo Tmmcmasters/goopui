@@ -84,6 +84,40 @@ describe('emergeMomentum', () => {
     expect(Math.max(...tail)).toBeLessThan(Math.max(...d) * 0.35)
   })
 
+  it('slosh bulges only push out of their edge, never past the panel sides (tall panels)', () => {
+    // A dropdown-like panel taller than it is wide: the bulge is breadth-limited, and its
+    // flank circles once poked past the sides as big lobes for the whole slosh.
+    const tall = (side: EmergeSide): EmergeRect => {
+      const p = panelFor(side)
+      const vertical = side === 'top' || side === 'bottom'
+      return vertical ? { ...p, width: 182, height: 172 } : { ...p, width: 172, height: 182 }
+    }
+    const BULGE = 3
+    for (const side of SIDES) {
+      const b = emergeBridge(trigger, tall(side), side, feel)
+      const vertical = side === 'top' || side === 'bottom'
+      const check = (circles: { x: number; y: number; r: number }[]) => {
+        for (const c of circles.slice(EMERGE_CIRCLES, EMERGE_CIRCLES + BULGE)) {
+          if (c.r <= 0) continue
+          const cross = vertical ? c.x : c.y
+          expect(cross - c.r).toBeGreaterThanOrEqual(0)
+          expect(cross + c.r).toBeLessThanOrEqual(b.breadth)
+        }
+      }
+      let seen = 0
+      for (const s of times(EMERGE_MOMENTUM.slosh.start + EMERGE_MOMENTUM.slosh.duration, 120)) {
+        if (s < feel.open) continue
+        const pose = emergeMomentum(emergeRestPose(b), b, 'open', s, { openDrips: false })
+        seen += extra(pose.circles).slice(0, BULGE).filter((c) => c.r > 0).length
+        check(pose.circles)
+      }
+      expect(seen).toBeGreaterThan(0)
+      for (const s of times(EMERGE_MOMENTUM.close.duration, 40)) {
+        check(emergeMomentum(emergePose(0.05, b, 'close', feel), b, 'close', s).circles)
+      }
+    }
+  })
+
   it('close slosh decays to zero within its duration', () => {
     const end = EMERGE_MOMENTUM.close.duration
     const v = times(end, 100).map((s) => emergeCloseSlosh(s, 15, 1))
