@@ -37,16 +37,26 @@ describe('GoopSpinner', () => {
     w.unmount()
   })
 
+  it('is interactive by default; interactive=false is pointer-events-none with no lump slots', async () => {
+    const w = mount(GoopSpinner, { attachTo: document.body })
+    await nextTick()
+    expect(w.classes()).not.toContain('pointer-events-none')
+    await w.setProps({ interactive: false })
+    expect(w.classes()).toContain('pointer-events-none')
+    expect(blobs(w.element)).toHaveLength(spinnerCircleCount(4))
+    w.unmount()
+  })
+
   it('mounts on the shared loop and unmounts cleanly (loop sleeps)', async () => {
     const w = mount(GoopSpinner, { props: { blobs: 5 }, attachTo: document.body })
     await nextTick()
     expect(w.attributes()).toHaveProperty('data-goop-active')
     expect(w.find('svg').exists()).toBe(false) // SSR fallback gone once attached
-    expect(blobs(w.element)).toHaveLength(spinnerCircleCount(5, true))
+    expect(blobs(w.element)).toHaveLength(spinnerCircleCount(5, false, 'orbit', true))
     expect(isLoopRunning()).toBe(true)
 
     await w.setProps({ blobs: 3 })
-    expect(blobs(w.element)).toHaveLength(spinnerCircleCount(3, true))
+    expect(blobs(w.element)).toHaveLength(spinnerCircleCount(3, false, 'orbit', true))
 
     const el = w.element
     w.unmount()

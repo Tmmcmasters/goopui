@@ -7,5 +7,7 @@ export default defineConfig({
     environment: 'happy-dom',
     include: ['test/**/*.test.ts'],
     exclude: ['**/._*'],
+    // SSR tests import all of src cold (slow on the exFAT drive).
+    testTimeout: 20_000,
   },
 })

@@ -56,12 +56,105 @@
       scale(var(--goop-sx, 1), var(--goop-sy, 1));
   }
 
+  /* Emerging surfaces (GoopPopoverContent): core draws the panel as goo on an aria-hidden
+     surface and publishes the content's opacity; the goo gets shadcn's ring + shadow as a
+     drop-shadow that follows its silhouette, bridge included. */
+  [data-goop-emerge] {
+    --goop-surface-shadow: drop-shadow(0 0 0.5px color-mix(in oklab, var(--foreground, #000) 30%, transparent))
+      drop-shadow(0 4px 6px rgb(0 0 0 / 0.1));
+  }
+  [data-goop-emerge] > :not([data-goop='surface']) {
+    opacity: var(--goop-emerge-content, 1);
+  }
+  /* Surface color (`surface` prop, default 'trigger'): core resolves the trigger's colors on
+     open and sets --goop-surface / --goop-surface-foreground + data-goop-tint on the panel.
+     The panel's tokens are retinted from that pair, so the goo (--goop-color: var(--popover))
+     and everything inside (text, muted text, borders, inputs, focus rings, the menu highlight)
+     follow it. Muted text is the foreground at reduced opacity, readable on dark surfaces. */
+  [data-goop-emerge][data-goop-tint] {
+    --popover: var(--goop-surface);
+    --popover-foreground: var(--goop-surface-foreground);
+    --muted-foreground: color-mix(in oklab, var(--goop-surface-foreground) 72%, transparent);
+    --border: color-mix(in oklab, var(--goop-surface-foreground) 20%, transparent);
+    --input: color-mix(in oklab, var(--goop-surface-foreground) 24%, transparent);
+    --ring: color-mix(in oklab, var(--goop-surface-foreground) 55%, transparent);
+    --accent: color-mix(in oklab, var(--goop-surface-foreground) 16%, var(--goop-surface));
+    --accent-foreground: var(--goop-surface-foreground);
+    --goop-color: var(--goop-surface);
+    color: var(--goop-surface-foreground);
+  }
+  /* Keeps reka's Presence mounted while the goo closes (it waits for this animation). Off
+     under reduced motion (core sets data-goop-still), so close is instant. */
+  [data-goop-emerge][data-state='closed']:not([data-goop-still]) {
+    animation: goop-emerge-hold var(--goop-emerge-close, 0ms) linear both;
+  }
+
+  /* Menu highlight blob (GoopDropdownMenu): core inserts it behind the items and mirrors the
+     item's data-variant. Goo can't paint translucent color, so the destructive tint is mixed
+     opaque over the popover color. */
+  [data-goop='highlight'] {
+    --goop-color: var(--accent);
+  }
+  [data-goop='highlight'][data-variant='destructive'] {
+    --goop-color: color-mix(in oklab, var(--destructive) 10%, var(--popover));
+  }
+  :where(.dark) [data-goop='highlight'][data-variant='destructive'] {
+    --goop-color: color-mix(in oklab, var(--destructive) 20%, var(--popover));
+  }
+
+  /* Tabs indicator blob (GoopTabsList): the active tab's shadcn bg + shadow-sm. Dark: shadcn's
+     translucent bg-input/30 mixed opaque over the list's muted bg, with an input-colored rim. */
+  [data-goop-tabs] > [data-goop='highlight'] {
+    --goop-color: var(--background);
+    filter: drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.1));
+  }
+  :where(.dark) [data-goop-tabs] > [data-goop='highlight'] {
+    --goop-color: color-mix(in oklab, var(--input) 30%, var(--muted));
+    filter: drop-shadow(0 0 0.5px var(--input));
+  }
+  /* Until the blob attaches (SSR, first paint), the active trigger keeps shadcn's look. */
+  [data-goop-tabs]:not([data-goop-menu]) > [role='tab'][data-state='active'] {
+    background-color: var(--background);
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  }
+  :where(.dark) [data-goop-tabs]:not([data-goop-menu]) > [role='tab'][data-state='active'] {
+    background-color: color-mix(in oklab, var(--input) 30%, transparent);
+    border-color: var(--input);
+  }
+
+  /* Tooltip (GoopTooltipContent): shadcn's tooltip has no ring or shadow. */
+  [data-slot='tooltip-content'][data-goop-emerge] {
+    --goop-surface-shadow: none;
+  }
+
+  /* Goo toggles (GoopCheckbox, GoopRadioGroup): the real mark (check icon, radio dot) stays
+     hidden while core marks the host data-goop-pending (the goo is still falling / landing),
+     then fades in on the settled goo. */
+  [data-goop-mark] {
+    transition: opacity 120ms var(--goop-fade-ease);
+  }
+  [data-goop-pending] [data-goop-mark] {
+    opacity: 0;
+    transition: none;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     [data-goop-host] > [data-goop='layer'] {
       transition: none;
     }
+    [data-goop-mark] {
+      transition: none;
+    }
   }
-  html[data-reduced-motion='true'] [data-goop-host] > [data-goop='layer'] {
+  html[data-reduced-motion='true'] [data-goop-host] > [data-goop='layer'],
+  html[data-reduced-motion='true'] [data-goop-mark] {
     transition: none;
+  }
+}
+
+@keyframes goop-emerge-hold {
+  from,
+  to {
+    visibility: visible;
   }
 }

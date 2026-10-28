@@ -2,7 +2,47 @@
 // (the @goopui/nuxt module) can read it without a Vue compiler.
 
 /** Every component's export name, e.g. `GoopButton`. Nuxt registers `${prefix}${base}`. */
-export const goopComponents = ['GoopButton', 'GoopSpinner'] as const
+export const goopComponents = [
+  'GoopButton',
+  'GoopSpinner',
+  'GoopSwitch',
+  'GoopCheckbox',
+  'GoopRadioGroup',
+  'GoopRadioGroupItem',
+  'GoopPopover',
+  'GoopPopoverAnchor',
+  'GoopPopoverContent',
+  'GoopPopoverDescription',
+  'GoopPopoverHeader',
+  'GoopPopoverTitle',
+  'GoopPopoverTrigger',
+  'GoopDropdownMenu',
+  'GoopDropdownMenuCheckboxItem',
+  'GoopDropdownMenuContent',
+  'GoopDropdownMenuGroup',
+  'GoopDropdownMenuItem',
+  'GoopDropdownMenuLabel',
+  'GoopDropdownMenuPortal',
+  'GoopDropdownMenuRadioGroup',
+  'GoopDropdownMenuRadioItem',
+  'GoopDropdownMenuSeparator',
+  'GoopDropdownMenuShortcut',
+  'GoopDropdownMenuSub',
+  'GoopDropdownMenuSubContent',
+  'GoopDropdownMenuSubTrigger',
+  'GoopDropdownMenuTrigger',
+  'GoopTabs',
+  'GoopTabsContent',
+  'GoopTabsList',
+  'GoopTabsTrigger',
+  'GoopTooltip',
+  'GoopTooltipContent',
+  'GoopTooltipProvider',
+  'GoopTooltipTrigger',
+  'GoopSlider',
+  'GoopProgress',
+  'GoopToaster',
+] as const
 
 export type GoopComponentName = (typeof goopComponents)[number]
 
