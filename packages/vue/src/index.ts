@@ -12,6 +12,7 @@ export * from './components/tabs'
 export * from './components/tooltip'
 export * from './components/slider'
 export * from './components/progress'
+export * from './components/sonner'
 export { GOOP_CONFIG_KEY, GoopPlugin, provideGoopConfig, useGoopConfig, type GoopConfig } from './config'
 export {
   CSS_VAR_KEYS,
@@ -43,6 +44,9 @@ export {
   toProgressOptions,
   toSliderOptions,
   toSwitchOptions,
+  TOASTER_PROP_KEYS,
+  toToasterOptions,
+  type GoopToasterProps,
   type GoopCssVarKey,
   type GoopEngineKey,
   type GoopFeatureKey,

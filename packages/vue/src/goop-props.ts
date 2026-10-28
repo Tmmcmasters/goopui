@@ -35,6 +35,9 @@ import {
   type CheckboxOptions,
   type RadioEffect,
   type RadioGroupOptions,
+  TOASTER_EFFECTS,
+  type ToasterEffect,
+  type ToasterOptions,
   type EmergeOptions,
   type EmergeSurfaceColor,
   type MenuEffect,
@@ -698,4 +701,45 @@ export function toTooltipOptions(props: GoopTooltipProps, config: GoopOptions = 
     renderer: props.renderer ?? config.renderer,
     reducedMotion: config.reducedMotion,
   }
+}
+
+// ---- GoopToaster ----------------------------------------------------------------------------
+// The toaster's goo comes from core's `attachToaster`: TOASTER_EFFECTS (dropIn, merge, drips),
+// each `true` (default), `false`, or a 0..2 strength, plus speed / preset. `goo: false` is a
+// plain shadcn Sonner.
+
+/** Every GoopToaster engine prop. */
+export const TOASTER_PROP_KEYS = ['goo', ...TOASTER_EFFECTS, 'speed', 'preset'] as const
+
+/** Engine props of GoopToaster (on top of vue-sonner's ToasterProps). */
+export interface GoopToasterProps {
+  /** Master switch. `false` renders a plain shadcn Sonner. */
+  goo?: boolean
+  /** New toasts drop in as a blob from the toaster edge, overshoot and slosh. `true`, `false` or 0..2. */
+  dropIn?: boolean | number
+  /** Stacked toasts merge with fat goo necks that stretch and snap as the stack expands. `true`, `false` or 0..2. */
+  merge?: boolean | number
+  /** Leaving toasts drip off; swipe-out flings the goo the swipe's way. `true`, `false` or 0..2. */
+  drips?: boolean | number
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+}
+
+/** Compile-time guards: every toaster option core grows must be a prop (or adapter-owned). */
+type ToasterAdapterOwned = 'reducedMotion'
+type ToasterUnhandled = Exclude<keyof ToasterOptions | ToasterEffect, keyof GoopToasterProps | ToasterAdapterOwned>
+const _allToasterOptionsHandled: [ToasterUnhandled] extends [never] ? true : { unhandled: ToasterUnhandled } = true
+void _allToasterOptionsHandled
+type ToasterPropsListed = Exclude<keyof GoopToasterProps, (typeof TOASTER_PROP_KEYS)[number]>
+const _allToasterPropsListed: [ToasterPropsListed] extends [never] ? true : { unlisted: ToasterPropsListed } = true
+void _allToasterPropsListed
+
+/** Toaster options from props, over app config (`preset`, `reducedMotion`). */
+export function toToasterOptions(props: GoopToasterProps, config: GoopOptions = {}): ToasterOptions {
+  const out: ToasterOptions = { preset: props.preset ?? config.preset, reducedMotion: config.reducedMotion }
+  if (props.speed !== undefined) out.speed = props.speed
+  for (const k of TOASTER_EFFECTS) if (props[k] !== undefined) out[k] = props[k]
+  return out
 }

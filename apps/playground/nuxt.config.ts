@@ -4,7 +4,7 @@ export default defineNuxtConfig({
   modules: ['shadcn-nuxt', '@goopui/nuxt'],
   compatibilityDate: '2026-10-25',
   devtools: { enabled: true },
-  css: ['~/assets/css/main.css'],
+  css: ['~/assets/css/main.css', 'vue-sonner/style.css'],
   vite: {
     plugins: [tailwindcss()],
   },
