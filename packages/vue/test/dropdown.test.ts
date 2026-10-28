@@ -282,4 +282,11 @@ describe('menu props', () => {
     expect(opts.highlight).toMatchObject({ pop: false, wobble: false })
     expect(toMenuOptions(resolveMenuProps({ highlight: false })).highlight).toBeNull()
   })
+
+  it('pass the open/close momentum toggles to the panel, inherited by submenus', () => {
+    const root = resolveMenuProps({ openDrips: false })
+    expect(root).toMatchObject({ openSlosh: true, openDrips: false, closeSlosh: true })
+    const sub = resolveMenuProps({ closeSlosh: false }, root)
+    expect(toMenuOptions(sub).emerge).toMatchObject({ openSlosh: true, openDrips: false, closeSlosh: false })
+  })
 })

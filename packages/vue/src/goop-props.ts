@@ -303,7 +303,7 @@ export function toSwitchOptions(props: GoopSwitchPropsInput, config: GoopOptions
 // then on.
 
 /** Emerge toggles shared with GoopPopoverContent. */
-export const EMERGE_EFFECT_KEYS = ['bridge', 'wobble', 'momentum', 'fade'] as const
+export const EMERGE_EFFECT_KEYS = ['bridge', 'wobble', 'momentum', 'fade', 'openSlosh', 'openDrips', 'closeSlosh'] as const
 /** Every GoopDropdownMenuContent / SubContent engine prop. */
 export const MENU_PROP_KEYS = [
   'goo',
@@ -326,6 +326,12 @@ export interface GoopMenuProps {
   momentum?: boolean
   /** Content fades in once the goo settles. */
   fade?: boolean
+  /** On open, the far edge overshoots, rebounds and wobbles. */
+  openSlosh?: boolean
+  /** On open, a few drops fling off the far edge and fall away. */
+  openDrips?: boolean
+  /** On close, the goo lags and the near edge sloshes against the trigger. */
+  closeSlosh?: boolean
   /** Item highlight is a goo blob that slides between items (false: shadcn's flat bg). */
   highlight?: boolean
   /** Jelly squish of the highlight when an item is selected, before the menu closes. */
@@ -381,7 +387,16 @@ export function toMenuOptions(
     reducedMotion: config.reducedMotion,
   }
   return {
-    emerge: { ...common, bridge: menu.bridge, wobble: menu.wobble, momentum: menu.momentum, fade: menu.fade },
+    emerge: {
+      ...common,
+      bridge: menu.bridge,
+      wobble: menu.wobble,
+      momentum: menu.momentum,
+      fade: menu.fade,
+      openSlosh: menu.openSlosh,
+      openDrips: menu.openDrips,
+      closeSlosh: menu.closeSlosh,
+    },
     highlight: menu.goo && menu.highlight ? { ...common, wobble: menu.wobble, momentum: menu.momentum, pop: menu.pop } : null,
   }
 }
