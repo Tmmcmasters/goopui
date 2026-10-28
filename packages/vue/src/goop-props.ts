@@ -20,6 +20,8 @@ import {
   GOOP_PRESETS,
   GOOP_VAR_META,
   MENU_EFFECTS,
+  PROGRESS_EFFECTS,
+  SLIDER_EFFECTS,
   SWITCH_EFFECTS,
   TABS_EFFECTS,
   TABS_FEEL,
@@ -37,6 +39,10 @@ import {
   type EmergeSurfaceColor,
   type MenuEffect,
   type MenuHighlightOptions,
+  type ProgressEffect,
+  type ProgressOptions,
+  type SliderEffect,
+  type SliderOptions,
   type GoopOptions,
   type GoopRendererOption,
   type SwitchEffect,
@@ -289,46 +295,49 @@ export type GoopSwitchPropsInput = {
   [K in keyof GoopSwitchPropsDefinition]?: GoopSwitchPropsDefinition[K] extends PropDef<infer T> ? T : never
 }
 
-/** Props for a small goo toggle engine: one boolean-or-multiplier prop per effect, plus
- *  speed / preset / renderer. Shared by GoopSwitch, GoopCheckbox and GoopRadioGroup. */
-function toggleProps(effects: readonly string[]): Record<string, PropDef<never>> {
-  return {
+/** Props for a small effect engine (switch, checkbox, radio group, slider, progress): each
+ *  effect takes a boolean or a multiplier, plus speed / preset / renderer. */
+function effectEngineProps(effects: readonly string[]): Record<string, PropDef<never>> {
+  return Object.freeze({
     ...Object.fromEntries(effects.map((k) => [k, def([Boolean, Number])])),
     speed: def(Number),
     preset: def(String),
     renderer: def([String, Function]),
-  }
+  })
 }
 
-interface ToggleCommon {
-  speed?: number
-  preset?: GoopPreset
-  renderer?: GoopRendererOption
-  reducedMotion?: boolean | 'auto'
+type EffectPropsDefinition<E extends string> = { [K in E]: PropDef<boolean | number> } & {
+  speed: PropDef<number>
+  preset: PropDef<GoopPreset>
+  renderer: PropDef<GoopRendererOption>
 }
+type InputOf<D> = { [K in keyof D]?: D[K] extends PropDef<infer T> ? T : never }
 
-/** Toggle-engine options from props, over app config (`preset`, `renderer`, `reducedMotion`). */
-function toToggleOptions<E extends string>(
+/** Effect-engine options from props, over app config (`preset`, `renderer`, `reducedMotion`). */
+function toEffectOptions<E extends string>(
   effects: readonly E[],
-  props: { [K in E]?: boolean | number } & ToggleCommon,
+  props: InputOf<EffectPropsDefinition<E>>,
   config: GoopOptions,
-): ToggleCommon & { [K in E]?: boolean | number } {
-  const out: ToggleCommon & Record<string, unknown> = {
+): { [K in E]?: boolean | number } & { speed?: number; preset?: GoopPreset; renderer?: GoopRendererOption; reducedMotion?: boolean | 'auto' } {
+  const out: Record<string, unknown> = {
     preset: props.preset ?? config.preset,
     renderer: props.renderer ?? config.renderer,
     reducedMotion: config.reducedMotion,
   }
   if (props.speed !== undefined) out.speed = props.speed
-  for (const k of effects) if (props[k] !== undefined) out[k] = props[k]
-  return out as ToggleCommon & { [K in E]?: boolean | number }
+  for (const k of effects) {
+    const v = (props as Record<string, unknown>)[k]
+    if (v !== undefined) out[k] = v
+  }
+  return out as never
 }
 
 /** Spread into `defineProps({ ...goopSwitchProps, ... })`. */
-export const goopSwitchProps = Object.freeze(toggleProps(SWITCH_EFFECTS)) as unknown as GoopSwitchPropsDefinition
+export const goopSwitchProps = effectEngineProps(SWITCH_EFFECTS) as unknown as GoopSwitchPropsDefinition
 
 /** Switch options from props, over app config (`preset`, `renderer`, `reducedMotion`). */
 export function toSwitchOptions(props: GoopSwitchPropsInput, config: GoopOptions = {}): SwitchOptions {
-  return toToggleOptions(SWITCH_EFFECTS, props, config)
+  return toEffectOptions(SWITCH_EFFECTS, props, config)
 }
 
 // ---- GoopCheckbox --------------------------------------------------------------------------
@@ -348,11 +357,11 @@ export type GoopCheckboxPropsDefinition = { [K in CheckboxEffect]: PropDef<boole
 export type GoopCheckboxPropsInput = {
   [K in keyof GoopCheckboxPropsDefinition]?: GoopCheckboxPropsDefinition[K] extends PropDef<infer T> ? T : never
 }
-export const goopCheckboxProps = Object.freeze(toggleProps(CHECKBOX_EFFECTS)) as unknown as GoopCheckboxPropsDefinition
+export const goopCheckboxProps = effectEngineProps(CHECKBOX_EFFECTS) as unknown as GoopCheckboxPropsDefinition
 
 /** Checkbox options from props, over app config. */
 export function toCheckboxOptions(props: GoopCheckboxPropsInput, config: GoopOptions = {}): CheckboxOptions {
-  return toToggleOptions(CHECKBOX_EFFECTS, props, config)
+  return toEffectOptions(CHECKBOX_EFFECTS, props, config)
 }
 
 // ---- GoopRadioGroup ------------------------------------------------------------------------
@@ -372,11 +381,59 @@ export type GoopRadioPropsDefinition = { [K in RadioEffect]: PropDef<boolean | n
 export type GoopRadioPropsInput = {
   [K in keyof GoopRadioPropsDefinition]?: GoopRadioPropsDefinition[K] extends PropDef<infer T> ? T : never
 }
-export const goopRadioProps = Object.freeze(toggleProps(RADIO_EFFECTS)) as unknown as GoopRadioPropsDefinition
+export const goopRadioProps = effectEngineProps(RADIO_EFFECTS) as unknown as GoopRadioPropsDefinition
 
 /** Radio group options from props, over app config. */
 export function toRadioOptions(props: GoopRadioPropsInput, config: GoopOptions = {}): RadioGroupOptions {
-  return toToggleOptions(RADIO_EFFECTS, props, config)
+  return toEffectOptions(RADIO_EFFECTS, props, config)
+}
+
+// ---- GoopSlider ----------------------------------------------------------------------------
+// Core `attachSlider`: SLIDER_EFFECTS (jelly, slosh, stretch, splat) + speed / preset / renderer.
+
+/** Slider options GoopSlider sets itself (from its own props and app config). */
+type SliderAdapterOwned = 'orientation' | 'reducedMotion' | 'thumbSelector' | 'rangeSelector' | 'trackSelector'
+export type GoopSliderEngineKey = SliderEffect | 'speed' | 'preset' | 'renderer'
+type SliderUnhandled = Exclude<keyof SliderOptions, GoopSliderEngineKey | SliderAdapterOwned>
+const _allSliderOptionsHandled: [SliderUnhandled] extends [never] ? true : { unhandled: SliderUnhandled } = true
+void _allSliderOptionsHandled
+
+export type GoopSliderPropsDefinition = EffectPropsDefinition<SliderEffect>
+export type GoopSliderPropsInput = InputOf<GoopSliderPropsDefinition>
+
+/** Spread into `defineProps({ ...goopSliderProps, ... })`. */
+export const goopSliderProps = effectEngineProps(SLIDER_EFFECTS) as unknown as GoopSliderPropsDefinition
+
+/** Slider options from props, over app config. */
+export function toSliderOptions(props: GoopSliderPropsInput, config: GoopOptions = {}): SliderOptions {
+  return toEffectOptions(SLIDER_EFFECTS, props, config)
+}
+
+// ---- GoopProgress --------------------------------------------------------------------------
+// Core `attachProgress`: PROGRESS_EFFECTS (slosh, drips, wobble) + speed / preset / renderer /
+// seed. The value comes from v-model.
+
+type ProgressAdapterOwned = 'value' | 'max' | 'reducedMotion'
+export type GoopProgressEngineKey = ProgressEffect | 'speed' | 'preset' | 'renderer' | 'seed'
+type ProgressUnhandled = Exclude<keyof ProgressOptions, GoopProgressEngineKey | ProgressAdapterOwned>
+const _allProgressOptionsHandled: [ProgressUnhandled] extends [never] ? true : { unhandled: ProgressUnhandled } = true
+void _allProgressOptionsHandled
+
+export type GoopProgressPropsDefinition = EffectPropsDefinition<ProgressEffect> & { seed: PropDef<number> }
+export type GoopProgressPropsInput = InputOf<GoopProgressPropsDefinition>
+
+/** Spread into `defineProps({ ...goopProgressProps, ... })`. */
+export const goopProgressProps = Object.freeze({
+  ...effectEngineProps(PROGRESS_EFFECTS),
+  seed: def(Number),
+}) as unknown as GoopProgressPropsDefinition
+
+/** Progress options from props, over app config (`seed` falls back to the app's). */
+export function toProgressOptions(props: GoopProgressPropsInput, config: GoopOptions = {}): ProgressOptions {
+  const out: ProgressOptions = toEffectOptions(PROGRESS_EFFECTS, props, config)
+  const seed = props.seed ?? config.seed
+  if (seed !== undefined) out.seed = seed
+  return out
 }
 
 // ---- GoopDropdownMenu -----------------------------------------------------------------------

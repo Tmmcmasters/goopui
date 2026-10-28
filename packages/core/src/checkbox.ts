@@ -28,14 +28,12 @@ import {
   GOO_SPLASH_MAX,
   gooBridge,
   gooEffectValue,
-  noCircle,
-  smooth01,
   splashDrops,
   splatAxes,
   splatCurve,
   splatToggleEnd,
-  type GooCircle,
 } from './splat'
+import { noCircle, smooth01, type GooCircle } from './liquid'
 import { readPreset } from './tuning'
 
 /** Checkbox state: checked, unchecked or indeterminate (reka's `'indeterminate'`). */

@@ -19,5 +19,7 @@ export const catalog: CatalogEntry[] = [
   { path: '/dropdown', goop: 'GoopDropdown', shadcn: 'DropdownMenu', blurb: 'Goo bridge on open, crisp items.' },
   { path: '/tabs', goop: 'GoopTabs', shadcn: 'Tabs', blurb: 'Active-tab goo blob that slides with momentum.' },
   { path: '/tooltip', goop: 'GoopTooltip', shadcn: 'Tooltip', blurb: 'Tooltip oozes out of its trigger.' },
+  { path: '/slider', goop: 'GoopSlider', shadcn: 'Slider', blurb: 'Jelly goo thumb over a sloshing liquid fill.' },
+  { path: '/progress', goop: 'GoopProgress', shadcn: 'Progress', blurb: 'Fills like liquid: wobbling goo front, slosh, drips.' },
   { path: '/blob', goop: 'GoopBlob', shadcn: null, blurb: 'Background blobs. Perf stress test.' },
 ]

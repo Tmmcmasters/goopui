@@ -45,13 +45,11 @@ import {
   GOO_SPLASH_MAX,
   gooBridge,
   gooEffectValue,
-  noCircle,
-  smooth01,
   splashDrops as gooSplashDrops,
   splatCurve,
   splatToggleEnd,
-  type GooCircle,
 } from './splat'
+import { noCircle, smooth01, type GooCircle } from './liquid'
 import { readPreset } from './tuning'
 
 /** Fraction of a toggle spent travelling; the rest is the landing wobble. */

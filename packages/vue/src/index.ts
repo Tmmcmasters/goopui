@@ -10,6 +10,8 @@ export * from './components/popover'
 export * from './components/dropdown-menu'
 export * from './components/tabs'
 export * from './components/tooltip'
+export * from './components/slider'
+export * from './components/progress'
 export { GOOP_CONFIG_KEY, GoopPlugin, provideGoopConfig, useGoopConfig, type GoopConfig } from './config'
 export {
   CSS_VAR_KEYS,
@@ -23,6 +25,8 @@ export {
   GOOP_TUNING_KEYS,
   diffOptions,
   goopPropMeta,
+  goopProgressProps,
+  goopSliderProps,
   goopSwitchProps,
   goopCheckboxProps,
   goopRadioProps,
@@ -36,6 +40,8 @@ export {
   toTooltipOptions,
   toGoopOptions,
   toGoopStyle,
+  toProgressOptions,
+  toSliderOptions,
   toSwitchOptions,
   type GoopCssVarKey,
   type GoopEngineKey,
@@ -47,6 +53,12 @@ export {
   type GoopPropValue,
   type GoopPropsDefinition,
   type GoopPropsInput,
+  type GoopProgressEngineKey,
+  type GoopProgressPropsDefinition,
+  type GoopProgressPropsInput,
+  type GoopSliderEngineKey,
+  type GoopSliderPropsDefinition,
+  type GoopSliderPropsInput,
   type GoopSwitchEngineKey,
   type GoopSwitchPropsDefinition,
   type GoopSwitchPropsInput,

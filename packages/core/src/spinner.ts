@@ -19,6 +19,7 @@ import { watchReducedMotion, isReducedMotion } from './reduced-motion'
 import type { GoopBlob, GoopRenderer } from './renderer'
 import { resolveRenderer, type GoopRendererOption } from './renderers/resolve'
 import { readPreset } from './tuning'
+import { hangingDrip } from './liquid'
 import { removeTicker, wakeTicker, type Ticker } from './loop'
 import { trackPointer, type PointerTracker } from './pointer'
 import {
@@ -193,17 +194,9 @@ function dripCircles(p: number, n: number, feel: SpinnerFeel, vanish: number): S
     const slot = (e % SPINNER_MAX_DRIPS) * DRIP_CIRCLES
     if (p < ps) {
       const u = (p - (ps - SW)) / SW
-      const s = smooth(u)
       const h = headAt(p, i, n, feel)
       // Hang: swell under the blob, then stretch away on a lengthening neck before letting go.
-      const off = (0.5 * h.r + 0.7 * rd) * s + 0.9 * rd * smooth((u - 0.45) / 0.55)
-      const d = { x: h.x, y: h.y + off, r: rd * (0.4 + 0.6 * s) }
-      out[slot] = d
-      const neckR = rd * (0.7 - 0.35 * smooth((u - 0.4) / 0.4)) * (1 - smooth((u - 0.82) / 0.18))
-      for (let k = 1; k <= DRIP_NECK; k++) {
-        const f = k / (DRIP_NECK + 1)
-        out[slot + k] = { x: h.x, y: h.y + off * f, r: neckR }
-      }
+      hangingDrip(u, h.x, h.y, h.r, rd, DRIP_NECK).forEach((c, k) => (out[slot + k] = c))
     } else {
       const q = (p - ps) / FALL
       const h = headAt(ps, i, n, feel)

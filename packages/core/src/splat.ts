@@ -1,27 +1,15 @@
 // Shared goo-toggle pieces: the impact splat, splash droplets and the snapping goo bridge.
 //
 // Pure math, no DOM. Born in the switch (switch.ts) and generalised to any impact direction so
-// the checkbox (a drop landing in the box) and the radio group (a blob jumping between items)
-// land, splat and splash the same way.
+// the checkbox (a drop landing in the box), the radio group (a blob jumping between items) and
+// the slider thumb land, splat and splash the same way. Builds on liquid.ts (GooCircle, the
+// easing helpers and `decayWobble`, which `splatCurve` tunes with GOO_SPLAT's wobble).
 
-/** One circle, host px. sx/sy stretch it (1 = round). */
-export interface GooCircle {
-  x: number
-  y: number
-  r: number
-  sx: number
-  sy: number
-}
+import { clamp01, decayWobble, noCircle, smooth01, type GooCircle } from './liquid'
 
-export const clamp01 = (x: number): number => Math.max(0, Math.min(1, x))
+export type { GooCircle }
+
 const clamp = (x: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, x))
-/** Smoothstep over 0..1 (input clamped). */
-export const smooth01 = (x: number): number => {
-  const t = clamp01(x)
-  return t * t * (3 - 2 * t)
-}
-/** A zero-radius (hidden) circle parked at (x, y). */
-export const noCircle = (x: number, y: number): GooCircle => ({ x, y, r: 0, sx: 1, sy: 1 })
 
 /** Splat / splash shape constants (feel-independent). Distances are in blob radii. */
 export const GOO_SPLAT = Object.freeze({
@@ -57,11 +45,7 @@ export const GOO_SPLASH_MAX = GOO_SPLAT.drops.length
  *  (stretched off it). Starts at 0, exactly 0 from `settle` on. `jelly` scales the wobble
  *  after the first flatten. */
 export function splatCurve(a: number, settle: number, jelly = 1): number {
-  if (a <= 0 || a >= settle) return 0
-  const { freq, damping } = GOO_SPLAT
-  const ph = 2 * Math.PI * freq * a
-  const g = Math.sin(ph) * Math.exp(-damping * a) * (1 - a / settle)
-  return ph < Math.PI ? g : g * jelly
+  return decayWobble(a, GOO_SPLAT.freq, GOO_SPLAT.damping, settle, jelly)
 }
 
 /** Scale along / across the impact axis for splat `q` (> 0 flat, < 0 rebounding). */

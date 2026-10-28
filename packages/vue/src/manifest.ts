@@ -39,6 +39,8 @@ export const goopComponents = [
   'GoopTooltipContent',
   'GoopTooltipProvider',
   'GoopTooltipTrigger',
+  'GoopSlider',
+  'GoopProgress',
 ] as const
 
 export type GoopComponentName = (typeof goopComponents)[number]

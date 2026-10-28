@@ -11,7 +11,7 @@ import { removeTicker, wakeTicker, type Ticker } from './loop'
 import { isReducedMotion, watchReducedMotion } from './reduced-motion'
 import type { GoopBlob, GoopBodyTransform, GoopLayerPadding, GoopRenderer } from './renderer'
 import { resolveRenderer, type GoopRendererOption } from './renderers/resolve'
-import type { GooCircle } from './splat'
+import type { GooCircle } from './liquid'
 
 /** Host attribute present while the real mark should stay hidden (the goo is still landing). */
 export const GOO_PENDING_ATTR = 'data-goop-pending'
