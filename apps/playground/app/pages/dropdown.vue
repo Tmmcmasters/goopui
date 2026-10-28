@@ -14,8 +14,8 @@ const goopPosition = ref('bottom')
 /** GoopDropdownMenuContent props from the panel, applied to every goop menu on the page
  *  (submenus inherit them). */
 const goo = ref(true)
-/** Flow out of the trigger (off by default for menus for now). */
-const flow = ref(false)
+/** Flow out of the trigger (false: the original inflate-from-a-bulb emerge). */
+const flow = ref(true)
 const highlight = ref(true)
 const pop = ref(true)
 const submenus = ref(true)

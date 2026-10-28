@@ -467,8 +467,9 @@ export interface GoopMenuProps {
   /** Master switch. `false` renders plain shadcn DropdownMenu parts. */
   goo?: boolean
   /** Flow out of the trigger: goo bulges out of the trigger edge, runs across as a thick
-   *  neck and swells into the menu, then pinches off. Default false for now (the menu inflates
-   *  from a bulb at the trigger edge); submenus inherit it. */
+   *  neck and swells into the menu, then pinches off; close sucks it back into the trigger.
+   *  Default true; submenus inherit it (they flow out of their row). `false`: the menu
+   *  inflates from a bulb at the trigger edge. */
   flow?: boolean
   /** Bulb + lumpy neck between trigger (or submenu row) and panel. */
   bridge?: boolean
@@ -531,7 +532,7 @@ export interface ResolvedMenuProps
   renderer?: GoopRendererOption
 }
 
-const MENU_TOGGLES = ['goo', ...EMERGE_EFFECT_KEYS, ...MENU_EFFECTS] as const
+const MENU_TOGGLES = ['goo', 'flow', ...EMERGE_EFFECT_KEYS, ...MENU_EFFECTS] as const
 
 /** Resolve menu props over a parent menu's resolved settings (submenus) or the defaults. */
 export function resolveMenuProps(props: GoopMenuProps, parent?: ResolvedMenuProps | null): ResolvedMenuProps {
@@ -541,7 +542,6 @@ export function resolveMenuProps(props: GoopMenuProps, parent?: ResolvedMenuProp
     const v = props[k] ?? parent?.[k]
     if (v !== undefined) out[k] = v
   }
-  out.flow = props.flow ?? parent?.flow ?? false
   out.surface = props.surface ?? parent?.surface ?? 'trigger'
   out.preset = props.preset ?? parent?.preset
   out.renderer = props.renderer ?? parent?.renderer

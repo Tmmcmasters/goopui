@@ -290,6 +290,55 @@ describe('emerge flow mode', () => {
     expect(emergePose(0.92, b, 'open', EMERGE_FEEL.playful, flow).circles.every((c) => c.r === 0)).toBe(true)
   })
 
+  for (const side of SIDES) {
+    it(`${side}: the body never overshoots the panel rect by more than a few px`, () => {
+      const panel = panelFor(side)
+      const b = emergeBridge(trigger, panel, side)
+      for (const preset of ['subtle', 'playful', 'wild'] as const) {
+        for (let i = 0; i <= 60; i++) {
+          const { body } = emergePose(i / 60, b, 'open', EMERGE_FEEL[preset], flow)
+          if (body.w * body.h === 0) continue
+          // The near edge may tuck back to the trigger; the far edge and sides stay put.
+          const l = body.cx - body.w / 2
+          const r = body.cx + body.w / 2
+          const tp = body.cy - body.h / 2
+          const bt = body.cy + body.h / 2
+          const tol = 3.5
+          if (side !== 'left') expect(r).toBeLessThanOrEqual(panel.width + tol)
+          if (side !== 'right') expect(l).toBeGreaterThanOrEqual(-tol)
+          if (side !== 'top') expect(bt).toBeLessThanOrEqual(panel.height + tol)
+          if (side !== 'bottom') expect(tp).toBeGreaterThanOrEqual(-tol)
+        }
+      }
+    })
+  }
+
+  it('presets scale the flow: wild is slower and has a thicker neck than subtle', () => {
+    const { subtle, playful, wild } = EMERGE_FEEL
+    for (const ph of ['open', 'close'] as const) {
+      expect(emergeFlowDuration(subtle, ph)).toBeLessThan(emergeFlowDuration(playful, ph))
+      expect(emergeFlowDuration(playful, ph)).toBeLessThan(emergeFlowDuration(wild, ph))
+    }
+    expect(subtle.flowNeck!).toBeLessThan(wild.flowNeck!)
+  })
+
+  it('reduced motion: flow opens and closes statically, nothing ticks', () => {
+    document.documentElement.dataset.reducedMotion = 'true'
+    const anchor = document.createElement('button')
+    const host = document.createElement('div')
+    document.body.append(anchor, host)
+    const h = attachEmerge(host, { anchor, flow: true })
+    h.open()
+    expect(h.state).toBe('open')
+    expect(activeTickerCount()).toBe(0)
+    expect(host.style.getPropertyValue(EMERGE_CONTENT_VAR)).toBe('1')
+    expect(h.close()).toBe(0)
+    expect(h.state).toBe('closed')
+    h.destroy()
+    delete document.documentElement.dataset.reducedMotion
+    document.body.innerHTML = ''
+  })
+
   it('attachEmerge uses the flow durations', () => {
     const anchor = document.createElement('button')
     const host = document.createElement('div')

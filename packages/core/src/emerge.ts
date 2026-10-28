@@ -442,6 +442,8 @@ const FLOW = {
   fadeLen: 0.3,
   /** How far (px) the root / attached body tuck into the anchor edge (hides the seam). */
   overlap: 3,
+  /** Max jelly overshoot (px) of the body past the panel's far edge and each side. */
+  overshoot: 3,
 } as const
 const FLOW_ROOT_SIZE = [0.86, 1.1, 0.86] as const
 const FLOW_NECK_SIZE = [1, 0.84, 0.88, 1] as const
@@ -455,7 +457,9 @@ function flowGeom(b: EmergeBridge, feel: EmergeFeel) {
   const aB = Math.max(0, b.anchorHi - b.anchorLo)
   const edgeLen = aB > 0 ? aB : 36
   const cap = Math.max(10, Math.min(b.breadth > 0 ? b.breadth : 36, edgeLen, 140))
-  const nw = clamp((feel.flowNeck ?? 0.46) * edgeLen, 10, cap)
+  const k = feel.flowNeck ?? 0.46
+  // Short edges (a submenu row) get a fatter fraction so the neck stays globby, not a string.
+  const nw = clamp(Math.max(k * edgeLen, Math.min(edgeLen * 0.75, (28 * k) / 0.46)), 10, cap)
   const rr = clamp(nw * 0.3, 4, 20)
   const hw = clamp(nw * 0.8, 8, Math.max(8, b.breadth))
   const hd = clamp(nw * 0.6, 8, Math.max(8, b.depth))
@@ -482,8 +486,11 @@ function flowPose(t: number, b: EmergeBridge, phase: EmergePhase, feel: EmergeFe
     const dq = clamp((t - FLOW.detachAt) / FLOW.detachLen)
     const launch = fx.momentum ? feel.travel * b.bulb * hump(dq, 0.7) : 0
     const near = lerp(g.edge, 0, smooth(dq * 1.6)) + launch
-    const far = Math.max(near + 1, lerp(g.edge + g.hd * s1, b.depth, reach))
-    const cq = Math.min(1.08, emergeJelly(clamp((t - FLOW.swellAt) / FLOW.swellLen), feel.decay * 1.15, fx.wobble))
+    // Jelly overshoot past the panel's rect stays small (FLOW.overshoot px): the open slosh
+    // does the big far-edge bounce once the body has landed.
+    const far = Math.max(near + 1, Math.min(b.depth + FLOW.overshoot, lerp(g.edge + g.hd * s1, b.depth, reach)))
+    const cqMax = 1 + (2 * FLOW.overshoot) / Math.max(1, b.breadth)
+    const cq = Math.min(cqMax, emergeJelly(clamp((t - FLOW.swellAt) / FLOW.swellLen), feel.decay * 1.15, fx.wobble))
     slab = {
       near,
       extent: (far - near) * Math.min(1, s1 * 4),
