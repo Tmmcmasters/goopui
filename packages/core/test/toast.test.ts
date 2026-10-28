@@ -160,6 +160,13 @@ describe('toastFadeBody', () => {
     }
     expect(prev).toBe(rect.height)
   })
+  it('is fully inflated behind the toast text once it is clearly visible', () => {
+    // Regression: the body was ~20% tall at 30% opacity, leaving the text over the dark page.
+    expect(toastFadeBody(rect, 0.4)).toEqual(toastFadeBody(rect, 1))
+    const b = toastFadeBody(rect, 0.2)!
+    expect(toastFadeBody(rect, 0.3)!.h).toBeGreaterThan(rect.height * 0.8)
+    expect(b.h).toBeGreaterThanOrEqual(rect.height * 0.5)
+  })
 })
 
 describe('attachToaster (DOM)', () => {
