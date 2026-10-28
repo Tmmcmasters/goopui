@@ -6,6 +6,8 @@ export * from './components/spinner'
 export * from './components/switch'
 export * from './components/popover'
 export * from './components/dropdown-menu'
+export * from './components/tabs'
+export * from './components/tooltip'
 export { GOOP_CONFIG_KEY, GoopPlugin, provideGoopConfig, useGoopConfig, type GoopConfig } from './config'
 export {
   CSS_VAR_KEYS,
@@ -14,6 +16,8 @@ export {
   EMERGE_EFFECT_KEYS,
   FEATURE_KEYS,
   MENU_PROP_KEYS,
+  TABS_PROP_KEYS,
+  TOOLTIP_PROP_KEYS,
   GOOP_TUNING_KEYS,
   diffOptions,
   goopPropMeta,
@@ -22,6 +26,8 @@ export {
   isGoopFeature,
   resolveMenuProps,
   toMenuOptions,
+  toTabsOptions,
+  toTooltipOptions,
   toGoopOptions,
   toGoopStyle,
   toSwitchOptions,
@@ -29,6 +35,8 @@ export {
   type GoopEngineKey,
   type GoopFeatureKey,
   type GoopMenuProps,
+  type GoopTabsProps,
+  type GoopTooltipProps,
   type ResolvedMenuProps,
   type GoopPropValue,
   type GoopPropsDefinition,

@@ -463,6 +463,8 @@ export interface EmergeOptions extends EmergeEffects, EmergeMomentumEffects, Eme
    *  getter. Resolved on every `open()` and published as `--goop-surface` /
    *  `--goop-surface-foreground` on the host (with `data-goop-tint`). */
   surfaceColor?: EmergeSurfaceColor
+  /** Per-preset feel table. Default EMERGE_FEEL (GoopTooltip passes TOOLTIP_FEEL). */
+  feel?: Readonly<Record<GoopPreset, Readonly<EmergeFeel>>>
 }
 
 export interface EmergeHandle {
@@ -505,7 +507,7 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
   const win = doc.defaultView
   let opts: EmergeOptions = { ...options }
   let presetName = readPreset(host, opts.preset)
-  let feel = EMERGE_FEEL[presetName]
+  let feel = (opts.feel ?? EMERGE_FEEL)[presetName]
   let params = emergeGooParams(feel)
   let renderer: GoopRenderer | null = null
   let blobs: GoopBlob[] = []
@@ -771,7 +773,7 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
       opts = { ...opts, ...next }
       if (colorChanged && state !== 'closed') applyColors()
       presetName = readPreset(host, opts.preset)
-      const nextFeel = EMERGE_FEEL[presetName]
+      const nextFeel = (opts.feel ?? EMERGE_FEEL)[presetName]
       const rebuild = rendererChanged || nextFeel.softness !== feel.softness
       feel = nextFeel
       reduced = readReduced()

@@ -102,6 +102,31 @@
     --goop-color: color-mix(in oklab, var(--destructive) 20%, var(--popover));
   }
 
+  /* Tabs indicator blob (GoopTabsList): the active tab's shadcn bg + shadow-sm. Dark: shadcn's
+     translucent bg-input/30 mixed opaque over the list's muted bg, with an input-colored rim. */
+  [data-goop-tabs] > [data-goop='highlight'] {
+    --goop-color: var(--background);
+    filter: drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.1));
+  }
+  :where(.dark) [data-goop-tabs] > [data-goop='highlight'] {
+    --goop-color: color-mix(in oklab, var(--input) 30%, var(--muted));
+    filter: drop-shadow(0 0 0.5px var(--input));
+  }
+  /* Until the blob attaches (SSR, first paint), the active trigger keeps shadcn's look. */
+  [data-goop-tabs]:not([data-goop-menu]) > [role='tab'][data-state='active'] {
+    background-color: var(--background);
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  }
+  :where(.dark) [data-goop-tabs]:not([data-goop-menu]) > [role='tab'][data-state='active'] {
+    background-color: color-mix(in oklab, var(--input) 30%, transparent);
+    border-color: var(--input);
+  }
+
+  /* Tooltip (GoopTooltipContent): shadcn's tooltip has no ring or shadow. */
+  [data-slot='tooltip-content'][data-goop-emerge] {
+    --goop-surface-shadow: none;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     [data-goop-host] > [data-goop='layer'] {
       transition: none;

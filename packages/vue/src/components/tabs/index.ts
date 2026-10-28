@@ -1,0 +1,5 @@
+export { default as GoopTabs } from './GoopTabs.vue'
+export { default as GoopTabsContent } from './GoopTabsContent.vue'
+export { default as GoopTabsList } from './GoopTabsList.vue'
+export { default as GoopTabsTrigger } from './GoopTabsTrigger.vue'
+export { tabsListVariants, type TabsListVariants } from './variants'
