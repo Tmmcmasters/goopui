@@ -83,6 +83,7 @@ export const themeCss = (): string => `
   padding: 0 16px; border-radius: 12px; background: ${COLORS.chalk}; color: ${COLORS.ink};
   border: 1px solid #e4e4e0; transform-origin: 50% 0%;
 }
+.v7 [data-sonner-toast].dismissed { background: ${COLORS.slime}; }
 .v7 [data-sonner-toast] .ttl { font: 600 14px/1.25 ${GEIST}; }
 .v7 [data-sonner-toast] .dsc { font: 400 13px/1.3 ${GEIST}; color: #6b6b66; }
 .v7 [data-sonner-toast] .x { position: absolute; right: 10px; top: 10px; width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; color: #6b6b66; }

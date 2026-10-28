@@ -130,6 +130,9 @@ export const toastScene: SceneScript<Rt> = {
           if (live.removedAt !== null) return
           live.removedAt = rt.last
           node.setAttribute('data-removed', 'true')
+          // The dismissed toast's goo (body + drips) is slime: core reads the toast's own
+          // background when its class changes, so cream drips don't glow on the dark stage.
+          node.classList.add('dismissed')
         })
         rt.toasts.unshift(live)
       }
