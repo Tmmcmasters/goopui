@@ -87,7 +87,7 @@ describe('SSR', () => {
       expect(a).toContain('aria-checked="true"')
       expect(a).toContain('data-slot="switch-thumb"')
       expect(a).toContain('data-goop-host="switch"')
-      expect(a).toContain('data-checked:bg-primary')
+      expect(a).toContain('data-[state=checked]:bg-primary')
       expect(a).not.toContain('data-goop-active')
       expect(a).not.toContain('data-goop="layer"')
     } finally {
@@ -120,7 +120,7 @@ describe('SSR', () => {
       expect(a).toContain('role="radiogroup"')
       expect(a).toContain('data-goop-host="radio-group"')
       expect(a).toContain('data-slot="radio-group-indicator"')
-      expect(a).toContain('data-checked:bg-primary')
+      expect(a).toContain('data-[state=checked]:bg-primary')
       expect(a).not.toContain('data-goop-active')
       expect(a).not.toContain('data-goop-pending')
       expect(a).not.toContain('data-goop="layer"')
