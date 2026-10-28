@@ -236,3 +236,12 @@ export {
   type MenuHighlightPose,
   type MenuHighlightState,
 } from './menu'
+export {
+  TABS_EFFECTS,
+  TABS_FEEL,
+  attachTabsIndicator,
+  findActiveTab,
+  type TabsEffect,
+  type TabsIndicatorOptions,
+} from './tabs'
+export { TOOLTIP_FEEL, TOOLTIP_MOMENTUM } from './tooltip'

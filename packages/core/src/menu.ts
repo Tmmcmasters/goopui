@@ -357,6 +357,8 @@ export interface MenuHighlightOptions extends MenuHighlightEffects {
   reducedMotion?: boolean | 'auto'
   /** The highlighted item. Default `findMenuHighlight`. */
   find?: (container: HTMLElement) => Element | null
+  /** Per-preset feel table. Default MENU_FEEL (GoopTabs passes TABS_FEEL). */
+  feel?: Readonly<Record<GoopPreset, Readonly<MenuFeel>>>
 }
 
 export interface MenuHighlightHandle {
@@ -383,7 +385,8 @@ export function attachMenuHighlight(container: HTMLElement, options: MenuHighlig
   const doc = container.ownerDocument
   const win = doc.defaultView
   let opts: MenuHighlightOptions = { ...options }
-  let feel = MENU_FEEL[readPreset(container, opts.preset)]
+  const feelOf = (): MenuFeel => (opts.feel ?? MENU_FEEL)[readPreset(container, opts.preset)]
+  let feel = feelOf()
   let renderer: GoopRenderer | null = null
   let blobs: GoopBlob[] = []
   let destroyed = false
@@ -518,6 +521,9 @@ export function attachMenuHighlight(container: HTMLElement, options: MenuHighlig
     ? new win.MutationObserver(kick)
     : null
   mo?.observe(container, { subtree: true, attributes: true, attributeFilter: ['data-highlighted', 'data-state'] })
+  // Items move when the container resizes (tabs reflowing, fonts loading): follow them.
+  const ro = win?.ResizeObserver ? new win.ResizeObserver(kick) : null
+  ro?.observe(container)
 
   const unwatch = watchReducedMotion(doc, () => {
     reduced = readReduced()
@@ -539,7 +545,7 @@ export function attachMenuHighlight(container: HTMLElement, options: MenuHighlig
       if (destroyed) return
       const rendererChanged = 'renderer' in next && next.renderer !== opts.renderer
       opts = { ...opts, ...next }
-      const nextFeel = MENU_FEEL[readPreset(container, opts.preset)]
+      const nextFeel = feelOf()
       const rebuild = rendererChanged || nextFeel.softness !== feel.softness
       feel = nextFeel
       reduced = readReduced()
@@ -561,6 +567,7 @@ export function attachMenuHighlight(container: HTMLElement, options: MenuHighlig
       destroyed = true
       removeTicker(tick)
       mo?.disconnect()
+      ro?.disconnect()
       unwatch()
       for (const b of blobs) b.remove()
       blobs = []

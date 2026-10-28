@@ -433,6 +433,8 @@ export interface EmergeOptions extends EmergeEffects, EmergeMomentumEffects {
   ready?: () => boolean
   /** Use this element as the goo surface instead of creating one (must be a child of host). */
   surface?: HTMLElement
+  /** Per-preset feel table. Default EMERGE_FEEL (GoopTooltip passes TOOLTIP_FEEL). */
+  feel?: Readonly<Record<GoopPreset, Readonly<EmergeFeel>>>
 }
 
 export interface EmergeHandle {
@@ -473,7 +475,7 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
   const win = doc.defaultView
   let opts: EmergeOptions = { ...options }
   let presetName = readPreset(host, opts.preset)
-  let feel = EMERGE_FEEL[presetName]
+  let feel = (opts.feel ?? EMERGE_FEEL)[presetName]
   let params = emergeGooParams(feel)
   let renderer: GoopRenderer | null = null
   let blobs: GoopBlob[] = []
@@ -711,7 +713,7 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
       const rendererChanged = 'renderer' in next && next.renderer !== opts.renderer
       opts = { ...opts, ...next }
       presetName = readPreset(host, opts.preset)
-      const nextFeel = EMERGE_FEEL[presetName]
+      const nextFeel = (opts.feel ?? EMERGE_FEEL)[presetName]
       const rebuild = rendererChanged || nextFeel.softness !== feel.softness
       feel = nextFeel
       reduced = readReduced()

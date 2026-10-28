@@ -21,6 +21,12 @@ import {
   GOOP_VAR_META,
   MENU_EFFECTS,
   SWITCH_EFFECTS,
+  TABS_EFFECTS,
+  TABS_FEEL,
+  TOOLTIP_FEEL,
+  TOOLTIP_MOMENTUM,
+  type TabsEffect,
+  type TabsIndicatorOptions,
   type EmergeOptions,
   type MenuEffect,
   type MenuHighlightOptions,
@@ -347,7 +353,7 @@ export interface GoopMenuProps {
 }
 
 /** Compile-time guards: every emerge / highlight option core grows must be handled here. */
-type MenuAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'find' | 'reducedMotion'
+type MenuAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'find' | 'feel' | 'reducedMotion'
 type MenuUnhandled = Exclude<
   keyof EmergeOptions | keyof MenuHighlightOptions | MenuEffect,
   keyof GoopMenuProps | MenuAdapterOwned
@@ -398,5 +404,117 @@ export function toMenuOptions(
       closeSlosh: menu.closeSlosh,
     },
     highlight: menu.goo && menu.highlight ? { ...common, wobble: menu.wobble, momentum: menu.momentum, pop: menu.pop } : null,
+  }
+}
+
+// ---- GoopTabs -------------------------------------------------------------------------------
+// The active-tab indicator is core's menu highlight engine fed TABS_FEEL (`attachTabsIndicator`).
+// Toggles come from core's TABS_EFFECTS; all default true.
+
+/** Every GoopTabsList engine prop. */
+export const TABS_PROP_KEYS = ['goo', ...TABS_EFFECTS, 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopTabsList. */
+export interface GoopTabsProps {
+  /** Master switch. `false` renders a plain shadcn TabsList / TabsTrigger. */
+  goo?: boolean
+  /** The active tab's background is a goo blob that slides between triggers (false: shadcn's flat bg). */
+  indicator?: boolean
+  /** Jelly overshoot when the blob lands. */
+  wobble?: boolean
+  /** Momentum: the blob stretches and necks to a trailing tail while it travels. */
+  momentum?: boolean
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+type TabsAdapterOwned = 'feel' | 'reducedMotion'
+type TabsUnhandled = Exclude<keyof TabsIndicatorOptions | TabsEffect, keyof GoopTabsProps | TabsAdapterOwned>
+const _allTabsOptionsHandled: [TabsUnhandled] extends [never] ? true : { unhandled: TabsUnhandled } = true
+void _allTabsOptionsHandled
+type TabsPropsListed = Exclude<keyof GoopTabsProps, (typeof TABS_PROP_KEYS)[number]>
+const _allTabsPropsListed: [TabsPropsListed] extends [never] ? true : { unlisted: TabsPropsListed } = true
+void _allTabsPropsListed
+
+/** Indicator options for core over app config, or null when the goo indicator is off. */
+export function toTabsOptions(props: GoopTabsProps, config: GoopOptions = {}): TabsIndicatorOptions | null {
+  if (props.goo === false || props.indicator === false) return null
+  return {
+    feel: TABS_FEEL,
+    wobble: props.wobble !== false,
+    momentum: props.momentum !== false,
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+}
+
+// ---- GoopTooltip ----------------------------------------------------------------------------
+// The tooltip oozes out of its trigger with the popover's emerge engine, fed TOOLTIP_FEEL
+// (quick, small bridge) and TOOLTIP_MOMENTUM (light slosh, no drips) as defaults.
+
+/** Every GoopTooltipContent engine prop. */
+export const TOOLTIP_PROP_KEYS = ['goo', ...EMERGE_EFFECT_KEYS, 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopTooltipContent. */
+export interface GoopTooltipProps {
+  /** Master switch. `false` renders a plain shadcn TooltipContent. */
+  goo?: boolean
+  /** Small bulb + lumpy neck between trigger and tooltip. */
+  bridge?: boolean
+  /** Jelly overshoot and wobble. */
+  wobble?: boolean
+  /** Momentum launch away from the trigger that stretches and snaps the neck. */
+  momentum?: boolean
+  /** Content fades in once the goo settles. */
+  fade?: boolean
+  /** Open: the far edge bulges and wobbles. `true` (light, 0.4), `false` or a 0..2 strength. */
+  openSlosh?: boolean | number
+  /** Open: drops fling off the far edge. Off by default; `true` or 0..2 turns it on. */
+  openDrips?: boolean | number
+  /** Close: the near edge sloshes against the trigger. `true` (light, 0.5), `false` or 0..2. */
+  closeSlosh?: boolean | number
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+type TooltipAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'feel' | 'reducedMotion'
+type TooltipUnhandled = Exclude<keyof EmergeOptions, keyof GoopTooltipProps | TooltipAdapterOwned>
+const _allTooltipOptionsHandled: [TooltipUnhandled] extends [never] ? true : { unhandled: TooltipUnhandled } = true
+void _allTooltipOptionsHandled
+type TooltipPropsListed = Exclude<keyof GoopTooltipProps, (typeof TOOLTIP_PROP_KEYS)[number]>
+const _allTooltipPropsListed: [TooltipPropsListed] extends [never] ? true : { unlisted: TooltipPropsListed } = true
+void _allTooltipPropsListed
+
+/** Slosh toggle: `true` / absent = the tooltip's light default strength, else as given. */
+const lightSlosh = (v: boolean | number | undefined, def: boolean | number): boolean | number =>
+  v === undefined || v === true ? def : v
+
+/** Emerge options for a tooltip over app config. */
+export function toTooltipOptions(props: GoopTooltipProps, config: GoopOptions = {}): EmergeOptions {
+  const M = TOOLTIP_MOMENTUM
+  return {
+    feel: TOOLTIP_FEEL,
+    bridge: props.bridge !== false,
+    wobble: props.wobble !== false,
+    momentum: props.momentum !== false,
+    fade: props.fade !== false,
+    openSlosh: lightSlosh(props.openSlosh, M.openSlosh),
+    // Off unless asked for: `true` turns drips on at full strength.
+    openDrips: props.openDrips ?? M.openDrips,
+    closeSlosh: lightSlosh(props.closeSlosh, M.closeSlosh),
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
   }
 }
