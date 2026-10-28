@@ -12,6 +12,15 @@
 //     thins and snaps, then recoils into the wall (the bridge).
 //   landing (t >= TRAVEL): the stretch turns into a jelly squash against the wall, a rebound,
 //     and a damped wobble that settles to exactly round at t = 1.
+//   splat (on by default) replaces that landing: the thumb keeps its momentum and flattens
+//     against the end wall like a water balloon (short along the travel, bulging taller, the
+//     wall side squared off), rebounds a little off the wall and wobbles, settling over
+//     `feel.settle` seconds. The landing then outlasts t = 1: the toggle ends at
+//     `switchToggleEnd(feel, effects)`. `squish` scales the wobble after the first flatten, so the
+//     two compose into one deformation instead of doubling up.
+//   droplets: on impact 2-4 fat drops neck off the thumb's wall side, fly up/out past the wall,
+//     arc over under screen-down gravity and fall back (merging into the goo, or shrinking away).
+//     They are drawn in the fill layer (primary color) so they read on any page background.
 //   The primary fill runs from the left end of the track to the thumb, so checking floods the
 //   track with goo behind the thumb and unchecking drains it back.
 //
@@ -28,10 +37,12 @@ import { readPreset } from './tuning'
 
 /** Fraction of a toggle spent travelling; the rest is the landing wobble. */
 export const SWITCH_TRAVEL = 0.56
-/** Circles in the thumb layer: head, 2 tail, anchor, 3 neck. */
-export const SWITCH_THUMB_CIRCLES = 7
-/** Circles in the fill layer. */
+/** Circles in the thumb layer: head, 2 tail, anchor, 3 neck, 2 wall corners (splat). */
+export const SWITCH_THUMB_CIRCLES = 9
+/** Circles in the fill layer (not counting the splash droplets drawn after them). */
 export const SWITCH_FILL_CIRCLES = 6
+/** Splash droplet circles (drawn in the fill layer; r = 0 when idle). */
+export const SWITCH_DROP_CIRCLES = 4
 /** CSS vars the two goo layers paint with (set them on the host or an ancestor). */
 export const SWITCH_THUMB_COLOR_VAR = '--goop-switch-thumb'
 export const SWITCH_FILL_COLOR_VAR = '--goop-switch-fill'
@@ -48,21 +59,93 @@ export interface SwitchFeel {
   squish: number
   /** Goo blur as a fraction of the track height. */
   softness: number
+  /** Wall splat strength: how far the thumb flattens on arrival (0 = none). */
+  splat: number
+  /** Seconds from impact until the splat and droplets have settled. */
+  settle: number
+  /** Splash droplet strength (size and flight height). */
+  droplets: number
+  /** Droplets per impact at strength 1 (2..4). */
+  dropCount: number
 }
 
 export const SWITCH_FEEL: Readonly<Record<GoopPreset, Readonly<SwitchFeel>>> = Object.freeze({
-  subtle: Object.freeze({ duration: 0.4, stretch: 0.6, bridge: 0.6, squish: 0.55, softness: 0.075 }),
-  playful: Object.freeze({ duration: 0.52, stretch: 1, bridge: 1, squish: 1, softness: 0.08 }),
-  wild: Object.freeze({ duration: 0.66, stretch: 1.4, bridge: 1.3, squish: 1.5, softness: 0.085 }),
+  subtle: Object.freeze({
+    duration: 0.4,
+    stretch: 0.6,
+    bridge: 0.6,
+    squish: 0.55,
+    softness: 0.075,
+    splat: 0.6,
+    settle: 0.5,
+    droplets: 0.7,
+    dropCount: 2,
+  }),
+  playful: Object.freeze({
+    duration: 0.52,
+    stretch: 1,
+    bridge: 1,
+    squish: 1,
+    softness: 0.08,
+    splat: 1,
+    settle: 0.6,
+    droplets: 1,
+    dropCount: 3,
+  }),
+  wild: Object.freeze({
+    duration: 0.66,
+    stretch: 1.4,
+    bridge: 1.3,
+    squish: 1.5,
+    softness: 0.085,
+    splat: 1.4,
+    settle: 0.7,
+    droplets: 1.25,
+    dropCount: 4,
+  }),
+})
+
+/** Wall splat / splash shape constants (feel-independent). Distances are in thumb radii. */
+export const SWITCH_SPLAT = Object.freeze({
+  /** Wobble frequency, Hz (about 2.5 wobbles over a 0.6s settle). */
+  freq: 4.4,
+  /** Wobble damping per second. */
+  damping: 5.5,
+  /** Along-travel squash per unit of splat (sx = 1 - flatten * q). */
+  flatten: 0.45,
+  /** Perpendicular bulge per unit of splat (sy = 1 + bulge * q). */
+  bulge: 0.3,
+  /** Rebound: how far the thumb springs back off the wall at the first rebound. */
+  rebound: 0.5,
+  /** Wall-corner circle radius (squares off the side touching the wall). */
+  corner: 0.42,
+  /** Impacts weaker than this throw no droplets (0..1, short interrupted toggles). */
+  dropMinImpact: 0.3,
+  /** Per droplet, in priority order: wall-side top/bottom, size (r), apex height (r), outward
+   *  reach past the launch point (r), extra fall below the launch (r), flight (s, at settle
+   *  0.6), delay (s), and whether it lands back in the goo (merge) or shrinks away. */
+  drops: Object.freeze([
+    Object.freeze({ top: true, size: 0.36, height: 1.7, reach: 0.55, fall: 0, flight: 0.42, delay: 0, merge: true }),
+    Object.freeze({ top: false, size: 0.27, height: 0.45, reach: 0.9, fall: 1.1, flight: 0.34, delay: 0.012, merge: false }),
+    Object.freeze({ top: true, size: 0.24, height: 2.2, reach: 1.35, fall: 0.3, flight: 0.5, delay: 0.022, merge: false }),
+    Object.freeze({ top: true, size: 0.2, height: 1.15, reach: -0.2, fall: 0, flight: 0.33, delay: 0.035, merge: true }),
+  ]),
 })
 
 /** The switch's individually toggleable effects. Each takes a boolean or a multiplier
  *  (1 = the preset's strength, 0 = off). `fill` is on/off only. */
-export const SWITCH_EFFECTS = ['stretch', 'bridge', 'squish', 'fill'] as const
+export const SWITCH_EFFECTS = ['stretch', 'bridge', 'squish', 'fill', 'splat', 'droplets'] as const
 export type SwitchEffect = (typeof SWITCH_EFFECTS)[number]
 export type SwitchEffects = Record<SwitchEffect, number>
 /** Every effect on at preset strength (the default). */
-export const SWITCH_ALL_EFFECTS: Readonly<SwitchEffects> = Object.freeze({ stretch: 1, bridge: 1, squish: 1, fill: 1 })
+export const SWITCH_ALL_EFFECTS: Readonly<SwitchEffects> = Object.freeze({
+  stretch: 1,
+  bridge: 1,
+  squish: 1,
+  fill: 1,
+  splat: 1,
+  droplets: 1,
+})
 
 /** One circle, host px. sx/sy stretch it (1 = round). */
 export interface SwitchCircle {
@@ -80,10 +163,12 @@ export interface SwitchGeometry {
 }
 
 export interface SwitchPose {
-  /** SWITCH_THUMB_CIRCLES circles: head, tail x2, anchor, neck x3. */
+  /** SWITCH_THUMB_CIRCLES circles: head, tail x2, anchor, neck x3, wall corner x2. */
   thumb: SwitchCircle[]
   /** SWITCH_FILL_CIRCLES circles (all r = 0 when unchecked or fill is off). */
   fill: SwitchCircle[]
+  /** SWITCH_DROP_CIRCLES splash droplets (fill layer; all r = 0 unless splashing). */
+  drops: SwitchCircle[]
   /** Thumb position along the track, 0 (unchecked) .. 1 (checked). */
   position: number
 }
@@ -110,6 +195,27 @@ const travelSpeed = (u: number): number => clamp((4 * u - 3 * u * u) * 0.75, 0, 
 /** Landing wobble: 0 at impact, squash peak ~0.12, damped, exactly 0 at w = 1. */
 const wobble = (w: number): number => (Math.sin(2 * Math.PI * 1.75 * w) * Math.exp(-4 * w) * (1 - w)) / 0.55
 
+/** Toggle progress at which everything has settled: 1, or later when the splat / droplets
+ *  run past the plain landing (they last `feel.settle` seconds from impact). */
+export function switchToggleEnd(
+  feel: SwitchFeel = SWITCH_FEEL.playful,
+  effects: SwitchEffects = SWITCH_ALL_EFFECTS,
+): number {
+  if (!(effects.splat > 0 && feel.splat > 0) && !(effects.droplets > 0 && feel.droplets > 0)) return 1
+  return Math.max(1, SWITCH_TRAVEL + feel.settle / Math.max(0.01, feel.duration))
+}
+
+/** Splat deformation `a` seconds after impact: > 0 flattened against the wall, < 0 rebounding
+ *  (stretched off it). Starts at 0, exactly 0 from `settle` on. `jelly` scales the wobble
+ *  after the first flatten. */
+function splatCurve(a: number, settle: number, jelly: number): number {
+  if (a <= 0 || a >= settle) return 0
+  const { freq, damping } = SWITCH_SPLAT
+  const ph = 2 * Math.PI * freq * a
+  const g = Math.sin(ph) * Math.exp(-damping * a) * (1 - a / settle)
+  return ph < Math.PI ? g : g * jelly
+}
+
 /** Thumb position (0..1) at progress `t` of a toggle from `from` to `to`. */
 export function switchPosition(t: number, from: number, to: number): number {
   const u = clamp(t / SWITCH_TRAVEL, 0, 1)
@@ -131,7 +237,9 @@ export function switchPose(
 ): SwitchPose {
   const { cy, r, x0, x1, fillR } = switchMetrics(geometry)
   const span = x1 - x0
-  const tt = clamp(Number.isFinite(t) ? t : 1, 0, 1)
+  const end = switchToggleEnd(feel, effects)
+  const tt = clamp(Number.isFinite(t) ? t : end, 0, end)
+  const done = tt >= end
   const dist = Math.abs(to - from)
   const dir = to > from ? 1 : to < from ? -1 : to >= 0.5 ? 1 : -1
   const u = clamp(tt / SWITCH_TRAVEL, 0, 1)
@@ -140,25 +248,52 @@ export function switchPose(
   const stretch = Math.max(0, effects.stretch) * feel.stretch
   const squish = Math.max(0, effects.squish) * feel.squish
   const bridge = Math.max(0, effects.bridge) * feel.bridge
+  const splat = Math.max(0, effects.splat) * feel.splat
+  // How hard it hits: interrupted, short toggles arrive slower.
+  const impact = Math.min(1, dist * 1.5)
+  // Seconds since the thumb reached the wall (< 0 while travelling).
+  const age = (tt - SWITCH_TRAVEL) * feel.duration
 
   // k: deformation along the travel axis. > 0 stretched (leaning into the move), < 0 squashed.
   const s = travelSpeed(u) * Math.min(1, dist * 1.5)
   const kTravel = stretch * s
   let k: number
+  // q: the wall splat (> 0 flattened against the wall, < 0 rebounding off it).
+  let q = 0
   if (tt < SWITCH_TRAVEL) k = kTravel
-  else {
+  else if (splat > 0) {
+    // Splat replaces the plain squish; squish scales its wobble (one deformation, no double-up).
+    k = stretch * travelSpeed(1) * impact * (1 - smooth(age / 0.035))
+    q = splat * impact * splatCurve(age, feel.settle, clamp(0.3 + 0.7 * squish, 0, 1.6))
+  } else {
     const w = (tt - SWITCH_TRAVEL) / (1 - SWITCH_TRAVEL)
-    const kImpact = stretch * travelSpeed(1) * Math.min(1, dist * 1.5)
-    k = kImpact * (1 - smooth(w / 0.12)) - squish * Math.min(1, dist * 1.5) * 0.8 * wobble(w)
+    const kImpact = stretch * travelSpeed(1) * impact
+    k = kImpact * (1 - smooth(w / 0.12)) - squish * impact * 0.8 * wobble(w)
+    if (tt >= 1) k = 0
   }
-  if (tt >= 1) k = 0
+  if (done) {
+    k = 0
+    q = 0
+  }
   k = clamp(k, -1.2, 1.6)
-  const sx = 1 + 0.2 * k
-  const sy = 1 - 0.14 * k
-  // A squashed thumb flattens against the far wall: its leading edge stays on the wall.
-  const headX = xTrack + dir * r * Math.max(0, 1 - sx)
+  q = clamp(q, -0.6, 1.6)
+  const sx = Math.max(0.45, 1 + 0.2 * k - SWITCH_SPLAT.flatten * q)
+  const sy = 1 - 0.14 * k + SWITCH_SPLAT.bulge * q
+  // A squashed thumb flattens against the far wall: its leading edge stays on the wall. While
+  // the splat rebounds it springs back off the wall a little.
+  const wallX = xTrack + dir * r
+  const headX = xTrack + dir * r * Math.max(0, 1 - sx) + dir * r * SWITCH_SPLAT.rebound * Math.min(0, q)
   const ks = Math.max(0, k)
   const head: SwitchCircle = { x: headX, y: cy, r: r * (1 - 0.08 * ks), sx, sy }
+
+  // Wall corners: two circles tucked into the wall-side corners square off the flattened side.
+  const flat = clamp(q / 0.9, 0, 1)
+  const rc = r * SWITCH_SPLAT.corner * flat
+  const corners: SwitchCircle[] = [-1, 1].map((side) =>
+    rc > 0.01
+      ? { x: wallX - dir * rc * 1.05, y: cy + side * Math.max(0, r * sy - rc * 1.1), r: rc, sx: 1, sy: 1 }
+      : none(wallX, cy),
+  )
 
   // Bridge: the back of the thumb stays stuck at the start while the head leaves, joined by
   // a neck that thins, then snaps; the stub recoils into the start wall and shrinks away.
@@ -206,7 +341,57 @@ export function switchPose(
     fill.push(fr > 0.01 ? { x, y: cy, r: fr, sx: 1, sy: 1 } : none(x, cy))
   }
 
-  return { thumb: [head, ...tails, anchor, ...necks], fill, position }
+  const drops = splashDrops(age, done, dir, wallX, cy, r, sy, impact, feel, Math.max(0, effects.droplets))
+
+  return { thumb: [head, ...tails, anchor, ...necks, ...corners], fill, drops, position }
+}
+
+/** Splash droplets `age` seconds after impact. Each necks off the wall side of the thumb,
+ *  flies a parabola (constant outward speed, screen-down gravity) and either lands back in the
+ *  goo or shrinks away. All r = 0 outside their flight. */
+function splashDrops(
+  age: number,
+  done: boolean,
+  dir: number,
+  wallX: number,
+  cy: number,
+  r: number,
+  sy: number,
+  impact: number,
+  feel: SwitchFeel,
+  amount: number,
+): SwitchCircle[] {
+  const strength = amount * feel.droplets
+  const count =
+    strength > 0 && impact >= SWITCH_SPLAT.dropMinImpact && !done
+      ? Math.min(SWITCH_DROP_CIRCLES, Math.max(2, Math.round(feel.dropCount * Math.min(amount, 1.4))))
+      : 0
+  // Flight distances grow with the hit, sizes a little; capped so the layer padding holds them.
+  const reach = Math.min(1.35, Math.sqrt(strength) * (0.55 + 0.45 * impact))
+  const grow = Math.min(1.25, 0.8 + 0.2 * strength)
+  const time = feel.settle / 0.6
+  const out: SwitchCircle[] = []
+  for (let i = 0; i < SWITCH_DROP_CIRCLES; i++) {
+    const d = SWITCH_SPLAT.drops[i]!
+    const flight = d.flight * time
+    const s = (age - d.delay * time) / flight
+    if (i >= count || s <= 0 || s >= 1) {
+      out.push(none(wallX, cy))
+      continue
+    }
+    const side = d.top ? -1 : 1
+    const x0 = wallX - dir * r * 0.4
+    const y0 = cy + side * r * sy * 0.62
+    const x = x0 + dir * r * d.reach * reach * s
+    const y = y0 - 4 * r * d.height * reach * s * (1 - s) + r * d.fall * reach * s * s
+    // Neck off (grow out of the thumb), then sink back into the goo or shrink away.
+    const fade = d.merge ? 1 - smooth((s - 0.72) / 0.28) : 1 - smooth((s - 0.5) / 0.5)
+    const rr = r * d.size * grow * smooth(s / 0.2) * fade
+    // Fat and globby: a touch squashed along the flight at launch, round in the air.
+    const st = 1 + 0.18 * (1 - smooth(s / 0.35))
+    out.push(rr > 0.01 ? { x, y, r: rr, sx: 1 / st, sy: st } : none(wallX, cy))
+  }
+  return out
 }
 
 /** The resting pose (reduced motion, first paint, end of every toggle). */
@@ -217,7 +402,7 @@ export function switchStaticPose(
   effects: SwitchEffects = SWITCH_ALL_EFFECTS,
 ): SwitchPose {
   const p = checked ? 1 : 0
-  return switchPose(1, p, p, geometry, feel, effects)
+  return switchPose(switchToggleEnd(feel, effects), p, p, geometry, feel, effects)
 }
 
 /** Goo filter parameters for a track `height` px tall. */
@@ -252,6 +437,11 @@ export interface SwitchOptions {
   /** The checked track fills with goo (primary color). Default true. On/off only: any
    *  number > 0 counts as on. */
   fill?: boolean | number
+  /** The thumb keeps its momentum and splats against the end wall, rebounds and wobbles.
+   *  Replaces the plain landing squish (`squish` then scales its wobble). Default true. */
+  splat?: boolean | number
+  /** Fat goo drops splash off the wall on impact and fall back. Default true. */
+  droplets?: boolean | number
   /** true / false force it; 'auto' (default) follows prefers-reduced-motion and
    *  `<html data-reduced-motion="true">`, live. */
   reducedMotion?: boolean | 'auto'
@@ -275,6 +465,8 @@ const effectsOf = (o: SwitchOptions): SwitchEffects => ({
   bridge: switchEffectValue(o.bridge),
   squish: switchEffectValue(o.squish),
   fill: switchEffectValue(o.fill) > 0 ? 1 : 0,
+  splat: switchEffectValue(o.splat),
+  droplets: switchEffectValue(o.droplets),
 })
 
 /** Attach a goo thumb and fill to a switch track `host` (the element with role="switch"; it
@@ -293,7 +485,7 @@ export function attachSwitch(host: HTMLElement, options: SwitchOptions = {}): Sw
   let thumbBlobs: GoopBlob[] = []
   let to = opts.checked ? 1 : 0
   let from = to
-  let t = 1
+  let t = switchToggleEnd(feel, effects)
   let last: SwitchPose | null = null
   let destroyed = false
 
@@ -307,7 +499,9 @@ export function attachSwitch(host: HTMLElement, options: SwitchOptions = {}): Sw
     return w > 0 && h > 0 ? { width: w, height: h } : { width: 32, height: 18 }
   }
   const padding = () => {
-    const p = Math.ceil(params.blur * 3 + switchMetrics(geom).r * 0.3)
+    // Droplets fly up to ~2.5 thumb radii above / beside the track (wild at 2x).
+    const room = effects.droplets > 0 ? 2.6 : 0.3
+    const p = Math.ceil(params.blur * 3 + switchMetrics(geom).r * room)
     return { side: p, bottom: p }
   }
 
@@ -320,7 +514,7 @@ export function attachSwitch(host: HTMLElement, options: SwitchOptions = {}): Sw
   const draw = (): void => {
     if (!fillLayer || !thumbLayer) return
     last = reduced ? switchStaticPose(to === 1, geom, feel, effects) : switchPose(t, from, to, geom, feel, effects)
-    drawSet(fillBlobs, last.fill)
+    drawSet(fillBlobs, [...last.fill, ...last.drops])
     drawSet(thumbBlobs, last.thumb)
     fillLayer.flush()
     thumbLayer.flush()
@@ -352,7 +546,7 @@ export function attachSwitch(host: HTMLElement, options: SwitchOptions = {}): Sw
       r.setBodyScale(0, 0)
       r.setPadding(padding())
     }
-    fillBlobs = Array.from({ length: SWITCH_FILL_CIRCLES }, () => fillLayer!.createBlob())
+    fillBlobs = Array.from({ length: SWITCH_FILL_CIRCLES + SWITCH_DROP_CIRCLES }, () => fillLayer!.createBlob())
     thumbBlobs = Array.from({ length: SWITCH_THUMB_CIRCLES }, () => thumbLayer!.createBlob())
     draw()
   }
@@ -373,12 +567,13 @@ export function attachSwitch(host: HTMLElement, options: SwitchOptions = {}): Sw
     draw()
   }
 
-  const shouldRun = (): boolean => !destroyed && !reduced && t < 1
+  const end = (): number => switchToggleEnd(feel, effects)
+  const shouldRun = (): boolean => !destroyed && !reduced && t < end()
   const tick: Ticker = (dt) => {
     if (!shouldRun()) return false
-    t = Math.min(1, t + (dt * Math.max(0.05, opts.speed ?? 1)) / feel.duration)
+    t = Math.min(end(), t + (dt * Math.max(0.05, opts.speed ?? 1)) / feel.duration)
     draw()
-    return t < 1
+    return t < end()
   }
   const sync = (): void => {
     if (shouldRun()) wakeTicker(tick)
@@ -391,7 +586,7 @@ export function attachSwitch(host: HTMLElement, options: SwitchOptions = {}): Sw
     // Interrupting a toggle starts the new one from wherever the thumb is now.
     from = reduced ? next : (last?.position ?? to)
     to = next
-    t = reduced ? 1 : 0
+    t = reduced ? end() : 0
   }
 
   const prevIsolation = host.style.isolation
@@ -408,7 +603,7 @@ export function attachSwitch(host: HTMLElement, options: SwitchOptions = {}): Sw
     reduced = readReduced()
     if (reduced) {
       from = to
-      t = 1
+      t = end()
     }
     draw()
     sync()
@@ -423,14 +618,20 @@ export function attachSwitch(host: HTMLElement, options: SwitchOptions = {}): Sw
       const rebuild = rendererChanged || nextFeel.softness !== feel.softness
       feel = nextFeel
       effects = effectsOf(opts)
+      // Turning splat/droplets off can shorten the toggle under a running t.
+      t = Math.min(t, end())
       reduced = readReduced()
       if (reduced) {
         from = to
-        t = 1
+        t = end()
       }
       if ('checked' in next) setChecked(!!next.checked)
       if (rebuild) build()
-      else draw()
+      else {
+        fillLayer?.setPadding(padding())
+        thumbLayer?.setPadding(padding())
+        draw()
+      }
       sync()
     },
     resize,

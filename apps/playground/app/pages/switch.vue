@@ -9,7 +9,7 @@ const goopOff = ref(false)
 /** Switch props from the panel, applied to every GoopSwitch on the page. */
 const speed = ref(1)
 /** Effect toggles (core SWITCH_EFFECTS). */
-const fx = reactive({ stretch: true, bridge: true, squish: true, fill: true })
+const fx = reactive({ stretch: true, bridge: true, squish: true, fill: true, splat: true, droplets: true })
 const preset = ref<GoopPreset | ''>('')
 const renderer = ref<GoopRendererName | ''>('')
 const engine = computed(() => ({
