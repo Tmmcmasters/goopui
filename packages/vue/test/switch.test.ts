@@ -1,4 +1,4 @@
-import { SWITCH_FILL_CIRCLES, SWITCH_THUMB_CIRCLES, activeTickerCount, isLoopRunning } from '@goopui/core'
+import { SWITCH_DROP_CIRCLES, SWITCH_FILL_CIRCLES, SWITCH_THUMB_CIRCLES, activeTickerCount, isLoopRunning } from '@goopui/core'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createSSRApp, h, nextTick, ref } from 'vue'
@@ -30,7 +30,7 @@ describe('GoopSwitch', () => {
     const ls = layers(sw(w).element)
     expect(ls).toHaveLength(2)
     for (const l of ls) expect(l.getAttribute('aria-hidden')).toBe('true')
-    expect(blobs(sw(w).element)).toHaveLength(SWITCH_FILL_CIRCLES + SWITCH_THUMB_CIRCLES)
+    expect(blobs(sw(w).element)).toHaveLength(SWITCH_FILL_CIRCLES + SWITCH_DROP_CIRCLES + SWITCH_THUMB_CIRCLES)
     expect(sw(w).find('[data-slot="switch-thumb"]').attributes('style')).toContain('background-color: transparent')
     w.unmount()
     expect(document.querySelector('[data-goop-defs]')).toBeNull()
@@ -98,7 +98,9 @@ describe('GoopSwitch', () => {
   })
 
   it('effect props map to core options', () => {
-    expect(toSwitchOptions({ bridge: false, squish: 2, speed: 1.5, preset: 'wild' })).toMatchObject({
+    expect(toSwitchOptions({ bridge: false, squish: 2, splat: 1.5, droplets: false, speed: 1.5, preset: 'wild' })).toMatchObject({
+      splat: 1.5,
+      droplets: false,
       bridge: false,
       squish: 2,
       speed: 1.5,
