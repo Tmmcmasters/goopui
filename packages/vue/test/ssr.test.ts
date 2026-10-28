@@ -95,4 +95,37 @@ describe('SSR', () => {
       delete (globalThis as Record<string, unknown>).window
     }
   })
+  it('GoopSlider and GoopProgress render plain shadcn markup with no document/window access', async () => {
+    const { GoopSlider, GoopProgress } = await import('../src')
+    const app = () =>
+      createSSRApp({
+        render: () => [
+          h(GoopSlider, { defaultValue: [25, 75], jelly: false }),
+          h(GoopSlider, { modelValue: [40], orientation: 'vertical' }),
+          h(GoopProgress, { modelValue: 60, drips: false }),
+          h(GoopProgress, { modelValue: null }),
+        ],
+      })
+    const apps = [app(), app()]
+    trap('document')
+    trap('window')
+    try {
+      const a = await renderToString(apps[0]!)
+      const b = await renderToString(apps[1]!)
+      expect(a).toBe(b)
+      expect(a.match(/role="slider"/g)).toHaveLength(3)
+      expect(a).toContain('data-slot="slider-range"')
+      expect(a).toContain('data-goop-host="slider"')
+      expect(a).toContain('role="progressbar"')
+      expect(a).toContain('data-goop-host="progress"')
+      expect(a).toContain('translateX(-40%)')
+      expect(a).toContain('data-state="indeterminate"')
+      expect(a).not.toContain('data-goop-active')
+      expect(a).not.toContain('data-goop="layer"')
+      expect(a).not.toContain('transparent')
+    } finally {
+      delete (globalThis as Record<string, unknown>).document
+      delete (globalThis as Record<string, unknown>).window
+    }
+  })
 })

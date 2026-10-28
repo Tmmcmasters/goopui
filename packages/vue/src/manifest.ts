@@ -28,6 +28,8 @@ export const goopComponents = [
   'GoopDropdownMenuSubContent',
   'GoopDropdownMenuSubTrigger',
   'GoopDropdownMenuTrigger',
+  'GoopSlider',
+  'GoopProgress',
 ] as const
 
 export type GoopComponentName = (typeof goopComponents)[number]

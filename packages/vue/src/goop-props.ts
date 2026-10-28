@@ -20,10 +20,16 @@ import {
   GOOP_PRESETS,
   GOOP_VAR_META,
   MENU_EFFECTS,
+  PROGRESS_EFFECTS,
+  SLIDER_EFFECTS,
   SWITCH_EFFECTS,
   type EmergeOptions,
   type MenuEffect,
   type MenuHighlightOptions,
+  type ProgressEffect,
+  type ProgressOptions,
+  type SliderEffect,
+  type SliderOptions,
   type GoopOptions,
   type GoopRendererOption,
   type SwitchEffect,
@@ -277,12 +283,7 @@ export type GoopSwitchPropsInput = {
 }
 
 /** Spread into `defineProps({ ...goopSwitchProps, ... })`. */
-export const goopSwitchProps = Object.freeze({
-  ...Object.fromEntries(SWITCH_EFFECTS.map((k) => [k, def([Boolean, Number])])),
-  speed: def(Number),
-  preset: def(String),
-  renderer: def([String, Function]),
-}) as unknown as GoopSwitchPropsDefinition
+export const goopSwitchProps = effectEngineProps(SWITCH_EFFECTS) as unknown as GoopSwitchPropsDefinition
 
 /** Switch options from props, over app config (`preset`, `renderer`, `reducedMotion`). */
 export function toSwitchOptions(props: GoopSwitchPropsInput, config: GoopOptions = {}): SwitchOptions {
@@ -293,6 +294,91 @@ export function toSwitchOptions(props: GoopSwitchPropsInput, config: GoopOptions
   }
   if (props.speed !== undefined) out.speed = props.speed
   for (const k of SWITCH_EFFECTS) if (props[k] !== undefined) out[k] = props[k]
+  return out
+}
+
+/** Props for a small effect engine (switch, slider, progress): each effect takes a boolean
+ *  or a multiplier, plus speed / preset / renderer. */
+function effectEngineProps(effects: readonly string[]): Record<string, PropDef<never>> {
+  return Object.freeze({
+    ...Object.fromEntries(effects.map((k) => [k, def([Boolean, Number])])),
+    speed: def(Number),
+    preset: def(String),
+    renderer: def([String, Function]),
+  })
+}
+
+type EffectPropsDefinition<E extends string> = { [K in E]: PropDef<boolean | number> } & {
+  speed: PropDef<number>
+  preset: PropDef<GoopPreset>
+  renderer: PropDef<GoopRendererOption>
+}
+type InputOf<D> = { [K in keyof D]?: D[K] extends PropDef<infer T> ? T : never }
+
+/** Effect-engine options from props, over app config (`preset`, `renderer`, `reducedMotion`). */
+function toEffectOptions<E extends string>(
+  effects: readonly E[],
+  props: InputOf<EffectPropsDefinition<E>>,
+  config: GoopOptions,
+): { [K in E]?: boolean | number } & { speed?: number; preset?: GoopPreset; renderer?: GoopRendererOption; reducedMotion?: boolean | 'auto' } {
+  const out: Record<string, unknown> = {
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+  if (props.speed !== undefined) out.speed = props.speed
+  for (const k of effects) {
+    const v = (props as Record<string, unknown>)[k]
+    if (v !== undefined) out[k] = v
+  }
+  return out as never
+}
+
+// ---- GoopSlider ----------------------------------------------------------------------------
+// Core `attachSlider`: SLIDER_EFFECTS (jelly, slosh, stretch, splat) + speed / preset / renderer.
+
+/** Slider options GoopSlider sets itself (from its own props and app config). */
+type SliderAdapterOwned = 'orientation' | 'reducedMotion' | 'thumbSelector' | 'rangeSelector' | 'trackSelector'
+export type GoopSliderEngineKey = SliderEffect | 'speed' | 'preset' | 'renderer'
+type SliderUnhandled = Exclude<keyof SliderOptions, GoopSliderEngineKey | SliderAdapterOwned>
+const _allSliderOptionsHandled: [SliderUnhandled] extends [never] ? true : { unhandled: SliderUnhandled } = true
+void _allSliderOptionsHandled
+
+export type GoopSliderPropsDefinition = EffectPropsDefinition<SliderEffect>
+export type GoopSliderPropsInput = InputOf<GoopSliderPropsDefinition>
+
+/** Spread into `defineProps({ ...goopSliderProps, ... })`. */
+export const goopSliderProps = effectEngineProps(SLIDER_EFFECTS) as unknown as GoopSliderPropsDefinition
+
+/** Slider options from props, over app config. */
+export function toSliderOptions(props: GoopSliderPropsInput, config: GoopOptions = {}): SliderOptions {
+  return toEffectOptions(SLIDER_EFFECTS, props, config)
+}
+
+// ---- GoopProgress --------------------------------------------------------------------------
+// Core `attachProgress`: PROGRESS_EFFECTS (slosh, drips, wobble) + speed / preset / renderer /
+// seed. The value comes from v-model.
+
+type ProgressAdapterOwned = 'value' | 'max' | 'reducedMotion'
+export type GoopProgressEngineKey = ProgressEffect | 'speed' | 'preset' | 'renderer' | 'seed'
+type ProgressUnhandled = Exclude<keyof ProgressOptions, GoopProgressEngineKey | ProgressAdapterOwned>
+const _allProgressOptionsHandled: [ProgressUnhandled] extends [never] ? true : { unhandled: ProgressUnhandled } = true
+void _allProgressOptionsHandled
+
+export type GoopProgressPropsDefinition = EffectPropsDefinition<ProgressEffect> & { seed: PropDef<number> }
+export type GoopProgressPropsInput = InputOf<GoopProgressPropsDefinition>
+
+/** Spread into `defineProps({ ...goopProgressProps, ... })`. */
+export const goopProgressProps = Object.freeze({
+  ...effectEngineProps(PROGRESS_EFFECTS),
+  seed: def(Number),
+}) as unknown as GoopProgressPropsDefinition
+
+/** Progress options from props, over app config (`seed` falls back to the app's). */
+export function toProgressOptions(props: GoopProgressPropsInput, config: GoopOptions = {}): ProgressOptions {
+  const out: ProgressOptions = toEffectOptions(PROGRESS_EFFECTS, props, config)
+  const seed = props.seed ?? config.seed
+  if (seed !== undefined) out.seed = seed
   return out
 }
 

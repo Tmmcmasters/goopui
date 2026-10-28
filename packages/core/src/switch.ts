@@ -34,6 +34,7 @@ import { isReducedMotion, watchReducedMotion } from './reduced-motion'
 import type { GoopBlob, GoopRenderer } from './renderer'
 import { resolveRenderer, type GoopRendererOption } from './renderers/resolve'
 import { readPreset } from './tuning'
+import { decayWobble } from './liquid'
 
 /** Fraction of a toggle spent travelling; the rest is the landing wobble. */
 export const SWITCH_TRAVEL = 0.56
@@ -209,11 +210,7 @@ export function switchToggleEnd(
  *  (stretched off it). Starts at 0, exactly 0 from `settle` on. `jelly` scales the wobble
  *  after the first flatten. */
 function splatCurve(a: number, settle: number, jelly: number): number {
-  if (a <= 0 || a >= settle) return 0
-  const { freq, damping } = SWITCH_SPLAT
-  const ph = 2 * Math.PI * freq * a
-  const g = Math.sin(ph) * Math.exp(-damping * a) * (1 - a / settle)
-  return ph < Math.PI ? g : g * jelly
+  return decayWobble(a, SWITCH_SPLAT.freq, SWITCH_SPLAT.damping, settle, jelly)
 }
 
 /** Thumb position (0..1) at progress `t` of a toggle from `from` to `to`. */

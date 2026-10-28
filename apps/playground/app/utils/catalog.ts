@@ -15,5 +15,7 @@ export const catalog: CatalogEntry[] = [
   { path: '/switch', goop: 'GoopSwitch', shadcn: 'Switch', blurb: 'Thumb that stretches across the track.' },
   { path: '/popover', goop: 'GoopPopover', shadcn: 'Popover', blurb: 'Goo bridge from trigger to content.' },
   { path: '/dropdown', goop: 'GoopDropdown', shadcn: 'DropdownMenu', blurb: 'Goo bridge on open, crisp items.' },
+  { path: '/slider', goop: 'GoopSlider', shadcn: 'Slider', blurb: 'Jelly goo thumb over a sloshing liquid fill.' },
+  { path: '/progress', goop: 'GoopProgress', shadcn: 'Progress', blurb: 'Fills like liquid: wobbling goo front, slosh, drips.' },
   { path: '/blob', goop: 'GoopBlob', shadcn: null, blurb: 'Background blobs. Perf stress test.' },
 ]
