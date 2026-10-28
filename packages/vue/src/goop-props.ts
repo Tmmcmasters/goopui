@@ -27,6 +27,12 @@ import {
   TOOLTIP_MOMENTUM,
   type TabsEffect,
   type TabsIndicatorOptions,
+  CHECKBOX_EFFECTS,
+  RADIO_EFFECTS,
+  type CheckboxEffect,
+  type CheckboxOptions,
+  type RadioEffect,
+  type RadioGroupOptions,
   type EmergeOptions,
   type EmergeSurfaceColor,
   type MenuEffect,
@@ -283,24 +289,94 @@ export type GoopSwitchPropsInput = {
   [K in keyof GoopSwitchPropsDefinition]?: GoopSwitchPropsDefinition[K] extends PropDef<infer T> ? T : never
 }
 
-/** Spread into `defineProps({ ...goopSwitchProps, ... })`. */
-export const goopSwitchProps = Object.freeze({
-  ...Object.fromEntries(SWITCH_EFFECTS.map((k) => [k, def([Boolean, Number])])),
-  speed: def(Number),
-  preset: def(String),
-  renderer: def([String, Function]),
-}) as unknown as GoopSwitchPropsDefinition
+/** Props for a small goo toggle engine: one boolean-or-multiplier prop per effect, plus
+ *  speed / preset / renderer. Shared by GoopSwitch, GoopCheckbox and GoopRadioGroup. */
+function toggleProps(effects: readonly string[]): Record<string, PropDef<never>> {
+  return {
+    ...Object.fromEntries(effects.map((k) => [k, def([Boolean, Number])])),
+    speed: def(Number),
+    preset: def(String),
+    renderer: def([String, Function]),
+  }
+}
 
-/** Switch options from props, over app config (`preset`, `renderer`, `reducedMotion`). */
-export function toSwitchOptions(props: GoopSwitchPropsInput, config: GoopOptions = {}): SwitchOptions {
-  const out: SwitchOptions = {
+interface ToggleCommon {
+  speed?: number
+  preset?: GoopPreset
+  renderer?: GoopRendererOption
+  reducedMotion?: boolean | 'auto'
+}
+
+/** Toggle-engine options from props, over app config (`preset`, `renderer`, `reducedMotion`). */
+function toToggleOptions<E extends string>(
+  effects: readonly E[],
+  props: { [K in E]?: boolean | number } & ToggleCommon,
+  config: GoopOptions,
+): ToggleCommon & { [K in E]?: boolean | number } {
+  const out: ToggleCommon & Record<string, unknown> = {
     preset: props.preset ?? config.preset,
     renderer: props.renderer ?? config.renderer,
     reducedMotion: config.reducedMotion,
   }
   if (props.speed !== undefined) out.speed = props.speed
-  for (const k of SWITCH_EFFECTS) if (props[k] !== undefined) out[k] = props[k]
-  return out
+  for (const k of effects) if (props[k] !== undefined) out[k] = props[k]
+  return out as ToggleCommon & { [K in E]?: boolean | number }
+}
+
+/** Spread into `defineProps({ ...goopSwitchProps, ... })`. */
+export const goopSwitchProps = Object.freeze(toggleProps(SWITCH_EFFECTS)) as unknown as GoopSwitchPropsDefinition
+
+/** Switch options from props, over app config (`preset`, `renderer`, `reducedMotion`). */
+export function toSwitchOptions(props: GoopSwitchPropsInput, config: GoopOptions = {}): SwitchOptions {
+  return toToggleOptions(SWITCH_EFFECTS, props, config)
+}
+
+// ---- GoopCheckbox --------------------------------------------------------------------------
+// Core `attachCheckbox`: CHECKBOX_EFFECTS (fill, splat, droplets) plus speed / preset / renderer.
+
+type CheckboxAdapterOwned = 'checked' | 'reducedMotion'
+export type GoopCheckboxEngineKey = CheckboxEffect | 'speed' | 'preset' | 'renderer'
+type CheckboxUnhandled = Exclude<keyof CheckboxOptions, GoopCheckboxEngineKey | CheckboxAdapterOwned>
+const _allCheckboxOptionsHandled: [CheckboxUnhandled] extends [never] ? true : { unhandled: CheckboxUnhandled } = true
+void _allCheckboxOptionsHandled
+
+export type GoopCheckboxPropsDefinition = { [K in CheckboxEffect]: PropDef<boolean | number> } & {
+  speed: PropDef<number>
+  preset: PropDef<GoopPreset>
+  renderer: PropDef<GoopRendererOption>
+}
+export type GoopCheckboxPropsInput = {
+  [K in keyof GoopCheckboxPropsDefinition]?: GoopCheckboxPropsDefinition[K] extends PropDef<infer T> ? T : never
+}
+export const goopCheckboxProps = Object.freeze(toggleProps(CHECKBOX_EFFECTS)) as unknown as GoopCheckboxPropsDefinition
+
+/** Checkbox options from props, over app config. */
+export function toCheckboxOptions(props: GoopCheckboxPropsInput, config: GoopOptions = {}): CheckboxOptions {
+  return toToggleOptions(CHECKBOX_EFFECTS, props, config)
+}
+
+// ---- GoopRadioGroup ------------------------------------------------------------------------
+// Core `attachRadioGroup`: RADIO_EFFECTS (bridge, splat, droplets) plus speed / preset / renderer.
+
+type RadioAdapterOwned = 'value' | 'item' | 'reducedMotion'
+export type GoopRadioEngineKey = RadioEffect | 'speed' | 'preset' | 'renderer'
+type RadioUnhandled = Exclude<keyof RadioGroupOptions, GoopRadioEngineKey | RadioAdapterOwned>
+const _allRadioOptionsHandled: [RadioUnhandled] extends [never] ? true : { unhandled: RadioUnhandled } = true
+void _allRadioOptionsHandled
+
+export type GoopRadioPropsDefinition = { [K in RadioEffect]: PropDef<boolean | number> } & {
+  speed: PropDef<number>
+  preset: PropDef<GoopPreset>
+  renderer: PropDef<GoopRendererOption>
+}
+export type GoopRadioPropsInput = {
+  [K in keyof GoopRadioPropsDefinition]?: GoopRadioPropsDefinition[K] extends PropDef<infer T> ? T : never
+}
+export const goopRadioProps = Object.freeze(toggleProps(RADIO_EFFECTS)) as unknown as GoopRadioPropsDefinition
+
+/** Radio group options from props, over app config. */
+export function toRadioOptions(props: GoopRadioPropsInput, config: GoopOptions = {}): RadioGroupOptions {
+  return toToggleOptions(RADIO_EFFECTS, props, config)
 }
 
 // ---- GoopDropdownMenu -----------------------------------------------------------------------

@@ -127,12 +127,27 @@
     --goop-surface-shadow: none;
   }
 
+  /* Goo toggles (GoopCheckbox, GoopRadioGroup): the real mark (check icon, radio dot) stays
+     hidden while core marks the host data-goop-pending (the goo is still falling / landing),
+     then fades in on the settled goo. */
+  [data-goop-mark] {
+    transition: opacity 120ms var(--goop-fade-ease);
+  }
+  [data-goop-pending] [data-goop-mark] {
+    opacity: 0;
+    transition: none;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     [data-goop-host] > [data-goop='layer'] {
       transition: none;
     }
+    [data-goop-mark] {
+      transition: none;
+    }
   }
-  html[data-reduced-motion='true'] [data-goop-host] > [data-goop='layer'] {
+  html[data-reduced-motion='true'] [data-goop-host] > [data-goop='layer'],
+  html[data-reduced-motion='true'] [data-goop-mark] {
     transition: none;
   }
 }

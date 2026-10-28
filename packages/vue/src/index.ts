@@ -4,6 +4,8 @@
 export * from './components/button'
 export * from './components/spinner'
 export * from './components/switch'
+export * from './components/checkbox'
+export * from './components/radio-group'
 export * from './components/popover'
 export * from './components/dropdown-menu'
 export * from './components/tabs'
@@ -22,6 +24,10 @@ export {
   diffOptions,
   goopPropMeta,
   goopSwitchProps,
+  goopCheckboxProps,
+  goopRadioProps,
+  toCheckboxOptions,
+  toRadioOptions,
   goopProps,
   isGoopFeature,
   resolveMenuProps,
@@ -44,6 +50,12 @@ export {
   type GoopSwitchEngineKey,
   type GoopSwitchPropsDefinition,
   type GoopSwitchPropsInput,
+  type GoopCheckboxEngineKey,
+  type GoopCheckboxPropsDefinition,
+  type GoopCheckboxPropsInput,
+  type GoopRadioEngineKey,
+  type GoopRadioPropsDefinition,
+  type GoopRadioPropsInput,
 } from './goop-props'
 export { goopComponents, type GoopComponentName } from './manifest'
 export { seedFrom, useGoop, type UseGoopReturn } from './use-goop'
