@@ -13,6 +13,8 @@ export const catalog: CatalogEntry[] = [
   { path: '/button', goop: 'GoopButton', shadcn: 'Button', blurb: 'Hover drips, press squish.' },
   { path: '/spinner', goop: 'GoopSpinner', shadcn: 'Spinner', blurb: 'Looping goo spinner.' },
   { path: '/switch', goop: 'GoopSwitch', shadcn: 'Switch', blurb: 'Thumb that stretches across the track.' },
+  { path: '/checkbox', goop: 'GoopCheckbox', shadcn: 'Checkbox', blurb: 'A goo drop falls into the box and splats.' },
+  { path: '/radio-group', goop: 'GoopRadioGroup', shadcn: 'RadioGroup', blurb: 'The dot is a goo blob that jumps between items.' },
   { path: '/popover', goop: 'GoopPopover', shadcn: 'Popover', blurb: 'Goo bridge from trigger to content.' },
   { path: '/dropdown', goop: 'GoopDropdown', shadcn: 'DropdownMenu', blurb: 'Goo bridge on open, crisp items.' },
   { path: '/blob', goop: 'GoopBlob', shadcn: null, blurb: 'Background blobs. Perf stress test.' },

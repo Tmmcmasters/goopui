@@ -95,4 +95,38 @@ describe('SSR', () => {
       delete (globalThis as Record<string, unknown>).window
     }
   })
+  it('GoopCheckbox and GoopRadioGroup render plain shadcn markup with no document/window access', async () => {
+    const { GoopCheckbox, GoopRadioGroup, GoopRadioGroupItem } = await import('../src')
+    const app = () =>
+      createSSRApp({
+        render: () => [
+          h(GoopCheckbox),
+          h(GoopCheckbox, { modelValue: true, splat: false }),
+          h(GoopCheckbox, { modelValue: 'indeterminate' }),
+          h(GoopRadioGroup, { modelValue: 'b' }, () => ['a', 'b'].map((v) => h(GoopRadioGroupItem, { value: v }))),
+        ],
+      })
+    const apps = [app(), app()]
+    trap('document')
+    trap('window')
+    try {
+      const a = await renderToString(apps[0]!)
+      const b = await renderToString(apps[1]!)
+      expect(a).toBe(b)
+      expect(a).toContain('role="checkbox"')
+      expect(a).toContain('aria-checked="mixed"')
+      expect(a).toContain('data-slot="checkbox-indicator"')
+      expect(a).toContain('data-goop-host="checkbox"')
+      expect(a).toContain('role="radiogroup"')
+      expect(a).toContain('data-goop-host="radio-group"')
+      expect(a).toContain('data-slot="radio-group-indicator"')
+      expect(a).toContain('data-checked:bg-primary')
+      expect(a).not.toContain('data-goop-active')
+      expect(a).not.toContain('data-goop-pending')
+      expect(a).not.toContain('data-goop="layer"')
+    } finally {
+      delete (globalThis as Record<string, unknown>).document
+      delete (globalThis as Record<string, unknown>).window
+    }
+  })
 })
