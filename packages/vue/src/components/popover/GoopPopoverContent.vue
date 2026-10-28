@@ -2,8 +2,10 @@
 // GoopPopoverContent: shadcn-vue's PopoverContent (reka-ui PopoverContent in a portal, same
 // props/emits, `class` merge, align center / sideOffset 4) whose panel oozes out of the
 // trigger. Core's `attachEmerge` draws the panel's background as goo on an aria-hidden
-// surface behind the real, unfiltered content: a bulb swells from the trigger edge facing
-// `side`, the panel inflates out of it, the neck stretches and snaps; close sucks it back.
+// surface behind the real, unfiltered content. With `flow` (default) the goo bulges out of
+// the trigger edge facing `side`, runs across as a thick neck and swells into the panel at
+// its final rect, then the neck pinches off; close sucks it back up the neck into the
+// trigger. `:flow="false"`: a bulb swells at the trigger edge and the panel inflates out of it.
 // Momentum (openSlosh / openDrips / closeSlosh): the far edge sloshes and sheds drops on
 // open, the near edge sloshes against the trigger on close.
 //
@@ -39,6 +41,11 @@ const props = withDefaults(
       class?: HTMLAttributes['class']
       /** Master switch. `false` renders a plain shadcn PopoverContent. */
       goo?: boolean
+      /** Flow out of the trigger (default true): goo bulges out of the trigger edge facing the
+       *  panel, runs across as a thick neck, swells into the panel and pinches off; close
+       *  sucks it back up the neck into the trigger. `false`: the panel inflates from a bulb at
+       *  the trigger edge (the original emerge). */
+      flow?: boolean
       /** Bulb + lumpy neck between trigger and panel. */
       bridge?: boolean
       /** Jelly overshoot and wobble. */
@@ -76,6 +83,7 @@ const props = withDefaults(
     align: 'center',
     sideOffset: 4,
     goo: true,
+    flow: true,
     bridge: true,
     wobble: true,
     momentum: true,
@@ -99,6 +107,7 @@ const delegated = computed(() => {
   const {
     class: _class,
     goo: _goo,
+    flow: _flow,
     bridge: _bridge,
     wobble: _wobble,
     momentum: _momentum,
@@ -135,6 +144,7 @@ const GOO =
 const classes = computed(() => cn(props.goo ? GOO : SHADCN, props.class))
 
 const options = computed<EmergeOptions>(() => ({
+  flow: props.flow,
   bridge: props.bridge,
   wobble: props.wobble,
   momentum: props.momentum,

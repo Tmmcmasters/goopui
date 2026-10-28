@@ -14,6 +14,8 @@ const goopPosition = ref('bottom')
 /** GoopDropdownMenuContent props from the panel, applied to every goop menu on the page
  *  (submenus inherit them). */
 const goo = ref(true)
+/** Flow out of the trigger (off by default for menus for now). */
+const flow = ref(false)
 const highlight = ref(true)
 const pop = ref(true)
 const submenus = ref(true)
@@ -41,6 +43,7 @@ const engine = computed(() => ({
   highlight: highlight.value,
   pop: pop.value,
   submenus: submenus.value,
+  flow: flow.value,
   bridge: bridge.value,
   wobble: wobble.value,
   momentum: momentum.value,
@@ -53,7 +56,7 @@ const engine = computed(() => ({
   renderer: renderer.value || undefined,
   surface: surface.value,
 }))
-const toggles = { goo, highlight, pop, submenus, bridge, wobble, momentum, fade, openSlosh, openDrips, closeSlosh }
+const toggles = { goo, flow, highlight, pop, submenus, bridge, wobble, momentum, fade, openSlosh, openDrips, closeSlosh }
 
 const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
 </script>

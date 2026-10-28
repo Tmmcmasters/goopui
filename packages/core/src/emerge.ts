@@ -75,16 +75,27 @@ export interface EmergeFeel {
   snap: number
   /** Goo blur (px). */
   softness: number
+  /** Flow mode (`flow: true`): open / close durations (s) at speed 1. Default 1.25x / 1.2x
+   *  `open` / `close`. */
+  flowOpen?: number
+  flowClose?: number
+  /** Flow mode: neck thickness as a fraction of the anchor's facing edge. Default 0.46. */
+  flowNeck?: number
 }
 
 export const EMERGE_FEEL: Readonly<Record<GoopPreset, Readonly<EmergeFeel>>> = Object.freeze({
-  subtle: Object.freeze({ open: 0.42, close: 0.28, bulb: 0.34, decay: 7, travel: 0.45, snap: 0.45, softness: 4 }),
-  playful: Object.freeze({ open: 0.56, close: 0.34, bulb: 0.42, decay: 4.5, travel: 1, snap: 0.65, softness: 5 }),
-  wild: Object.freeze({ open: 0.72, close: 0.4, bulb: 0.5, decay: 3, travel: 1.6, snap: 0.9, softness: 6 }),
+  subtle: Object.freeze({ open: 0.42, close: 0.28, bulb: 0.34, decay: 7, travel: 0.45, snap: 0.45, softness: 4, flowOpen: 0.5, flowClose: 0.32, flowNeck: 0.38 }),
+  playful: Object.freeze({ open: 0.56, close: 0.34, bulb: 0.42, decay: 4.5, travel: 1, snap: 0.65, softness: 5, flowOpen: 0.68, flowClose: 0.4, flowNeck: 0.46 }),
+  wild: Object.freeze({ open: 0.72, close: 0.4, bulb: 0.5, decay: 3, travel: 1.6, snap: 0.9, softness: 6, flowOpen: 0.86, flowClose: 0.48, flowNeck: 0.56 }),
 })
 
-/** Effect toggles. All default true. */
+/** Effect toggles. All default true, except `flow` (default false). */
 export interface EmergeEffects {
+  /** Flow out of the anchor (default false): goo bulges out of the anchor's facing edge,
+   *  runs across the gap as a thick neck and swells into the panel at its final rect; the
+   *  neck then pinches off with a wobble. Close sucks it back up the neck into the anchor.
+   *  false: the panel inflates from a bulb at the anchor edge (the original emerge). */
+  flow?: boolean
   /** Bulb + lumpy neck between anchor and panel (false: the panel just inflates from the edge). */
   bridge?: boolean
   /** Jelly overshoot / wobble (false: smooth ease, no overshoot). */
@@ -98,8 +109,12 @@ export interface EmergeEffects {
 /** Neck lumps between bulb and panel. Uneven sizes keep it globby, never a thin string. */
 export const EMERGE_NECK_LUMPS = 3
 const LUMP_SIZE = [1, 0.84, 1.08] as const
-/** Circles a pose always returns: bulb + neck lumps. */
-export const EMERGE_CIRCLES = 1 + EMERGE_NECK_LUMPS
+/** Flow mode: root circles along the anchor edge, and neck lumps from there to the panel. */
+export const EMERGE_FLOW_ROOT = 3
+export const EMERGE_FLOW_NECK = 4
+/** Circles a pose always returns (zero radius when unused): bulb + neck lumps, or in flow
+ *  mode root + neck. */
+export const EMERGE_CIRCLES = Math.max(1 + EMERGE_NECK_LUMPS, EMERGE_FLOW_ROOT + EMERGE_FLOW_NECK)
 
 /** Bridge geometry in panel-local space, plus the main/cross frame it was built in. */
 export interface EmergeBridge {
@@ -119,6 +134,9 @@ export interface EmergeBridge {
   targetCross: number
   /** Bulb radius (px). */
   bulb: number
+  /** The anchor's facing edge as a cross range, panel-local (flow mode spreads over it). */
+  anchorLo: number
+  anchorHi: number
   /** Points on the anchor edge and the panel's near edge, panel-local. */
   source: EmergePoint
   target: EmergePoint
@@ -200,6 +218,8 @@ export function emergeBridge(
     sourceCross,
     targetCross,
     bulb,
+    anchorLo: a0,
+    anchorHi: a1,
     source: toLocal(frame, -gap, sourceCross),
     target: toLocal(frame, 0, targetCross),
   }
@@ -233,6 +253,7 @@ const SNAP_RETRACT = 0.14
 const BULB_RETRACT = 0.3
 
 const resolveFx = (fx: EmergeEffects = {}): Required<EmergeEffects> => ({
+  flow: fx.flow === true,
   bridge: fx.bridge !== false,
   wobble: fx.wobble !== false,
   momentum: fx.momentum !== false,
@@ -335,6 +356,7 @@ export function emergePose(
 ): EmergePose {
   const fx = resolveFx(effects)
   const tt = clamp(t)
+  if (fx.flow) return flowPose(tt, b, phase, feel, fx)
   if (phase === 'open') {
     if (tt >= 1) return emergeRestPose(b)
     const body = slabToBody(openSlab(tt, b, feel, fx), b)
@@ -388,6 +410,136 @@ export function emergePose(
     const nearCross = clamp(b.targetCross, slab.crossCenter - slab.crossSize / 2, slab.crossCenter + slab.crossSize / 2)
     const neck = lumps(b, main, b.sourceCross, slab.near, nearCross, r * 0.8, 0)
     for (let k = 0; k < neck.length; k++) circles[1 + k] = neck[k]!
+  }
+  return { body, circles, content }
+}
+
+// ---- flow mode ----------------------------------------------------------------------------
+// The goo flows out of the anchor instead of inflating next to it. Root circles sit ON the
+// anchor's facing edge (tucked in by FLOW.overlap px only, so the goo never paints over the
+// anchor itself), swell out of it as a wide dome, and a head the width of the neck runs out
+// with inertia toward the panel's far side while its breadth swells (lagging) to the
+// panel's. The near edge then lets go of the anchor with a momentum launch that stretches
+// the thick neck, which pinches off with a wobble; the root stubs wobble back into the edge.
+// Close is the reverse with an accelerating suck: the near edge reattaches, the far edge and
+// breadth shrink back up the neck to a head, and head, neck and root drain into the edge.
+
+/** Flow mode: open-phase time by which the panel has landed (open momentum keys off it). */
+export const EMERGE_FLOW_LAND = 0.6
+
+const FLOW = {
+  bulge: 0.2,
+  tipAt: 0.1,
+  tipLen: 0.6,
+  swellAt: 0.28,
+  swellLen: 0.55,
+  detachAt: 0.4,
+  detachLen: 0.42,
+  pinchAt: 0.58,
+  pinchLen: 0.16,
+  recoil: 0.3,
+  fadeAt: 0.6,
+  fadeLen: 0.3,
+  /** How far (px) the root / attached body tuck into the anchor edge (hides the seam). */
+  overlap: 3,
+} as const
+const FLOW_ROOT_SIZE = [0.86, 1.1, 0.86] as const
+const FLOW_NECK_SIZE = [1, 0.84, 0.88, 1] as const
+
+/** Flow open / close duration (s) at speed 1 for `feel`. */
+export function emergeFlowDuration(feel: EmergeFeel, phase: EmergePhase): number {
+  return phase === 'open' ? (feel.flowOpen ?? feel.open * 1.25) : (feel.flowClose ?? feel.close * 1.2)
+}
+
+function flowGeom(b: EmergeBridge, feel: EmergeFeel) {
+  const aB = Math.max(0, b.anchorHi - b.anchorLo)
+  const edgeLen = aB > 0 ? aB : 36
+  const cap = Math.max(10, Math.min(b.breadth > 0 ? b.breadth : 36, edgeLen, 140))
+  const nw = clamp((feel.flowNeck ?? 0.46) * edgeLen, 10, cap)
+  const rr = clamp(nw * 0.3, 4, 20)
+  const hw = clamp(nw * 0.8, 8, Math.max(8, b.breadth))
+  const hd = clamp(nw * 0.6, 8, Math.max(8, b.depth))
+  // Root circles spread over the neck's width, kept on the anchor's edge.
+  const lo = b.anchorLo + rr * 0.5
+  const hi = b.anchorHi - rr * 0.5
+  const rootCross = [-1, 0, 1].map((k) => (hi > lo ? clamp(b.sourceCross + k * (nw / 2 - rr), lo, hi) : b.sourceCross))
+  return { rr, hw, hd, rootCross, edge: -b.gap - FLOW.overlap }
+}
+
+function flowPose(t: number, b: EmergeBridge, phase: EmergePhase, feel: EmergeFeel, fx: Required<EmergeEffects>): EmergePose {
+  const circles: EmergeCircle[] = Array.from({ length: EMERGE_CIRCLES }, zero)
+  if (phase === 'close' && t >= 1) return { body: { cx: 0, cy: 0, w: 0, h: 0 }, circles, content: 0 }
+  if (phase === 'open' && t >= 1) return emergeRestPose(b)
+  const g = flowGeom(b, feel)
+  let slab: Slab
+  let rootR: number
+  let neckR: number
+  let pull = 0
+  let content: number
+  if (phase === 'open') {
+    const s1 = Math.max(0, emergeJelly(t / FLOW.bulge, feel.decay * 1.4, fx.wobble))
+    const reach = emergeJelly(clamp((t - FLOW.tipAt) / FLOW.tipLen), feel.decay, fx.wobble)
+    const dq = clamp((t - FLOW.detachAt) / FLOW.detachLen)
+    const launch = fx.momentum ? feel.travel * b.bulb * hump(dq, 0.7) : 0
+    const near = lerp(g.edge, 0, smooth(dq * 1.6)) + launch
+    const far = Math.max(near + 1, lerp(g.edge + g.hd * s1, b.depth, reach))
+    const cq = Math.min(1.08, emergeJelly(clamp((t - FLOW.swellAt) / FLOW.swellLen), feel.decay * 1.15, fx.wobble))
+    slab = {
+      near,
+      extent: (far - near) * Math.min(1, s1 * 4),
+      crossCenter: lerp(b.sourceCross, b.breadth / 2, clamp(cq)),
+      crossSize: Math.max(0, lerp(g.hw * (0.7 + 0.3 * s1), b.breadth, cq)),
+    }
+    // Pinch: the neck thins (wobbling) and its halves recoil into root and panel; the root
+    // stubs then wobble back into the anchor edge.
+    const pq = clamp((t - FLOW.pinchAt) / FLOW.pinchLen)
+    const kr = clamp((t - FLOW.pinchAt) / FLOW.recoil)
+    const wob = fx.wobble && kr > 0 ? 0.25 * Math.sin(kr * 3 * Math.PI) * (1 - kr) : 0
+    rootR = g.rr * s1 * (1 - smooth(kr)) * (1 + wob)
+    const pinchWob = fx.wobble && pq > 0 ? 0.18 * Math.sin(pq * 2 * Math.PI) : 0
+    neckR = g.rr * 0.95 * s1 * (1 - smooth(pq)) * (1 + pinchWob)
+    pull = smooth(pq)
+    content = fx.fade ? smooth((t - FLOW.fadeAt) / FLOW.fadeLen) : 1
+  } else {
+    const attach = smooth(t / 0.3)
+    const cs = smooth(t / 0.6)
+    const suck = smooth((t - 0.62) / 0.38)
+    const near = lerp(0, g.edge, attach)
+    const headFar = lerp(g.edge + g.hd, g.edge, suck)
+    const far = Math.max(near, lerp(b.depth, headFar, smooth(t / 0.75) ** 1.3))
+    slab = {
+      near,
+      extent: far - near,
+      crossCenter: lerp(b.breadth / 2, b.sourceCross, cs),
+      crossSize: lerp(b.breadth, g.hw, cs) * (1 - 0.85 * suck),
+    }
+    const grow = smooth(t / 0.25)
+    rootR = g.rr * grow * (1 - smooth((t - 0.72) / 0.28))
+    neckR = g.rr * 0.95 * grow * (1 - suck)
+    content = fx.fade ? 1 - smooth(t / 0.2) : 0
+  }
+  const body = slabToBody(slab, b)
+  if (fx.bridge) {
+    const rootMain = (r: number): number => g.edge + r
+    for (let k = 0; k < EMERGE_FLOW_ROOT; k++) {
+      const r = Math.max(0, rootR * FLOW_ROOT_SIZE[k]!)
+      if (r < 0.3) continue
+      const p = toLocal(b, rootMain(r), g.rootCross[k]!)
+      circles[k] = { x: p.x, y: p.y, r }
+    }
+    if (neckR > 0.3) {
+      const m0 = rootMain(Math.max(rootR, neckR))
+      const half = slab.crossSize / 2
+      const c1 = clamp(b.sourceCross, slab.crossCenter - half, slab.crossCenter + half)
+      const m1 = slab.near + Math.min(neckR, Math.max(0, slab.extent) / 2)
+      for (let k = 0; k < EMERGE_FLOW_NECK; k++) {
+        const f = (k + 0.5) / EMERGE_FLOW_NECK
+        // After the pinch, the root-side half recoils to the root, the rest into the panel.
+        const ff = lerp(f, k < EMERGE_FLOW_NECK / 2 ? 0 : 1, pull * 0.85)
+        const p = toLocal(b, lerp(m0, m1, ff), lerp(b.sourceCross, c1, ff))
+        circles[EMERGE_FLOW_ROOT + k] = { x: p.x, y: p.y, r: Math.max(0, neckR * FLOW_NECK_SIZE[k]!) }
+      }
+    }
   }
   return { body, circles, content }
 }
@@ -543,7 +695,13 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
   host.style.isolation = 'isolate'
 
   const speed = (): number => Math.max(0.05, opts.speed ?? 1)
-  const closeMs = (): number => (reduced ? 0 : Math.round((feel.close * 1000) / speed()))
+  const flowOn = (): boolean => opts.flow === true
+  /** Phase duration (s) at speed 1: flow mode has its own. */
+  const phaseDur = (phase: EmergePhase): number =>
+    flowOn() ? emergeFlowDuration(feel, phase) : phase === 'open' ? feel.open : feel.close
+  /** Flow mode: open momentum (slosh, burst) waits for the panel to land. */
+  const shift = (): number => (flowOn() ? Math.max(0, EMERGE_FLOW_LAND * phaseDur('open') - 0.12) : 0)
+  const closeMs = (): number => (reduced ? 0 : Math.round((phaseDur('close') * 1000) / speed()))
 
   const rectOf = (el: Element): EmergeRect => {
     const r = el.getBoundingClientRect()
@@ -639,12 +797,13 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
     else if (state === 'closed' || (reduced && state === 'closing')) pose = emergePose(1, b, 'close', feel, opts)
     else pose = emergePose(t, b, state === 'opening' ? 'open' : 'close', feel, opts)
     const phase: EmergePhase = state === 'open' || state === 'opening' ? 'open' : 'close'
-    if (!reduced && state !== 'closed' && mt < emergeMomentumEnd(phase)) {
+    const sec = phase === 'open' ? mt - shift() : mt
+    if (!reduced && state !== 'closed' && sec >= 0 && sec < emergeMomentumEnd(phase)) {
       const fx = { ...opts, openDrips: fresh ? opts.openDrips : false }
-      pose = emergeMomentum(pose, b, phase, mt, fx, {
+      pose = emergeMomentum(pose, b, phase, sec, fx, {
         preset: presetName,
         seed,
-        bodyAt: (sec) => emergePose(sec / feel.open, b, 'open', feel, opts).body,
+        bodyAt: (s) => emergePose((s + shift()) / phaseDur('open'), b, 'open', feel, opts).body,
       })
     }
     draw(pose, b)
@@ -675,25 +834,25 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
 
   const tick: Ticker = (dt) => {
     if (destroyed) return false
-    if (state === 'open' && !reduced && mt < emergeMomentumEnd('open')) {
+    if (state === 'open' && !reduced && mt - shift() < emergeMomentumEnd('open')) {
       // Open finished; the slosh and drops play out.
       mt += dt * speed()
       drawNow()
-      return mt < emergeMomentumEnd('open')
+      return mt - shift() < emergeMomentumEnd('open')
     }
     if (state !== 'opening' && state !== 'closing') return false
     if (state === 'opening' && t === 0 && opts.ready && !opts.ready() && waited++ < READY_MAX_FRAMES) {
       drawNow()
       return true
     }
-    const dur = (state === 'opening' ? feel.open : feel.close) / speed()
+    const dur = phaseDur(state === 'opening' ? 'open' : 'close') / speed()
     t = Math.min(1, t + dt / dur)
     mt += dt * speed()
     if (t >= 1) {
       state = state === 'opening' ? 'open' : 'closed'
       syncAttrs()
       drawNow()
-      return state === 'open' && !reduced && mt < emergeMomentumEnd('open')
+      return state === 'open' && !reduced && mt - shift() < emergeMomentumEnd('open')
     }
     drawNow()
     return true
@@ -703,6 +862,8 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
   const extent = (): number => {
     if (state === 'open') return 1
     if (state === 'closed') return 0
+    // Flow mode: a phase's progress mirrors the other's (close replays the open in reverse).
+    if (flowOn()) return state === 'closing' ? 1 - t : t
     if (state === 'closing') return 1 - clamp(t / 0.9) ** 2
     return emergeJelly(clamp((t - OPEN_INFLATE_AT) / (1 - OPEN_INFLATE_AT)), feel.decay, opts.wobble !== false)
   }
@@ -734,13 +895,14 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
       const e = extent()
       // Resume part-way through the inflate when reversing a close.
       let start = 0
-      if (e > 0.02) {
+      if (flowOn()) start = e > 0.02 ? clamp(e, 0, 0.95) : 0
+      else if (e > 0.02) {
         const ui = Math.sqrt(clamp(e)) * 0.35
         start = OPEN_INFLATE_AT + ui * (1 - OPEN_INFLATE_AT)
       }
       state = 'opening'
       t = start
-      mt = start * feel.open
+      mt = start * phaseDur('open')
       fresh = start === 0
       seed++
       waited = 0
@@ -758,9 +920,9 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
       }
       const e = extent()
       state = 'closing'
-      t = 0.9 * Math.sqrt(clamp(1 - e))
+      t = flowOn() ? clamp(1 - e) : 0.9 * Math.sqrt(clamp(1 - e))
       mt = 0
-      const ms = Math.round(((1 - t) * feel.close * 1000) / speed())
+      const ms = Math.round(((1 - t) * phaseDur('close') * 1000) / speed())
       syncAttrs(ms)
       drawNow()
       wakeTicker(tick)

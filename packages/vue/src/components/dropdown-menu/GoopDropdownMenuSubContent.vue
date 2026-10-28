@@ -15,6 +15,7 @@ import { useMenuGoo } from './use-menu-goo'
 
 const props = withDefaults(defineProps<DropdownMenuSubContentProps & GoopMenuProps & { class?: HTMLAttributes['class'] }>(), {
   goo: undefined,
+  flow: undefined,
   bridge: undefined,
   wobble: undefined,
   momentum: undefined,

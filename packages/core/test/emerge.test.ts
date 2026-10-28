@@ -4,6 +4,9 @@ import {
   EMERGE_CONTENT_VAR,
   EMERGE_FEEL,
   EMERGE_MOMENTUM_CIRCLES,
+  EMERGE_NECK_LUMPS,
+  EMERGE_FLOW_ROOT,
+  emergeFlowDuration,
   GOOP_PART_ATTR,
   activeTickerCount,
   attachEmerge,
@@ -115,7 +118,7 @@ describe('emergePose (open)', () => {
       const { circles } = emergePose(t, b)
       const bulb = circles[0]!.r
       // Lumps stay fat relative to the bulb: never a thin string.
-      for (const c of circles.slice(1)) expect(c.r).toBeGreaterThanOrEqual(bulb * 0.4)
+      for (const c of circles.slice(1, 1 + EMERGE_NECK_LUMPS)) expect(c.r).toBeGreaterThanOrEqual(bulb * 0.4)
     }
     const after = emergePose(Math.min(0.95, snap + 0.35), b)
     for (const c of after.circles) expect(c.r).toBe(0)
@@ -235,5 +238,66 @@ describe('attachEmerge', () => {
     expect(h.state).toBe('closed')
     expect(h.closeDuration).toBe(0)
     h.destroy()
+  })
+})
+
+describe('emerge flow mode', () => {
+  const flow = { flow: true }
+  /** Main-axis distance of a point from the trigger's facing edge, + toward the panel. */
+  const out = (side: EmergeSide, p: { x: number; y: number }, panel: EmergeRect): number => {
+    const x = panel.x + p.x
+    const y = panel.y + p.y
+    if (side === 'bottom') return y - (trigger.y + trigger.height)
+    if (side === 'top') return trigger.y - y
+    if (side === 'right') return x - (trigger.x + trigger.width)
+    return trigger.x - x
+  }
+
+  it('is off by default and changes the pose when on', () => {
+    const b = emergeBridge(trigger, panelFor('bottom'), 'bottom')
+    expect(emergePose(0.3, b)).toEqual(emergePose(0.3, b, 'open', EMERGE_FEEL.playful, { flow: false }))
+    expect(emergePose(0.3, b, 'open', EMERGE_FEEL.playful, flow)).not.toEqual(emergePose(0.3, b))
+  })
+
+  for (const side of SIDES) {
+    it(`${side}: root grows out of the trigger edge, never deep inside the trigger`, () => {
+      const panel = panelFor(side)
+      const b = emergeBridge(trigger, panel, side)
+      for (const phase of ['open', 'close'] as const) {
+        for (let i = 0; i <= 40; i++) {
+          const p = emergePose(i / 40, b, phase, EMERGE_FEEL.playful, flow)
+          for (const c of p.circles) if (c.r > 0) expect(out(side, c, panel) - c.r).toBeGreaterThanOrEqual(-3.5)
+        }
+      }
+      // Early in the open, root and body hug the trigger edge.
+      const early = emergePose(0.12, b, 'open', EMERGE_FEEL.playful, flow)
+      expect(early.circles.slice(0, EMERGE_FLOW_ROOT).some((c) => c.r > 2)).toBe(true)
+      expect(early.body.w).toBeGreaterThan(0)
+      expect(early.body.w * early.body.h).toBeLessThan(panel.width * panel.height * 0.25)
+      expect(early.content).toBe(0)
+    })
+  }
+
+  it('ends at rest on open and empty on close; content fades in late', () => {
+    const b = emergeBridge(trigger, panelFor('bottom'), 'bottom')
+    expect(emergePose(1, b, 'open', EMERGE_FEEL.playful, flow)).toEqual(emergeRestPose(b))
+    const end = emergePose(1, b, 'close', EMERGE_FEEL.playful, flow)
+    expect(end.body.w * end.body.h).toBe(0)
+    expect(end.circles.every((c) => c.r === 0)).toBe(true)
+    expect(emergePose(0.5, b, 'open', EMERGE_FEEL.playful, flow).content).toBe(0)
+    expect(emergePose(0.95, b, 'open', EMERGE_FEEL.playful, flow).content).toBeGreaterThan(0.9)
+    // The neck has pinched off and the root drained before the end.
+    expect(emergePose(0.92, b, 'open', EMERGE_FEEL.playful, flow).circles.every((c) => c.r === 0)).toBe(true)
+  })
+
+  it('attachEmerge uses the flow durations', () => {
+    const anchor = document.createElement('button')
+    const host = document.createElement('div')
+    document.body.append(anchor, host)
+    const h = attachEmerge(host, { anchor, preset: 'playful', flow: true })
+    h.open()
+    expect(h.closeDuration).toBe(Math.round(emergeFlowDuration(EMERGE_FEEL.playful, 'close') * 1000))
+    h.destroy()
+    document.body.innerHTML = ''
   })
 })

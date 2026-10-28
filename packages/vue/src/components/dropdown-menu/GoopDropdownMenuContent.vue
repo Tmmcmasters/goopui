@@ -27,6 +27,7 @@ const props = withDefaults(defineProps<DropdownMenuContentProps & GoopMenuProps 
   align: 'start',
   sideOffset: 4,
   goo: undefined,
+  flow: undefined,
   bridge: undefined,
   wobble: undefined,
   momentum: undefined,

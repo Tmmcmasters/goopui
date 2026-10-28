@@ -7,6 +7,8 @@ const aligns = ['start', 'center', 'end'] as const
 
 /** GoopPopoverContent props from the panel, applied to every goop popover on the page. */
 const goo = ref(true)
+/** Flow out of the trigger (false: the original inflate-from-a-bulb emerge). */
+const flow = ref(true)
 const bridge = ref(true)
 const wobble = ref(true)
 const momentum = ref(true)
@@ -34,6 +36,7 @@ const surfaces = [
 ] as const
 const engine = computed(() => ({
   goo: goo.value,
+  flow: flow.value,
   bridge: bridge.value,
   wobble: wobble.value,
   momentum: momentum.value,
@@ -47,7 +50,7 @@ const engine = computed(() => ({
   renderer: renderer.value || undefined,
   surface: surface.value,
 }))
-const toggles = { goo, bridge, wobble, momentum, fade, openSlosh, openDrips, closeSlosh }
+const toggles = { goo, flow, bridge, wobble, momentum, fade, openSlosh, openDrips, closeSlosh }
 
 const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
 </script>

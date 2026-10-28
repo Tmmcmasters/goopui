@@ -452,6 +452,7 @@ export const EMERGE_DRIP_KEYS = ['openDripAmount', 'openDripSize', 'openDripFlin
 /** Every GoopDropdownMenuContent / SubContent engine prop. */
 export const MENU_PROP_KEYS = [
   'goo',
+  'flow',
   ...EMERGE_EFFECT_KEYS,
   ...EMERGE_DRIP_KEYS,
   ...MENU_EFFECTS,
@@ -465,6 +466,10 @@ export const MENU_PROP_KEYS = [
 export interface GoopMenuProps {
   /** Master switch. `false` renders plain shadcn DropdownMenu parts. */
   goo?: boolean
+  /** Flow out of the trigger: goo bulges out of the trigger edge, runs across as a thick
+   *  neck and swells into the menu, then pinches off. Default false for now (the menu inflates
+   *  from a bulb at the trigger edge); submenus inherit it. */
+  flow?: boolean
   /** Bulb + lumpy neck between trigger (or submenu row) and panel. */
   bridge?: boolean
   /** Jelly overshoot: panel wobble, highlight overshoot and grow-in. */
@@ -536,6 +541,7 @@ export function resolveMenuProps(props: GoopMenuProps, parent?: ResolvedMenuProp
     const v = props[k] ?? parent?.[k]
     if (v !== undefined) out[k] = v
   }
+  out.flow = props.flow ?? parent?.flow ?? false
   out.surface = props.surface ?? parent?.surface ?? 'trigger'
   out.preset = props.preset ?? parent?.preset
   out.renderer = props.renderer ?? parent?.renderer
@@ -556,6 +562,7 @@ export function toMenuOptions(
   return {
     emerge: {
       ...common,
+      flow: menu.flow,
       bridge: menu.bridge,
       wobble: menu.wobble,
       momentum: menu.momentum,
@@ -666,7 +673,8 @@ export interface GoopTooltipProps {
 }
 
 // `surface` (the element) is the adapter's; `surfaceColor` comes from the `surface` prop.
-type TooltipAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'surfaceColor' | 'feel' | 'reducedMotion'
+// `flow`: tooltips keep the inflate-from-a-bulb emerge (they are too small and quick for a neck).
+type TooltipAdapterOwned = 'anchor' | 'flow' | 'side' | 'ready' | 'surface' | 'surfaceColor' | 'feel' | 'reducedMotion'
 type TooltipUnhandled = Exclude<keyof EmergeOptions, keyof GoopTooltipProps | TooltipAdapterOwned>
 const _allTooltipOptionsHandled: [TooltipUnhandled] extends [never] ? true : { unhandled: TooltipUnhandled } = true
 void _allTooltipOptionsHandled
