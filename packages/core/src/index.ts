@@ -153,6 +153,8 @@ export {
   SWITCH_FILL_COLOR_VAR,
   SWITCH_THUMB_CIRCLES,
   SWITCH_SPLAT,
+  SWITCH_SHOWN_ATTR,
+  SWITCH_WAVE,
   SWITCH_THUMB_COLOR_VAR,
   SWITCH_TRAVEL,
   attachSwitch,
@@ -163,6 +165,9 @@ export {
   switchPosition,
   switchStaticPose,
   switchToggleEnd,
+  switchDefaultWave,
+  switchWaveAt,
+  switchWaveStrength,
   type SwitchCircle,
   type SwitchEffect,
   type SwitchEffects,
@@ -171,6 +176,7 @@ export {
   type SwitchHandle,
   type SwitchOptions,
   type SwitchPose,
+  type SwitchWave,
 } from './switch'
 export {
   EMERGE_CIRCLES,

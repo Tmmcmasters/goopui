@@ -1,10 +1,11 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   GOOP_PART_ATTR,
   SWITCH_ALL_EFFECTS,
   SWITCH_DROP_CIRCLES,
   SWITCH_FEEL,
   SWITCH_FILL_CIRCLES,
+  SWITCH_SHOWN_ATTR,
   SWITCH_THUMB_CIRCLES,
   SWITCH_TRAVEL,
   activeTickerCount,
@@ -14,6 +15,9 @@ import {
   switchPose,
   switchStaticPose,
   switchToggleEnd,
+  switchDefaultWave,
+  switchWaveAt,
+  switchWaveStrength,
   type SwitchCircle,
 } from '../src'
 
@@ -52,7 +56,7 @@ describe('switchPose', () => {
     expect(visible(off.fill)).toHaveLength(0)
     expect(visible(on.thumb)).toEqual(visible(switchPose(END, 0, 1, G).thumb))
     expect(on.fill).toEqual(switchPose(END, 0, 1, G).fill)
-    expect(visible(switchStaticPose(true, G, SWITCH_FEEL.playful, { stretch: 1, bridge: 1, squish: 1, fill: 0, splat: 1, droplets: 1 }).fill)).toHaveLength(0)
+    expect(visible(switchStaticPose(true, G, SWITCH_FEEL.playful, { stretch: 1, bridge: 1, squish: 1, fill: 0, splat: 1, droplets: 1, wave: 1 }).fill)).toHaveLength(0)
   })
 
   it('leans and stretches the way it travels, teardrop tail behind', () => {
@@ -67,13 +71,13 @@ describe('switchPose', () => {
     expect(back.thumb[1]!.x).toBeGreaterThan(back.thumb[0]!.x)
     expect(back.thumb[0]!.x).toBeCloseTo(x0 + x1 - head!.x)
     // stretch off: round the whole way.
-    const flat = switchPose(SWITCH_TRAVEL * 0.6, 0, 1, G, SWITCH_FEEL.playful, { stretch: 0, bridge: 1, squish: 1, fill: 1, splat: 1, droplets: 1 })
+    const flat = switchPose(SWITCH_TRAVEL * 0.6, 0, 1, G, SWITCH_FEEL.playful, { stretch: 0, bridge: 1, squish: 1, fill: 1, splat: 1, droplets: 1, wave: 1 })
     expect(flat.thumb[0]!.sx).toBe(1)
   })
 
   it('bridges to the start, then snaps', () => {
     const neck = (t: number, bridge = 1) =>
-      switchPose(t, 0, 1, G, SWITCH_FEEL.playful, { stretch: 1, bridge, squish: 1, fill: 1, splat: 1, droplets: 1 }).thumb.slice(4)
+      switchPose(t, 0, 1, G, SWITCH_FEEL.playful, { stretch: 1, bridge, squish: 1, fill: 1, splat: 1, droplets: 1, wave: 1 }).thumb.slice(4)
     expect(visible(neck(SWITCH_TRAVEL * 0.2))).toHaveLength(3)
     expect(visible(neck(SWITCH_TRAVEL * 0.95))).toHaveLength(0)
     expect(visible(neck(SWITCH_TRAVEL * 0.2, 0))).toHaveLength(0)
@@ -82,15 +86,106 @@ describe('switchPose', () => {
   it('squashes on landing and settles round', () => {
     const land = Array.from({ length: 20 }, (_, i) => switchPose(SWITCH_TRAVEL + ((1 - SWITCH_TRAVEL) * (i + 1)) / 21, 0, 1, G))
     expect(Math.min(...land.map((p) => p.thumb[0]!.sx))).toBeLessThan(0.95)
-    const off = switchPose(SWITCH_TRAVEL + 0.06, 0, 1, G, SWITCH_FEEL.playful, { stretch: 0, bridge: 1, squish: 0, fill: 1, splat: 0, droplets: 1 })
+    const off = switchPose(SWITCH_TRAVEL + 0.06, 0, 1, G, SWITCH_FEEL.playful, { stretch: 0, bridge: 1, squish: 0, fill: 1, splat: 0, droplets: 1, wave: 1 })
     expect(off.thumb[0]!.sx).toBe(1)
   })
 
-  it('fills behind the thumb as it travels on', () => {
-    const p = switchPose(SWITCH_TRAVEL * 0.8, 0, 1, G)
-    expect(visible(p.fill).length).toBe(SWITCH_FILL_CIRCLES)
-    expect(p.fill.at(-1)!.x).toBeLessThan(x1)
-    expect(p.fill.at(-1)!.x).toBeGreaterThan(x0)
+  it('keeps the old color under the travelling thumb (both directions)', () => {
+    for (let i = 0; i < 20; i++) {
+      const t = (SWITCH_TRAVEL * i) / 20
+      const on = switchPose(t, 0, 1, G)
+      expect(on.coverage).toBe(0)
+      expect(on.shown).toBe(false)
+      expect(visible(on.fill)).toHaveLength(0)
+      const off = switchPose(t, 1, 0, G)
+      expect(off.coverage).toBe(1)
+      expect(off.shown).toBe(true)
+      expect(visible(off.fill)).toHaveLength(SWITCH_FILL_CIRCLES)
+      expect(off.fill[0]!.x).toBeCloseTo(x0)
+    }
+    // The colors flip at impact.
+    expect(switchPose(SWITCH_TRAVEL, 0, 1, G).shown).toBe(true)
+    expect(switchPose(SWITCH_TRAVEL, 1, 0, G).shown).toBe(false)
+  })
+})
+
+describe('track wave', () => {
+  const f = SWITCH_FEEL.playful
+  const fx = (over: Partial<typeof SWITCH_ALL_EFFECTS> = {}) => ({ ...SWITCH_ALL_EFFECTS, ...over })
+  const at = (sec: number) => SWITCH_TRAVEL + sec / f.duration
+  const run = (from: number, to: number, effects = fx(), n = 60) =>
+    Array.from({ length: n }, (_, i) => switchPose(at((f.waveSettle * (i + 1)) / (n + 1)), from, to, G, f, effects))
+  // Left edge of the primary fill (px), or the track width when there is none.
+  const edge = (p: ReturnType<typeof switchPose>) => {
+    const vis = visible(p.fill)
+    return vis.length ? Math.min(...vis.map((c) => c.x - c.r * c.sx)) : G.width
+  }
+
+  it('floods from the right wall to the left, sloshes past, rebounds and settles flat', () => {
+    const ps = run(0, 1)
+    const cov = ps.map((p) => p.coverage)
+    // Starts at the impact (right) wall: early on only the right end is covered.
+    expect(cov[0]!).toBeGreaterThan(0)
+    expect(cov[0]!).toBeLessThan(0.3)
+    expect(edge(ps[0]!)).toBeGreaterThan(G.width / 2)
+    // The front moves left over time, overshoots the far wall (slosh), rebounds under it.
+    const peak = Math.max(...cov)
+    expect(peak).toBeGreaterThan(1.05)
+    const iPeak = cov.indexOf(peak)
+    expect(Math.min(...cov.slice(iPeak))).toBeLessThan(1)
+    // Rounded crest while moving; piled up the far wall at the slosh peak.
+    const mid = ps.find((p) => p.coverage > 0.4 && p.coverage < 0.8)!
+    expect(mid.fill[0]!.sy).toBeGreaterThan(1.05)
+    expect(ps[iPeak]!.fill[0]!.sy).toBeGreaterThan(1.15)
+    // Settled flat at the end.
+    for (const p of ps.slice(-4)) expect(Math.abs(p.coverage - 1)).toBeLessThan(0.02)
+    const rest = switchPose(at(f.waveSettle), 0, 1, G, f)
+    expect(rest.coverage).toBe(1)
+    expect(rest.fill).toEqual(switchStaticPose(true, G).fill)
+  })
+
+  it('unchecking drains the primary away from the left wall into the right end', () => {
+    const ps = run(1, 0)
+    expect(ps[0]!.coverage).toBeLessThan(1)
+    expect(ps[0]!.coverage).toBeGreaterThan(0.7)
+    const edges = ps.slice(0, 8).map(edge)
+    for (let i = 1; i < edges.length; i++) expect(edges[i]!).toBeGreaterThanOrEqual(edges[i - 1]! - 1e-9)
+    expect(Math.min(...ps.map((p) => p.coverage))).toBeLessThan(0)
+    expect(switchPose(at(f.waveSettle), 1, 0, G, f).coverage).toBe(0)
+    expect(visible(switchStaticPose(false, G).fill)).toHaveLength(0)
+  })
+
+  it('wave off: old color until impact, then switches at once', () => {
+    const off = fx({ wave: 0 })
+    expect(switchPose(SWITCH_TRAVEL * 0.99, 0, 1, G, f, off).coverage).toBe(0)
+    expect(switchPose(SWITCH_TRAVEL, 0, 1, G, f, off).coverage).toBe(1)
+    expect(switchPose(SWITCH_TRAVEL, 1, 0, G, f, off).coverage).toBe(0)
+    for (const p of run(0, 1, off)) expect(p.fill).toEqual(switchStaticPose(true, G, f, off).fill)
+  })
+
+  it('stronger waves slosh further; presets scale it', () => {
+    const over = (effects = fx(), feel = f) =>
+      Math.max(...Array.from({ length: 80 }, (_, i) => switchWaveAt(SWITCH_TRAVEL + (feel.waveSettle * i) / 80 / feel.duration, switchDefaultWave(0, 1), feel, switchWaveStrength(feel, effects)).coverage))
+    expect(over(fx({ wave: 2 }))).toBeGreaterThan(over())
+    expect(over(fx({ wave: 0.5 }))).toBeLessThan(over())
+    expect(over(fx(), SWITCH_FEEL.subtle)).toBeLessThan(over())
+    expect(over(fx(), SWITCH_FEEL.wild)).toBeGreaterThan(over())
+  })
+
+  it('a retargeted wave continues from where it is, without jumps', () => {
+    // Mid-wave a new impact retargets: the coverage is continuous across the switch.
+    const first = switchDefaultWave(0, 1)
+    const tHit = at(0.12)
+    const now = switchWaveAt(tHit, first, f)
+    const second = { from: now.coverage, to: 0, velocity: now.velocity, start: tHit }
+    expect(switchWaveAt(tHit + 1e-6, second, f).coverage).toBeCloseTo(now.coverage, 3)
+    expect(switchWaveAt(tHit + f.waveSettle / f.duration, second, f).coverage).toBe(0)
+  })
+})
+
+describe('switch toggle timeline', () => {
+  it('settles everything by switchToggleEnd', () => {
+    expect(END).toBeGreaterThanOrEqual(SWITCH_TRAVEL + SWITCH_FEEL.playful.waveSettle / SWITCH_FEEL.playful.duration)
   })
 
   it('effect values', () => {
@@ -111,7 +206,7 @@ describe('wall splat and splash droplets', () => {
 
   it('runs past t = 1 and settles exactly round', () => {
     expect(END).toBeGreaterThan(1)
-    expect(switchToggleEnd(SWITCH_FEEL.playful, fx({ splat: 0, droplets: 0 }))).toBe(1)
+    expect(switchToggleEnd(SWITCH_FEEL.playful, fx({ splat: 0, droplets: 0, wave: 0 }))).toBe(1)
     const rest = switchPose(END, 0, 1, G)
     expect(rest.thumb[0]).toMatchObject({ x: x1, r, sx: 1, sy: 1 })
     expect(visible(rest.thumb)).toHaveLength(1)
@@ -254,6 +349,89 @@ describe('attachSwitch', () => {
     expect(h.pose?.position).toBe(1)
     expect(visible(h.pose!.thumb)).toHaveLength(1)
     expect(visible(h.pose!.drops)).toHaveLength(0)
+    expect(h.pose!.coverage).toBe(1)
+    expect(el.getAttribute(SWITCH_SHOWN_ATTR)).toBe('checked')
     h.destroy()
+  })
+
+  describe('with a manual frame clock', () => {
+    let frames: FrameRequestCallback[] = []
+    let clock = 0
+    beforeEach(() => {
+      frames = []
+      clock = 0
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => frames.push(cb))
+      vi.stubGlobal('cancelAnimationFrame', () => {})
+    })
+    afterEach(() => vi.unstubAllGlobals())
+    const step = (sec: number) => {
+      const end = clock + sec * 1000
+      while (clock < end && frames.length) {
+        clock += 1000 / 60
+        const fs = frames
+        frames = []
+        for (const f of fs) f(clock)
+      }
+    }
+    const travelSec = SWITCH_TRAVEL * SWITCH_FEEL.playful.duration
+
+    it('shows the old state until impact, then floods; the attribute follows', () => {
+      const el = host()
+      const h = attachSwitch(el, { checked: false })
+      expect(el.getAttribute(SWITCH_SHOWN_ATTR)).toBe('unchecked')
+      h.update({ checked: true })
+      step(travelSec * 0.8)
+      expect(h.pose!.coverage).toBe(0)
+      expect(el.getAttribute(SWITCH_SHOWN_ATTR)).toBe('unchecked')
+      step(travelSec * 0.3)
+      expect(el.getAttribute(SWITCH_SHOWN_ATTR)).toBe('checked')
+      expect(h.pose!.coverage).toBeGreaterThan(0)
+      step(2)
+      expect(h.running).toBe(false)
+      expect(h.pose!.coverage).toBe(1)
+      h.destroy()
+      expect(el.hasAttribute(SWITCH_SHOWN_ATTR)).toBe(false)
+    })
+
+    it('interrupted mid-travel: the color never changes', () => {
+      const el = host()
+      const h = attachSwitch(el, { checked: false })
+      h.update({ checked: true })
+      const seen: number[] = []
+      const states = new Set<string | null>()
+      step(travelSec * 0.5)
+      h.update({ checked: false })
+      for (let i = 0; i < 90; i++) {
+        step(1 / 60)
+        seen.push(h.pose!.coverage)
+        states.add(el.getAttribute(SWITCH_SHOWN_ATTR))
+      }
+      expect(Math.max(...seen)).toBe(0)
+      expect([...states]).toEqual(['unchecked'])
+      h.destroy()
+    })
+
+    it('interrupted mid-wave: the wave keeps moving, then drains from the next impact without a flash', () => {
+      const el = host()
+      const h = attachSwitch(el, { checked: false })
+      h.update({ checked: true })
+      step(travelSec + 0.08)
+      const c0 = h.pose!.coverage
+      expect(c0).toBeGreaterThan(0)
+      expect(c0).toBeLessThan(1)
+      h.update({ checked: false })
+      const seen: number[] = [c0]
+      for (let i = 0; i < 120; i++) {
+        step(1 / 60)
+        seen.push(h.pose!.coverage)
+      }
+      // Continuous: no frame-to-frame jump bigger than a wave can move in a frame.
+      for (let i = 1; i < seen.length; i++) expect(Math.abs(seen[i]! - seen[i - 1]!)).toBeLessThan(0.2)
+      // Still flooding right after the click (old wave continues), ends drained.
+      expect(seen[3]!).toBeGreaterThan(c0)
+      expect(h.pose!.coverage).toBe(0)
+      expect(el.getAttribute(SWITCH_SHOWN_ATTR)).toBe('unchecked')
+      h.destroy()
+    })
   })
 })

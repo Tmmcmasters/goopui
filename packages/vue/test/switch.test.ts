@@ -82,7 +82,29 @@ describe('GoopSwitch', () => {
     const noFill = mount(GoopSwitch, { props: { fill: false }, attachTo: document.body })
     await nextTick()
     expect(sw(noFill).classes()).toContain('data-checked:bg-primary')
+    // Attached without fill, the real track color follows the shown state (switches at impact).
+    expect(sw(noFill).classes()).toContain('data-[goop-switch-state=checked]:bg-primary!')
     noFill.unmount()
+  })
+
+  it('colors follow the shown state: aria flips on click, colors wait for the impact', async () => {
+    const w = mount(GoopSwitch, { attachTo: document.body })
+    await nextTick()
+    expect(sw(w).attributes('data-goop-switch-state')).toBe('unchecked')
+    expect(sw(w).classes()).toContain('dark:data-[goop-switch-state=checked]:[--goop-switch-thumb:var(--primary-foreground)]')
+    expect(sw(w).classes()).not.toContain('dark:data-checked:[--goop-switch-thumb:var(--primary-foreground)]')
+    await sw(w).trigger('click')
+    await nextTick()
+    expect(sw(w).attributes('aria-checked')).toBe('true')
+    expect(sw(w).attributes('data-state')).toBe('checked')
+    expect(sw(w).attributes('data-goop-switch-state')).toBe('unchecked')
+    expect(w.vm.handle?.pose?.coverage).toBe(0)
+    w.unmount()
+  })
+
+  it('wave prop maps to core', () => {
+    expect(toSwitchOptions({ wave: false })).toMatchObject({ wave: false })
+    expect(toSwitchOptions({ wave: 1.5 })).toMatchObject({ wave: 1.5 })
   })
 
   it('reduced motion: instant state change, nothing ticks', async () => {
