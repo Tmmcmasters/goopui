@@ -304,10 +304,13 @@ export function toSwitchOptions(props: GoopSwitchPropsInput, config: GoopOptions
 
 /** Emerge toggles shared with GoopPopoverContent. */
 export const EMERGE_EFFECT_KEYS = ['bridge', 'wobble', 'momentum', 'fade', 'openSlosh', 'openDrips', 'closeSlosh'] as const
+/** Numeric open-burst knobs (core EMERGE_DRIP_KNOBS), shared with GoopPopoverContent. */
+export const EMERGE_DRIP_KEYS = ['openDripAmount', 'openDripSize', 'openDripFling', 'openDripVariety'] as const
 /** Every GoopDropdownMenuContent / SubContent engine prop. */
 export const MENU_PROP_KEYS = [
   'goo',
   ...EMERGE_EFFECT_KEYS,
+  ...EMERGE_DRIP_KEYS,
   ...MENU_EFFECTS,
   'speed',
   'preset',
@@ -328,8 +331,16 @@ export interface GoopMenuProps {
   fade?: boolean
   /** On open, the far edge overshoots, rebounds and wobbles. */
   openSlosh?: boolean
-  /** On open, a few drops fling off the far edge and fall away. */
+  /** On open, the whole far edge bursts: globs, drops and specks fling off and fall away. */
   openDrips?: boolean
+  /** Burst drop count scale (0..3, default 1). */
+  openDripAmount?: number
+  /** Burst drop size scale (0.3..2.5, default 1). */
+  openDripSize?: number
+  /** How far burst drops are flung (0..3, default 1). */
+  openDripFling?: number
+  /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
+  openDripVariety?: number
   /** On close, the goo lags and the near edge sloshes against the trigger. */
   closeSlosh?: boolean
   /** Item highlight is a goo blob that slides between items (false: shadcn's flat bg). */
@@ -359,7 +370,9 @@ const _allMenuPropsListed: [MenuPropsListed] extends [never] ? true : { unlisted
 void _allMenuPropsListed
 
 /** Fully resolved menu settings (no undefined toggles). */
-export interface ResolvedMenuProps extends Required<Omit<GoopMenuProps, 'preset' | 'renderer'>> {
+export interface ResolvedMenuProps
+  extends Required<Omit<GoopMenuProps, 'preset' | 'renderer' | (typeof EMERGE_DRIP_KEYS)[number]>>,
+    Pick<GoopMenuProps, (typeof EMERGE_DRIP_KEYS)[number]> {
   preset?: GoopPreset
   renderer?: GoopRendererOption
 }
@@ -370,6 +383,10 @@ const MENU_TOGGLES = ['goo', ...EMERGE_EFFECT_KEYS, ...MENU_EFFECTS] as const
 export function resolveMenuProps(props: GoopMenuProps, parent?: ResolvedMenuProps | null): ResolvedMenuProps {
   const out = { speed: props.speed ?? parent?.speed ?? 1 } as ResolvedMenuProps
   for (const k of MENU_TOGGLES) out[k] = props[k] ?? parent?.[k] ?? true
+  for (const k of EMERGE_DRIP_KEYS) {
+    const v = props[k] ?? parent?.[k]
+    if (v !== undefined) out[k] = v
+  }
   out.preset = props.preset ?? parent?.preset
   out.renderer = props.renderer ?? parent?.renderer
   return out
@@ -396,6 +413,10 @@ export function toMenuOptions(
       openSlosh: menu.openSlosh,
       openDrips: menu.openDrips,
       closeSlosh: menu.closeSlosh,
+      openDripAmount: menu.openDripAmount,
+      openDripSize: menu.openDripSize,
+      openDripFling: menu.openDripFling,
+      openDripVariety: menu.openDripVariety,
     },
     highlight: menu.goo && menu.highlight ? { ...common, wobble: menu.wobble, momentum: menu.momentum, pop: menu.pop } : null,
   }

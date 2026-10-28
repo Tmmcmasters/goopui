@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { GoopPreset, GoopRendererName } from '@goopui/core'
+import { EMERGE_DRIP_KNOBS, type EmergeDripOptions, type GoopPreset, type GoopRendererName } from '@goopui/core'
 
 const triggers = ['default', 'secondary', 'outline', 'ghost'] as const
 const sides = ['top', 'right', 'bottom', 'left'] as const
@@ -14,6 +14,12 @@ const fade = ref(true)
 const openSlosh = ref(true)
 const openDrips = ref(true)
 const closeSlosh = ref(true)
+/** openDrips strength (0..2) while the toggle is on, and the burst knobs. */
+const dripStrength = ref(1)
+const dripKnobs = reactive(
+  Object.fromEntries(Object.entries(EMERGE_DRIP_KNOBS).map(([k, m]) => [k, m.default])) as Required<EmergeDripOptions>,
+)
+const knobList = Object.entries(EMERGE_DRIP_KNOBS) as [keyof EmergeDripOptions, (typeof EMERGE_DRIP_KNOBS)[keyof EmergeDripOptions]][]
 const speed = ref(1)
 const preset = ref<GoopPreset | ''>('')
 const renderer = ref<GoopRendererName | ''>('')
@@ -24,7 +30,8 @@ const engine = computed(() => ({
   momentum: momentum.value,
   fade: fade.value,
   openSlosh: openSlosh.value,
-  openDrips: openDrips.value,
+  openDrips: openDrips.value ? dripStrength.value : false,
+  ...dripKnobs,
   closeSlosh: closeSlosh.value,
   speed: speed.value,
   preset: preset.value || undefined,
@@ -42,6 +49,14 @@ const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
         <label v-for="(r, name) in toggles" :key="name" class="flex items-center gap-2 pb-1">
           <input v-model="r.value" type="checkbox">
           <span class="text-xs text-muted-foreground">{{ name }}</span>
+        </label>
+        <label class="grid gap-1">
+          <span class="text-xs text-muted-foreground">drip strength: {{ dripStrength.toFixed(2) }}</span>
+          <input v-model.number="dripStrength" type="range" min="0" max="2" step="0.05" class="w-28" :disabled="!openDrips">
+        </label>
+        <label v-for="[key, m] in knobList" :key="key" class="grid gap-1" :title="m.description">
+          <span class="text-xs text-muted-foreground">{{ key }}: {{ dripKnobs[key].toFixed(2) }}</span>
+          <input v-model.number="dripKnobs[key]" type="range" :min="m.min" :max="m.max" :step="m.step" class="w-28" :disabled="!openDrips">
         </label>
         <label class="grid gap-1">
           <span class="text-xs text-muted-foreground">speed: {{ speed.toFixed(2) }}x</span>

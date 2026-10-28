@@ -289,4 +289,11 @@ describe('menu props', () => {
     const sub = resolveMenuProps({ closeSlosh: false }, root)
     expect(toMenuOptions(sub).emerge).toMatchObject({ openSlosh: true, openDrips: false, closeSlosh: false })
   })
+
+  it('pass the open-burst knobs to the panel, inherited by submenus (unset: core defaults)', () => {
+    expect(toMenuOptions(resolveMenuProps({})).emerge.openDripAmount).toBeUndefined()
+    const root = resolveMenuProps({ openDripAmount: 2, openDripVariety: 0.2 })
+    const sub = resolveMenuProps({ openDripSize: 1.5 }, root)
+    expect(toMenuOptions(sub).emerge).toMatchObject({ openDripAmount: 2, openDripVariety: 0.2, openDripSize: 1.5 })
+  })
 })

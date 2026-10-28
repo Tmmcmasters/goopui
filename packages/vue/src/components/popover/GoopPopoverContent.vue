@@ -39,8 +39,16 @@ const props = withDefaults(
       fade?: boolean
       /** Open: the far edge bulges past rest, rebounds and wobbles. `true`, `false` or a 0..2 strength. */
       openSlosh?: boolean | number
-      /** Open: fat drops neck off the far edge, fly on, then fall and fade. `true`, `false` or 0..2. */
+      /** Open: the whole far edge bursts (globs, drops, specks fling off, fall and fade). `true`, `false` or 0..2. */
       openDrips?: boolean | number
+      /** Burst drop count scale (0..3, default 1). */
+      openDripAmount?: number
+      /** Burst drop size scale (0.3..2.5, default 1). */
+      openDripSize?: number
+      /** How far burst drops are flung (0..3, default 1). */
+      openDripFling?: number
+      /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
+      openDripVariety?: number
       /** Close: the goo lags and the near edge sloshes against the trigger. `true`, `false` or 0..2. */
       closeSlosh?: boolean | number
       /** Animation speed multiplier. */
@@ -61,6 +69,10 @@ const props = withDefaults(
     fade: true,
     openSlosh: true,
     openDrips: true,
+    openDripAmount: undefined,
+    openDripSize: undefined,
+    openDripFling: undefined,
+    openDripVariety: undefined,
     closeSlosh: true,
     speed: 1,
     preset: undefined,
@@ -79,6 +91,10 @@ const delegated = computed(() => {
     fade: _fade,
     openSlosh: _openSlosh,
     openDrips: _openDrips,
+    openDripAmount: _openDripAmount,
+    openDripSize: _openDripSize,
+    openDripFling: _openDripFling,
+    openDripVariety: _openDripVariety,
     closeSlosh: _closeSlosh,
     speed: _speed,
     preset: _preset,
@@ -110,6 +126,10 @@ const options = computed<EmergeOptions>(() => ({
   fade: props.fade,
   openSlosh: props.openSlosh,
   openDrips: props.openDrips,
+  openDripAmount: props.openDripAmount,
+  openDripSize: props.openDripSize,
+  openDripFling: props.openDripFling,
+  openDripVariety: props.openDripVariety,
   closeSlosh: props.closeSlosh,
   speed: props.speed,
   preset: props.preset ?? config.preset,

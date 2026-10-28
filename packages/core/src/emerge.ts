@@ -20,6 +20,7 @@ import {
   EMERGE_MOMENTUM_CIRCLES,
   emergeMomentum,
   emergeMomentumEnd,
+  type EmergeDripOptions,
   type EmergeMomentumEffects,
 } from './emerge-momentum'
 import type { GooFilterParams } from './filter'
@@ -409,11 +410,26 @@ export function emergeOverflow(pose: EmergePose, width: number, height: number):
   return Math.max(0, m)
 }
 
+/** Like `emergeOverflow`, split into the screen-bottom overhang and the rest (top, left,
+ *  right): falling drops only need room below, so the goo layer stays small elsewhere. */
+export function emergeOverflowSides(pose: EmergePose, width: number, height: number): { side: number; bottom: number } {
+  let side = 0
+  let bottom = 0
+  const box = (x0: number, y0: number, x1: number, y1: number): void => {
+    side = Math.max(side, -x0, -y0, x1 - width)
+    bottom = Math.max(bottom, y1 - height)
+  }
+  const { body } = pose
+  if (body.w > 0 && body.h > 0) box(body.cx - body.w / 2, body.cy - body.h / 2, body.cx + body.w / 2, body.cy + body.h / 2)
+  for (const c of pose.circles) if (c.r > 0) box(c.x - c.r, c.y - c.r, c.x + c.r, c.y + c.r)
+  return { side: Math.max(0, side), bottom: Math.max(0, bottom) }
+}
+
 // ---- DOM ----------------------------------------------------------------------------------
 
 export type EmergeState = 'closed' | 'opening' | 'open' | 'closing'
 
-export interface EmergeOptions extends EmergeEffects, EmergeMomentumEffects {
+export interface EmergeOptions extends EmergeEffects, EmergeMomentumEffects, EmergeDripOptions {
   /** What the goo emerges from: an element, or a getter returning its rect (same space as
    *  `host.getBoundingClientRect()`). */
   anchor?: Element | (() => EmergeRect | null | undefined) | null
@@ -482,6 +498,7 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
   let waited = 0
   let destroyed = false
   let pad = -1
+  let padBottom = -1
   // Momentum clock (speed-scaled seconds since the phase began; keeps running past an open),
   // per-open seed, and whether this open started from closed (drops only then).
   let mt = Infinity
@@ -543,10 +560,11 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
     return emergeBridge(a, p, s, feel)
   }
 
-  const setPad = (px: number): void => {
-    if (!renderer || px === pad) return
-    pad = px
-    renderer.setPadding({ side: px, bottom: px })
+  const setPad = (side: number, bottom: number): void => {
+    if (!renderer || (side === pad && bottom === padBottom)) return
+    pad = side
+    padBottom = bottom
+    renderer.setPadding({ side, bottom })
   }
 
   const draw = (pose: EmergePose, b: Pick<EmergeBridge, 'width' | 'height'>): void => {
@@ -568,9 +586,10 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
     }
     renderer.flush()
     const blur = Math.ceil(params.blur * 3)
-    const need = Math.ceil(emergeOverflow(pose, W, H))
-    // Grow in 8px steps while animating, shrink back at rest.
-    setPad(need > 0 ? blur + Math.ceil(need / 8) * 8 : blur)
+    const need = emergeOverflowSides(pose, W, H)
+    // Grow in 8px steps while animating, shrink back at rest. Room below for falling drops.
+    const step = (px: number): number => (px > 0 ? blur + Math.ceil(px / 8) * 8 : blur)
+    setPad(step(Math.ceil(need.side)), Math.max(step(Math.ceil(need.side)), step(Math.ceil(need.bottom))))
     host.style.setProperty(EMERGE_CONTENT_VAR, String(Math.round(pose.content * 1000) / 1000))
   }
 
@@ -610,6 +629,7 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
     params = emergeGooParams(feel)
     renderer = resolveRenderer(opts.renderer)(surface, params)
     pad = -1
+    padBottom = -1
     blobs = Array.from({ length: EMERGE_CIRCLES + EMERGE_MOMENTUM_CIRCLES }, () => renderer!.createBlob())
     drawNow()
   }

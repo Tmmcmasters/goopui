@@ -3,7 +3,12 @@ import {
   EMERGE_CIRCLES,
   EMERGE_MOMENTUM,
   EMERGE_MOMENTUM_CIRCLES,
+  EMERGE_MOMENTUM_DRIPS,
+  EMERGE_MOMENTUM_NECKS,
+  EMERGE_DRIP_KNOBS,
   emergeBridge,
+  emergeDripCount,
+  emergeDripKnob,
   emergeCloseSlosh,
   emergeMomentum,
   emergeMomentumEnd,
@@ -12,6 +17,7 @@ import {
   emergeRestPose,
   emergeSloshOffset,
   EMERGE_FEEL,
+  type EmergeDripOptions,
   type EmergeMomentumEffects,
   type EmergeRect,
   type EmergeSide,
@@ -31,7 +37,7 @@ const panelFor = (side: EmergeSide): EmergeRect => {
 }
 const feel = EMERGE_FEEL.playful
 /** The composed open pose at `sec` (as attachEmerge draws it). */
-const openAt = (side: EmergeSide, sec: number, fx: EmergeMomentumEffects = {}, seed = 1) => {
+const openAt = (side: EmergeSide, sec: number, fx: EmergeMomentumEffects & EmergeDripOptions = {}, seed = 1) => {
   const b = emergeBridge(trigger, panelFor(side), side, feel)
   const base = sec >= feel.open ? emergeRestPose(b) : emergePose(sec / feel.open, b, 'open', feel)
   return {
@@ -44,6 +50,12 @@ const openAt = (side: EmergeSide, sec: number, fx: EmergeMomentumEffects = {}, s
   }
 }
 const extra = (circles: { r: number }[]) => circles.slice(EMERGE_CIRCLES)
+/** The burst's drop circles (after bulge, ripple and necks). */
+const DROPS_AT = EMERGE_CIRCLES + EMERGE_MOMENTUM_CIRCLES - EMERGE_MOMENTUM_DRIPS
+const drops = <T extends { r: number }>(circles: T[]) => circles.slice(DROPS_AT)
+/** Most drops alive at once over the open (slosh off). */
+const peakDrops = (side: EmergeSide, fx: EmergeMomentumEffects & EmergeDripOptions = {}) =>
+  Math.max(...times(emergeMomentumEnd('open'), 80).map((s) => drops(openAt(side, s, { openSlosh: false, ...fx }).pose.circles).filter((c) => c.r > 0).length))
 const times = (end: number, n = 120) => Array.from({ length: n + 1 }, (_, i) => (end * i) / n)
 
 describe('emergeMomentum', () => {
@@ -104,16 +116,79 @@ describe('emergeMomentum', () => {
   })
 
   it('drops fly out past the far edge, then fall screen-down', () => {
-    const { pose: early } = openAt('right', 0.3, { openSlosh: false })
-    const { pose: late } = openAt('right', 0.55, { openSlosh: false })
-    const head = (p: typeof early) => p.circles[EMERGE_CIRCLES + 3]!
-    expect(head(early).r).toBeGreaterThan(0)
-    expect(head(early).x).toBeGreaterThan(288) // outside the panel's far (right) edge
-    expect(head(late).y).toBeGreaterThan(head(early).y) // gravity
+    const pick = (s: number) => drops(openAt('right', s, { openSlosh: false }).pose.circles)
+    const early = pick(0.32)
+    const late = pick(0.5)
+    const live = early.map((c, i) => ({ c, l: late[i]! })).filter(({ c, l }) => c.r > 0 && l.r > 0)
+    expect(live.length).toBeGreaterThan(3)
+    for (const { c, l } of live) {
+      expect(c.x).toBeGreaterThan(288) // outside the panel's far (right) edge
+      expect(l.y).toBeGreaterThan(c.y) // gravity
+    }
+  })
+
+  it('the burst covers the whole far edge, on every side', () => {
+    for (const side of SIDES) {
+      const { b } = openAt(side, 0)
+      const vertical = side === 'top' || side === 'bottom'
+      const cross: number[] = []
+      for (const s of times(0.3, 60)) {
+        for (const c of drops(openAt(side, s, { openSlosh: false }).pose.circles)) if (c.r > 0) cross.push(vertical ? c.x : c.y)
+      }
+      expect(Math.min(...cross)).toBeLessThan(b.breadth * 0.15)
+      expect(Math.max(...cross)).toBeGreaterThan(b.breadth * 0.85)
+    }
+  })
+
+  it('a lot of drops: many more than the old few, a size mix of globs and specks', () => {
+    expect(peakDrops('bottom')).toBeGreaterThanOrEqual(10)
+    const sizes = drops(openAt('bottom', 0.27, { openSlosh: false }).pose.circles).filter((c) => c.r > 0).map((c) => c.r)
+    expect(Math.max(...sizes) / Math.min(...sizes)).toBeGreaterThan(2)
+    // Variety 0: all alike (no neck swell difference after release, same class size).
+    const flat = drops(openAt('bottom', 0.3, { openSlosh: false, openDripVariety: 0 }).pose.circles).filter((c) => c.r > 0).map((c) => c.r)
+    expect(Math.max(...flat) / Math.min(...flat)).toBeLessThan(1.3)
+  })
+
+  it('count scales with amount, strength, edge and preset, within the budget', () => {
+    expect(emergeDripCount(288, 1, 'playful', 2)).toBeGreaterThan(emergeDripCount(288, 1, 'playful', 1))
+    expect(emergeDripCount(288, 1, 'playful', 0.5)).toBeLessThan(emergeDripCount(288, 1, 'playful', 1))
+    expect(emergeDripCount(288, 1, 'playful', 0)).toBe(0)
+    expect(emergeDripCount(288, 0, 'playful', 1)).toBe(0)
+    expect(emergeDripCount(288, 2, 'playful')).toBeGreaterThan(emergeDripCount(288, 1, 'playful'))
+    expect(emergeDripCount(100, 1)).toBeLessThan(emergeDripCount(300, 1))
+    expect(emergeDripCount(288, 1, 'subtle')).toBeLessThanOrEqual(6)
+    expect(emergeDripCount(288, 1, 'subtle')).toBeLessThan(emergeDripCount(288, 1, 'playful'))
+    expect(emergeDripCount(288, 1, 'wild')).toBeGreaterThan(emergeDripCount(288, 1, 'playful'))
+    expect(emergeDripCount(5000, 2, 'wild', 3)).toBe(EMERGE_MOMENTUM_DRIPS)
+    expect(peakDrops('bottom', { openDripAmount: 2 })).toBeGreaterThan(peakDrops('bottom', { openDripAmount: 0.5 }))
+    expect(peakDrops('bottom', { openDripAmount: 0 })).toBe(0)
+    expect(EMERGE_MOMENTUM_NECKS).toBeGreaterThan(0)
+  })
+
+  it('size and fling knobs scale the drops; knobs clamp to their ranges', () => {
+    const at = (fx: EmergeDripOptions, s = 0.4) => drops(openAt('bottom', s, { openSlosh: false, ...fx }).pose.circles).filter((c) => c.r > 0)
+    const sum = (cs: { r: number }[]) => cs.reduce((a, c) => a + c.r, 0)
+    expect(sum(at({ openDripSize: 2 }))).toBeGreaterThan(sum(at({ openDripSize: 0.5 })))
+    // Fling: higher fling carries drops further out (bottom side: + y), even after gravity.
+    const reach = (fx: EmergeDripOptions) => Math.max(...at(fx, 0.3).map((c) => c.y))
+    expect(reach({ openDripFling: 2.5 })).toBeGreaterThan(reach({ openDripFling: 0.3 }) + 20)
+    expect(emergeDripKnob('openDripAmount', undefined)).toBe(EMERGE_DRIP_KNOBS.openDripAmount.default)
+    expect(emergeDripKnob('openDripVariety', 9)).toBe(1)
+    expect(emergeDripKnob('openDripSize', -1)).toBe(EMERGE_DRIP_KNOBS.openDripSize.min)
+  })
+
+  it('every drop fades to zero by the end, at any knob setting', () => {
+    const end = emergeMomentumEnd('open')
+    for (const fx of [{}, { openDrips: 2, openDripAmount: 3, openDripSize: 2.5, openDripFling: 3, openDripVariety: 1 }, { openDripVariety: 0 }] as const) {
+      for (const seed of [1, 2, 7]) {
+        expect(extra(openAt('bottom', end, fx, seed).pose.circles).every((c) => c.r === 0)).toBe(true)
+        expect(extra(openAt('top', end - 0.001, fx, seed).pose.circles).every((c) => c.r < 1.5)).toBe(true)
+      }
+    }
   })
 
   it('toggles disable: nothing added, body untouched', () => {
-    const off = { openSlosh: false, openDrips: false, closeSlosh: false }
+    const off = { openSlosh: false, openDrips: false, closeSlosh: false, openDripAmount: 3 }
     for (const side of SIDES) {
       for (const s of times(emergeMomentumEnd('open'), 40)) {
         const { pose, base } = openAt(side, s, off)

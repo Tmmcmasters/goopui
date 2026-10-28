@@ -10,6 +10,7 @@ export { GOOP_CONFIG_KEY, GoopPlugin, provideGoopConfig, useGoopConfig, type Goo
 export {
   CSS_VAR_KEYS,
   ENGINE_OPTION_KEYS,
+  EMERGE_DRIP_KEYS,
   EMERGE_EFFECT_KEYS,
   FEATURE_KEYS,
   MENU_PROP_KEYS,
