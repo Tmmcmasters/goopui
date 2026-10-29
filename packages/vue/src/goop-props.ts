@@ -32,6 +32,12 @@ import {
   type TabsIndicatorOptions,
   CHECKBOX_EFFECTS,
   RADIO_EFFECTS,
+  TOGGLE_EFFECTS,
+  TOGGLE_GROUP_EFFECTS,
+  type ToggleEffect,
+  type ToggleGroupEffect,
+  type ToggleGroupOptions,
+  type ToggleOptions,
   type CheckboxEffect,
   type CheckboxOptions,
   type RadioEffect,
@@ -392,6 +398,42 @@ export const goopRadioProps = effectEngineProps(RADIO_EFFECTS) as unknown as Goo
 /** Radio group options from props, over app config. */
 export function toRadioOptions(props: GoopRadioPropsInput, config: GoopOptions = {}): RadioGroupOptions {
   return toEffectOptions(RADIO_EFFECTS, props, config)
+}
+
+// ---- GoopToggle / GoopToggleGroup -----------------------------------------------------------
+// Core `attachToggle`: TOGGLE_EFFECTS (flood, wobble, droplets) plus speed / preset / renderer.
+// Core `attachToggleGroup` adds flow and merge (TOGGLE_GROUP_EFFECTS).
+
+type ToggleAdapterOwned = 'pressed' | 'reducedMotion'
+export type GoopToggleEngineKey = ToggleEffect | 'speed' | 'preset' | 'renderer'
+type ToggleUnhandled = Exclude<keyof ToggleOptions, GoopToggleEngineKey | ToggleAdapterOwned>
+const _allToggleOptionsHandled: [ToggleUnhandled] extends [never] ? true : { unhandled: ToggleUnhandled } = true
+void _allToggleOptionsHandled
+
+type ToggleGroupAdapterOwned = 'value' | 'item' | 'reducedMotion'
+export type GoopToggleGroupEngineKey = ToggleGroupEffect | 'speed' | 'preset' | 'renderer'
+type ToggleGroupUnhandled = Exclude<keyof ToggleGroupOptions, GoopToggleGroupEngineKey | ToggleGroupAdapterOwned>
+const _allToggleGroupOptionsHandled: [ToggleGroupUnhandled] extends [never] ? true : { unhandled: ToggleGroupUnhandled } = true
+void _allToggleGroupOptionsHandled
+
+export type GoopTogglePropsDefinition = EffectPropsDefinition<ToggleEffect>
+export type GoopTogglePropsInput = InputOf<GoopTogglePropsDefinition>
+export type GoopToggleGroupPropsDefinition = EffectPropsDefinition<ToggleGroupEffect>
+export type GoopToggleGroupPropsInput = InputOf<GoopToggleGroupPropsDefinition>
+
+/** Spread into `defineProps({ ...goopToggleProps, ... })`. */
+export const goopToggleProps = effectEngineProps(TOGGLE_EFFECTS) as unknown as GoopTogglePropsDefinition
+/** Spread into `defineProps({ ...goopToggleGroupProps, ... })`. */
+export const goopToggleGroupProps = effectEngineProps(TOGGLE_GROUP_EFFECTS) as unknown as GoopToggleGroupPropsDefinition
+
+/** Toggle options from props, over app config. */
+export function toToggleOptions(props: GoopTogglePropsInput, config: GoopOptions = {}): ToggleOptions {
+  return toEffectOptions(TOGGLE_EFFECTS, props, config)
+}
+
+/** Toggle group options from props, over app config. */
+export function toToggleGroupOptions(props: GoopToggleGroupPropsInput, config: GoopOptions = {}): ToggleGroupOptions {
+  return toEffectOptions(TOGGLE_GROUP_EFFECTS, props, config)
 }
 
 // ---- GoopSlider ----------------------------------------------------------------------------

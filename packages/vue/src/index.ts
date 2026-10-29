@@ -13,6 +13,8 @@ export * from './components/tooltip'
 export * from './components/slider'
 export * from './components/progress'
 export * from './components/sonner'
+export * from './components/toggle'
+export * from './components/toggle-group'
 export { GOOP_CONFIG_KEY, GoopPlugin, provideGoopConfig, useGoopConfig, type GoopConfig } from './config'
 export {
   CSS_VAR_KEYS,
@@ -44,6 +46,16 @@ export {
   toProgressOptions,
   toSliderOptions,
   toSwitchOptions,
+  goopToggleProps,
+  goopToggleGroupProps,
+  toToggleOptions,
+  toToggleGroupOptions,
+  type GoopToggleEngineKey,
+  type GoopTogglePropsDefinition,
+  type GoopTogglePropsInput,
+  type GoopToggleGroupEngineKey,
+  type GoopToggleGroupPropsDefinition,
+  type GoopToggleGroupPropsInput,
   TOASTER_PROP_KEYS,
   toToasterOptions,
   type GoopToasterProps,

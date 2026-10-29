@@ -42,6 +42,9 @@ export const goopComponents = [
   'GoopSlider',
   'GoopProgress',
   'GoopToaster',
+  'GoopToggle',
+  'GoopToggleGroup',
+  'GoopToggleGroupItem',
 ] as const
 
 export type GoopComponentName = (typeof goopComponents)[number]
