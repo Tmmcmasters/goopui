@@ -22,5 +22,6 @@ export const catalog: CatalogEntry[] = [
   { path: '/slider', goop: 'GoopSlider', shadcn: 'Slider', blurb: 'Jelly goo thumb over a sloshing liquid fill.' },
   { path: '/progress', goop: 'GoopProgress', shadcn: 'Progress', blurb: 'Fills like liquid: wobbling goo front, slosh, drips.' },
   { path: '/toast', goop: 'GoopToaster', shadcn: 'Sonner', blurb: 'Toasts drop in, merge in the stack, drip away.' },
+  { path: '/input', goop: 'GoopInput', shadcn: 'Input', blurb: 'Goo focus ring that flows in from the click, ripples as you type.' },
   { path: '/blob', goop: 'GoopBlob', shadcn: null, blurb: 'Background blobs. Perf stress test.' },
 ]

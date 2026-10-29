@@ -42,6 +42,8 @@ export const goopComponents = [
   'GoopSlider',
   'GoopProgress',
   'GoopToaster',
+  'GoopInput',
+  'GoopTextarea',
 ] as const
 
 export type GoopComponentName = (typeof goopComponents)[number]

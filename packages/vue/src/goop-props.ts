@@ -32,6 +32,9 @@ import {
   type TabsIndicatorOptions,
   CHECKBOX_EFFECTS,
   RADIO_EFFECTS,
+  INPUT_EFFECTS,
+  type InputEffect,
+  type InputOptions,
   type CheckboxEffect,
   type CheckboxOptions,
   type RadioEffect,
@@ -368,6 +371,27 @@ export const goopCheckboxProps = effectEngineProps(CHECKBOX_EFFECTS) as unknown 
 /** Checkbox options from props, over app config. */
 export function toCheckboxOptions(props: GoopCheckboxPropsInput, config: GoopOptions = {}): CheckboxOptions {
   return toEffectOptions(CHECKBOX_EFFECTS, props, config)
+}
+
+// ---- GoopInput / GoopTextarea ---------------------------------------------------------------
+// Core `attachInput`: INPUT_EFFECTS (flow, close, ripple, wobble, drain, drip, drips) plus speed /
+// preset / renderer. `invalid` follows the field's aria-invalid (core watches it).
+
+type InputAdapterOwned = 'invalid' | 'reducedMotion'
+export type GoopInputEngineKey = InputEffect | 'speed' | 'preset' | 'renderer'
+type InputUnhandled = Exclude<keyof InputOptions, GoopInputEngineKey | InputAdapterOwned>
+const _allInputOptionsHandled: [InputUnhandled] extends [never] ? true : { unhandled: InputUnhandled } = true
+void _allInputOptionsHandled
+
+export type GoopInputPropsDefinition = EffectPropsDefinition<InputEffect>
+export type GoopInputPropsInput = InputOf<GoopInputPropsDefinition>
+
+/** Spread into `defineProps({ ...goopInputProps, ... })`. */
+export const goopInputProps = effectEngineProps(INPUT_EFFECTS) as unknown as GoopInputPropsDefinition
+
+/** Input / textarea options from props, over app config. */
+export function toInputOptions(props: GoopInputPropsInput, config: GoopOptions = {}): InputOptions {
+  return toEffectOptions(INPUT_EFFECTS, props, config)
 }
 
 // ---- GoopRadioGroup ------------------------------------------------------------------------
