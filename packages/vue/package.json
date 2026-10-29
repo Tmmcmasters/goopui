@@ -5,6 +5,24 @@
   "description": "goopUI components for Vue: gooey, dripping shadcn-style components",
   "type": "module",
   "license": "MIT",
+  "author": "Timothy McMasters",
+  "homepage": "https://goop.timmcmasters.work",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tmmcmasters/goopui.git",
+    "directory": "packages/vue"
+  },
+  "bugs": {
+    "url": "https://github.com/Tmmcmasters/goopui/issues"
+  },
+  "keywords": [
+    "goopui",
+    "gooey",
+    "ui",
+    "components",
+    "animation",
+    "vue"
+  ],
   "sideEffects": [
     "*.css"
   ],

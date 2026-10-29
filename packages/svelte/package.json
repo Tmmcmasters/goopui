@@ -5,6 +5,24 @@
   "description": "goopUI components for Svelte",
   "type": "module",
   "license": "MIT",
+  "author": "Timothy McMasters",
+  "homepage": "https://goop.timmcmasters.work",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tmmcmasters/goopui.git",
+    "directory": "packages/svelte"
+  },
+  "bugs": {
+    "url": "https://github.com/Tmmcmasters/goopui/issues"
+  },
+  "keywords": [
+    "goopui",
+    "gooey",
+    "ui",
+    "components",
+    "animation",
+    "svelte"
+  ],
   "sideEffects": false,
   "exports": {
     ".": {
@@ -14,7 +32,9 @@
   },
   "main": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
