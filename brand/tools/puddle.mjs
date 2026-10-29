@@ -27,11 +27,19 @@ const PUDDLE = {
   options: {
     drips: false,
     dripSize: 6.5,
-    softness: 8,
+    dripLength: 14,
+    // Low softness keeps the lumps and satellites distinct (a high one melts them round).
+    softness: 3,
     edge: 0.45,
+    // Resting drips build the splat. Negative length = the bulb rides up inside the body, so
+    // its edge pokes out as a lobe; length 0 at a corner = a lone droplet off the edge.
     restingDrips: [
-      { x: 0.26, size: 1.3, length: -1.2 },
-      { x: 0.7, size: 1.0, length: -1.4 },
+      { x: 0.4, size: 1.8, length: -0.9 }, // bottom bulge
+      { x: 0.66, size: 1.2, length: -0.2 }, // bottom-right lump
+      { x: 0.7, size: 1.2, length: -5.5 }, // top-right lobe
+      { x: 0.28, size: 0.9, length: -5.6 }, // top-left lobe
+      { x: 1, size: 0.9, length: 0 }, // lead droplet (right)
+      { x: 0, size: 0.72, length: 0 }, // speck (left)
     ],
   },
 }

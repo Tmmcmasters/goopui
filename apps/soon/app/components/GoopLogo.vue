@@ -4,8 +4,8 @@
 // fast pass and squishes + ripples on click, like GoopButton. The wordmark is DynaPuff outlines
 // (ink = currentColor).
 //
-// Shape: a round host (52x38 design px) with two lumps tucked into its underside
-// (resting drips with a negative hang). brand/puddle/*.svg is this exact pose traced from the
+// Shape: a round host (52x38 design px) plus six resting drips: four tucked in as lobes, two at
+// the corners as satellite droplets (a lead drop and a speck), like a drop that just splatted. brand/puddle/*.svg is this exact pose traced from the
 // engine (brand/tools/puddle.mjs + puddle.py; numbers from brand/puddle/geometry.json), and
 // that path is the static fallback here: server render, before mount, and reduced motion
 // (no engine at all then). Decorative: everything is aria-hidden; label the link around it.
@@ -18,28 +18,37 @@ const HEIGHT = { sm: 22, md: 26, lg: 40 } as const
 /** Design size of the goo host the brand capture used. */
 const DESIGN = { width: 52, height: 38 }
 /** Host box inside the lockup, as fractions of the lockup box. */
-const HOST_HEIGHT = 0.72127
+const HOST_HEIGHT = 0.58981
 const BLOB =
-  'M19.8 41.3C21.85 41.18 23.88 40.89 25.92 40.69C29.84 40.32 33.87 40.32 37.54 38.73C41.14 37.17 43.88 34.23 46.06 31.05C48.14 28 49.84 24.52 50.23 20.8C50.55 17.81 49.97 14.76 48.58 12.09C45.16 5.53 37.96 1.81 30.88 0.68C25.31 -0.21 19.39 0.4 14.19 2.62C6.5 5.91 0.85 12.41 1.55 21.16C1.82 24.43 2.9 27.59 4.18 30.58C5.69 34.11 7.76 37.91 11.22 39.87C13.98 41.43 16.72 41.48 19.8 41.3Z'
+  'M21.63 47.5C25 47.18 26.91 45.1 29.89 44.48C32.07 44.03 34.29 44.58 36.48 44.25C39.8 43.74 41.99 41.33 42.98 38.23C43.48 36.67 43.73 35.06 44.66 33.67C45.33 32.68 46.17 31.81 46.91 30.86C49 28.18 51.1 24.58 51.66 21.2C52.42 16.62 50.76 12.26 47.84 8.77C46.62 7.31 45.23 6.01 44.08 4.49C42.27 2.09 41.2 -1.12 38.06 -2.14C35.3 -3.03 32.96 -1.61 30.39 -0.84C27.9 -0.1 23.6 0.07 21 -0.2C17.79 -0.53 14.65 -2.47 11.71 -0.09C10.19 1.13 9.09 3.29 7.78 4.81C6.95 5.78 6.02 6.66 5.14 7.58C3.74 9.04 2.5 10.66 1.6 12.48C-1.48 18.74 0.28 24.81 4.59 29.92C5.77 31.31 7.39 32.56 8.35 34.09C9.52 35.94 9.75 38.13 10.59 40.12C12.38 44.42 16.81 47.95 21.63 47.5ZM52.34 42C53.27 41.9 54.14 41.51 54.81 40.85C55.43 40.23 55.85 39.42 55.97 38.55C56.4 35.7 53.91 33.58 51.18 33.77C50.2 33.84 49.26 34.23 48.57 34.93C45.84 37.71 48.73 42.4 52.34 42ZM0.46 40.4C1.01 40.28 1.48 40 1.85 39.57C3.43 37.75 1.89 34.96 -0.51 35.46C-1.05 35.57 -1.54 35.86 -1.91 36.28C-3.5 38.06 -1.9 40.92 0.46 40.4Z'
 
 /** Engine options at host scale k (px options scale with the host, so the pose matches). */
 function options(k: number): GoopOptions {
   return {
     renderer: 'svg',
-    // The puddle shape (keep in sync with brand/tools/puddle.mjs).
+    // The splat (keep in sync with brand/tools/puddle.mjs). Low softness keeps the lumps and
+    // droplets distinct. Resting drips build it: a negative length rides the bulb up inside
+    // the body so its edge pokes out as a lobe; length 0 at a corner is a lone droplet. They are
+    // real goo: they breathe at rest and the body leans / squishes into and away from them.
     drips: false,
     dripSize: 6.5 * k,
-    softness: 8 * k,
+    dripLength: 14 * k, // the core default, scaled: resting hangs are dripLength-relative
+    softness: 3 * k,
     edge: 0.45,
     restingDrips: [
-      { x: 0.26, size: 1.3, length: -1.2 },
-      { x: 0.7, size: 1.0, length: -1.4 },
+      { x: 0.4, size: 1.8, length: -0.9 }, // bottom bulge
+      { x: 0.66, size: 1.2, length: -0.2 }, // bottom-right lump
+      { x: 0.7, size: 1.2, length: -5.5 }, // top-right lobe
+      { x: 0.28, size: 0.9, length: -5.6 }, // top-left lobe
+      { x: 1, size: 0.9, length: 0 }, // lead droplet (right)
+      { x: 0, size: 0.72, length: 0 }, // speck (left)
     ],
     seed: 7,
-    // A small body: fast passes count from a lower speed, and the click wave stays near it.
+    // A small body: fast passes count from a lower speed, and the click wave stays near it
+    // (kept small so the swell never reaches the wordmark's "g").
     splashMinSpeed: 0.6,
-    shockwave: 0.6,
-    clickGoop: 0.25,
+    shockwave: 0.45,
+    clickGoop: 0.15,
     // The link owns the keyboard (Enter navigates).
     keyboard: false,
   }
@@ -73,7 +82,7 @@ onBeforeUnmount(() => {
 
 <template>
   <span class="goop-logo" :data-size="size" aria-hidden="true">
-    <svg class="word" viewBox="-5.14 -79.0 451.68 101.1" preserveAspectRatio="xMinYMid meet" focusable="false">
+    <svg class="word" viewBox="-3.77 -79.0 450.31 101.1" preserveAspectRatio="xMinYMid meet" focusable="false">
       <path d="M130.61 -3.85Q121.21 -3.85 115.72 -10.8Q110.23 -17.75 110.23 -32.02Q110.23 -47.23 115.49 -54.26Q120.73 -61.3 130.11 -61.3Q135.91 -61.3 140.26 -58.8Q144.61 -56.3 148.06 -51.73L146.66 -48.08Q146.36 -49.48 146.16 -51.08Q145.96 -52.68 145.96 -53.48Q145.96 -58.1 147.95 -60.65Q149.94 -63.2 154.11 -63.2Q158.73 -63.2 161.56 -60.04Q164.39 -56.88 165.69 -50.95Q166.84 -46.5 167.51 -39.55Q168.19 -32.6 168.19 -25.5Q168.19 -15.9 167.49 -9.4Q166.79 -2.9 165.19 1.4Q163.59 5.7 160.99 8.9Q156.46 14.33 148.89 16.96Q141.31 19.6 131.61 19.6Q124.41 19.6 120.09 18.15Q115.76 16.7 113.85 14.26Q111.94 11.83 111.94 8.75Q111.94 4.98 113.75 2.43Q115.56 -0.12 119.26 -0.12Q122.66 -0.12 126.57 0.38Q130.49 0.88 135.16 0.88Q142.91 0.88 146.13 -2.14Q149.36 -5.15 149.36 -10.8Q149.36 -13.1 149.06 -16.2L150.46 -16.82Q147.81 -10.88 142.69 -7.36Q137.56 -3.85 130.61 -3.85ZM139.14 -19.53Q141.44 -19.53 143.51 -20.81Q145.59 -22.1 146.86 -25.1Q148.14 -28.1 148.14 -33.12Q148.14 -39.15 145.9 -42.95Q143.66 -46.75 138.91 -46.75Q134.91 -46.75 132.7 -43.4Q130.49 -40.05 130.49 -33.25Q130.49 -26.78 132.73 -23.15Q134.99 -19.53 139.14 -19.53Z"/>
       <path d="M199.94 0.3Q191.21 0.3 184.72 -3.25Q178.23 -6.8 174.68 -13.4Q171.14 -20 171.14 -29.1Q171.14 -38.6 174.73 -45.7Q178.32 -52.8 184.91 -56.8Q191.5 -60.8 200.21 -60.8Q209.57 -60.8 216.43 -56.95Q223.29 -53.1 227.1 -46.2Q230.91 -39.3 230.91 -30.1Q230.91 -20.7 227.07 -13.9Q223.23 -7.1 216.3 -3.4Q209.36 0.3 199.94 0.3ZM201.33 -18.53Q205.81 -18.53 208.49 -22.01Q211.16 -25.5 211.16 -31.28Q211.16 -37.12 208.5 -40.6Q205.85 -44.08 201.34 -44.08Q196.71 -44.08 194.03 -40.61Q191.36 -37.15 191.36 -31.29Q191.36 -25.5 194.03 -22.01Q196.71 -18.53 201.33 -18.53Z"/>
       <path d="M261.73 0.3Q253.01 0.3 246.52 -3.25Q240.03 -6.8 236.48 -13.4Q232.94 -20 232.94 -29.1Q232.94 -38.6 236.53 -45.7Q240.12 -52.8 246.71 -56.8Q253.3 -60.8 262.01 -60.8Q271.37 -60.8 278.23 -56.95Q285.09 -53.1 288.9 -46.2Q292.71 -39.3 292.71 -30.1Q292.71 -20.7 288.87 -13.9Q285.04 -7.1 278.1 -3.4Q271.16 0.3 261.73 0.3ZM263.13 -18.53Q267.61 -18.53 270.29 -22.01Q272.96 -25.5 272.96 -31.28Q272.96 -37.12 270.3 -40.6Q267.65 -44.08 263.14 -44.08Q258.51 -44.08 255.83 -40.61Q253.16 -37.15 253.16 -31.29Q253.16 -25.5 255.83 -22.01Q258.51 -18.53 263.13 -18.53Z"/>
@@ -93,7 +102,7 @@ onBeforeUnmount(() => {
   display: block;
   flex: none;
   height: 26px;
-  aspect-ratio: 451.68 / 101.1;
+  aspect-ratio: 450.31 / 101.1;
   color: var(--foreground);
 }
 .goop-logo[data-size='sm'] {
@@ -116,10 +125,10 @@ onBeforeUnmount(() => {
 }
 .blob {
   position: absolute;
-  left: 0.082%;
-  top: 2.374%;
-  width: 22.091%;
-  height: 72.127%;
+  left: 1.663%;
+  top: 6.677%;
+  width: 18.121%;
+  height: 58.981%;
   border-radius: 50%;
   /* The goo paints with the host's color. */
   color: var(--slime);

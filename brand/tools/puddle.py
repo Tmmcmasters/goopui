@@ -41,7 +41,14 @@ def trace_blob() -> str:
     cov = gaussian_filter(np.clip((255 - im[..., 0]) / 255, 0, 1), meta["scale"] * 0.2)
     s, p = 1 / meta["scale"], -meta["pad"]
     gr = goo.Grid(p, p, p + (cov.shape[1] - 1) * s, p + (cov.shape[0] - 1) * s, s)
-    return goo.trace(gr, 0.5 - cov, err=0.03, corner_deg=80, min_area=50)
+    return goo.trace(gr, 0.5 - cov, err=0.03, corner_deg=80, min_area=2)  # keep the satellite droplets
+
+
+def main_body(d: str) -> str:
+    """The largest subpath (the puddle without its satellite droplets): the favicon cut."""
+    parts = ["M" + p for p in d.split("M") if p.strip()]
+    area = lambda p: (lambda b: (b[2] - b[0]) * (b[3] - b[1]))(bbox_of_d(p))
+    return max(parts, key=area).strip()
 
 
 def wordmark() -> list[str]:
@@ -68,10 +75,13 @@ def main():
     write("mark.svg", f'<svg {head} viewBox="{box(*mark_box)}" role="img" aria-label="goopUI"><title>goopUI</title><path fill="{SLIME}" d="{d}"/></svg>')
     write("mark-mono.svg", f'<svg {head} viewBox="{box(*mark_box)}" role="img" aria-label="goopUI"><title>goopUI</title><path fill="currentColor" d="{d}"/></svg>')
 
-    # Favicon: same silhouette, filling a square with a hair of margin so it reads at 16px.
-    side = max(x1 - x0, y1 - y0) + 2.0
-    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
-    write("favicon.svg", f'<svg {head} viewBox="{box(cx - side / 2, cy - side / 2, side, side)}"><path fill="{SLIME}" d="{d}"/></svg>')
+    # Favicon: the lumpy body only (the satellites are sub-pixel mush at 16px), filling a
+    # square with a hair of margin.
+    fd = main_body(d)
+    fx0, fy0, fx1, fy1 = bbox_of_d(fd)
+    side = max(fx1 - fx0, fy1 - fy0) + 2.0
+    cx, cy = (fx0 + fx1) / 2, (fy0 + fy1) / 2
+    write("favicon.svg", f'<svg {head} viewBox="{box(cx - side / 2, cy - side / 2, side, side)}"><path fill="{SLIME}" d="{fd}"/></svg>')
 
     # Lockup: blob sized a little over the cap height, sitting on the baseline, then the wordmark.
     words = wordmark()
@@ -97,16 +107,22 @@ def main():
         "blob": d,
     }
     write("geometry.json", json.dumps(geo, indent=2))
-    gallery(d, mark_box, cx, cy, side, blob, ink, lbox)
+    gallery(d, fd, mark_box, cx, cy, side, blob, ink, lbox)
     print("mark bbox (host px):", [round(v, 2) for v in (x0, y0, x1, y1)])
     print("lockup viewBox:", box(*lbox), "blob in lockup:", [round(v, 1) for v in bbox_of_d(blob)])
 
 
-def gallery(d, mark_box, cx, cy, side, blob, ink, lbox):
+def gallery(d, fd, mark_box, cx, cy, side, blob, ink, lbox):
     fav = box(cx - side / 2, cy - side / 2, side, side)
 
+    mx, my, mw, mh = mark_box
+    ms = max(mw, mh)
+    full = box(mx + mw / 2 - ms / 2, my + mh / 2 - ms / 2, ms, ms)
+
     def icon(size, fill=SLIME):
-        return f'<svg viewBox="{fav}" width="{size}" height="{size}" aria-hidden="true"><path fill="{fill}" d="{d}"/></svg>'
+        # 16/32: the favicon cut (body only); 64+: the full mark with its droplets.
+        vb, path = (fav, fd) if size < 64 else (full, d)
+        return f'<svg viewBox="{vb}" width="{size}" height="{size}" aria-hidden="true"><path fill="{fill}" d="{path}"/></svg>'
 
     def lock(h, mono=False):
         w = h * lbox[2] / lbox[3]
@@ -119,9 +135,10 @@ def gallery(d, mark_box, cx, cy, side, blob, ink, lbox):
                 f'<div class="row">{lock(40)}{lock(26)}</div><div class="row">{lock(32, True)}{icon(64, "currentColor")}</div></section>')
 
     note = html.escape(
-        "The mark is one goopy Slime-green puddle: a soft, slightly lumpy, round-ish blob, like a drop that just "
-        "landed. It is not drawn by hand. It is the goop engine's own resting pose (core's SVG goo filter on a "
-        "52x38 round host with two lumps tucked into its underside), traced to Beziers. On the web the logo is "
+        "The mark is one goopy Slime-green splat: a lumpy blob with a few lobes and two droplets flung off its "
+        "edge (a lead drop and a speck), like a drop that just landed. It is not drawn by hand. It is the goop engine's own resting pose (core's SVG goo filter on a "
+        "52x38 round host plus six resting drips: four tucked in as lobes, two at the corners as droplets), "
+        "traced to Beziers. The favicon keeps the body only. On the web the logo is "
         "live: apps/soon's GoopLogo.vue attaches the same engine with the same numbers, so the static SVG and the "
         "live goo are the same shape, and the blob wobbles toward the cursor, splashes droplets on fast passes "
         "and squishes on click. Reduced motion keeps this static mark. Wordmark: DynaPuff, ink = currentColor."

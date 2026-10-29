@@ -1,1 +1,1 @@
-{"pad":10,"scale":10,"width":52,"height":38,"options":{"drips":false,"dripSize":6.5,"softness":8,"edge":0.45,"restingDrips":[{"x":0.26,"size":1.3,"length":-1.2},{"x":0.7,"size":1,"length":-1.4}]}}
+{"pad":10,"scale":10,"width":52,"height":38,"options":{"drips":false,"dripSize":6.5,"dripLength":14,"softness":3,"edge":0.45,"restingDrips":[{"x":0.4,"size":1.8,"length":-0.9},{"x":0.66,"size":1.2,"length":-0.2},{"x":0.7,"size":1.2,"length":-5.5},{"x":0.28,"size":0.9,"length":-5.6},{"x":1,"size":0.9,"length":0},{"x":0,"size":0.72,"length":0}]}}
