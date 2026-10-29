@@ -26,6 +26,18 @@ const step = (rt: Rt, t: number) => {
   for (const p of rt.tips) syncTip(p.host, p.emerge)
 }
 
+/** The replayer only calls `step` from the first substep on, so at a beat's frame 0 (t = 0,
+ *  zero substeps) the cards would show at full opacity for one frame right after the curtain,
+ *  then drop to 0 and fade in. Apply the t = 0 entrance pose at build so frame 0 is invisible. */
+const entering = (script: SceneScript<Rt>): SceneScript<Rt> => ({
+  ...script,
+  build(root, ctx) {
+    const rt = script.build(root, ctx)
+    step(rt, 0)
+    return rt
+  },
+})
+
 const clicksAt = (downs: number[], hold = 0.085): Click[] => downs.map((d) => ({ down: d, up: d + hold }))
 
 /** The solo beats' card. */
@@ -44,7 +56,7 @@ const wiggle = (t0: number, t1: number, cx: number, cy: number, ax: number, ay: 
 
 const BTN_CLICKS = clicksAt([1.1], 0.09)
 
-export const buttonBeat: SceneScript<Rt> = {
+export const buttonBeat: SceneScript<Rt> = entering({
   seed: 4242,
   clicks: BTN_CLICKS,
   cursor: cursorPath(
@@ -74,13 +86,14 @@ export const buttonBeat: SceneScript<Rt> = {
       label: 'Poke me',
       seed: 4242,
       // v7's hero drips: falling drips while hovered, none resting.
-      options: { dripCount: 8, dripInterval: 0.16, maxDrips: 20, dripLength: 30, dripSize: 9 },
+      // The page's button has one resting drip (`:resting-drips="1"`).
+      options: { restingDrips: 1, dripCount: 8, dripInterval: 0.16, maxDrips: 20, dripLength: 30, dripSize: 9 },
     })
     btn.addEventListener('click', () => (card.hint.textContent = plural(++pokes, 'poke')))
     return { cards: [card.wrap], tips: [], destroy: () => handle.destroy() }
   },
   step,
-}
+})
 
 // ---- 2. switch: flip it a few times -----------------------------------------------------------
 
@@ -104,7 +117,7 @@ function flipPath(downs: number[], target: (i: number) => Pt, enterFrom: Pt, exi
   return segs
 }
 
-export const switchBeat: SceneScript<Rt> = {
+export const switchBeat: SceneScript<Rt> = entering({
   seed: 808,
   clicks: clicksAt(SW_DOWNS),
   cursor: cursorPath(
@@ -119,14 +132,14 @@ export const switchBeat: SceneScript<Rt> = {
     return { cards: [card.wrap], tips: [], destroy: () => handle.destroy() }
   },
   step,
-}
+})
 
 // ---- 3. slider: drag it back and forth --------------------------------------------------------
 
 const SL = { x0: 112, x1: 368 }
 const slX = (v: number) => sliderX(SL, v)
 
-export const sliderBeat: SceneScript<Rt> = {
+export const sliderBeat: SceneScript<Rt> = entering({
   seed: 909,
   clicks: [{ down: 0.55, up: 1.84 }],
   cursor: cursorPath(
@@ -154,13 +167,13 @@ export const sliderBeat: SceneScript<Rt> = {
     return { cards: [card.wrap], tips: [], destroy: () => handle.destroy() }
   },
   step,
-}
+})
 
 // ---- 4. tooltip: hover, leave, hover again ----------------------------------------------------
 
 const TIP_CY = SOLO_CY + 26
 
-export const tooltipBeat: SceneScript<Rt> = {
+export const tooltipBeat: SceneScript<Rt> = entering({
   seed: 7070,
   clicks: [],
   cursor: cursorPath(
@@ -195,7 +208,7 @@ export const tooltipBeat: SceneScript<Rt> = {
     }
   },
   step,
-}
+})
 
 // ---- 5. all four, the page's grid --------------------------------------------------------------
 
@@ -206,7 +219,7 @@ const gc = (b: Box) => ({ x: b.x + b.w / 2, y: b.y + b.h / 2 + 2 })
 const GSL = { x0: GB[2].x + 24, x1: GB[2].x + G.w - 24 }
 const GSW = { w: 60, h: 34, x: GB[1].x + 40 }
 
-export const gridBeat: SceneScript<Rt> = {
+export const gridBeat: SceneScript<Rt> = entering({
   seed: 2026,
   clicks: [
     { down: 0.3, up: 0.38 }, // button
@@ -237,6 +250,7 @@ export const gridBeat: SceneScript<Rt> = {
       fontSize: 15,
       label: 'Poke me',
       seed: 11,
+      options: { restingDrips: 1 },
     })
     btn.addEventListener('click', () => (cb.hint.textContent = plural(++pokes, 'poke')))
 
@@ -273,7 +287,7 @@ export const gridBeat: SceneScript<Rt> = {
     }
   },
   step,
-}
+})
 
 // Keep handle types referenced for editors.
 export type { GoopHandle, SliderHandle, SwitchHandle }

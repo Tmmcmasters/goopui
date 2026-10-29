@@ -8,6 +8,7 @@ import {
   attachGoop,
   attachSlider,
   attachSwitch,
+  TOOLTIP_BLOOM_SPLASH,
   TOOLTIP_FEEL,
   TOOLTIP_MOMENTUM,
   type EmergeHandle,
@@ -20,7 +21,8 @@ import { seededRandom } from '../goo/fake-env'
 import { DYNAPUFF, GEIST } from '../fonts'
 import { el } from '../v7/dom'
 
-/** The coming-soon page's light tokens (apps/soon main.css), with the brand slime as primary. */
+/** The coming-soon page's light tokens (apps/soon main.css): primary is ink, like the live page;
+ *  slime is only the brand mark and the "Coming soon" pill (bg-goo). */
 export const SOON = {
   bg: '#faf9f5',
   ink: '#1d1a17',
@@ -32,6 +34,9 @@ export const SOON = {
   slime: '#1fa64a',
   slimeFg: '#0b1a0f',
   input: '#dcd8ce',
+  /** --primary / --primary-foreground (ink / background). */
+  primary: '#1d1a17',
+  primaryFg: '#faf9f5',
 }
 
 export interface Box {
@@ -87,7 +92,7 @@ export interface ButtonSpec {
   options?: GoopOptions
 }
 
-/** GoopButton, default variant (slime goo body, dark label). No resting drips. */
+/** GoopButton, default variant: --primary (ink) goo body, --primary-foreground label, Geist 500. */
 export function mountButton(parent: HTMLElement, s: ButtonSpec): { btn: HTMLButtonElement; handle: GoopHandle } {
   const btn = el(
     'button',
@@ -95,11 +100,11 @@ export function mountButton(parent: HTMLElement, s: ButtonSpec): { btn: HTMLButt
       attrs: { tabindex: '-1', 'data-goop-host': 'fill', 'data-goop-active': '' },
       style:
         `height:${s.h}px;padding:0 ${s.padX}px;border-radius:${s.radius}px;border:0;margin:0;background:transparent;pointer-events:auto;` +
-        `color:${SOON.slimeFg};font:600 ${s.fontSize}px/1 ${DYNAPUFF};display:inline-flex;align-items:center;justify-content:center;cursor:none;outline:none;white-space:nowrap;flex-shrink:0;`,
+        `color:${SOON.primaryFg};font:500 ${s.fontSize}px/1 ${GEIST};display:inline-flex;align-items:center;justify-content:center;cursor:none;outline:none;white-space:nowrap;flex-shrink:0;`,
     },
     [el('span', { attrs: { 'data-goop-label': '' }, style: 'display:inline-flex;align-items:center', text: s.label })],
   )
-  btn.style.setProperty('--goop-color', SOON.slime)
+  btn.style.setProperty('--goop-color', SOON.primary)
   parent.append(centered(s.cx, s.cy - s.h / 2, btn))
   const handle = attachGoop(btn, {
     restingDrips: 0,
@@ -130,8 +135,9 @@ export function mountOutlineButton(
     },
     [el('span', { attrs: { 'data-goop-label': '' }, style: 'display:inline-flex;align-items:center', text: s.label })],
   )
-  btn.style.setProperty('--goop-color', '#d6d1c6')
-  btn.style.setProperty('--goop-fill', SOON.card)
+  // goopButtonGooVariants.outline: --goop-color: var(--border), --goop-fill: var(--background).
+  btn.style.setProperty('--goop-color', SOON.border)
+  btn.style.setProperty('--goop-fill', SOON.bg)
   parent.append(centered(s.cx, s.cy - s.h / 2, btn))
   const handle = attachGoop(btn, { restingDrips: 0, cssVars: true, random: seededRandom(s.seed ^ 0x51f15e), ...common })
   return { btn, handle }
@@ -238,8 +244,9 @@ export interface TooltipSpec {
 }
 
 /** GoopTooltip with an outline GoopButton trigger: opens 150ms after the pointer enters (the
- *  page's delay-duration), closes on leave. The tooltip content oozes out of the trigger's top
- *  edge with core's emerge engine at TOOLTIP_FEEL, like GoopTooltipContent. */
+ *  page's delay-duration), closes on leave. Emerge options are GoopTooltipContent's defaults
+ *  (vue goop-props toTooltipOptions({})): flowStyle 'bloom', so the tooltip pools from its own
+ *  centre, overshoots and wobbles, sheds a few small drops (TOOLTIP_BLOOM_SPLASH). */
 export function mountTooltip(
   parent: HTMLElement,
   s: TooltipSpec,
@@ -273,20 +280,27 @@ export function mountTooltip(
         `display:inline-flex;align-items:center;border-radius:${Math.round(s.tipSize * 0.45)}px;white-space:nowrap;isolation:isolate;visibility:hidden;pointer-events:none;` +
         `font:500 ${s.tipSize}px/1.2 ${GEIST};color:${SOON.bg};z-index:5;`,
     },
-    [surface, el('span', { text: s.text }), arrow],
+    [surface, el('span', { attrs: { 'data-goop': 'label' }, style: 'display:inline-flex;align-items:center', text: s.text }), arrow],
   )
   host.style.setProperty('--goop-color', SOON.ink)
   parent.append(host)
   const M = TOOLTIP_MOMENTUM
+  const S = TOOLTIP_BLOOM_SPLASH
   const emerge = attachEmerge(host, {
     feel: TOOLTIP_FEEL,
+    flow: true,
+    flowStyle: 'bloom',
+    bloomStart: 'single',
     bridge: true,
     wobble: true,
     momentum: true,
     fade: true,
     openSlosh: M.openSlosh,
-    openDrips: M.openDrips,
+    openDrips: S.openDrips,
     closeSlosh: M.closeSlosh,
+    openDripAmount: S.openDripAmount,
+    openDripSize: S.openDripSize,
+    openDripFling: S.openDripFling,
     surfaceColor: 'popover',
     speed: 1,
     surface,

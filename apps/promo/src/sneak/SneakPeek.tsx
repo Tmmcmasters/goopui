@@ -1,14 +1,17 @@
 // goopUI sneak peek: a ~20s square teaser for the coming-soon page (goop.timmcmasters.work).
 // Logo hook -> one beat per sneak-peek component (button, switch, slider, tooltip) -> all four
 // in the page's grid -> end card. Every component is @goopui/core on the replay clock (see
-// goo/scene.ts), cut together with v7's dripping slime curtains. Light theme like the page.
+// goo/scene.ts), cut together with v7's dripping slime curtains. Light theme and ink
+// components like the live page; the logo's splash puddle is live goo too (brand.ts).
 
-import { AbsoluteFill, Easing, Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from 'remotion'
+import { AbsoluteFill, Easing, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion'
 import { Cursor } from '../Cursor'
 import { DYNAPUFF, GEIST } from '../fonts'
 import { SIZE } from '../timeline'
 import { SceneStage } from '../v7/SceneStage'
 import { themeCss } from '../v7/theme'
+import { END_CLICKS, END_LOGO_H, END_LOGO_TOP, endLogoBeat, OPEN_LOGO_H, openLogoBeat } from './brand'
+import { LOGO_ASPECT } from './logo'
 import { SOON } from './parts'
 import { buttonBeat, gridBeat, sliderBeat, switchBeat, tooltipBeat } from './scenes'
 
@@ -39,14 +42,15 @@ const CSS =
   `
 .v7-soon {
   --background: ${SOON.bg}; --foreground: ${SOON.ink};
-  --primary: ${SOON.slime}; --primary-foreground: ${SOON.slimeFg};
+  --primary: ${SOON.primary}; --primary-foreground: ${SOON.primaryFg};
   --input: ${SOON.input}; --muted: ${SOON.muted}; --muted-foreground: ${SOON.mutedFg};
   --popover: ${SOON.card}; --popover-foreground: ${SOON.ink};
   --accent: ${SOON.muted}; --accent-foreground: ${SOON.ink};
   --border: ${SOON.border}; --ring: ${SOON.ink};
   color: var(--foreground);
 }
-.v7-soon .switch { --goop-switch-thumb: #ffffff; }
+.v7-soon .switch { --goop-switch-thumb: var(--background); }
+.v7 .tip-panel { --goop-surface-shadow: none; }
 .v7 .peek { background: ${SOON.card}; border: 1px solid ${SOON.border}; box-shadow: 0 1px 2px rgb(40 30 10 / 0.04), 0 8px 24px -12px rgb(40 30 10 / 0.12); }
 .v7 .peek-hint { color: ${SOON.mutedFg}; }
 .v7 [data-goop-host='stroke'][data-goop-active]::after {
@@ -216,15 +220,9 @@ function Pill({ t, at }: { t: number; at: number }) {
   )
 }
 
-function Logo({ t, at, width }: { t: number; at: number; width: number }) {
-  const { fps } = useVideoConfig()
-  const s = pop(t, at, fps, { damping: 10, stiffness: 150, mass: 0.8 })
-  return (
-    <Img
-      src={staticFile('lockup.svg')}
-      style={{ width, opacity: Math.min(1, s * 1.4), transform: `translateY(${(1 - s) * 18}px) scale(${0.7 + 0.3 * s})` }}
-    />
-  )
+/** Placeholder the live logo scene (brand.ts) measures and mounts the goo lockup over. */
+function LogoSlot({ slot, height }: { slot: string; height: number }) {
+  return <div data-logo-slot={slot} style={{ width: height * LOGO_ASPECT, height }} />
 }
 
 function Headline({ t, at, size }: { t: number; at: number; size: number }) {
@@ -251,13 +249,16 @@ function Headline({ t, at, size }: { t: number; at: number; size: number }) {
 /** Hook: logo, the page's headline, the "Coming soon" pill. */
 function Open({ t }: { t: number }) {
   return (
-    <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 30, marginTop: -6 }}>
-        <Logo t={t} at={0.05} width={190} />
-        <Headline t={t} at={0.35} size={62} />
-        <Pill t={t} at={0.75} />
-      </div>
-    </AbsoluteFill>
+    <>
+      <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 30, marginTop: -6 }}>
+          <LogoSlot slot="open" height={OPEN_LOGO_H} />
+          <Headline t={t} at={0.35} size={62} />
+          <Pill t={t} at={0.75} />
+        </div>
+      </AbsoluteFill>
+      <SceneStage key="open-logo" script={openLogoBeat} t={t} className="v7" />
+    </>
   )
 }
 
@@ -266,9 +267,10 @@ function End({ t }: { t: number }) {
   const { fps } = useVideoConfig()
   const url = pop(t, 0.85, fps, { damping: 13, stiffness: 160, mass: 0.7 })
   return (
-    <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: -8 }}>
-        <Logo t={t} at={0.08} width={260} />
+    <>
+    <AbsoluteFill>
+      <div style={{ position: 'absolute', left: 0, right: 0, top: END_LOGO_TOP, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <LogoSlot slot="end" height={END_LOGO_H} />
         <div style={{ height: 30 }} />
         <Headline t={t} at={0.32} size={44} />
         <div style={{ height: 28 }} />
@@ -287,6 +289,9 @@ function End({ t }: { t: number }) {
         </div>
       </div>
     </AbsoluteFill>
+    <SceneStage key="end-logo" script={endLogoBeat} t={t} className="v7" />
+    <Cursor path={endLogoBeat.cursor} clicks={END_CLICKS} t={t} ring={SOON.ink} />
+    </>
   )
 }
 
