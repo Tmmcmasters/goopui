@@ -17,6 +17,10 @@
     "test": {
       "dependsOn": ["^build"]
     },
+    "generate": {
+      "dependsOn": ["^build"],
+      "outputs": [".output/**", ".nuxt/**"]
+    },
     "clean": {
       "cache": false
     }

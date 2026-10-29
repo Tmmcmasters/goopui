@@ -11,6 +11,8 @@
     "dev": "turbo run dev",
     "dev:playground": "pnpm --filter playground dev",
     "dev:www": "pnpm --filter www dev",
+    "dev:soon": "pnpm --filter soon dev",
+    "generate:soon": "pnpm --filter soon generate",
     "promo:studio": "pnpm --filter @goopui/core build && pnpm --filter promo studio",
     "promo:render": "pnpm --filter @goopui/core build && pnpm --filter promo render",
     "lint": "turbo run lint",

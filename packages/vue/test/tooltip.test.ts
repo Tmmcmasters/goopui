@@ -1,4 +1,4 @@
-import { EMERGE_CIRCLES, EMERGE_MOMENTUM_CIRCLES, TOOLTIP_FEEL, activeTickerCount, isLoopRunning } from '@goopui/core'
+import { EMERGE_CIRCLES, EMERGE_MOMENTUM_CIRCLES, TOOLTIP_BLOOM_SPLASH, TOOLTIP_FEEL, activeTickerCount, emergeBloomDuration, isLoopRunning } from '@goopui/core'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 import { defineComponent, h, type PropType } from 'vue'
@@ -51,10 +51,12 @@ describe('GoopTooltip', () => {
     expect(surface.querySelectorAll('[data-goop="blob"]')).toHaveLength(EMERGE_CIRCLES + EMERGE_MOMENTUM_CIRCLES)
     expect(el.hasAttribute('data-goop-emerge')).toBe(true)
     expect(el.textContent).toContain('Add to library')
+    // The label is an element child, so it fades with the content (and the arrow).
+    expect(el.querySelector(':scope > [data-goop="label"]')!.textContent).toBe('Add to library')
     expect(document.querySelector('[role="tooltip"]')!.textContent).toContain('Add to library')
     expect(isLoopRunning()).toBe(true)
-    // Tooltip timing: quicker close than the popover.
-    expect(el.style.getPropertyValue('--goop-emerge-close')).toBe(`${Math.round(TOOLTIP_FEEL.playful.close * 1000)}ms`)
+    // Tooltip timing: the bloom close at tooltip speed (quicker than the popover).
+    expect(el.style.getPropertyValue('--goop-emerge-close')).toBe(`${Math.round(emergeBloomDuration(TOOLTIP_FEEL.playful, 'close') * 1000)}ms`)
     w.unmount()
     expect(activeTickerCount()).toBe(0)
   })
@@ -90,8 +92,22 @@ describe('GoopTooltip', () => {
     w.unmount()
   })
 
-  it('maps props to core options: light slosh, no drips by default', () => {
-    expect(toTooltipOptions({})).toMatchObject({ feel: TOOLTIP_FEEL, openSlosh: 0.4, openDrips: false, closeSlosh: 0.5, bridge: true })
+  it('maps props to core options: bloom + single with a light splash by default', () => {
+    expect(toTooltipOptions({})).toMatchObject({
+      feel: TOOLTIP_FEEL,
+      flow: true,
+      flowStyle: 'bloom',
+      bloomStart: 'single',
+      openSlosh: 0.4,
+      closeSlosh: 0.5,
+      ...TOOLTIP_BLOOM_SPLASH,
+    })
+    expect(toTooltipOptions({ bloomStart: 'merge', openDrips: false, openDripAmount: 2 })).toMatchObject({ bloomStart: 'merge', openDrips: false, openDripAmount: 2 })
+    // The original bulb emerge: no drips by default, no light splash knobs.
+    const bulb = toTooltipOptions({ flow: false })
+    expect(bulb).toMatchObject({ flow: false, openDrips: false, bridge: true })
+    expect(bulb.openDripAmount).toBeUndefined()
+    expect(toTooltipOptions({ flowStyle: 'neck' })).toMatchObject({ flow: true, flowStyle: 'neck', openDrips: false })
     expect(toTooltipOptions({ openDrips: true, openSlosh: false, closeSlosh: 1.5 })).toMatchObject({
       openDrips: true,
       openSlosh: false,

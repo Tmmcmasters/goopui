@@ -6,18 +6,28 @@ const sides = ['top', 'right', 'bottom', 'left'] as const
 
 /** GoopTooltipContent props from the panel, applied to every goop tooltip on the page. */
 const goo = ref(true)
+const flow = ref(true)
+const flowStyle = ref<'bloom' | 'neck'>('bloom')
+const bloomStart = ref<'single' | 'merge'>('single')
+/** Splash drop count (bloom default 0.3: a few small drops). */
+const openDripAmount = ref(0.3)
 const bridge = ref(true)
 const wobble = ref(true)
 const momentum = ref(true)
 const fade = ref(true)
 const openSlosh = ref(true)
-const openDrips = ref(false)
+/** Bloom splashes by default; the bulb emerge (flow off) has no drips by default. */
+const openDrips = ref(true)
 const closeSlosh = ref(true)
 const speed = ref(1)
 const preset = ref<GoopPreset | ''>('')
 const renderer = ref<GoopRendererName | ''>('')
 const engine = computed(() => ({
   goo: goo.value,
+  flow: flow.value,
+  flowStyle: flowStyle.value,
+  bloomStart: bloomStart.value,
+  openDripAmount: openDripAmount.value,
   bridge: bridge.value,
   wobble: wobble.value,
   momentum: momentum.value,
@@ -29,7 +39,7 @@ const engine = computed(() => ({
   preset: preset.value || undefined,
   renderer: renderer.value || undefined,
 }))
-const toggles = { goo, bridge, wobble, momentum, fade, openSlosh, openDrips, closeSlosh }
+const toggles = { goo, flow, bridge, wobble, momentum, fade, openSlosh, openDrips, closeSlosh }
 
 const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
 </script>
@@ -45,6 +55,24 @@ const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
         <label class="grid gap-1">
           <span class="text-xs text-muted-foreground">speed: {{ speed.toFixed(2) }}x</span>
           <input v-model.number="speed" type="range" min="0.1" max="2" step="0.05" class="w-28">
+        </label>
+        <label class="grid gap-1">
+          <span class="text-xs text-muted-foreground">flowStyle</span>
+          <select v-model="flowStyle" :class="selectClass" :disabled="!flow">
+            <option value="bloom">bloom (default)</option>
+            <option value="neck">neck</option>
+          </select>
+        </label>
+        <label class="grid gap-1">
+          <span class="text-xs text-muted-foreground">bloomStart</span>
+          <select v-model="bloomStart" :class="selectClass" :disabled="!flow || flowStyle !== 'bloom'">
+            <option value="single">single (default)</option>
+            <option value="merge">merge</option>
+          </select>
+        </label>
+        <label class="grid gap-1">
+          <span class="text-xs text-muted-foreground">splash amount: {{ openDripAmount.toFixed(2) }}</span>
+          <input v-model.number="openDripAmount" type="range" min="0" max="3" step="0.05" class="w-28" :disabled="!openDrips">
         </label>
         <label class="grid gap-1">
           <span class="text-xs text-muted-foreground">preset</span>
