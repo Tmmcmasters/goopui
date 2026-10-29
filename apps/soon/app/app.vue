@@ -9,7 +9,10 @@ const level = ref([62])
   <main class="relative flex min-h-dvh w-full flex-col overflow-x-clip">
     <div class="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 sm:px-8">
       <header class="flex justify-center pt-10 sm:pt-14">
-        <SiteLogo size="lg" />
+        <!-- NuxtLink: on this one-page site a click stays put, so the goo's click splash plays. -->
+        <NuxtLink to="/" class="logo-link" aria-label="goopUI home" draggable="false">
+          <GoopLogo size="lg" />
+        </NuxtLink>
       </header>
 
       <section class="intro flex flex-1 flex-col items-center justify-center py-12 text-center sm:py-16">
@@ -78,6 +81,15 @@ const level = ref([62])
 </template>
 
 <style scoped>
+.logo-link {
+  display: block;
+  border-radius: 0.75rem;
+  outline-offset: 6px;
+  -webkit-user-drag: none;
+}
+.logo-link:focus-visible {
+  outline: 2px solid var(--ring);
+}
 .peek {
   display: flex;
   flex-direction: column;
