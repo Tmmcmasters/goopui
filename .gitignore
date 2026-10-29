@@ -15,3 +15,7 @@ coverage
 
 # macOS AppleDouble files created on non-APFS drives
 ._*
+
+# Claude Code local state
+.claude/worktrees/
+.claude/settings.local.json

@@ -1,0 +1,15 @@
+name: Component or feature request
+description: Propose a new component, effect, or option
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like?
+      description: For a new component, name the shadcn component it mirrors (if any) and describe how the goo should feel.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Use case

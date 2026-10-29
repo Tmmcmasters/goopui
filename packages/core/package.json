@@ -4,6 +4,24 @@
   "description": "Framework-agnostic engine for goopUI gooey, dripping UI elements",
   "type": "module",
   "license": "MIT",
+  "author": "Timothy McMasters",
+  "homepage": "https://goop.timmcmasters.work",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tmmcmasters/goopui.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/Tmmcmasters/goopui/issues"
+  },
+  "keywords": [
+    "goopui",
+    "gooey",
+    "ui",
+    "components",
+    "animation",
+    "physics"
+  ],
   "sideEffects": false,
   "exports": {
     ".": {

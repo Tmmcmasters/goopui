@@ -1,0 +1,49 @@
+name: Bug report
+description: Something looks or behaves wrong
+labels: [bug]
+body:
+  - type: input
+    id: component
+    attributes:
+      label: Component
+      placeholder: e.g. GoopPopover
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+      description: A screen recording helps a lot with visual bugs.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: Minimal steps or a link (StackBlitz, repo, etc.).
+    validations:
+      required: true
+  - type: dropdown
+    id: framework
+    attributes:
+      label: Framework
+      options: [Vue, Nuxt, React, Svelte, core only]
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and OS
+      placeholder: e.g. Safari 19, macOS 26
+    validations:
+      required: true
+  - type: checkboxes
+    id: motion
+    attributes:
+      label: Environment
+      options:
+        - label: Reduced motion is on
+  - type: input
+    id: version
+    attributes:
+      label: goopUI version or commit

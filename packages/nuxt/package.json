@@ -5,6 +5,24 @@
   "description": "Nuxt module for goopUI: auto-imports @goopui/vue components and their styles",
   "type": "module",
   "license": "MIT",
+  "author": "Timothy McMasters",
+  "homepage": "https://goop.timmcmasters.work",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tmmcmasters/goopui.git",
+    "directory": "packages/nuxt"
+  },
+  "bugs": {
+    "url": "https://github.com/Tmmcmasters/goopui/issues"
+  },
+  "keywords": [
+    "goopui",
+    "gooey",
+    "ui",
+    "components",
+    "animation",
+    "nuxt"
+  ],
   "exports": {
     ".": {
       "types": "./dist/types.d.mts",
