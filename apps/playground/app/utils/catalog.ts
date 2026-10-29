@@ -21,6 +21,7 @@ export const catalog: CatalogEntry[] = [
   { path: '/tooltip', goop: 'GoopTooltip', shadcn: 'Tooltip', blurb: 'Tooltip oozes out of its trigger.' },
   { path: '/slider', goop: 'GoopSlider', shadcn: 'Slider', blurb: 'Jelly goo thumb over a sloshing liquid fill.' },
   { path: '/progress', goop: 'GoopProgress', shadcn: 'Progress', blurb: 'Fills like liquid: wobbling goo front, slosh, drips.' },
+  { path: '/sheet', goop: 'GoopSheet', shadcn: 'Sheet', blurb: 'Oozes in from its edge: lobed goo front, slosh, drips; sucked back on close.' },
   { path: '/toast', goop: 'GoopToaster', shadcn: 'Sonner', blurb: 'Toasts drop in, merge in the stack, drip away.' },
   { path: '/blob', goop: 'GoopBlob', shadcn: null, blurb: 'Background blobs. Perf stress test.' },
 ]
