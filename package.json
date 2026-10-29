@@ -15,6 +15,7 @@
     "generate:soon": "pnpm --filter soon generate",
     "promo:studio": "pnpm --filter @goopui/core build && pnpm --filter promo studio",
     "promo:render": "pnpm --filter @goopui/core build && pnpm --filter promo render",
+    "promo:render:v7": "pnpm --filter @goopui/core build && pnpm --filter promo render:v7",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",

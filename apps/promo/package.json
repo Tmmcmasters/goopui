@@ -6,6 +6,8 @@
   "scripts": {
     "studio": "remotion studio src/index.ts",
     "render": "remotion render src/index.ts GoopPromo out/goopui-x-promo.mp4",
+    "render:v7": "remotion render src/index.ts GoopPromoV7 out/goopui-x-promo-v7.mp4 --chrome-mode=chrome-for-testing",
+    "render:sneak": "remotion render src/index.ts SneakPeek out/goopui-sneak-peek.mp4 --chrome-mode=chrome-for-testing",
     "stills": "node scripts/stills.mjs",
     "check:determinism": "node scripts/stills.mjs --check 9.7",
     "typecheck": "tsc --noEmit",

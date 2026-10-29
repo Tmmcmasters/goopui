@@ -13,10 +13,14 @@
 //                                                  missing; patched anyway
 //   Math.random()                                  default RNG (we also pass `random`) and
 //                                                  ParticleFluid's fallback -> seeded PRNG
-//   ResizeObserver / IntersectionObserver /        fire asynchronously at the browser's own
-//   MutationObserver                               rendering steps, outside our control ->
+//   ResizeObserver / IntersectionObserver          fire asynchronously at the browser's own
+//                                                  rendering steps, outside our control ->
 //                                                  inert stubs. Layout in the promo is static
 //                                                  and core reads sizes synchronously at attach.
+//   MutationObserver                               records for real, but callbacks run only
+//                                                  from flushMutations() (scene replays call
+//                                                  it each substep; the v6 replayer never does,
+//                                                  so for it they stay inert as before).
 //   matchMedia                                     (hover: hover) -> true, reduced motion ->
 //                                                  false, resolution -> inert: a rendered video
 //                                                  has no viewer preference to honor.
@@ -30,6 +34,8 @@ export interface FakeEnv {
   advance(ms: number): void
   /** Number of queued animation frame callbacks. */
   pending(): number
+  /** Deliver pending MutationObserver records synchronously (see ManualMutationObserver). */
+  flushMutations(): void
   /** Put the real globals back. Idempotent. */
   restore(): void
 }
@@ -116,7 +122,6 @@ export function installFakeEnv(seed: number): FakeEnv {
   Math.random = rng
   win.ResizeObserver = InertObserver
   win.IntersectionObserver = InertObserver
-  win.MutationObserver = InertObserver
   win.matchMedia = (q: string): MediaQueryList => {
     if (q.includes('hover')) return fakeMql(q, true)
     if (q.includes('prefers-reduced-motion')) return fakeMql(q, false)
@@ -124,8 +129,46 @@ export function installFakeEnv(seed: number): FakeEnv {
     return realMatchMedia(q)
   }
 
+  // MutationObserver: a real observer records mutations, but its callback only runs when the
+  // replayer calls flushMutations() (after each scripted DOM change / pointer event), never
+  // in a browser microtask, so modules that follow the DOM (toasts, menus, sliders) react at a
+  // deterministic point in the replay.
+  const RealMO = saved.MO as typeof MutationObserver
+  const observers = new Set<ManualObserver>()
+  class ManualObserver {
+    private readonly real: MutationObserver
+    constructor(private readonly cb: MutationCallback) {
+      this.real = new RealMO(() => {})
+    }
+    observe(target: Node, init?: MutationObserverInit): void {
+      observers.add(this)
+      this.real.observe(target, init)
+    }
+    disconnect(): void {
+      observers.delete(this)
+      this.real.disconnect()
+    }
+    takeRecords(): MutationRecord[] {
+      return this.real.takeRecords()
+    }
+    flush(): boolean {
+      const recs = this.real.takeRecords()
+      if (recs.length) this.cb(recs, this as unknown as MutationObserver)
+      return recs.length > 0
+    }
+  }
+  win.MutationObserver = ManualObserver
+
   let live = true
   return {
+    flushMutations() {
+      // A callback can mutate again; a few rounds settle it.
+      for (let round = 0; round < 4; round++) {
+        let any = false
+        for (const o of Array.from(observers)) if (o.flush()) any = true
+        if (!any) break
+      }
+    },
     now: () => now,
     pending: () => queue.size,
     advance(ms) {
@@ -147,6 +190,7 @@ export function installFakeEnv(seed: number): FakeEnv {
       live = false
       queue.clear()
       timers.clear()
+      for (const o of Array.from(observers)) o.disconnect()
       win.setTimeout = saved.st
       win.clearTimeout = saved.ct
       win.requestAnimationFrame = saved.raf

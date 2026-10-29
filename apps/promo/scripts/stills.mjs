@@ -8,6 +8,7 @@ import { mkdir, readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
+const PORT = Number(process.env.PORT ?? 3417)
 const root = path.resolve(fileURLToPath(new URL('..', import.meta.url)))
 const out = path.join(root, 'out', process.env.OUT ?? 'stills')
 await mkdir(out, { recursive: true })
@@ -19,16 +20,19 @@ const keyTimes = times.length ? times : [0, 1.2, 2.2, 3.3, 4.8, 5.9, 6.6, 7.5, 9
 
 const serveUrl = await bundle({ entryPoint: path.join(root, 'src/index.ts'), publicDir: path.join(root, 'public') })
 const inputProps = { trace: true, ...(process.env.PROPS ? JSON.parse(process.env.PROPS) : {}) }
-const browser = await openBrowser('chrome', { chromiumOptions: { gl: 'angle' } })
-const composition = await selectComposition({ serveUrl, id: 'GoopPromo', inputProps, puppeteerInstance: browser, port: 3417 })
+// CHROME_MODE=chrome-for-testing when the headless shell never fires requestAnimationFrame.
+const chromeMode = process.env.CHROME_MODE ?? 'headless-shell'
+const browser = await openBrowser('chrome', { chromiumOptions: { gl: 'angle' }, chromeMode })
+const composition = await selectComposition({ serveUrl, id: process.env.COMP ?? 'GoopPromo', inputProps, puppeteerInstance: browser, port: PORT })
 const common = {
   puppeteerInstance: browser,
-  port: 3417,
+  port: PORT,
   serveUrl,
   composition,
   inputProps,
   scale: 2.25,
   chromiumOptions: { gl: 'angle' },
+  chromeMode,
   timeoutInMilliseconds: 120_000,
   onBrowserLog: (l) => {
     if (l.text.startsWith('[goo]') || l.type === 'error') console.log('  ', l.text)
