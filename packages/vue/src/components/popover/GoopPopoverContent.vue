@@ -9,8 +9,9 @@
 // 'neck'`: the goo bulges out of the trigger edge, runs across as a thick neck and swells
 // into the panel, then pinches off; close sucks it back into the trigger. `:flow="false"`: a
 // bulb swells at the trigger edge and the panel inflates out of it. Momentum (openSlosh /
-// openDrips / closeSlosh): the far edge (bloom: every edge) sloshes and sheds drops on open,
-// the near edge sloshes against the trigger on close (neck / inflate only).
+// openDrips / closeSlosh): the far edge (bloom: every edge, drops kept off the trigger) sloshes
+// and sheds drops on open; on close the near edge sloshes against the trigger (bloom: the
+// panel pulls in and wobbles before it shrinks to the center).
 //
 // The panel's shadcn background, ring and shadow move onto the goo (`--goop-color`, a
 // drop-shadow on the surface). `surface` picks the color: by default the whole emerged surface
@@ -52,22 +53,26 @@ const props = withDefaults(
        *  the trigger edge (the original emerge). */
       flow?: boolean
       /** How the flow opens: 'bloom' (default: the panel pools from its own center, spreads
-       *  out in every direction and splashes all around) or 'neck' (out of the trigger
-       *  through a thick neck). */
+       *  out in every direction with a lobed edge, overshoots and splashes all around, keeping
+       *  the drops off the trigger; close pulls in, wobbles and shrinks back to the center) or
+       *  'neck' (out of the trigger through a thick neck).
+       *  Toggles under bloom: `wobble` (open overshoot + settle), `fade`, `openSlosh` (every
+       *  edge), `openDrips` + `openDrip*` (the all-around splash), `closeSlosh` (the close's
+       *  inward wobble). `bridge` and `momentum` only apply to 'neck' / `flow: false`. */
       flowStyle?: EmergeFlowStyle
       /** Bloom start: 'single' (default: one droplet swells) or 'merge' (a few drops fuse). */
       bloomStart?: EmergeBloomStart
-      /** Bulb + lumpy neck between trigger and panel. */
+      /** Bulb + lumpy neck between trigger and panel (not used by bloom). */
       bridge?: boolean
-      /** Jelly overshoot and wobble. */
+      /** Jelly overshoot and wobble (bloom: the open overshoot and settle). */
       wobble?: boolean
-      /** Momentum launch away from the trigger that stretches and snaps the neck. */
+      /** Momentum launch away from the trigger that stretches and snaps the neck (not used by bloom). */
       momentum?: boolean
       /** Content fades in once the goo settles. */
       fade?: boolean
-      /** Open: the far edge bulges past rest, rebounds and wobbles. `true`, `false` or a 0..2 strength. */
+      /** Open: the far edge (bloom: every edge) bulges past rest, rebounds and wobbles. `true`, `false` or a 0..2 strength. */
       openSlosh?: boolean | number
-      /** Open: the whole far edge bursts (globs, drops, specks fling off, fall and fade). `true`, `false` or 0..2. */
+      /** Open: the whole far edge (bloom: every edge, drops kept off the trigger) bursts (globs, drops, specks fling off, fall and fade). `true`, `false` or 0..2. */
       openDrips?: boolean | number
       /** Burst drop count scale (0..3, default 1). */
       openDripAmount?: number
@@ -77,7 +82,7 @@ const props = withDefaults(
       openDripFling?: number
       /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
       openDripVariety?: number
-      /** Close: the goo lags and the near edge sloshes against the trigger. `true`, `false` or 0..2. */
+      /** Close: the goo lags and the near edge sloshes against the trigger (bloom: the panel pulls in and wobbles before it shrinks to the center). `true`, `false` or 0..2. */
       closeSlosh?: boolean | number
       /** Panel color: 'trigger' (default: the trigger's background and text color, theme
        *  primary when the trigger has none), 'popover' (shadcn's popover tokens), or a CSS color. */

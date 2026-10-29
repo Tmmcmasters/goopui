@@ -20,6 +20,8 @@ import {
   EMERGE_MOMENTUM_CIRCLES,
   emergeMomentum,
   emergeMomentumEnd,
+  emergeKeepOff,
+  emergeMomentumStrength,
   type EmergeDripOptions,
   type EmergeMomentumEffects,
 } from './emerge-momentum'
@@ -158,6 +160,8 @@ export interface EmergeBridge {
   /** The anchor's facing edge as a cross range, panel-local (flow mode spreads over it). */
   anchorLo: number
   anchorHi: number
+  /** The anchor's rect, panel-local (the bloom splash keeps its drops off it). */
+  anchorRect?: EmergeRect
   /** Points on the anchor edge and the panel's near edge, panel-local. */
   source: EmergePoint
   target: EmergePoint
@@ -241,6 +245,7 @@ export function emergeBridge(
     bulb,
     anchorLo: a0,
     anchorHi: a1,
+    anchorRect: { x: anchor.x - panel.x, y: anchor.y - panel.y, width: Math.max(0, anchor.width), height: Math.max(0, anchor.height) },
     source: toLocal(frame, -gap, sourceCross),
     target: toLocal(frame, 0, targetCross),
   }
@@ -375,12 +380,12 @@ export function emergePose(
   b: EmergeBridge,
   phase: EmergePhase = 'open',
   feel: EmergeFeel = EMERGE_FEEL.playful,
-  effects?: EmergeEffects,
+  effects?: EmergeEffects & Pick<EmergeMomentumEffects, 'closeSlosh'>,
   seed = 0,
 ): EmergePose {
   const fx = resolveFx(effects)
   const tt = clamp(t)
-  if (fx.flow && fx.flowStyle === 'bloom') return bloomPose(tt, b, phase, feel, fx, seed)
+  if (fx.flow && fx.flowStyle === 'bloom') return bloomPose(tt, b, phase, feel, fx, seed, emergeMomentumStrength(effects?.closeSlosh))
   if (fx.flow) return flowPose(tt, b, phase, feel, fx)
   if (phase === 'open') {
     if (tt >= 1) return emergeRestPose(b)
@@ -606,6 +611,10 @@ const BLOOM = {
   irrLen: 0.4,
   lobeAt: 0.3,
   lobeLen: 0.3,
+  /** Lobes' angular pull toward the edge midpoints (1: none; smaller: closer to midpoints). */
+  lobeMid: 0.6,
+  /** Gap (px) the open overshoot and lobes keep from the trigger. */
+  clear: 1.5,
   /** Merge seed drops sit within this fraction of the panel around its center. */
   seedSpread: 0.2,
   fadeAt: 0.34,
@@ -630,7 +639,8 @@ function rectReach(a: number, b: number, th: number): number {
   return Math.min(c > 1e-6 ? a / c : Infinity, s > 1e-6 ? b / s : Infinity)
 }
 
-function bloomPose(t: number, b: EmergeBridge, phase: EmergePhase, feel: EmergeFeel, fx: Required<EmergeEffects>, seed: number): EmergePose {
+/** `slosh`: closeSlosh strength (0..2), the close's inward pull-and-wobble. */
+function bloomPose(t: number, b: EmergeBridge, phase: EmergePhase, feel: EmergeFeel, fx: Required<EmergeEffects>, seed: number, slosh = 1): EmergePose {
   const circles: EmergeCircle[] = Array.from({ length: EMERGE_CIRCLES }, zero)
   if (phase === 'open' && t >= 1) return emergeRestPose(b)
   if (phase === 'close' && t >= 1) return { body: { cx: 0, cy: 0, w: 0, h: 0 }, circles, content: 0 }
@@ -661,30 +671,52 @@ function bloomPose(t: number, b: EmergeBridge, phase: EmergePhase, feel: EmergeF
     lobeK = 1 - smooth((t - BLOOM.lobeAt) / BLOOM.lobeLen)
     content = fx.fade ? smooth((t - BLOOM.fadeAt) / BLOOM.fadeLen) : 1
   } else {
-    // A little inward pull and wobble, then an accelerating contraction to the center.
+    // A little inward pull and wobble (closeSlosh), then an accelerating contraction to the
+    // center.
     const g = 1 - clamp(t / 0.86) ** 1.7
-    const pulse = fx.wobble ? 0.06 * Math.sin((2 * Math.PI * t) / 0.4) * Math.exp(-3 * t) : 0
+    const pulse = slosh * 0.06 * Math.sin((2 * Math.PI * t) / 0.4) * Math.exp(-3 * t)
     base = Math.min(1.02, g * (1 - pulse))
     appear = 1 - smooth((t - 0.78) / 0.22)
     irr = smooth((t - 0.15) / 0.3)
     lobeK = smooth((t - 0.2) / 0.3) * (1 - smooth((t - 0.85) / 0.15))
     content = fx.fade ? 1 - smooth(t / 0.22) : 0
   }
-  const w = Math.max(0, (d0 + (W - d0) * base) * appear + 2 * ov)
-  const h = Math.max(0, (d0 + (H - d0) * base) * appear + 2 * ov)
-  const body: EmergeBody = w < 0.5 || h < 0.5 ? { cx: 0, cy: 0, w: 0, h: 0 } : { cx, cy, w, h }
-  // Lobed rim: lobes around the edge, some leading (poking out), some lagging.
+  let w = Math.max(0, (d0 + (W - d0) * base) * appear + 2 * ov)
+  let h = Math.max(0, (d0 + (H - d0) * base) * appear + 2 * ov)
+  // The overshoot stops short of the trigger: the edge facing it only bulges into the gap.
+  let bcx = cx
+  let bcy = cy
+  const trim = Math.max(0, ov - Math.max(0, b.gap - BLOOM.clear))
+  if (trim > 0) {
+    if (b.dir.x !== 0) w = Math.max(0, w - trim)
+    else h = Math.max(0, h - trim)
+    bcx += (b.dir.x * trim) / 2
+    bcy += (b.dir.y * trim) / 2
+  }
+  const body: EmergeBody = w < 0.5 || h < 0.5 ? { cx: 0, cy: 0, w: 0, h: 0 } : { cx: bcx, cy: bcy, w, h }
+  // Lobed rim: lobes around the edge, some leading (poking out), some lagging. They are
+  // pulled toward the edge midpoints, and the ones still near a corner shrink and lead less,
+  // so the rim bulges along the sides like a spreading puddle instead of growing ears.
   const a = w / 2
   const bb = h / 2
   const rl = Math.min(a, bb) * BLOOM.lobe * lobeK
   if (body.w > 0) {
     for (let k = 0; k < EMERGE_BLOOM_LOBES; k++) {
-      const th = (2 * Math.PI * k) / EMERGE_BLOOM_LOBES + (hash(seed, k, 1) - 0.5) * 0.6
-      const lead = hash(seed, k, 2) * 2 - 1
-      const r = rl * (0.75 + 0.4 * hash(seed, k, 3))
+      // Angle in the rect's normalized (square) space, where the corners sit at 45 degrees.
+      const phi = (2 * Math.PI * k) / EMERGE_BLOOM_LOBES + (hash(seed, k, 1) - 0.5) * 0.6
+      const axis = Math.round(phi / (Math.PI / 2)) * (Math.PI / 2)
+      const pw = axis + (phi - axis) * BLOOM.lobeMid
+      const th = Math.atan2(Math.sin(pw) * bb, Math.cos(pw) * a)
+      const reach = rectReach(a, bb, th)
+      // 0 at an edge midpoint, 1 at a corner.
+      const corner = Math.min(Math.abs(Math.cos(th) * reach) / (a || 1), Math.abs(Math.sin(th) * reach) / (bb || 1))
+      const soft = smooth(corner / 0.75)
+      let lead = hash(seed, k, 2) * 2 - 1
+      if (lead > 0) lead *= 1 - 0.85 * soft
+      const r = rl * (0.75 + 0.4 * hash(seed, k, 3)) * (1 - 0.4 * soft)
       if (r < 0.5) continue
-      const dist = Math.max(0, rectReach(a, bb, th) - r + r * (0.3 + 0.5 * lead) * irr)
-      circles[k] = { x: cx + Math.cos(th) * dist, y: cy + Math.sin(th) * dist, r }
+      const dist = Math.max(0, reach - r + r * (0.3 + 0.5 * lead) * irr)
+      circles[k] = emergeKeepOff({ x: bcx + Math.cos(th) * dist, y: bcy + Math.sin(th) * dist, r }, b, BLOOM.clear)
     }
   }
   if (merge && phase === 'open') {

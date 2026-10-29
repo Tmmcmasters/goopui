@@ -1,9 +1,11 @@
 <script setup lang="ts">
 // GoopTooltipContent: shadcn-vue's TooltipContent (reka-ui TooltipContent in a portal, same
-// props/emits, `class` merge, sideOffset 0, arrow) that oozes out of its trigger with the
-// popover's emerge engine scaled down (core TOOLTIP_FEEL): quick, a small bulb and bridge, a
-// light far-edge slosh on open and a light near-edge slosh on close. No drips by default
-// (`openDrips` turns them on).
+// props/emits, `class` merge, sideOffset 0, arrow) drawn with the popover's emerge engine
+// scaled down (core TOOLTIP_FEEL). By default it blooms like GoopPopoverContent: it pools from
+// its own center, spreads with a lobed edge, overshoots and settles, sheds a light splash (a
+// few small drops, core TOOLTIP_BLOOM_SPLASH; `openDrips` / `openDrip*` turn it up or off)
+// and shrinks back to the center on close. `:flow="false"`: the original quick emerge out of
+// a small bulb at the trigger edge (no drips by default). The arrow fades in with the content.
 //
 // The tooltip's shadcn background moves onto the goo (`--goop-color: var(--foreground)`).
 // `surface` defaults to 'popover' (shadcn's inverted tooltip, unlike the popover's 'trigger'
@@ -27,6 +29,9 @@ defineOptions({
 const props = withDefaults(defineProps<TooltipContentProps & GoopTooltipProps & { class?: HTMLAttributes['class'] }>(), {
   sideOffset: 0,
   goo: true,
+  flow: undefined,
+  flowStyle: undefined,
+  bloomStart: undefined,
   bridge: undefined,
   wobble: undefined,
   momentum: undefined,
@@ -125,7 +130,10 @@ defineExpose({
         aria-hidden="true"
         style="position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: inherit"
       />
-      <slot />
+      <!-- Goo on: the label sits in an element so it fades with --goop-emerge-content (goop.css
+           only reaches element children; bare text would show at once, clipped by the goo). -->
+      <span v-if="goo" data-goop="label" class="inline-flex items-center gap-[inherit]"><slot /></span>
+      <slot v-else />
 
       <TooltipArrow :class="goo ? GOO_ARROW : ARROW" />
     </TooltipContent>

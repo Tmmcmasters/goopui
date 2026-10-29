@@ -16,7 +16,7 @@
 // so the two modules don't form a runtime cycle.
 
 import { GOOP_PHYSICS, type GoopPreset } from './constants'
-import type { EmergeBody, EmergeBridge, EmergeCircle, EmergePhase, EmergePose } from './emerge'
+import type { EmergeBody, EmergeBridge, EmergeCircle, EmergePhase, EmergePose, EmergeRect } from './emerge'
 
 /** Effect toggles: `true` (1) / `false` (0), or a 0..2 strength multiplier. Default true. */
 export interface EmergeMomentumEffects {
@@ -147,6 +147,11 @@ export const EMERGE_MOMENTUM = Object.freeze({
     fan: 0.7,
     /** Extra release spread (s): the splash goes off nearly all at once. */
     spread: 0.05,
+    /** Keep-out around the trigger (px): drops whose path would cross it are deflected away
+     *  (up to `deflect` rad), then slowed, then moved to the opposite edge, else dropped. */
+    keepOut: 3,
+    deflect: Object.freeze([0, 0.25, 0.5, 0.75, 1, 1.25] as const),
+    slow: Object.freeze([1, 0.6] as const),
   }),
 })
 
@@ -305,8 +310,9 @@ export interface EmergeMomentumContext {
   /** The open-phase body at `sec` (no momentum). Drops use it to find where and how fast the
    *  far edge was moving when they let go. Without it they leave from the current pose. */
   bodyAt?: (sec: number) => EmergeBody
-  /** Bloom flow style: radial slosh on all four edges and an all-around splash; no close
-   *  slosh (the bloom's close pose has its own inward wobble). */
+  /** Bloom flow style: radial slosh on all four edges and an all-around splash that keeps
+   *  clear of the trigger (`b.anchorRect`); no close slosh here (`closeSlosh` drives the
+   *  bloom close pose's inward wobble in `emergePose`). */
   bloom?: boolean
 }
 
@@ -562,6 +568,90 @@ function perimeterAt(bx: Box, f: number, inset: number, fan: number): { x: numbe
   }
 }
 
+/** Distance (px) from a point to a rect (0 inside). */
+function rectDist(x: number, y: number, r: EmergeRect): number {
+  return Math.hypot(Math.max(r.x - x, 0, x - r.x - r.width), Math.max(r.y - y, 0, y - r.y - r.height))
+}
+
+/**
+ * Bloom: `c` slid along `b.dir` (away from the trigger, into the panel) just far enough that
+ * it keeps `clear` px off the trigger (`b.anchorRect`). Unchanged when it is already clear.
+ */
+export function emergeKeepOff(c: EmergeCircle, b: Pick<EmergeBridge, 'dir' | 'anchorRect'>, clear = 1.5): EmergeCircle {
+  const a = b.anchorRect
+  if (!a || c.r <= 0 || rectDist(c.x, c.y, a) >= c.r + clear) return c
+  let lo = 0
+  let hi = c.r * 2 + clear + Math.max(a.width, a.height)
+  for (let i = 0; i < 16; i++) {
+    const m = (lo + hi) / 2
+    if (rectDist(c.x + b.dir.x * m, c.y + b.dir.y * m, a) >= c.r + clear) hi = m
+    else lo = m
+  }
+  return { x: c.x + b.dir.x * hi, y: c.y + b.dir.y * hi, r: c.r }
+}
+
+/** Distance (px) from a point to a box (0 inside). */
+function boxDist(x: number, y: number, k: Box): number {
+  return Math.hypot(Math.max(k.x0 - x, 0, x - k.x1), Math.max(k.y0 - y, 0, y - k.y1))
+}
+
+/** Most flight samples checked against the trigger, per candidate launch. */
+const PATH_MAX_SAMPLES = 160
+
+/**
+ * A splash drop's launch that keeps it (radius `r`, leaving `off` x r out of the edge; all of
+ * its swell and flight) out of the
+ * keep-out box `keep`: as is; else deflected away from the trigger, then also slowed; else
+ * moved to the mirrored spot on the opposite edge. null: no clear path (the drop is skipped).
+ */
+function clearOfTrigger(
+  keep: Box,
+  edge: Box,
+  f: number,
+  r: number,
+  off: number,
+  da: number,
+  speed: number,
+  lifeT: number,
+  fan: number,
+  coin: number,
+): { f: number; rot: number; slow: number } | null {
+  const D = EMERGE_MOMENTUM.drips
+  const B = EMERGE_MOMENTUM.bloom
+  const kx = (keep.x0 + keep.x1) / 2
+  const ky = (keep.y0 + keep.y1) / 2
+  for (const ff of [f, f + 0.5]) {
+    const e = perimeterAt(edge, ff, r * 0.8, fan)
+    // The swell pokes up to ~0.9r out of the edge at full size before it lets go.
+    if (boxDist(e.x + Math.cos(e.a) * r * 0.9, e.y + Math.sin(e.a) * r * 0.9, keep) < r) continue
+    if (boxDist(e.x, e.y, keep) < r) continue
+    // Turn away from the trigger's center (a coin flip when it is dead ahead).
+    const a0 = e.a + da
+    const z = Math.cos(a0) * (ky - e.y) - Math.sin(a0) * (kx - e.x)
+    const away = Math.abs(z) > 1e-6 ? -Math.sign(z) : coin < 0.5 ? -1 : 1
+    for (const slow of B.slow) {
+      for (const d of B.deflect) {
+        const a = a0 + away * d
+        const ca = Math.cos(a)
+        const sa = Math.sin(a)
+        // Fine enough steps that the drop moves under half its radius between samples.
+        const travel = speed * slow * (1 / D.drag) + 0.5 * D.gravity * lifeT * lifeT
+        const steps = Math.min(PATH_MAX_SAMPLES, Math.max(8, Math.ceil(travel / Math.max(1, r * 0.5))))
+        let ok = true
+        for (let j = 0; j <= steps && ok; j++) {
+          const tau = (lifeT * j) / steps
+          const dist = r * off + speed * slow * ((1 - Math.exp(-D.drag * tau)) / D.drag)
+          const x = e.x + ca * dist
+          const y = e.y + sa * dist + 0.5 * D.gravity * tau * tau
+          if (boxDist(x, y, keep) < r) ok = false
+        }
+        if (ok) return { f: ff, rot: away * d, slow }
+      }
+    }
+  }
+  return null
+}
+
 /** Number of splash drops for a bloomed panel of this size. */
 export function emergeBloomDripCount(width: number, height: number, strength: number, preset: GoopPreset = 'playful', amount = 1): number {
   const B = EMERGE_MOMENTUM.bloom
@@ -609,14 +699,17 @@ function bloomMomentum(
       const back = r - dk
       const mx = (bx.x0 + bx.x1) / 2
       const my = (bx.y0 + bx.y1) / 2
-      extra[e] =
+      // The edge facing the trigger only bulges into the gap, never over the trigger.
+      extra[e] = emergeKeepOff(
         e === 0
           ? { x: mx, y: bx.y0 + back, r }
           : e === 1
             ? { x: bx.x1 - back, y: my, r }
             : e === 2
               ? { x: mx, y: bx.y1 - back, r }
-              : { x: bx.x0 + back, y: my, r }
+              : { x: bx.x0 + back, y: my, r },
+        b,
+      )
     }
     if (nb.x0 !== bx.x0 || nb.x1 !== bx.x1 || nb.y0 !== bx.y0 || nb.y1 !== bx.y1) {
       body = { cx: (nb.x0 + nb.x1) / 2, cy: (nb.y0 + nb.y1) / 2, w: nb.x1 - nb.x0, h: nb.y1 - nb.y0 }
@@ -661,10 +754,15 @@ function bloomSplash(
   const launch = D.launch * BP.launch * fling * (0.6 + 0.4 * strength)
   const rest: Box = { x0: 0, y0: 0, x1: b.width, y1: b.height }
   const spanAt = (t: number): Box => (ctx.bodyAt ? (boxOf(ctx.bodyAt(t)) ?? rest) : (now ?? rest))
+  const ar = b.anchorRect
+  const keep: Box | null =
+    ar && ar.width > 0 && ar.height > 0
+      ? { x0: ar.x - B.keepOut, y0: ar.y - B.keepOut, x1: ar.x + ar.width + B.keepOut, y1: ar.y + ar.height + B.keepOut }
+      : null
   let necks = 0
   for (let i = 0; i < n; i++) {
     const kind = i < leads ? 0 : i < leads + mids ? 1 : 2
-    const f = (order[i]! + 0.5 + rv(i, 3) * 0.45) / n
+    let f = (order[i]! + 0.5 + rv(i, 3) * 0.45) / n
     const r = Math.max(D.minPx * Math.min(1, size), unit * sizes[kind]! * (1 + rv(i, 1) * 0.2))
     const tr = D.start + Math.abs(rv(i, 2)) * B.spread
     const speed = launch * speeds[kind]! * (1 + rv(i, 4) * 0.3)
@@ -675,11 +773,20 @@ function bloomSplash(
     const at = DRIP_AT + i
     const tau = sec - tr
     if (tau < -neck || tau >= lifeT) continue
+    // Keep the whole flight (and the swell before it) off the trigger: deterministic per drop
+    // (it only depends on the release-time edge), so it doesn't flicker frame to frame.
+    let rot = 0
+    let slow = 1
+    if (keep) {
+      const fit = clearOfTrigger(keep, spanAt(tr), f, r, neck > 0 ? 0.9 : 0.2, da, speed, lifeT, B.fan, rand(seed, i, 9))
+      if (!fit) continue
+      ;({ f, rot, slow } = fit)
+    }
     if (tau < 0) {
       if (!now) continue
       const q = 1 + tau / neck
       const e = perimeterAt(now, f, r * 0.8, B.fan)
-      const a = e.a + da * 0.3
+      const a = e.a + da * 0.3 + rot
       const head = r * (-0.6 + 1.5 * smooth(q))
       out[at] = { x: e.x + Math.cos(a) * head, y: e.y + Math.sin(a) * head, r: r * (0.5 + 0.5 * smooth(q)) }
       if (neckSlot >= 0) {
@@ -689,9 +796,9 @@ function bloomSplash(
       continue
     }
     const e = perimeterAt(spanAt(tr), f, r * 0.8, B.fan)
-    const a = e.a + da
+    const a = e.a + da + rot
     const k = (1 - Math.exp(-D.drag * tau)) / D.drag
-    const dist = (neck > 0 ? r * 0.9 : r * 0.2) + speed * k
+    const dist = (neck > 0 ? r * 0.9 : r * 0.2) + speed * slow * k
     const g = 0.5 * D.gravity * tau * tau
     const life = tau / lifeT
     const grow = neck > 0 ? 1 : 0.4 + 0.6 * smooth(tau / 0.04)

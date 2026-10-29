@@ -25,6 +25,7 @@ import {
   SWITCH_EFFECTS,
   TABS_EFFECTS,
   TABS_FEEL,
+  TOOLTIP_BLOOM_SPLASH,
   TOOLTIP_FEEL,
   TOOLTIP_MOMENTUM,
   type TabsEffect,
@@ -476,22 +477,29 @@ export interface GoopMenuProps {
    *  inflates from a bulb at the trigger edge. */
   flow?: boolean
   /** How the flow opens: 'bloom' (default: the menu pools from its own center and spreads
-   *  out in every direction, then splashes all around) or 'neck' (out of the trigger through
-   *  a thick neck). Submenus inherit it. */
+   *  out in every direction with a lobed edge, overshoots, then splashes all around, keeping
+   *  the drops off the trigger; close pulls in, wobbles and shrinks back to the center) or
+   *  'neck' (out of the trigger through a thick neck). Submenus inherit it.
+   *  Toggles under bloom: `wobble` (open overshoot + settle), `fade`, `openSlosh` (every edge),
+   *  `openDrips` + `openDrip*` (the all-around splash), `closeSlosh` (the close's inward
+   *  wobble). `bridge` and `momentum` (launch) only apply to 'neck' / `flow: false`. */
   flowStyle?: EmergeFlowStyle
   /** Bloom start: 'single' (default: one droplet swells) or 'merge' (a few drops fuse). */
   bloomStart?: EmergeBloomStart
-  /** Bulb + lumpy neck between trigger (or submenu row) and panel. */
+  /** Bulb + lumpy neck between trigger (or submenu row) and panel (not used by bloom). */
   bridge?: boolean
-  /** Jelly overshoot: panel wobble, highlight overshoot and grow-in. */
+  /** Jelly overshoot: panel wobble (bloom: the open overshoot and settle), highlight
+   *  overshoot and grow-in. */
   wobble?: boolean
-  /** Momentum: the panel's launch, and the highlight's stretch + neck while it travels. */
+  /** Momentum: the panel's launch (not used by bloom), and the highlight's stretch + neck
+   *  while it travels. */
   momentum?: boolean
   /** Content fades in once the goo settles. */
   fade?: boolean
-  /** On open, the far edge overshoots, rebounds and wobbles. */
+  /** On open, the far edge (bloom: every edge) overshoots, rebounds and wobbles. */
   openSlosh?: boolean
-  /** On open, the whole far edge bursts: globs, drops and specks fling off and fall away. */
+  /** On open, the whole far edge bursts (bloom: every edge splashes, drops kept off the
+   *  trigger): globs, drops and specks fling off and fall away. */
   openDrips?: boolean
   /** Burst drop count scale (0..3, default 1). */
   openDripAmount?: number
@@ -501,7 +509,8 @@ export interface GoopMenuProps {
   openDripFling?: number
   /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
   openDripVariety?: number
-  /** On close, the goo lags and the near edge sloshes against the trigger. */
+  /** On close, the goo lags and the near edge sloshes against the trigger (bloom: the
+   *  panel pulls in and wobbles before it shrinks to the center). */
   closeSlosh?: boolean
   /** Item highlight is a goo blob that slides between items (false: shadcn's flat bg). */
   highlight?: boolean
@@ -642,37 +651,65 @@ export function toTabsOptions(props: GoopTabsProps, config: GoopOptions = {}): T
 }
 
 // ---- GoopTooltip ----------------------------------------------------------------------------
-// The tooltip oozes out of its trigger with the popover's emerge engine, fed TOOLTIP_FEEL
-// (quick, small bridge) and TOOLTIP_MOMENTUM (light slosh, no drips) as defaults.
+// The tooltip uses the popover's emerge engine fed TOOLTIP_FEEL (quick, small) and
+// TOOLTIP_MOMENTUM (light slosh) as defaults. By default it blooms like the popover (from its
+// own center, lobed spread, overshoot + wobble, shrinks back to center on close) with a light
+// splash (TOOLTIP_BLOOM_SPLASH: a few small drops). `flow: false` keeps the original
+// inflate-from-a-bulb emerge (no drips by default).
 
 /** Every GoopTooltipContent engine prop. */
-export const TOOLTIP_PROP_KEYS = ['goo', ...EMERGE_EFFECT_KEYS, ...EMERGE_DRIP_KEYS, 'surface', 'speed', 'preset', 'renderer'] as const
+export const TOOLTIP_PROP_KEYS = [
+  'goo',
+  'flow',
+  'flowStyle',
+  'bloomStart',
+  ...EMERGE_EFFECT_KEYS,
+  ...EMERGE_DRIP_KEYS,
+  'surface',
+  'speed',
+  'preset',
+  'renderer',
+] as const
 
 /** Engine props of GoopTooltipContent. */
 export interface GoopTooltipProps {
   /** Master switch. `false` renders a plain shadcn TooltipContent. */
   goo?: boolean
-  /** Small bulb + lumpy neck between trigger and tooltip. */
+  /** Flow open (default true): the goo opens in `flowStyle`. `false`: the tooltip inflates
+   *  from a small bulb at the trigger edge (`bridge` / `momentum` apply). */
+  flow?: boolean
+  /** How the flow opens: 'bloom' (default: the tooltip pools from its own center, spreads
+   *  out with an organic lobed edge, overshoots and settles; close shrinks it back to the
+   *  center) or 'neck' (out of the trigger through a thick neck). */
+  flowStyle?: EmergeFlowStyle
+  /** Bloom start: 'single' (default: one droplet swells) or 'merge' (a few drops fuse). */
+  bloomStart?: EmergeBloomStart
+  /** Small bulb + lumpy neck between trigger and tooltip (not used by bloom). */
   bridge?: boolean
-  /** Jelly overshoot and wobble. */
+  /** Jelly overshoot and wobble (bloom: the open overshoot and settle). */
   wobble?: boolean
-  /** Momentum launch away from the trigger that stretches and snaps the neck. */
+  /** Momentum launch away from the trigger that stretches and snaps the neck (not used by bloom). */
   momentum?: boolean
-  /** Content fades in once the goo settles. */
+  /** Content (and the arrow) fades in once the goo settles. */
   fade?: boolean
-  /** Open: the far edge bulges and wobbles. `true` (light, 0.4), `false` or a 0..2 strength. */
+  /** Open: the far edge (bloom: every edge) bulges and wobbles. `true` (light, 0.4), `false`
+   *  or a 0..2 strength. */
   openSlosh?: boolean | number
-  /** Open: drops fling off the far edge. Off by default; `true` or 0..2 turns it on. */
+  /** Open splash. Bloom: on by default, a few small drops all around that keep off the
+   *  trigger (TOOLTIP_BLOOM_SPLASH); `false` turns it off, a 0..2 strength or the
+   *  `openDrip*` knobs turn it up. Bulb emerge: off by default; `true` or 0..2 turns on drops
+   *  off the far edge. */
   openDrips?: boolean | number
-  /** Burst drop count scale (0..3, default 1), when `openDrips` is on. */
+  /** Splash / burst drop count scale (0..3; default 1, bloom 0.3). */
   openDripAmount?: number
-  /** Burst drop size scale (0.3..2.5, default 1). */
+  /** Drop size scale (0.3..2.5; default 1, bloom 0.6). */
   openDripSize?: number
-  /** How far burst drops are flung (0..3, default 1). */
+  /** How far drops are flung (0..3; default 1, bloom 0.6). */
   openDripFling?: number
   /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
   openDripVariety?: number
-  /** Close: the near edge sloshes against the trigger. `true` (light, 0.5), `false` or 0..2. */
+  /** Close: the near edge sloshes against the trigger (bloom: the inward pull-and-wobble
+   *  before it shrinks to the center). `true` (light, 0.5), `false` or 0..2. */
   closeSlosh?: boolean | number
   /** Tooltip color: 'popover' (default: shadcn's inverted tooltip, foreground goo with
    *  background text), 'trigger' (the trigger's background and text color, like
@@ -687,8 +724,7 @@ export interface GoopTooltipProps {
 }
 
 // `surface` (the element) is the adapter's; `surfaceColor` comes from the `surface` prop.
-// `flow`: tooltips keep the inflate-from-a-bulb emerge (they are too small and quick for a neck).
-type TooltipAdapterOwned = 'anchor' | 'flow' | 'flowStyle' | 'bloomStart' | 'side' | 'ready' | 'surface' | 'surfaceColor' | 'feel' | 'reducedMotion'
+type TooltipAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'surfaceColor' | 'feel' | 'reducedMotion'
 type TooltipUnhandled = Exclude<keyof EmergeOptions, keyof GoopTooltipProps | TooltipAdapterOwned>
 const _allTooltipOptionsHandled: [TooltipUnhandled] extends [never] ? true : { unhandled: TooltipUnhandled } = true
 void _allTooltipOptionsHandled
@@ -703,19 +739,27 @@ const lightSlosh = (v: boolean | number | undefined, def: boolean | number): boo
 /** Emerge options for a tooltip over app config. */
 export function toTooltipOptions(props: GoopTooltipProps, config: GoopOptions = {}): EmergeOptions {
   const M = TOOLTIP_MOMENTUM
+  const flow = props.flow !== false
+  const flowStyle = props.flowStyle ?? 'bloom'
+  // Bloom: a light splash by default; the knobs only pick up its light defaults when the
+  // splash strength is left to us.
+  const S = flow && flowStyle === 'bloom' ? TOOLTIP_BLOOM_SPLASH : null
   return {
     feel: TOOLTIP_FEEL,
+    flow,
+    flowStyle,
+    bloomStart: props.bloomStart ?? 'single',
     bridge: props.bridge !== false,
     wobble: props.wobble !== false,
     momentum: props.momentum !== false,
     fade: props.fade !== false,
     openSlosh: lightSlosh(props.openSlosh, M.openSlosh),
-    // Off unless asked for: `true` turns drips on at full strength.
-    openDrips: props.openDrips ?? M.openDrips,
+    // Bulb emerge: off unless asked for (`true` turns drips on at full strength). Bloom: on.
+    openDrips: props.openDrips ?? S?.openDrips ?? M.openDrips,
     closeSlosh: lightSlosh(props.closeSlosh, M.closeSlosh),
-    openDripAmount: props.openDripAmount,
-    openDripSize: props.openDripSize,
-    openDripFling: props.openDripFling,
+    openDripAmount: props.openDripAmount ?? S?.openDripAmount,
+    openDripSize: props.openDripSize ?? S?.openDripSize,
+    openDripFling: props.openDripFling ?? S?.openDripFling,
     openDripVariety: props.openDripVariety,
     surfaceColor: props.surface ?? 'popover',
     speed: props.speed ?? 1,

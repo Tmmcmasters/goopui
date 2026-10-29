@@ -283,7 +283,7 @@ export {
   type TabsEffect,
   type TabsIndicatorOptions,
 } from './tabs'
-export { TOOLTIP_FEEL, TOOLTIP_MOMENTUM } from './tooltip'
+export { TOOLTIP_BLOOM_SPLASH, TOOLTIP_FEEL, TOOLTIP_MOMENTUM } from './tooltip'
 export {
   GOO_BRIDGE_NECKS,
   GOO_SPLASH_MAX,

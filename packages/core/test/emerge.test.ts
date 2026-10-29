@@ -4,11 +4,16 @@ import {
   EMERGE_CONTENT_VAR,
   EMERGE_FEEL,
   EMERGE_MOMENTUM_CIRCLES,
+  EMERGE_MOMENTUM_DRIPS,
+  EMERGE_MOMENTUM_NECKS,
   EMERGE_NECK_LUMPS,
   EMERGE_FLOW_ROOT,
   emergeFlowDuration,
   emergeBloomDuration,
   emergeBloomDripCount,
+  emergeMomentumStrength,
+  TOOLTIP_BLOOM_SPLASH,
+  TOOLTIP_FEEL,
   emergeMomentum,
   GOOP_PART_ATTR,
   activeTickerCount,
@@ -397,7 +402,9 @@ describe('emerge bloom flow style', () => {
           const { body } = emergePose(t, b, 'open', EMERGE_FEEL[preset], fx)
           if (body.w === 0) continue
           expect(body.cx).toBeCloseTo(panel.width / 2, 5)
-          expect(body.cy).toBeCloseTo(panel.height / 2, 5)
+          // Centered, except the overshoot toward the trigger is trimmed to the gap.
+          expect(Math.abs(body.cy - panel.height / 2)).toBeLessThanOrEqual(5)
+          expect(body.cy - body.h / 2).toBeGreaterThanOrEqual(-(b.gap - 1.5) - 1e-9)
           expect(body.w).toBeLessThanOrEqual(panel.width + 2 * 10)
           // Settled: within 3.5px of the panel on every side.
           if (t >= 0.9) {
@@ -440,6 +447,82 @@ describe('emerge bloom flow style', () => {
     expect([...sides].sort()).toEqual(['bottom', 'left', 'right', 'top'])
     expect(emergeBloomDripCount(b.width, b.height, 1, 'playful')).toBeGreaterThan(20)
     expect(emergeBloomDripCount(b.width, b.height, 1, 'subtle')).toBeLessThan(emergeBloomDripCount(b.width, b.height, 1, 'wild'))
+  })
+
+  it('splash: drops (and lobes, slosh) never start, fly or land on the trigger; the near side still splashes', () => {
+    const first = EMERGE_CIRCLES + EMERGE_MOMENTUM_CIRCLES - EMERGE_MOMENTUM_DRIPS - EMERGE_MOMENTUM_NECKS
+    for (const side of SIDES) {
+      for (const align of ['start', 'center', 'end'] as const) {
+        const panel = panelFor(side, align)
+        const b = emergeBridge(trigger, panel, side)
+        const t = { x0: trigger.x - panel.x, y0: trigger.y - panel.y, x1: trigger.x - panel.x + trigger.width, y1: trigger.y - panel.y + trigger.height }
+        const dist = (c: { x: number; y: number }) => Math.hypot(Math.max(t.x0 - c.x, 0, c.x - t.x1), Math.max(t.y0 - c.y, 0, c.y - t.y1))
+        for (const preset of ['playful', 'wild'] as const) {
+          const feel = EMERGE_FEEL[preset]
+          const bodyAt = (s: number) => emergePose((s + 0.18) / emergeBloomDuration(feel, 'open'), b, 'open', feel, bloom).body
+          for (const fling of [1, 3]) {
+            let near = 0
+            for (let seed = 0; seed < 6; seed++) {
+              for (let sec = 0; sec < 1.2; sec += 0.01) {
+                const pose = emergePose((sec + 0.18) / emergeBloomDuration(feel, 'open'), b, 'open', feel, bloom)
+                const p = emergeMomentum(pose, b, 'open', sec, { openDripFling: fling }, { bloom: true, seed, preset, bodyAt })
+                // Lobes, slosh bulges, necks and drops alike stay off the trigger.
+                for (const c of p.circles) {
+                  if (c.r <= 0) continue
+                  expect(dist(c)).toBeGreaterThanOrEqual(c.r)
+                }
+                for (const c of p.circles.slice(first)) {
+                  if (c.r <= 0) continue
+                  // Beyond the panel's edge that faces the trigger.
+                  const out = side === 'bottom' ? -c.y : side === 'top' ? c.y - b.height : side === 'right' ? -c.x : c.x - b.width
+                  if (out > 2) near++
+                }
+              }
+            }
+            expect(near).toBeGreaterThan(0)
+          }
+        }
+      }
+    }
+  })
+
+  it('closeSlosh drives the bloom close wobble; off, the close contracts smoothly', () => {
+    const b = emergeBridge(trigger, panelFor('bottom'), 'bottom')
+    let differs = false
+    let prev = Infinity
+    for (let i = 0; i <= 60; i++) {
+      const t = i / 60
+      const off = emergePose(t, b, 'close', EMERGE_FEEL.playful, { ...bloom, closeSlosh: false }).body
+      const on = emergePose(t, b, 'close', EMERGE_FEEL.playful, bloom).body
+      expect(off.w).toBeLessThanOrEqual(prev + 1e-9)
+      prev = off.w
+      if (Math.abs(on.w - off.w) > 0.5) differs = true
+      // wobble no longer drives the close: only closeSlosh does.
+      expect(emergePose(t, b, 'close', EMERGE_FEEL.playful, { ...bloom, wobble: false }).body).toEqual(on)
+    }
+    expect(differs).toBe(true)
+  })
+
+  it('tooltip bloom: same pose at tooltip speed, a light splash of a few small drops', () => {
+    const tip: EmergeRect = { x: trigger.x, y: trigger.y + trigger.height + 4, width: 110, height: 28 }
+    const b = emergeBridge(trigger, tip, 'bottom', TOOLTIP_FEEL.playful)
+    const first = emergePose(0.02, b, 'open', TOOLTIP_FEEL.playful, bloom)
+    expect(first.body.cx).toBeCloseTo(tip.width / 2, 5)
+    expect(first.body.w).toBeLessThan(tip.width * 0.3)
+    expect(emergePose(1, b, 'open', TOOLTIP_FEEL.playful, bloom)).toEqual(emergeRestPose(b))
+    expect(emergeBloomDuration(TOOLTIP_FEEL.playful, 'open')).toBeLessThan(emergeBloomDuration(EMERGE_FEEL.playful, 'open'))
+    const S = TOOLTIP_BLOOM_SPLASH
+    const n = emergeBloomDripCount(tip.width, tip.height, emergeMomentumStrength(S.openDrips), 'playful', S.openDripAmount)
+    expect(n).toBeGreaterThanOrEqual(2)
+    expect(n).toBeLessThanOrEqual(6)
+    const rest = emergeRestPose(b)
+    let biggest = 0
+    for (let sec = 0; sec < 0.8; sec += 0.02) {
+      const p = emergeMomentum(rest, b, 'open', sec, { ...S, openSlosh: false }, { bloom: true, seed: 2 })
+      for (const c of p.circles) biggest = Math.max(biggest, c.r)
+    }
+    expect(biggest).toBeGreaterThan(0)
+    expect(biggest).toBeLessThan(8)
   })
 
   it('presets scale the bloom durations', () => {
