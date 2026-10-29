@@ -66,7 +66,7 @@ describe('GoopTooltip', () => {
     expect(cls).toContain('max-w-48')
     expect(cls).not.toContain('max-w-xs')
     expect(cls).toContain('[--goop-color:var(--foreground)]')
-    for (const c of ['bg-foreground', 'data-open:animate-in']) expect(cls).not.toContain(c)
+    for (const c of ['bg-foreground', 'data-[state=instant-open]:animate-in']) expect(cls).not.toContain(c)
     w.unmount()
   })
 
@@ -74,7 +74,7 @@ describe('GoopTooltip', () => {
     const w = mount(Demo, { props: { content: { goo: false } }, attachTo: document.body })
     await flushPromises()
     const el = content()!
-    expect(el.className.split(' ')).toEqual(expect.arrayContaining(['bg-foreground', 'text-background', 'data-open:animate-in']))
+    expect(el.className.split(' ')).toEqual(expect.arrayContaining(['bg-foreground', 'text-background', 'data-[state=instant-open]:animate-in']))
     expect(el.querySelector('[data-goop]')).toBeNull()
     expect(el.hasAttribute('data-goop-emerge')).toBe(false)
     w.unmount()

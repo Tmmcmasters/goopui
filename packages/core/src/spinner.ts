@@ -462,7 +462,6 @@ export function attachSpinner(host: HTMLElement, options: SpinnerOptions = {}): 
   let phase = 0
   let destroyed = false
   let visible = true
-  let hidden = doc.visibilityState === 'hidden'
 
   const readReduced = (): boolean =>
     opts.reducedMotion === true || (opts.reducedMotion !== false && isReducedMotion(doc))
@@ -618,7 +617,11 @@ export function attachSpinner(host: HTMLElement, options: SpinnerOptions = {}): 
     drawNow()
   }
 
-  const shouldRun = (): boolean => !destroyed && !reduced && visible && !hidden
+  // No document.visibilityState gate: browsers already stop rAF in hidden tabs (and the loop
+  // clamps dt on resume), while headless / multi-tab renderers (e.g. Remotion's parallel
+  // tabs) report 'hidden' but still paint. Gating on it froze those spinners on their first
+  // pose, so frames alternated between a moving and a frozen spinner (flash + stutter).
+  const shouldRun = (): boolean => !destroyed && !reduced && visible
   const tick: Ticker = (dt) => {
     if (!shouldRun()) return false
     phase += (dt * Math.max(0, opts.speed ?? 1)) / feel.period
@@ -662,11 +665,6 @@ export function attachSpinner(host: HTMLElement, options: SpinnerOptions = {}): 
   const RO = win?.ResizeObserver
   const ro = RO ? new RO(() => resize()) : undefined
   ro?.observe(host)
-  const onVisibility = (): void => {
-    hidden = doc.visibilityState === 'hidden'
-    sync()
-  }
-  doc.addEventListener('visibilitychange', onVisibility)
   const unwatch = watchReducedMotion(doc, () => {
     reduced = readReduced()
     syncPlay()
@@ -724,7 +722,6 @@ export function attachSpinner(host: HTMLElement, options: SpinnerOptions = {}): 
       host.removeEventListener('lostpointercapture', onUp)
       io?.disconnect()
       ro?.disconnect()
-      doc.removeEventListener('visibilitychange', onVisibility)
       unwatch()
       for (const b of blobs) b.remove()
       blobs = []
