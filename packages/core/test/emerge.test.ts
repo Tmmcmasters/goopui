@@ -7,6 +7,9 @@ import {
   EMERGE_NECK_LUMPS,
   EMERGE_FLOW_ROOT,
   emergeFlowDuration,
+  emergeBloomDuration,
+  emergeBloomDripCount,
+  emergeMomentum,
   GOOP_PART_ATTR,
   activeTickerCount,
   attachEmerge,
@@ -346,6 +349,128 @@ describe('emerge flow mode', () => {
     const h = attachEmerge(host, { anchor, preset: 'playful', flow: true })
     h.open()
     expect(h.closeDuration).toBe(Math.round(emergeFlowDuration(EMERGE_FEEL.playful, 'close') * 1000))
+    h.destroy()
+    document.body.innerHTML = ''
+  })
+})
+
+describe('emerge bloom flow style', () => {
+  const bloom = { flow: true, flowStyle: 'bloom' } as const
+  const merge = { ...bloom, bloomStart: 'merge' } as const
+
+  for (const side of SIDES) {
+    it(`${side}: frame 1 is a small droplet at the panel's own center`, () => {
+      const panel = panelFor(side)
+      const b = emergeBridge(trigger, panel, side)
+      const p = emergePose(0.02, b, 'open', EMERGE_FEEL.playful, bloom)
+      expect(p.body.w).toBeGreaterThan(0)
+      expect(p.body.cx).toBeCloseTo(panel.width / 2, 5)
+      expect(p.body.cy).toBeCloseTo(panel.height / 2, 5)
+      expect(p.body.w * p.body.h).toBeLessThan(panel.width * panel.height * 0.05)
+      // Every circle stays near the center (no link to the trigger).
+      for (const c of p.circles) if (c.r > 0) expect(Math.hypot(c.x - panel.width / 2, c.y - panel.height / 2)).toBeLessThan(40)
+      expect(p.content).toBe(0)
+    })
+  }
+
+  it('merge start: 3-5 seed drops around the center grow before the puddle', () => {
+    const b = emergeBridge(trigger, panelFor('bottom'), 'bottom')
+    const p = emergePose(0.08, b, 'open', EMERGE_FEEL.playful, merge, 3)
+    const drops = p.circles.filter((c) => c.r > 0)
+    expect(drops.length).toBeGreaterThanOrEqual(3)
+    expect(drops.length).toBeLessThanOrEqual(5)
+    for (const c of drops) {
+      expect(Math.abs(c.x - b.width / 2)).toBeLessThanOrEqual(b.width * 0.2 + 0.01)
+      expect(Math.abs(c.y - b.height / 2)).toBeLessThanOrEqual(b.height * 0.2 + 0.01)
+    }
+  })
+
+  for (const start of ['single', 'merge'] as const) {
+    it(`${start}: grows in all directions, overshoots briefly, ends exactly on the panel`, () => {
+      const panel = panelFor('bottom')
+      const b = emergeBridge(trigger, panel, 'bottom')
+      const fx = { ...bloom, bloomStart: start }
+      expect(emergePose(1, b, 'open', EMERGE_FEEL.playful, fx)).toEqual(emergeRestPose(b))
+      for (const preset of ['subtle', 'playful', 'wild'] as const) {
+        for (let i = 0; i <= 60; i++) {
+          const t = i / 60
+          const { body } = emergePose(t, b, 'open', EMERGE_FEEL[preset], fx)
+          if (body.w === 0) continue
+          expect(body.cx).toBeCloseTo(panel.width / 2, 5)
+          expect(body.cy).toBeCloseTo(panel.height / 2, 5)
+          expect(body.w).toBeLessThanOrEqual(panel.width + 2 * 10)
+          // Settled: within 3.5px of the panel on every side.
+          if (t >= 0.9) {
+            expect(Math.abs(body.w - panel.width) / 2).toBeLessThanOrEqual(3.5)
+            expect(Math.abs(body.h - panel.height) / 2).toBeLessThanOrEqual(3.5)
+          }
+        }
+      }
+      expect(emergePose(0.5, b, 'open', EMERGE_FEEL.playful, fx).body.w).toBeGreaterThan(panel.width * 0.9)
+    })
+  }
+
+  it('close contracts to the center and vanishes; content fades first', () => {
+    const b = emergeBridge(trigger, panelFor('bottom'), 'bottom')
+    const mid = emergePose(0.6, b, 'close', EMERGE_FEEL.playful, bloom)
+    expect(mid.body.cx).toBeCloseTo(b.width / 2, 5)
+    expect(mid.body.w).toBeLessThan(b.width * 0.6)
+    expect(mid.content).toBe(0)
+    const end = emergePose(1, b, 'close', EMERGE_FEEL.playful, bloom)
+    expect(end.body.w * end.body.h).toBe(0)
+    expect(end.circles.every((c) => c.r === 0)).toBe(true)
+  })
+
+  it('splash: drops fly off every side, more than the far-edge burst; off with openDrips false', () => {
+    const b = emergeBridge(trigger, panelFor('bottom'), 'bottom')
+    const rest = emergeRestPose(b)
+    const sides = new Set<string>()
+    for (const sec of [0.2, 0.3]) {
+      const p = emergeMomentum(rest, b, 'open', sec, {}, { bloom: true, seed: 1 })
+      for (const c of p.circles) {
+        if (c.r <= 0) continue
+        if (c.y < -2) sides.add('top')
+        if (c.y > b.height + 2) sides.add('bottom')
+        if (c.x < -2) sides.add('left')
+        if (c.x > b.width + 2) sides.add('right')
+      }
+      const off = emergeMomentum(rest, b, 'open', sec, { openDrips: false, openSlosh: false }, { bloom: true, seed: 1 })
+      expect(off.circles.every((c) => c.r === 0)).toBe(true)
+    }
+    expect([...sides].sort()).toEqual(['bottom', 'left', 'right', 'top'])
+    expect(emergeBloomDripCount(b.width, b.height, 1, 'playful')).toBeGreaterThan(20)
+    expect(emergeBloomDripCount(b.width, b.height, 1, 'subtle')).toBeLessThan(emergeBloomDripCount(b.width, b.height, 1, 'wild'))
+  })
+
+  it('presets scale the bloom durations', () => {
+    const { subtle, playful, wild } = EMERGE_FEEL
+    for (const ph of ['open', 'close'] as const) {
+      expect(emergeBloomDuration(subtle, ph)).toBeLessThan(emergeBloomDuration(playful, ph))
+      expect(emergeBloomDuration(playful, ph)).toBeLessThan(emergeBloomDuration(wild, ph))
+    }
+  })
+
+  it('reduced motion: bloom opens and closes statically', () => {
+    document.documentElement.dataset.reducedMotion = 'true'
+    const host = document.createElement('div')
+    document.body.append(host)
+    const h = attachEmerge(host, { ...bloom })
+    h.open()
+    expect(h.state).toBe('open')
+    expect(activeTickerCount()).toBe(0)
+    expect(host.style.getPropertyValue(EMERGE_CONTENT_VAR)).toBe('1')
+    expect(h.close()).toBe(0)
+    h.destroy()
+    delete document.documentElement.dataset.reducedMotion
+    document.body.innerHTML = ''
+  })
+
+  it('attachEmerge uses the bloom durations', () => {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const h = attachEmerge(host, { preset: 'playful', ...bloom })
+    h.open()
+    expect(h.closeDuration).toBe(Math.round(emergeBloomDuration(EMERGE_FEEL.playful, 'close') * 1000))
     h.destroy()
     document.body.innerHTML = ''
   })

@@ -9,6 +9,10 @@ const aligns = ['start', 'center', 'end'] as const
 const goo = ref(true)
 /** Flow out of the trigger (false: the original inflate-from-a-bulb emerge). */
 const flow = ref(true)
+/** Flow style: 'bloom' (pools from the panel's own center) or 'neck' (out of the trigger). */
+const flowStyle = ref<'bloom' | 'neck'>('bloom')
+/** Bloom start: one droplet, or a few drops that fuse. */
+const bloomStart = ref<'single' | 'merge'>('single')
 const bridge = ref(true)
 const wobble = ref(true)
 const momentum = ref(true)
@@ -37,6 +41,8 @@ const surfaces = [
 const engine = computed(() => ({
   goo: goo.value,
   flow: flow.value,
+  flowStyle: flowStyle.value,
+  bloomStart: bloomStart.value,
   bridge: bridge.value,
   wobble: wobble.value,
   momentum: momentum.value,
@@ -74,6 +80,20 @@ const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
         <label class="grid gap-1">
           <span class="text-xs text-muted-foreground">speed: {{ speed.toFixed(2) }}x</span>
           <input v-model.number="speed" type="range" min="0.1" max="2" step="0.05" class="w-28">
+        </label>
+        <label class="grid gap-1">
+          <span class="text-xs text-muted-foreground">flowStyle</span>
+          <select v-model="flowStyle" :class="selectClass" :disabled="!flow">
+            <option value="bloom">bloom (default)</option>
+            <option value="neck">neck</option>
+          </select>
+        </label>
+        <label class="grid gap-1">
+          <span class="text-xs text-muted-foreground">bloomStart</span>
+          <select v-model="bloomStart" :class="selectClass" :disabled="!flow || flowStyle !== 'bloom'">
+            <option value="single">single (default)</option>
+            <option value="merge">merge</option>
+          </select>
         </label>
         <label class="grid gap-1">
           <span class="text-xs text-muted-foreground">preset</span>

@@ -39,6 +39,8 @@ import {
   type ToasterEffect,
   type ToasterOptions,
   type EmergeOptions,
+  type EmergeBloomStart,
+  type EmergeFlowStyle,
   type EmergeSurfaceColor,
   type MenuEffect,
   type MenuHighlightOptions,
@@ -453,6 +455,8 @@ export const EMERGE_DRIP_KEYS = ['openDripAmount', 'openDripSize', 'openDripFlin
 export const MENU_PROP_KEYS = [
   'goo',
   'flow',
+  'flowStyle',
+  'bloomStart',
   ...EMERGE_EFFECT_KEYS,
   ...EMERGE_DRIP_KEYS,
   ...MENU_EFFECTS,
@@ -471,6 +475,12 @@ export interface GoopMenuProps {
    *  Default true; submenus inherit it (they flow out of their row). `false`: the menu
    *  inflates from a bulb at the trigger edge. */
   flow?: boolean
+  /** How the flow opens: 'bloom' (default: the menu pools from its own center and spreads
+   *  out in every direction, then splashes all around) or 'neck' (out of the trigger through
+   *  a thick neck). Submenus inherit it. */
+  flowStyle?: EmergeFlowStyle
+  /** Bloom start: 'single' (default: one droplet swells) or 'merge' (a few drops fuse). */
+  bloomStart?: EmergeBloomStart
   /** Bulb + lumpy neck between trigger (or submenu row) and panel. */
   bridge?: boolean
   /** Jelly overshoot: panel wobble, highlight overshoot and grow-in. */
@@ -542,6 +552,8 @@ export function resolveMenuProps(props: GoopMenuProps, parent?: ResolvedMenuProp
     const v = props[k] ?? parent?.[k]
     if (v !== undefined) out[k] = v
   }
+  out.flowStyle = props.flowStyle ?? parent?.flowStyle ?? 'bloom'
+  out.bloomStart = props.bloomStart ?? parent?.bloomStart ?? 'single'
   out.surface = props.surface ?? parent?.surface ?? 'trigger'
   out.preset = props.preset ?? parent?.preset
   out.renderer = props.renderer ?? parent?.renderer
@@ -563,6 +575,8 @@ export function toMenuOptions(
     emerge: {
       ...common,
       flow: menu.flow,
+      flowStyle: menu.flowStyle,
+      bloomStart: menu.bloomStart,
       bridge: menu.bridge,
       wobble: menu.wobble,
       momentum: menu.momentum,
@@ -674,7 +688,7 @@ export interface GoopTooltipProps {
 
 // `surface` (the element) is the adapter's; `surfaceColor` comes from the `surface` prop.
 // `flow`: tooltips keep the inflate-from-a-bulb emerge (they are too small and quick for a neck).
-type TooltipAdapterOwned = 'anchor' | 'flow' | 'side' | 'ready' | 'surface' | 'surfaceColor' | 'feel' | 'reducedMotion'
+type TooltipAdapterOwned = 'anchor' | 'flow' | 'flowStyle' | 'bloomStart' | 'side' | 'ready' | 'surface' | 'surfaceColor' | 'feel' | 'reducedMotion'
 type TooltipUnhandled = Exclude<keyof EmergeOptions, keyof GoopTooltipProps | TooltipAdapterOwned>
 const _allTooltipOptionsHandled: [TooltipUnhandled] extends [never] ? true : { unhandled: TooltipUnhandled } = true
 void _allTooltipOptionsHandled

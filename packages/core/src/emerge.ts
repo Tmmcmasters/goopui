@@ -81,13 +81,25 @@ export interface EmergeFeel {
   flowClose?: number
   /** Flow mode: neck thickness as a fraction of the anchor's facing edge. Default 0.46. */
   flowNeck?: number
+  /** Bloom flow style: open / close durations (s) at speed 1. Default `open` / 0.9x `close`. */
+  bloomOpen?: number
+  bloomClose?: number
+  /** Bloom: jelly overshoot (px) past each side of the panel as the puddle lands. Default 4. */
+  bloomOvershoot?: number
 }
 
 export const EMERGE_FEEL: Readonly<Record<GoopPreset, Readonly<EmergeFeel>>> = Object.freeze({
-  subtle: Object.freeze({ open: 0.42, close: 0.28, bulb: 0.34, decay: 7, travel: 0.45, snap: 0.45, softness: 4, flowOpen: 0.5, flowClose: 0.32, flowNeck: 0.38 }),
-  playful: Object.freeze({ open: 0.56, close: 0.34, bulb: 0.42, decay: 4.5, travel: 1, snap: 0.65, softness: 5, flowOpen: 0.68, flowClose: 0.4, flowNeck: 0.46 }),
-  wild: Object.freeze({ open: 0.72, close: 0.4, bulb: 0.5, decay: 3, travel: 1.6, snap: 0.9, softness: 6, flowOpen: 0.86, flowClose: 0.48, flowNeck: 0.56 }),
+  subtle: Object.freeze({ open: 0.42, close: 0.28, bulb: 0.34, decay: 7, travel: 0.45, snap: 0.45, softness: 4, flowOpen: 0.5, flowClose: 0.32, flowNeck: 0.38, bloomOpen: 0.46, bloomClose: 0.24, bloomOvershoot: 2.5 }),
+  playful: Object.freeze({ open: 0.56, close: 0.34, bulb: 0.42, decay: 4.5, travel: 1, snap: 0.65, softness: 5, flowOpen: 0.68, flowClose: 0.4, flowNeck: 0.46, bloomOpen: 0.56, bloomClose: 0.3, bloomOvershoot: 4 }),
+  wild: Object.freeze({ open: 0.72, close: 0.4, bulb: 0.5, decay: 3, travel: 1.6, snap: 0.9, softness: 6, flowOpen: 0.86, flowClose: 0.48, flowNeck: 0.56, bloomOpen: 0.68, bloomClose: 0.36, bloomOvershoot: 6 }),
 })
+
+/** How `flow` opens: 'neck' (out of the anchor through a thick neck) or 'bloom' (a puddle
+ *  that spreads from the panel's own center in all directions, no link to the anchor). */
+export type EmergeFlowStyle = 'neck' | 'bloom'
+/** How a bloom starts: 'single' (one droplet at the center swells) or 'merge' (a few small
+ *  seeded drops around the center grow and fuse into the puddle). */
+export type EmergeBloomStart = 'single' | 'merge'
 
 /** Effect toggles. All default true, except `flow` (default false). */
 export interface EmergeEffects {
@@ -96,6 +108,12 @@ export interface EmergeEffects {
    *  neck then pinches off with a wobble. Close sucks it back up the neck into the anchor.
    *  false: the panel inflates from a bulb at the anchor edge (the original emerge). */
   flow?: boolean
+  /** Flow style (with `flow` on): 'neck' (default) or 'bloom'. Bloom ignores `bridge` and
+   *  `momentum` (launch); `wobble` drives its overshoot, and the open slosh / drips fire
+   *  radially around the whole panel. */
+  flowStyle?: EmergeFlowStyle
+  /** Bloom start: 'single' (default) or 'merge'. */
+  bloomStart?: EmergeBloomStart
   /** Bulb + lumpy neck between anchor and panel (false: the panel just inflates from the edge). */
   bridge?: boolean
   /** Jelly overshoot / wobble (false: smooth ease, no overshoot). */
@@ -114,7 +132,10 @@ export const EMERGE_FLOW_ROOT = 3
 export const EMERGE_FLOW_NECK = 4
 /** Circles a pose always returns (zero radius when unused): bulb + neck lumps, or in flow
  *  mode root + neck. */
-export const EMERGE_CIRCLES = Math.max(1 + EMERGE_NECK_LUMPS, EMERGE_FLOW_ROOT + EMERGE_FLOW_NECK)
+/** Bloom: lobes around the spreading puddle's edge, then the merge start's seed drops. */
+export const EMERGE_BLOOM_LOBES = 7
+export const EMERGE_BLOOM_SEEDS = 5
+export const EMERGE_CIRCLES = Math.max(1 + EMERGE_NECK_LUMPS, EMERGE_FLOW_ROOT + EMERGE_FLOW_NECK, EMERGE_BLOOM_LOBES + EMERGE_BLOOM_SEEDS)
 
 /** Bridge geometry in panel-local space, plus the main/cross frame it was built in. */
 export interface EmergeBridge {
@@ -254,6 +275,8 @@ const BULB_RETRACT = 0.3
 
 const resolveFx = (fx: EmergeEffects = {}): Required<EmergeEffects> => ({
   flow: fx.flow === true,
+  flowStyle: fx.flowStyle === 'bloom' ? 'bloom' : 'neck',
+  bloomStart: fx.bloomStart === 'merge' ? 'merge' : 'single',
   bridge: fx.bridge !== false,
   wobble: fx.wobble !== false,
   momentum: fx.momentum !== false,
@@ -353,9 +376,11 @@ export function emergePose(
   phase: EmergePhase = 'open',
   feel: EmergeFeel = EMERGE_FEEL.playful,
   effects?: EmergeEffects,
+  seed = 0,
 ): EmergePose {
   const fx = resolveFx(effects)
   const tt = clamp(t)
+  if (fx.flow && fx.flowStyle === 'bloom') return bloomPose(tt, b, phase, feel, fx, seed)
   if (fx.flow) return flowPose(tt, b, phase, feel, fx)
   if (phase === 'open') {
     if (tt >= 1) return emergeRestPose(b)
@@ -551,6 +576,139 @@ function flowPose(t: number, b: EmergeBridge, phase: EmergePhase, feel: EmergeFe
   return { body, circles, content }
 }
 
+// ---- bloom flow style ----------------------------------------------------------------------
+// The panel pools from its OWN center, with no link to the anchor: a droplet (or, with
+// `bloomStart: 'merge'`, a few seeded drops that grow and fuse) swells out in every direction
+// like a spreading puddle. Lobes around the edge lead and lag (an irregular, lobed rim) and
+// even out as it fills the rounded rect; it overshoots each side a little and settles with a
+// jelly wobble. The slosh and splash (emerge-momentum, `bloom` context) fire radially once it
+// lands. Close pulls in a little, contracts back to the center as a lobed blob and vanishes.
+
+/** Bloom: open-phase time by which the puddle has (about) filled the panel. */
+export const EMERGE_BLOOM_LAND = 0.5
+
+const BLOOM = {
+  /** Spread: starts at, ends at (open fraction), and ease-out power. */
+  spreadAt: 0.02,
+  spreadEnd: 0.56,
+  ease: 2.4,
+  /** Merge start: the puddle itself only appears once the seed drops have grown. */
+  mergeAt: 0.1,
+  /** Starting droplet diameter: fraction of the panel's smaller side, clamped (px). */
+  drop: 0.22,
+  dropMin: 8,
+  dropMax: 26,
+  /** Overshoot spring: starts at, frequency (cycles over the rest of the open). */
+  ovAt: 0.36,
+  /** Lobed rim: lobe size (x the smaller half-extent), irregularity fade, lobe fade. */
+  lobe: 0.62,
+  irrAt: 0.1,
+  irrLen: 0.4,
+  lobeAt: 0.3,
+  lobeLen: 0.3,
+  /** Merge seed drops sit within this fraction of the panel around its center. */
+  seedSpread: 0.2,
+  fadeAt: 0.34,
+  fadeLen: 0.3,
+} as const
+
+/** Deterministic 0..1 hash. */
+function hash(seed: number, a: number, b: number): number {
+  const s = Math.sin(seed * 91.7 + a * 127.1 + b * 311.7 + 17.3) * 43758.5453
+  return s - Math.floor(s)
+}
+
+/** Bloom open / close duration (s) at speed 1 for `feel`. */
+export function emergeBloomDuration(feel: EmergeFeel, phase: EmergePhase): number {
+  return phase === 'open' ? (feel.bloomOpen ?? feel.open) : (feel.bloomClose ?? feel.close * 0.9)
+}
+
+/** Distance from a rect's center to its edge along angle `th` (half extents a, b). */
+function rectReach(a: number, b: number, th: number): number {
+  const c = Math.abs(Math.cos(th))
+  const s = Math.abs(Math.sin(th))
+  return Math.min(c > 1e-6 ? a / c : Infinity, s > 1e-6 ? b / s : Infinity)
+}
+
+function bloomPose(t: number, b: EmergeBridge, phase: EmergePhase, feel: EmergeFeel, fx: Required<EmergeEffects>, seed: number): EmergePose {
+  const circles: EmergeCircle[] = Array.from({ length: EMERGE_CIRCLES }, zero)
+  if (phase === 'open' && t >= 1) return emergeRestPose(b)
+  if (phase === 'close' && t >= 1) return { body: { cx: 0, cy: 0, w: 0, h: 0 }, circles, content: 0 }
+  const W = b.width
+  const H = b.height
+  const cx = W / 2
+  const cy = H / 2
+  const m = Math.min(W, H)
+  const merge = fx.bloomStart === 'merge'
+  const d0 = clamp(m * BLOOM.drop, BLOOM.dropMin, BLOOM.dropMax) * (merge ? 0.7 : 1)
+  let base: number
+  let appear: number
+  let ov = 0
+  let irr: number
+  let lobeK: number
+  let content: number
+  if (phase === 'open') {
+    const at = merge ? BLOOM.mergeAt : 0
+    appear = merge ? smooth((t - at) / 0.08) : 0.4 + 0.6 * smooth(t / 0.07)
+    const s0 = BLOOM.spreadAt + at
+    base = 1 - (1 - clamp((t - s0) / (BLOOM.spreadEnd - s0))) ** BLOOM.ease
+    if (fx.wobble) {
+      // A damped spring past the rect on every side, eased to exactly zero by t = 1.
+      const u = clamp((t - BLOOM.ovAt) / (1 - BLOOM.ovAt))
+      ov = (feel.bloomOvershoot ?? 4) * 1.6 * Math.exp(-3 * u) * Math.sin(2 * Math.PI * 1.25 * u) * (1 - smooth((u - 0.55) / 0.45))
+    }
+    irr = 1 - smooth((t - BLOOM.irrAt) / BLOOM.irrLen)
+    lobeK = 1 - smooth((t - BLOOM.lobeAt) / BLOOM.lobeLen)
+    content = fx.fade ? smooth((t - BLOOM.fadeAt) / BLOOM.fadeLen) : 1
+  } else {
+    // A little inward pull and wobble, then an accelerating contraction to the center.
+    const g = 1 - clamp(t / 0.86) ** 1.7
+    const pulse = fx.wobble ? 0.06 * Math.sin((2 * Math.PI * t) / 0.4) * Math.exp(-3 * t) : 0
+    base = Math.min(1.02, g * (1 - pulse))
+    appear = 1 - smooth((t - 0.78) / 0.22)
+    irr = smooth((t - 0.15) / 0.3)
+    lobeK = smooth((t - 0.2) / 0.3) * (1 - smooth((t - 0.85) / 0.15))
+    content = fx.fade ? 1 - smooth(t / 0.22) : 0
+  }
+  const w = Math.max(0, (d0 + (W - d0) * base) * appear + 2 * ov)
+  const h = Math.max(0, (d0 + (H - d0) * base) * appear + 2 * ov)
+  const body: EmergeBody = w < 0.5 || h < 0.5 ? { cx: 0, cy: 0, w: 0, h: 0 } : { cx, cy, w, h }
+  // Lobed rim: lobes around the edge, some leading (poking out), some lagging.
+  const a = w / 2
+  const bb = h / 2
+  const rl = Math.min(a, bb) * BLOOM.lobe * lobeK
+  if (body.w > 0) {
+    for (let k = 0; k < EMERGE_BLOOM_LOBES; k++) {
+      const th = (2 * Math.PI * k) / EMERGE_BLOOM_LOBES + (hash(seed, k, 1) - 0.5) * 0.6
+      const lead = hash(seed, k, 2) * 2 - 1
+      const r = rl * (0.75 + 0.4 * hash(seed, k, 3))
+      if (r < 0.5) continue
+      const dist = Math.max(0, rectReach(a, bb, th) - r + r * (0.3 + 0.5 * lead) * irr)
+      circles[k] = { x: cx + Math.cos(th) * dist, y: cy + Math.sin(th) * dist, r }
+    }
+  }
+  if (merge && phase === 'open') {
+    // Seed drops: appear (staggered) around the center, grow, drift in, and fuse.
+    const n = 3 + Math.floor(hash(seed, 9, 9) * 3)
+    const rd = clamp(m * 0.1, 5, 14)
+    for (let k = 0; k < n; k++) {
+      const ph = (2 * Math.PI * k) / n + (hash(seed, k, 5) - 0.5) * (2.4 / n)
+      const rad = 0.45 + 0.55 * hash(seed, k, 6)
+      const pull = 1 - 0.6 * smooth((t - 0.1) / 0.25)
+      const grow = smooth((t - hash(seed, k, 8) * 0.06) / 0.1)
+      const fuse = 1 - smooth((t - 0.26) / 0.22)
+      const r = rd * (0.75 + 0.5 * hash(seed, k, 7)) * grow * fuse * (1 + 0.4 * smooth((t - 0.08) / 0.15))
+      if (r < 0.3) continue
+      circles[EMERGE_BLOOM_LOBES + k] = {
+        x: cx + Math.cos(ph) * W * BLOOM.seedSpread * rad * pull,
+        y: cy + Math.sin(ph) * H * BLOOM.seedSpread * rad * pull,
+        r,
+      }
+    }
+  }
+  return { body, circles, content }
+}
+
 /** The settled open panel: full body, no bridge, content visible. */
 export function emergeRestPose(b: Pick<EmergeBridge, 'width' | 'height'>): EmergePose {
   return {
@@ -703,11 +861,23 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
 
   const speed = (): number => Math.max(0.05, opts.speed ?? 1)
   const flowOn = (): boolean => opts.flow === true
-  /** Phase duration (s) at speed 1: flow mode has its own. */
+  const bloomOn = (): boolean => flowOn() && opts.flowStyle === 'bloom'
+  /** Phase duration (s) at speed 1: flow mode (and its bloom style) has its own. */
   const phaseDur = (phase: EmergePhase): number =>
-    flowOn() ? emergeFlowDuration(feel, phase) : phase === 'open' ? feel.open : feel.close
+    bloomOn()
+      ? emergeBloomDuration(feel, phase)
+      : flowOn()
+        ? emergeFlowDuration(feel, phase)
+        : phase === 'open'
+          ? feel.open
+          : feel.close
   /** Flow mode: open momentum (slosh, burst) waits for the panel to land. */
-  const shift = (): number => (flowOn() ? Math.max(0, EMERGE_FLOW_LAND * phaseDur('open') - 0.12) : 0)
+  const shift = (): number =>
+    bloomOn()
+      ? Math.max(0, EMERGE_BLOOM_LAND * phaseDur('open') - 0.1)
+      : flowOn()
+        ? Math.max(0, EMERGE_FLOW_LAND * phaseDur('open') - 0.12)
+        : 0
   const closeMs = (): number => (reduced ? 0 : Math.round((phaseDur('close') * 1000) / speed()))
 
   const rectOf = (el: Element): EmergeRect => {
@@ -802,7 +972,7 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
     let pose: EmergePose
     if (state === 'open' || (reduced && state === 'opening')) pose = emergeRestPose(b)
     else if (state === 'closed' || (reduced && state === 'closing')) pose = emergePose(1, b, 'close', feel, opts)
-    else pose = emergePose(t, b, state === 'opening' ? 'open' : 'close', feel, opts)
+    else pose = emergePose(t, b, state === 'opening' ? 'open' : 'close', feel, opts, seed)
     const phase: EmergePhase = state === 'open' || state === 'opening' ? 'open' : 'close'
     const sec = phase === 'open' ? mt - shift() : mt
     if (!reduced && state !== 'closed' && sec >= 0 && sec < emergeMomentumEnd(phase)) {
@@ -810,7 +980,8 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
       pose = emergeMomentum(pose, b, phase, sec, fx, {
         preset: presetName,
         seed,
-        bodyAt: (s) => emergePose((s + shift()) / phaseDur('open'), b, 'open', feel, opts).body,
+        bloom: bloomOn(),
+        bodyAt: (s) => emergePose((s + shift()) / phaseDur('open'), b, 'open', feel, opts, seed).body,
       })
     }
     draw(pose, b)

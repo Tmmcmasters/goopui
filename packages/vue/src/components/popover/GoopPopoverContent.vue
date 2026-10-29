@@ -2,12 +2,15 @@
 // GoopPopoverContent: shadcn-vue's PopoverContent (reka-ui PopoverContent in a portal, same
 // props/emits, `class` merge, align center / sideOffset 4) whose panel oozes out of the
 // trigger. Core's `attachEmerge` draws the panel's background as goo on an aria-hidden
-// surface behind the real, unfiltered content. With `flow` (default) the goo bulges out of
-// the trigger edge facing `side`, runs across as a thick neck and swells into the panel at
-// its final rect, then the neck pinches off; close sucks it back up the neck into the
-// trigger. `:flow="false"`: a bulb swells at the trigger edge and the panel inflates out of it.
-// Momentum (openSlosh / openDrips / closeSlosh): the far edge sloshes and sheds drops on
-// open, the near edge sloshes against the trigger on close.
+// surface behind the real, unfiltered content. With `flow` (default) and `flowStyle: 'bloom'`
+// (default) the panel pools from its own center: a droplet (or a few fusing drops,
+// `bloomStart: 'merge'`) spreads out in every direction into the panel, its edges slosh and
+// it splashes drops off every side; close contracts it back to the center. `flowStyle:
+// 'neck'`: the goo bulges out of the trigger edge, runs across as a thick neck and swells
+// into the panel, then pinches off; close sucks it back into the trigger. `:flow="false"`: a
+// bulb swells at the trigger edge and the panel inflates out of it. Momentum (openSlosh /
+// openDrips / closeSlosh): the far edge (bloom: every edge) sloshes and sheds drops on open,
+// the near edge sloshes against the trigger on close (neck / inflate only).
 //
 // The panel's shadcn background, ring and shadow move onto the goo (`--goop-color`, a
 // drop-shadow on the surface). `surface` picks the color: by default the whole emerged surface
@@ -18,6 +21,8 @@
 // `:goo="false"` it is exactly shadcn's PopoverContent. Reduced motion: plain open/close.
 import {
   attachEmerge,
+  type EmergeBloomStart,
+  type EmergeFlowStyle,
   type EmergeHandle,
   type EmergeOptions,
   type EmergeSurfaceColor,
@@ -46,6 +51,12 @@ const props = withDefaults(
        *  sucks it back up the neck into the trigger. `false`: the panel inflates from a bulb at
        *  the trigger edge (the original emerge). */
       flow?: boolean
+      /** How the flow opens: 'bloom' (default: the panel pools from its own center, spreads
+       *  out in every direction and splashes all around) or 'neck' (out of the trigger
+       *  through a thick neck). */
+      flowStyle?: EmergeFlowStyle
+      /** Bloom start: 'single' (default: one droplet swells) or 'merge' (a few drops fuse). */
+      bloomStart?: EmergeBloomStart
       /** Bulb + lumpy neck between trigger and panel. */
       bridge?: boolean
       /** Jelly overshoot and wobble. */
@@ -84,6 +95,8 @@ const props = withDefaults(
     sideOffset: 4,
     goo: true,
     flow: true,
+    flowStyle: 'bloom',
+    bloomStart: 'single',
     bridge: true,
     wobble: true,
     momentum: true,
@@ -108,6 +121,8 @@ const delegated = computed(() => {
     class: _class,
     goo: _goo,
     flow: _flow,
+    flowStyle: _flowStyle,
+    bloomStart: _bloomStart,
     bridge: _bridge,
     wobble: _wobble,
     momentum: _momentum,
@@ -145,6 +160,8 @@ const classes = computed(() => cn(props.goo ? GOO : SHADCN, props.class))
 
 const options = computed<EmergeOptions>(() => ({
   flow: props.flow,
+  flowStyle: props.flowStyle,
+  bloomStart: props.bloomStart,
   bridge: props.bridge,
   wobble: props.wobble,
   momentum: props.momentum,

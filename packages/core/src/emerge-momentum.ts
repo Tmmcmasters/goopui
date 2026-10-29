@@ -127,12 +127,33 @@ export const EMERGE_MOMENTUM = Object.freeze({
     /** Shrink to nothing over the last fraction of `life`. */
     fade: 0.55,
   }),
+  /** Bloom flow style: the puddle lands everywhere at once, so the slosh rings all four edges
+   *  and a big all-around splash flies off the whole perimeter (a slapped puddle). */
+  bloom: Object.freeze({
+    /** Per-preset splash: drop count (x the perimeter scale), launch and size scale. */
+    preset: Object.freeze({
+      subtle: Object.freeze({ drips: 10, launch: 0.8, size: 0.9 }),
+      playful: Object.freeze({ drips: 26, launch: 1.3, size: 1.12 }),
+      wild: Object.freeze({ drips: 38, launch: 1.7, size: 1.3 }),
+    }) as Readonly<Record<GoopPreset, Readonly<{ drips: number; launch: number; size: number }>>>,
+    /** Perimeter (w + h, px) at scale 1, and the scale's bounds. */
+    perimRef: 420,
+    perimScale: Object.freeze([0.55, 1.25] as const),
+    /** Slosh: per-edge kick delay (s; top, right, bottom, left) so the ring wobbles unevenly. */
+    lag: Object.freeze([0, 0.022, 0.01, 0.032] as const),
+    /** Slosh size floor: fraction of the panel's smaller side (the anchor may be tiny). */
+    sloshRef: 0.12,
+    /** Outward fan along each edge (rad), so drops near corners fly diagonally. */
+    fan: 0.7,
+    /** Extra release spread (s): the splash goes off nearly all at once. */
+    spread: 0.05,
+  }),
 })
 
 /** Most drops one burst sheds (one circle each); the first EMERGE_MOMENTUM_NECKS lead globs
  *  also get a neck circle. */
-export const EMERGE_MOMENTUM_DRIPS = 32
-export const EMERGE_MOMENTUM_NECKS = 4
+export const EMERGE_MOMENTUM_DRIPS = 40
+export const EMERGE_MOMENTUM_NECKS = 6
 const BULGE_CIRCLES = 3
 /** Two ripple fronts (left/right of the origin), each a bump + a trailing bump. */
 const RIPPLE_CIRCLES = 4
@@ -284,6 +305,9 @@ export interface EmergeMomentumContext {
   /** The open-phase body at `sec` (no momentum). Drops use it to find where and how fast the
    *  far edge was moving when they let go. Without it they leave from the current pose. */
   bodyAt?: (sec: number) => EmergeBody
+  /** Bloom flow style: radial slosh on all four edges and an all-around splash; no close
+   *  slosh (the bloom's close pose has its own inward wobble). */
+  bloom?: boolean
 }
 
 /**
@@ -301,6 +325,7 @@ export function emergeMomentum(
 ): EmergePose {
   const preset = ctx.preset ?? 'playful'
   const extra: EmergeCircle[] = Array.from({ length: EMERGE_MOMENTUM_CIRCLES }, zero)
+  if (ctx.bloom) return bloomMomentum(pose, b, phase, sec, effects, ctx, preset, extra)
   const span = spanOf(pose.body, b)
   let body = pose.body
   if (span && phase === 'open') {
@@ -491,4 +516,191 @@ function drips(
       out[neckSlot] = { x: sp.x, y: sp.y, r: d.r * 0.4 * (1 - smooth(kk)) }
     }
   })
+}
+
+// ---- bloom (radial) -------------------------------------------------------------------------
+
+/** Panel-local box of a body. */
+interface Box {
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+}
+const boxOf = (body: EmergeBody): Box | null =>
+  body.w <= 0 || body.h <= 0
+    ? null
+    : { x0: body.cx - body.w / 2, y0: body.cy - body.h / 2, x1: body.cx + body.w / 2, y1: body.cy + body.h / 2 }
+
+/** Edge normals' angles (screen space, y down): top, right, bottom, left. */
+const EDGE_ANGLE = [-Math.PI / 2, 0, Math.PI / 2, Math.PI] as const
+
+/** Point at `f` (0..1) around the box's perimeter (top L->R, right T->B, bottom R->L, left
+ *  B->T), kept `inset` px from the corners, and its outward angle (fanned toward corners). */
+function perimeterAt(bx: Box, f: number, inset: number, fan: number): { x: number; y: number; a: number } {
+  const w = bx.x1 - bx.x0
+  const h = bx.y1 - bx.y0
+  const P = 2 * (w + h)
+  let d = (((f % 1) + 1) % 1) * P
+  const lens = [w, h, w, h]
+  let e = 0
+  while (e < 3 && d > lens[e]!) d -= lens[e++]!
+  const len = lens[e]!
+  const u = len > 0 ? clamp(d / len) : 0.5
+  const m = Math.min(inset, len / 2)
+  const at = lerp(m, len - m, u)
+  const a = EDGE_ANGLE[e]! + (u - 0.5) * fan
+  switch (e) {
+    case 0:
+      return { x: bx.x0 + at, y: bx.y0, a }
+    case 1:
+      return { x: bx.x1, y: bx.y0 + at, a }
+    case 2:
+      return { x: bx.x1 - at, y: bx.y1, a }
+    default:
+      return { x: bx.x0, y: bx.y1 - at, a }
+  }
+}
+
+/** Number of splash drops for a bloomed panel of this size. */
+export function emergeBloomDripCount(width: number, height: number, strength: number, preset: GoopPreset = 'playful', amount = 1): number {
+  const B = EMERGE_MOMENTUM.bloom
+  if (strength <= 0 || amount <= 0 || width <= 0 || height <= 0) return 0
+  const k = clamp((width + height) / B.perimRef, B.perimScale[0], B.perimScale[1])
+  return clamp(Math.round(B.preset[preset].drips * amount * k * (0.6 + 0.4 * strength)), 1, EMERGE_MOMENTUM_DRIPS)
+}
+
+function bloomMomentum(
+  pose: EmergePose,
+  b: EmergeBridge,
+  phase: EmergePhase,
+  sec: number,
+  effects: EmergeMomentumEffects & EmergeDripOptions,
+  ctx: EmergeMomentumContext,
+  preset: GoopPreset,
+  extra: EmergeCircle[],
+): EmergePose {
+  if (phase !== 'open') return { ...pose, circles: [...pose.circles, ...extra] }
+  const B = EMERGE_MOMENTUM.bloom
+  const S = EMERGE_MOMENTUM.slosh
+  let body = pose.body
+  const bx = boxOf(body)
+  const strength = emergeMomentumStrength(effects.openSlosh)
+  if (bx && strength > 0) {
+    // Radial slosh: every edge kicks outward (slightly out of step), rebounds and wobbles.
+    const size = Math.max(b.bulb, Math.min(b.width, b.height) * B.sloshRef)
+    const nb = { ...bx }
+    for (let e = 0; e < 4; e++) {
+      const d = emergeSloshOffset(sec - B.lag[e]!, size, strength, preset)
+      const horiz = e === 0 || e === 2
+      const len = horiz ? bx.x1 - bx.x0 : bx.y1 - bx.y0
+      const depth = horiz ? bx.y1 - bx.y0 : bx.x1 - bx.x0
+      if (d < 0) {
+        const k = Math.min(S.maxInward, -d * S.inward)
+        if (e === 0) nb.y0 += k
+        else if (e === 1) nb.x1 -= k
+        else if (e === 2) nb.y1 -= k
+        else nb.x0 += k
+        continue
+      }
+      const r = Math.max(0, Math.min(len * S.width, len / 2.3, depth / 2, 80))
+      const dk = Math.min(d, r)
+      if (r < 1 || dk < 0.5) continue
+      const back = r - dk
+      const mx = (bx.x0 + bx.x1) / 2
+      const my = (bx.y0 + bx.y1) / 2
+      extra[e] =
+        e === 0
+          ? { x: mx, y: bx.y0 + back, r }
+          : e === 1
+            ? { x: bx.x1 - back, y: my, r }
+            : e === 2
+              ? { x: mx, y: bx.y1 - back, r }
+              : { x: bx.x0 + back, y: my, r }
+    }
+    if (nb.x0 !== bx.x0 || nb.x1 !== bx.x1 || nb.y0 !== bx.y0 || nb.y1 !== bx.y1) {
+      body = { cx: (nb.x0 + nb.x1) / 2, cy: (nb.y0 + nb.y1) / 2, w: nb.x1 - nb.x0, h: nb.y1 - nb.y0 }
+    }
+  }
+  bloomSplash(b, sec, emergeMomentumStrength(effects.openDrips), preset, ctx, effects, bx, extra)
+  return { body, circles: [...pose.circles, ...extra], content: pose.content }
+}
+
+/** The all-around splash: drops of every class tear off the whole perimeter at once. */
+function bloomSplash(
+  b: EmergeBridge,
+  sec: number,
+  strength: number,
+  preset: GoopPreset,
+  ctx: EmergeMomentumContext,
+  fx: EmergeDripOptions,
+  now: Box | null,
+  out: EmergeCircle[],
+): void {
+  if (strength <= 0) return
+  const D = EMERGE_MOMENTUM.drips
+  const B = EMERGE_MOMENTUM.bloom
+  const BP = B.preset[preset]
+  const P = EMERGE_MOMENTUM.preset[preset]
+  const G = GOOP_PHYSICS
+  const seed = ctx.seed ?? 0
+  const amount = emergeDripKnob('openDripAmount', fx.openDripAmount)
+  const size = emergeDripKnob('openDripSize', fx.openDripSize)
+  const fling = emergeDripKnob('openDripFling', fx.openDripFling)
+  const v = emergeDripKnob('openDripVariety', fx.openDripVariety)
+  const n = emergeBloomDripCount(b.width, b.height, strength, preset, amount)
+  if (n === 0) return
+  const rv = (i: number, k: number): number => (rand(seed, i, k) * 2 - 1) * v
+  const cls = (x: number): number => 1 + (x - 1) * v
+  const sizes = [cls(G.eruptLeadSize / G.eruptMidSize), 1, cls(G.eruptSpeckSize / G.eruptMidSize)]
+  const speeds = [cls(G.eruptLeadSpeed / G.eruptMidSpeed), 1, cls(G.eruptSpeckSpeed / G.eruptMidSpeed)]
+  const leads = clamp(Math.round(n * D.leads * 1.3), 1, EMERGE_MOMENTUM_NECKS)
+  const mids = Math.round(n * D.mids)
+  const order = Array.from({ length: n }, (_, i) => i).sort((p, q) => rand(seed, p, 7) - rand(seed, q, 7))
+  const unit = b.bulb * D.unit * G.eruptMidSize * P.dripSize * BP.size * size
+  const launch = D.launch * BP.launch * fling * (0.6 + 0.4 * strength)
+  const rest: Box = { x0: 0, y0: 0, x1: b.width, y1: b.height }
+  const spanAt = (t: number): Box => (ctx.bodyAt ? (boxOf(ctx.bodyAt(t)) ?? rest) : (now ?? rest))
+  let necks = 0
+  for (let i = 0; i < n; i++) {
+    const kind = i < leads ? 0 : i < leads + mids ? 1 : 2
+    const f = (order[i]! + 0.5 + rv(i, 3) * 0.45) / n
+    const r = Math.max(D.minPx * Math.min(1, size), unit * sizes[kind]! * (1 + rv(i, 1) * 0.2))
+    const tr = D.start + Math.abs(rv(i, 2)) * B.spread
+    const speed = launch * speeds[kind]! * (1 + rv(i, 4) * 0.3)
+    const da = rv(i, 5) * D.cone[kind]!
+    const lifeT = D.life[kind]! * (1 + rv(i, 6) * 0.15)
+    const neck = kind === 0 ? D.swell * (1 + rv(i, 8) * 0.3) : kind === 1 ? D.swell * 0.5 : 0
+    const neckSlot = kind === 0 && necks < EMERGE_MOMENTUM_NECKS ? NECK_AT + necks++ : -1
+    const at = DRIP_AT + i
+    const tau = sec - tr
+    if (tau < -neck || tau >= lifeT) continue
+    if (tau < 0) {
+      if (!now) continue
+      const q = 1 + tau / neck
+      const e = perimeterAt(now, f, r * 0.8, B.fan)
+      const a = e.a + da * 0.3
+      const head = r * (-0.6 + 1.5 * smooth(q))
+      out[at] = { x: e.x + Math.cos(a) * head, y: e.y + Math.sin(a) * head, r: r * (0.5 + 0.5 * smooth(q)) }
+      if (neckSlot >= 0) {
+        const nk = head * 0.45
+        out[neckSlot] = { x: e.x + Math.cos(a) * nk, y: e.y + Math.sin(a) * nk, r: r * 0.7 * (1 - smooth((q - 0.65) / 0.35) * 0.6) }
+      }
+      continue
+    }
+    const e = perimeterAt(spanAt(tr), f, r * 0.8, B.fan)
+    const a = e.a + da
+    const k = (1 - Math.exp(-D.drag * tau)) / D.drag
+    const dist = (neck > 0 ? r * 0.9 : r * 0.2) + speed * k
+    const g = 0.5 * D.gravity * tau * tau
+    const life = tau / lifeT
+    const grow = neck > 0 ? 1 : 0.4 + 0.6 * smooth(tau / 0.04)
+    const rr = r * grow * (1 - 0.12 * smooth(life / 0.3)) * (1 - smooth((life - (1 - D.fade)) / D.fade))
+    out[at] = { x: e.x + Math.cos(a) * dist, y: e.y + Math.sin(a) * dist + g, r: life >= 0.995 ? 0 : rr }
+    const kk = clamp(tau / 0.08)
+    if (now && neckSlot >= 0 && kk < 1) {
+      const sp = perimeterAt(now, f, r * 0.8, B.fan)
+      out[neckSlot] = { x: sp.x + Math.cos(sp.a) * r * 0.3 * (1 - kk), y: sp.y + Math.sin(sp.a) * r * 0.3 * (1 - kk), r: r * 0.4 * (1 - smooth(kk)) }
+    }
+  }
 }
