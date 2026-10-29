@@ -1,0 +1,10 @@
+.git
+.claude
+**/node_modules
+**/dist
+**/.nuxt
+**/.output
+**/.turbo
+**/.data
+**/._*
+.DS_Store
