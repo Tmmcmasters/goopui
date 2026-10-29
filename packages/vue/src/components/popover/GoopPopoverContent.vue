@@ -2,10 +2,16 @@
 // GoopPopoverContent: shadcn-vue's PopoverContent (reka-ui PopoverContent in a portal, same
 // props/emits, `class` merge, align center / sideOffset 4) whose panel oozes out of the
 // trigger. Core's `attachEmerge` draws the panel's background as goo on an aria-hidden
-// surface behind the real, unfiltered content: a bulb swells from the trigger edge facing
-// `side`, the panel inflates out of it, the neck stretches and snaps; close sucks it back.
-// Momentum (openSlosh / openDrips / closeSlosh): the far edge sloshes and sheds drops on
-// open, the near edge sloshes against the trigger on close.
+// surface behind the real, unfiltered content. With `flow` (default) and `flowStyle: 'bloom'`
+// (default) the panel pools from its own center: a droplet (or a few fusing drops,
+// `bloomStart: 'merge'`) spreads out in every direction into the panel, its edges slosh and
+// it splashes drops off every side; close contracts it back to the center. `flowStyle:
+// 'neck'`: the goo bulges out of the trigger edge, runs across as a thick neck and swells
+// into the panel, then pinches off; close sucks it back into the trigger. `:flow="false"`: a
+// bulb swells at the trigger edge and the panel inflates out of it. Momentum (openSlosh /
+// openDrips / closeSlosh): the far edge (bloom: every edge, drops kept off the trigger) sloshes
+// and sheds drops on open; on close the near edge sloshes against the trigger (bloom: the
+// panel pulls in and wobbles before it shrinks to the center).
 //
 // The panel's shadcn background, ring and shadow move onto the goo (`--goop-color`, a
 // drop-shadow on the surface). `surface` picks the color: by default the whole emerged surface
@@ -16,6 +22,8 @@
 // `:goo="false"` it is exactly shadcn's PopoverContent. Reduced motion: plain open/close.
 import {
   attachEmerge,
+  type EmergeBloomStart,
+  type EmergeFlowStyle,
   type EmergeHandle,
   type EmergeOptions,
   type EmergeSurfaceColor,
@@ -39,17 +47,32 @@ const props = withDefaults(
       class?: HTMLAttributes['class']
       /** Master switch. `false` renders a plain shadcn PopoverContent. */
       goo?: boolean
-      /** Bulb + lumpy neck between trigger and panel. */
+      /** Flow out of the trigger (default true): goo bulges out of the trigger edge facing the
+       *  panel, runs across as a thick neck, swells into the panel and pinches off; close
+       *  sucks it back up the neck into the trigger. `false`: the panel inflates from a bulb at
+       *  the trigger edge (the original emerge). */
+      flow?: boolean
+      /** How the flow opens: 'bloom' (default: the panel pools from its own center, spreads
+       *  out in every direction with a lobed edge, overshoots and splashes all around, keeping
+       *  the drops off the trigger; close pulls in, wobbles and shrinks back to the center) or
+       *  'neck' (out of the trigger through a thick neck).
+       *  Toggles under bloom: `wobble` (open overshoot + settle), `fade`, `openSlosh` (every
+       *  edge), `openDrips` + `openDrip*` (the all-around splash), `closeSlosh` (the close's
+       *  inward wobble). `bridge` and `momentum` only apply to 'neck' / `flow: false`. */
+      flowStyle?: EmergeFlowStyle
+      /** Bloom start: 'single' (default: one droplet swells) or 'merge' (a few drops fuse). */
+      bloomStart?: EmergeBloomStart
+      /** Bulb + lumpy neck between trigger and panel (not used by bloom). */
       bridge?: boolean
-      /** Jelly overshoot and wobble. */
+      /** Jelly overshoot and wobble (bloom: the open overshoot and settle). */
       wobble?: boolean
-      /** Momentum launch away from the trigger that stretches and snaps the neck. */
+      /** Momentum launch away from the trigger that stretches and snaps the neck (not used by bloom). */
       momentum?: boolean
       /** Content fades in once the goo settles. */
       fade?: boolean
-      /** Open: the far edge bulges past rest, rebounds and wobbles. `true`, `false` or a 0..2 strength. */
+      /** Open: the far edge (bloom: every edge) bulges past rest, rebounds and wobbles. `true`, `false` or a 0..2 strength. */
       openSlosh?: boolean | number
-      /** Open: the whole far edge bursts (globs, drops, specks fling off, fall and fade). `true`, `false` or 0..2. */
+      /** Open: the whole far edge (bloom: every edge, drops kept off the trigger) bursts (globs, drops, specks fling off, fall and fade). `true`, `false` or 0..2. */
       openDrips?: boolean | number
       /** Burst drop count scale (0..3, default 1). */
       openDripAmount?: number
@@ -59,7 +82,7 @@ const props = withDefaults(
       openDripFling?: number
       /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
       openDripVariety?: number
-      /** Close: the goo lags and the near edge sloshes against the trigger. `true`, `false` or 0..2. */
+      /** Close: the goo lags and the near edge sloshes against the trigger (bloom: the panel pulls in and wobbles before it shrinks to the center). `true`, `false` or 0..2. */
       closeSlosh?: boolean | number
       /** Panel color: 'trigger' (default: the trigger's background and text color, theme
        *  primary when the trigger has none), 'popover' (shadcn's popover tokens), or a CSS color. */
@@ -76,6 +99,9 @@ const props = withDefaults(
     align: 'center',
     sideOffset: 4,
     goo: true,
+    flow: true,
+    flowStyle: 'bloom',
+    bloomStart: 'single',
     bridge: true,
     wobble: true,
     momentum: true,
@@ -99,6 +125,9 @@ const delegated = computed(() => {
   const {
     class: _class,
     goo: _goo,
+    flow: _flow,
+    flowStyle: _flowStyle,
+    bloomStart: _bloomStart,
     bridge: _bridge,
     wobble: _wobble,
     momentum: _momentum,
@@ -127,7 +156,7 @@ const surface = useTemplateRef<HTMLElement>('surface')
 const handle = shallowRef<EmergeHandle | null>(null)
 
 const SHADCN =
-  'bg-popover text-popover-foreground data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 ring-foreground/10 flex flex-col gap-2.5 rounded-lg p-2.5 text-sm shadow-md ring-1 duration-100 z-50 w-72 max-w-(--reka-popover-content-available-width) origin-(--reka-popover-content-transform-origin) outline-hidden'
+  'bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 ring-foreground/10 flex flex-col gap-2.5 rounded-lg p-2.5 text-sm shadow-md ring-1 duration-100 z-50 w-72 max-w-(--reka-popover-content-available-width) origin-(--reka-popover-content-transform-origin) outline-hidden'
 // The goo paints the background (popover color), ring and shadow; no CSS enter/exit.
 const GOO =
   'text-popover-foreground [--goop-color:var(--popover)] flex flex-col gap-2.5 rounded-lg p-2.5 text-sm z-50 w-72 max-w-(--reka-popover-content-available-width) outline-hidden'
@@ -135,6 +164,9 @@ const GOO =
 const classes = computed(() => cn(props.goo ? GOO : SHADCN, props.class))
 
 const options = computed<EmergeOptions>(() => ({
+  flow: props.flow,
+  flowStyle: props.flowStyle,
+  bloomStart: props.bloomStart,
   bridge: props.bridge,
   wobble: props.wobble,
   momentum: props.momentum,
