@@ -4,8 +4,9 @@
 // Drives every playground page (and every component pinned to the bottom-right corner of a
 // short page, /edge?c=...) in headless Chromium, fires each component's effects (slow and
 // fast hover swipes, clicks, rapid hits, open/close, drags) and samples
-// document.documentElement.scrollWidth/scrollHeight every animation frame. The baseline is
-// the same page with every goo part hidden. Any growth above it fails the check.
+// document.documentElement.scrollWidth/scrollHeight every animation frame, against the same
+// frame with every goo part hidden (so content that legitimately grows, like an accordion
+// opening, doesn't count). Any growth from goo fails the check.
 //
 // Usage: start the playground (`pnpm dev:playground`), then
 //   pnpm check:overflow                       # all cases against http://localhost:3000
@@ -47,18 +48,24 @@ const browser = await chromium.launch({
 })
 const ctx = await browser.newContext({ viewport: { width: 1024, height: 700 }, reducedMotion: 'no-preference' })
 
-/** In-page: start sampling the scroll size every frame. */
-function startSampler() {
+/** In-page: every frame, how much goo grows the scroll size over the goo-hidden page. */
+function startSampler(sel) {
   const de = document.documentElement
-  const s = (window.__ov = { w: 0, h: 0, frames: 0, worst: null, run: true })
+  const hide = document.createElement('style')
+  hide.textContent = `${sel}{display:none!important}`
+  const s = (window.__ov = { dw: 0, dh: 0, frames: 0, worst: null, run: true })
   const tick = () => {
     if (!s.run) return
     const w = de.scrollWidth
     const h = de.scrollHeight
+    document.head.append(hide)
+    const dw = w - de.scrollWidth
+    const dh = h - de.scrollHeight
+    hide.remove()
     s.frames++
-    if (w > s.w || h > s.h) {
-      s.w = Math.max(s.w, w)
-      s.h = Math.max(s.h, h)
+    if (dw > s.dw || dh > s.dh) {
+      s.dw = Math.max(s.dw, dw)
+      s.dh = Math.max(s.dh, dh)
       // Remember what stuck out at the worst frame (for VERBOSE).
       const vw = de.clientWidth + scrollX
       const vh = de.clientHeight + scrollY
@@ -175,7 +182,7 @@ async function runCase(name) {
   await page.goto(url, { waitUntil: 'load' })
   await sleep(1200)
   const base = await page.evaluate(baseline, GOO)
-  await page.evaluate(startSampler)
+  await page.evaluate(startSampler, GOO)
 
   if (edge) {
     const el = await page.$('[data-edge-target]')
@@ -232,8 +239,8 @@ for (const name of cases) {
     failed++
     continue
   }
-  const dw = Math.max(0, r.res.w - r.base.w)
-  const dh = Math.max(0, r.res.h - r.base.h)
+  const dw = Math.max(0, r.res.dw)
+  const dh = Math.max(0, r.res.dh)
   const bad = dw > 0 || dh > 0
   if (bad) failed++
   rows.push({ name, dw, dh })
