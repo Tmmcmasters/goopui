@@ -27,3 +27,9 @@ export const goopToggleColors = '[--goop-toggle-fill:var(--accent)]'
 /** While the goo is attached, a pressed toggle drops its own background: the goo is the fill
  *  (and it may still be flooding in or draining out). */
 export const goopToggleFilled = 'data-[state=on]:bg-transparent data-[state=on]:hover:bg-transparent'
+
+/** A toggle group item with the goo attached: like `goopToggleFilled`, and while its goo still
+ *  shows (core's `data-goop-filled`, set until the drain has finished) its own hover background
+ *  steps aside too. The group's goo layer sits under the items, so an un-pressed, hovered item
+ *  would otherwise cover its own drain in one frame. */
+export const goopToggleItemFilled = `${goopToggleFilled} data-[goop-filled]:bg-transparent data-[goop-filled]:hover:bg-transparent`

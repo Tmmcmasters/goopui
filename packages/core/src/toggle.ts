@@ -119,6 +119,9 @@ export interface ToggleItemPose {
   anim: ToggleAnim
   /** Sides pulled in (px) so un-merged neighbours stay apart. */
   inset?: { l: number; r: number; t: number; b: number }
+  /** Drains start receding at once (the front starts at the farthest grid circle instead of
+   *  the far corner, which held a full-looking fill for half the drain, then snapped). */
+  tightDrain?: boolean
 }
 
 /** Grid circle radius for an item: a quarter of its short side (rounded-md-ish corners). */
@@ -145,6 +148,21 @@ export function toggleGrid(rect: ToggleRect, r: number): TogglePoint[] {
 const farthest = (o: TogglePoint, rect: ToggleRect): number =>
   Math.max(Math.hypot(o.x - rect.x, o.y - rect.y), Math.hypot(o.x - rect.x - rect.w, o.y - rect.y),
     Math.hypot(o.x - rect.x, o.y - rect.y - rect.h), Math.hypot(o.x - rect.x - rect.w, o.y - rect.y - rect.h))
+
+/**
+ * Where an item's front is (px from its origin) at fill level `p`. Floods (and loose drains)
+ * scale `p` over the farthest corner plus the band; a tight drain starts from wherever the
+ * front fully covers the grid (or where it already was, if less), so it recedes at once
+ * and stays continuous with an interrupted flood.
+ */
+function frontAt(anim: ToggleAnim, p: number, o: TogglePoint, rect: ToggleRect, r: number, tight: boolean): number {
+  const band = r * 1.4
+  const D = farthest(o, rect) + band
+  if (anim.on || !tight || !(anim.from > 0)) return p * D
+  let far = 0
+  for (const c of toggleGrid(rect, r)) far = Math.max(far, Math.hypot(c.x - o.x, c.y - o.y))
+  return Math.min(anim.from * D, far + band) * (p / anim.from)
+}
 
 /** Seconds an anim's front moves for (0 when the flood is off: it snaps). */
 export function toggleAnimDuration(anim: ToggleAnim, feel: ToggleFeel, effects: ToggleEffects = TOGGLE_ALL_EFFECTS): number {
@@ -197,9 +215,8 @@ export function toggleFillCircles(
   const { anim } = item
   const o = clampIn(anim.origin, rect, r)
   const band = r * 1.4
-  const D = farthest(o, rect) + band
   const { p, full } = toggleLevel(anim, now, feel, effects)
-  const front = p * D
+  const front = frontAt(anim, p, o, rect, r, item.tightDrain === true)
   const wobble = Math.max(0, effects.wobble)
   const moving = anim.on && p < 1 && now >= anim.start && effects.flood > 0
   const crest = moving ? feel.crest * wobble * Math.min(1, (1 - p) * 3) : 0
@@ -264,7 +281,7 @@ function edgeCover(item: ToggleItemPose, edge: 'l' | 'r' | 't' | 'b', now: numbe
   if (!(p > 0)) return 0
   const o = clampIn(anim.origin, rect, r)
   const band = r * 1.4
-  const front = p * (farthest(o, rect) + band)
+  const front = frontAt(anim, p, o, rect, r, item.tightDrain === true)
   const ends: TogglePoint[] =
     edge === 'l' ? [{ x: rect.x + r, y: rect.y + r }, { x: rect.x + r, y: rect.y + rect.h - r }]
     : edge === 'r' ? [{ x: rect.x + rect.w - r, y: rect.y + r }, { x: rect.x + rect.w - r, y: rect.y + rect.h - r }]
@@ -393,13 +410,14 @@ export function togglePose(
   now: number,
   feel: ToggleFeel = TOGGLE_FEEL.playful,
   effects: ToggleEffects = TOGGLE_ALL_EFFECTS,
-  opts: { maxGap?: number; sep?: number } = {},
+  opts: { maxGap?: number; sep?: number; tightDrain?: boolean } = {},
 ): TogglePose {
   const maxGap = opts.maxGap ?? 16
   const sep = opts.sep ?? 3
   const merge = Math.max(0, effects.merge)
   const seams = items.map((it, i) => (i + 1 < items.length ? toggleSeam(it.rect, items[i + 1]!.rect, maxGap) : null))
-  const posed = items.map((it) => ({ ...it, inset: { l: 0, r: 0, t: 0, b: 0 } }))
+  const tight = opts.tightDrain ?? items.some((it) => it.tightDrain)
+  const posed = items.map((it) => ({ ...it, inset: { l: 0, r: 0, t: 0, b: 0 }, tightDrain: tight }))
   if (!(merge > 0)) {
     // Un-merged neighbours: pull the facing sides in so the goo can't melt them together.
     seams.forEach((s, i) => {
@@ -427,7 +445,7 @@ export function togglePose(
     let m = 0
     if (s && merge > 0) {
       const [ea, eb] = s.axis === 'x' ? (s.flip ? (['l', 'r'] as const) : (['r', 'l'] as const)) : s.flip ? (['t', 'b'] as const) : (['b', 't'] as const)
-      m = Math.min(1, merge) * Math.min(edgeCover(items[i]!, ea, now, feel, effects), edgeCover(items[i + 1]!, eb, now, feel, effects))
+      m = Math.min(1, merge) * Math.min(edgeCover(posed[i]!, ea, now, feel, effects), edgeCover(posed[i + 1]!, eb, now, feel, effects))
     }
     bridges.push(m)
     if (s) circles.push(...toggleBridgeCircles(items[i]!.rect, items[i + 1]!.rect, m, maxGap))
@@ -493,7 +511,10 @@ const effectsOf = (o: ToggleGroupOptions): ToggleEffects => ({
 /** Press points older than this (ms) are ignored (the change came from somewhere else). */
 const PRESS_MS = 1200
 
-function attachEngine(host: HTMLElement, getItems: () => HTMLElement[], options: ToggleGroupOptions, part: string): ToggleHandle {
+/** Set on a group item while its goo shows (pressed or still draining). */
+export const TOGGLE_FILLED_ATTR = 'data-goop-filled'
+
+function attachEngine(host: HTMLElement, getItems: () => HTMLElement[], options: ToggleGroupOptions, part: string, markFill = false): ToggleHandle {
   const doc = host.ownerDocument
   const win = doc.defaultView
   let opts: ToggleGroupOptions = { ...options }
@@ -559,9 +580,17 @@ function attachEngine(host: HTMLElement, getItems: () => HTMLElement[], options:
     if (reduced) {
       // Static: pressed items full, merges kept, nothing in flight.
       const still = items.map((it) => ({ ...it, anim: { ...it.anim, from: it.anim.on ? 1 : 0, start: -1e6, splash: false } }))
-      last = togglePose(still, [], 0, feel, effects, { sep: (params?.blur ?? 3) * 1.2 })
+      last = togglePose(still, [], 0, feel, effects, { sep: (params?.blur ?? 3) * 1.2, tightDrain: markFill })
     } else {
-      last = togglePose(items, flights, now, feel, effects, { sep: (params?.blur ?? 3) * 1.2 })
+      last = togglePose(items, flights, now, feel, effects, { sep: (params?.blur ?? 3) * 1.2, tightDrain: markFill })
+    }
+    if (markFill) {
+      // Items whose goo is showing (pressed, or still draining) are marked so their own hover
+      // background, which paints above the group's goo layer, can step aside until it is gone.
+      els.forEach((el, i) => {
+        const filled = (last!.levels[i] ?? 0) > 0.001
+        if (filled !== el.hasAttribute(TOGGLE_FILLED_ATTR)) el.toggleAttribute(TOGGLE_FILLED_ATTR, filled)
+      })
     }
     const cs = last.circles
     while (blobs.length < cs.length) blobs.push(layer.createBlob())
@@ -632,7 +661,10 @@ function attachEngine(host: HTMLElement, getItems: () => HTMLElement[], options:
       if (isOn(el) !== a.on) (a.on ? turnedOff : turnedOn).push(i)
     })
     // Drop anims of removed items.
-    for (const el of anims.keys()) if (!els.includes(el)) anims.delete(el)
+    for (const el of anims.keys()) if (!els.includes(el)) {
+      anims.delete(el)
+      if (markFill) el.removeAttribute(TOGGLE_FILLED_ATTR)
+    }
     if (!turnedOn.length && !turnedOff.length) return
     reduced = readReduced()
     const pressAt = (i: number): TogglePoint => {
@@ -669,7 +701,8 @@ function attachEngine(host: HTMLElement, getItems: () => HTMLElement[], options:
       restart(ia, false, exit)
       restart(ib, true, entry, toggleFlightLand(fl))
     } else {
-      flights = []
+      // A blob still in flight keeps going and soaks away where it lands (that item now drains
+      // or floods from its own press), instead of vanishing in one frame.
       for (const i of turnedOff) restart(i, false, pressAt(i))
       for (const i of turnedOn) restart(i, true, pressAt(i))
     }
@@ -740,6 +773,7 @@ function attachEngine(host: HTMLElement, getItems: () => HTMLElement[], options:
       unwatch()
       host.removeEventListener('pointerdown', onPointerDown, true)
       teardown()
+      if (markFill) for (const el of anims.keys()) el.removeAttribute(TOGGLE_FILLED_ATTR)
       anims = new Map()
       flights = []
       host.style.isolation = prevIsolation
@@ -765,7 +799,7 @@ export function attachToggle(host: HTMLElement, options: ToggleOptions = {}): To
 export function attachToggleGroup(host: HTMLElement, options: ToggleGroupOptions = {}): ToggleHandle {
   let selector = options.item ?? '[aria-pressed]'
   const items = (): HTMLElement[] => Array.from(host.querySelectorAll<HTMLElement>(selector))
-  const h = attachEngine(host, items, options, 'toggle-group')
+  const h = attachEngine(host, items, options, 'toggle-group', true)
   return {
     ...h,
     update(next = {}) {

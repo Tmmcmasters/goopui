@@ -6,7 +6,7 @@ import type { AcceptableValue } from 'reka-ui'
 import { cn } from 'cn'
 import { ToggleGroupItem } from 'reka-ui'
 import { computed, type HTMLAttributes, type PropType } from 'vue'
-import { goopToggleFilled, toggleVariants, type ToggleVariants } from '../toggle/variants'
+import { goopToggleItemFilled, toggleVariants, type ToggleVariants } from '../toggle/variants'
 import { injectGoopToggleGroup } from './context'
 import { toggleGroupItemVariants } from './variants'
 
@@ -35,7 +35,7 @@ const classes = computed(() =>
   cn(
     toggleVariants({ variant: variant.value, size: size.value }),
     toggleGroupItemVariants(),
-    active.value && goopToggleFilled,
+    active.value && goopToggleItemFilled,
     props.class,
   ),
 )

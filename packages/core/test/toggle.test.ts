@@ -4,6 +4,7 @@ import {
   TOGGLE_ALL_EFFECTS,
   TOGGLE_BRIDGE_MAX,
   TOGGLE_FEEL,
+  TOGGLE_FILLED_ATTR,
   TOGGLE_FLIGHT_CIRCLES,
   TOGGLE_ITEM_EXTRA,
   activeTickerCount,
@@ -119,6 +120,37 @@ describe('toggle merge and flow', () => {
     expect(tear(feel.drain)).toBe(0)
   })
 
+  it('a tight (group) drain recedes from its first frame and stays continuous', () => {
+    const g = toggleGrid(A, 9).length
+    const area = (cs: GooCircle[]): number => cs.slice(0, g).reduce((s, c) => s + c.r * c.r, 0)
+    const at = (u: number, tight: boolean): number => area(toggleFillCircles({ rect: A, anim: drain(), tightDrain: tight }, feel.drain * u, feel, fx))
+    const rest = area(toggleFillCircles({ rect: A, anim: full }, 0, feel, fx))
+    expect(at(0, true)).toBeCloseTo(rest, 3)
+    // Old shape: a quarter in, the loose drain still looks full; the tight one has visibly receded.
+    expect(at(0.25, false)).toBeCloseTo(rest, 3)
+    expect(at(0.25, true)).toBeLessThan(rest * 0.97)
+    expect(at(0.5, true)).toBeLessThan(rest * 0.8)
+    // Monotonic and done at the end.
+    let prev = Infinity
+    for (let u = 0; u <= 1.0001; u += 0.05) {
+      const a = at(u, true)
+      expect(a).toBeLessThanOrEqual(prev + 1e-6)
+      prev = a
+    }
+    expect(visible(toggleFillCircles({ rect: A, anim: drain(), tightDrain: true }, feel.drain, feel, fx))).toHaveLength(0)
+  })
+
+  it('a tight drain that interrupts a flood starts where the flood front was', () => {
+    const g = toggleGrid(A, 9).length
+    const t = feel.flood * 0.3
+    const fl = flood()
+    const p = toggleLevel(fl, t, feel, { ...fx, wobble: 0 }).p
+    const noCrest = { ...fx, wobble: 0, droplets: 0 }
+    const before = toggleFillCircles({ rect: A, anim: fl }, t, feel, noCrest).slice(0, g)
+    const after = toggleFillCircles({ rect: A, anim: { on: false, origin: fl.origin, start: t, from: p, splash: false }, tightDrain: true }, t, feel, noCrest).slice(0, g)
+    after.forEach((c, i) => expect(c.r).toBeCloseTo(before[i]!.r, 6))
+  })
+
   it('flight gathers, stretches on a neck, travels and soaks in', () => {
     const f = { from: { x: 63, y: 18 }, to: { x: 200, y: 18 }, start: 0, gather: 0.15, travel: 0.3, r: 11, bridged: true }
     expect(toggleFlightPose(f, 0, feel, fx).circles).toHaveLength(TOGGLE_FLIGHT_CIRCLES)
@@ -187,5 +219,47 @@ describe('attachToggle / attachToggleGroup', () => {
     expect(h.pose!.circles.length).toBeGreaterThan(3 * TOGGLE_ITEM_EXTRA)
     h.destroy()
     expect(activeTickerCount()).toBe(0)
+  })
+
+  it('group: an un-pressed item is marked filled until its drain has finished', async () => {
+    const root = document.createElement('div')
+    const items = [button(true), button(true)]
+    root.append(...items)
+    document.body.append(root)
+    const h = attachToggleGroup(root)
+    expect(items.every((b) => b.hasAttribute(TOGGLE_FILLED_ATTR))).toBe(true)
+    press(items[1]!, false)
+    h.update({ value: ['a'] })
+    // Still draining: its own hover background must not cover the goo yet.
+    expect(items[1]!.hasAttribute(TOGGLE_FILLED_ATTR)).toBe(true)
+    expect(h.running).toBe(true)
+    await new Promise((r) => setTimeout(r, (feel.drain + 0.25) * 1000))
+    expect(h.pose!.levels).toEqual([1, 0])
+    expect(items[1]!.hasAttribute(TOGGLE_FILLED_ATTR)).toBe(false)
+    expect(items[0]!.hasAttribute(TOGGLE_FILLED_ATTR)).toBe(true)
+    h.destroy()
+    expect(items[0]!.hasAttribute(TOGGLE_FILLED_ATTR)).toBe(false)
+    // A single toggle is never marked (its goo layer sits under its own background).
+    const b = button(true)
+    const t = attachToggle(b)
+    expect(b.hasAttribute(TOGGLE_FILLED_ATTR)).toBe(false)
+    t.destroy()
+  })
+
+  it('group: deselecting mid-flow keeps the blob in flight instead of dropping it', () => {
+    const root = document.createElement('div')
+    const items = [button(true), button(), button()]
+    root.append(...items)
+    document.body.append(root)
+    const h = attachToggleGroup(root)
+    const n = h.pose!.circles.length
+    press(items[0]!, false)
+    press(items[2]!, true)
+    h.update({ value: 'c' })
+    press(items[2]!, false)
+    h.update({ value: null })
+    expect(h.pose!.circles.length).toBe(n + TOGGLE_FLIGHT_CIRCLES)
+    expect(h.running).toBe(true)
+    h.destroy()
   })
 })
