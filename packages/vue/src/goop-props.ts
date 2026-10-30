@@ -16,6 +16,9 @@
 // change at all: they come from GOOP_DEFAULTS and show up as props automatically.
 
 import {
+  ACCORDION_EFFECTS,
+  type AccordionEffect,
+  type AccordionOptions,
   GOOP_DEFAULTS,
   GOOP_PRESETS,
   GOOP_VAR_META,
@@ -1064,5 +1067,60 @@ export function toDrawerOptions(props: GoopDrawerProps, config: GoopOptions = {}
   }
   if (props.speed !== undefined) out.speed = props.speed
   for (const k of DRAWER_EFFECTS) if (props[k] !== undefined) out[k] = props[k]
+  return out
+}
+
+// ---- GoopAccordion / GoopCollapsible ----------------------------------------------------------
+// Core `attachAccordion` on each item (and on the collapsible root): ACCORDION_EFFECTS (fill,
+// drips, jelly, slosh, source, handoff), each `true` (default), `false`, or a 0..2 strength,
+// plus speed / preset / renderer. Set them on GoopAccordion (every item follows) or
+// GoopCollapsible. `goo: false` is plain shadcn.
+
+/** Every GoopAccordion / GoopCollapsible engine prop. */
+export const ACCORDION_PROP_KEYS = ['goo', ...ACCORDION_EFFECTS, 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopAccordion and GoopCollapsible. */
+export interface GoopAccordionProps {
+  /** Master switch. `false` renders a plain shadcn Accordion / Collapsible. */
+  goo?: boolean
+  /** The open content sits on a goo card that pours down out of the trigger. */
+  fill?: boolean | number
+  /** Drips lead the goo down on open and hang off it as it is sucked back up. `true`, `false` or 0..2. */
+  drips?: boolean | number
+  /** Jelly overshoot + wobble when the fill lands. `true`, `false` or 0..2. */
+  jelly?: boolean | number
+  /** The chevron blob sloshes after the goo is sucked back in. `true`, `false` or 0..2. */
+  slosh?: boolean | number
+  /** A goo blob behind the chevron (collapsible: the trigger) that the goo pours out of. */
+  source?: boolean | number
+  /** Accordion: liquid moves from the closing item into the opening one. `true`, `false` or 0..2. */
+  handoff?: boolean | number
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+/** Compile-time guards: every accordion option core grows must be a prop (or adapter-owned). */
+type AccordionAdapterOwned = 'open' | 'flow' | 'reducedMotion'
+type AccordionUnhandled = Exclude<keyof AccordionOptions | AccordionEffect, keyof GoopAccordionProps | AccordionAdapterOwned>
+const _allAccordionOptionsHandled: [AccordionUnhandled] extends [never] ? true : { unhandled: AccordionUnhandled } = true
+void _allAccordionOptionsHandled
+type AccordionPropsListed = Exclude<keyof GoopAccordionProps, (typeof ACCORDION_PROP_KEYS)[number]>
+const _allAccordionPropsListed: [AccordionPropsListed] extends [never] ? true : { unlisted: AccordionPropsListed } = true
+void _allAccordionPropsListed
+
+/** Accordion options from props, over app config, or null when the goo is off. */
+export function toAccordionOptions(props: GoopAccordionProps, config: GoopOptions = {}): AccordionOptions | null {
+  if (props.goo === false) return null
+  const out: AccordionOptions = {
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+  if (props.speed !== undefined) out.speed = props.speed
+  for (const k of ACCORDION_EFFECTS) if (props[k] !== undefined) out[k] = props[k]
   return out
 }

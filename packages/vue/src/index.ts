@@ -17,6 +17,8 @@ export * from './components/dialog'
 export * from './components/alert-dialog'
 export * from './components/sheet'
 export * from './components/drawer'
+export * from './components/accordion'
+export * from './components/collapsible'
 export { GOOP_CONFIG_KEY, GoopPlugin, provideGoopConfig, useGoopConfig, type GoopConfig } from './config'
 export {
   CSS_VAR_KEYS,
@@ -54,6 +56,9 @@ export {
   toSliderOptions,
   toSwitchOptions,
   TOASTER_PROP_KEYS,
+  ACCORDION_PROP_KEYS,
+  toAccordionOptions,
+  type GoopAccordionProps,
   toToasterOptions,
   SHEET_PROP_KEYS,
   toSheetOptions,

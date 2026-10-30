@@ -78,6 +78,13 @@ export const goopComponents = [
   'GoopDrawerOverlay',
   'GoopDrawerTitle',
   'GoopDrawerTrigger',
+  'GoopAccordion',
+  'GoopAccordionContent',
+  'GoopAccordionItem',
+  'GoopAccordionTrigger',
+  'GoopCollapsible',
+  'GoopCollapsibleContent',
+  'GoopCollapsibleTrigger',
 ] as const
 
 export type GoopComponentName = (typeof goopComponents)[number]

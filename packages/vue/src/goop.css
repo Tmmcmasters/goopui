@@ -162,6 +162,26 @@
     transition: none;
   }
 
+  /* Accordion / Collapsible (GoopAccordionItem, GoopCollapsible): core draws the open item as
+     a goo card (--goop-accordion-fill, default the muted token) behind the real trigger and
+     content, and publishes its timing so the content's height reveal follows the goo: it
+     waits for the lead drips (--goop-accordion-delay), opens over --goop-accordion-open and
+     collapses over --goop-accordion-close. Heights come from reka's content-height vars. Core
+     marks the host data-goop-still under reduced motion: no height animation. */
+  [data-goop-accordion] > [data-goop='layer'] {
+    border-radius: var(--goop-accordion-radius, 0.75rem) !important;
+  }
+  [data-goop-accordion] [data-goop-accordion-content][data-state='open'] {
+    animation: goop-accordion-down var(--goop-accordion-open, 0.2s) cubic-bezier(0.45, 0, 0.25, 1)
+      var(--goop-accordion-delay, 0s) both;
+  }
+  [data-goop-accordion] [data-goop-accordion-content][data-state='closed'] {
+    animation: goop-accordion-up var(--goop-accordion-close, 0.2s) cubic-bezier(0.3, 0, 0.6, 1) both;
+  }
+  [data-goop-accordion][data-goop-still] [data-goop-accordion-content] {
+    animation: none;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     [data-goop-host] > [data-goop='layer'] {
       transition: none;
@@ -173,6 +193,28 @@
   html[data-reduced-motion='true'] [data-goop-host] > [data-goop='layer'],
   html[data-reduced-motion='true'] [data-goop-mark] {
     transition: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-goop-accordion] [data-goop-accordion-content] {
+      animation: none;
+    }
+  }
+}
+
+@keyframes goop-accordion-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--reka-accordion-content-height, var(--reka-collapsible-content-height));
+  }
+}
+@keyframes goop-accordion-up {
+  from {
+    height: var(--reka-accordion-content-height, var(--reka-collapsible-content-height));
+  }
+  to {
+    height: 0;
   }
 }
 
