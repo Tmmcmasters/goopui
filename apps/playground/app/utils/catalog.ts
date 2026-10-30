@@ -17,6 +17,7 @@ export const catalog: CatalogEntry[] = [
   { path: '/radio-group', goop: 'GoopRadioGroup', shadcn: 'RadioGroup', blurb: 'The dot is a goo blob that jumps between items.' },
   { path: '/popover', goop: 'GoopPopover', shadcn: 'Popover', blurb: 'Goo bridge from trigger to content.' },
   { path: '/dropdown', goop: 'GoopDropdown', shadcn: 'DropdownMenu', blurb: 'Goo bridge on open, crisp items.' },
+  { path: '/select', goop: 'GoopSelect', shadcn: 'Select', blurb: 'List blooms out of the selected value; goo highlight, check plops in.' },
   { path: '/tabs', goop: 'GoopTabs', shadcn: 'Tabs', blurb: 'Active-tab goo blob that slides with momentum.' },
   { path: '/tooltip', goop: 'GoopTooltip', shadcn: 'Tooltip', blurb: 'Tooltip oozes out of its trigger.' },
   { path: '/slider', goop: 'GoopSlider', shadcn: 'Slider', blurb: 'Jelly goo thumb over a sloshing liquid fill.' },

@@ -160,8 +160,11 @@ export interface EmergeBridge {
   /** The anchor's facing edge as a cross range, panel-local (flow mode spreads over it). */
   anchorLo: number
   anchorHi: number
-  /** The anchor's rect, panel-local (the bloom splash keeps its drops off it). */
+  /** The anchor's rect, panel-local (the bloom splash keeps its drops off it). Absent when
+   *  the panel covers the anchor (a select's item-aligned list sits over its trigger). */
   anchorRect?: EmergeRect
+  /** Bloom: where the puddle starts (and shrinks back to), panel-local. Default the center. */
+  origin?: EmergePoint
   /** Points on the anchor edge and the panel's near edge, panel-local. */
   source: EmergePoint
   target: EmergePoint
@@ -232,6 +235,14 @@ export function emergeBridge(
   const sourceCross = clamp(targetCross, a0 + aIn, Math.max(a0 + aIn, a1 - aIn))
   const dir = side === 'bottom' ? { x: 0, y: 1 } : side === 'top' ? { x: 0, y: -1 } : side === 'right' ? { x: 1, y: 0 } : { x: -1, y: 0 }
   const frame = { side, width, height }
+  // A panel lying over its anchor has nothing to keep clear of (and no gap to bulge into).
+  const covered =
+    anchor.width > 0 &&
+    anchor.height > 0 &&
+    anchor.x < panel.x + width &&
+    anchor.x + anchor.width > panel.x &&
+    anchor.y < panel.y + height &&
+    anchor.y + anchor.height > panel.y
   return {
     side,
     dir,
@@ -245,7 +256,9 @@ export function emergeBridge(
     bulb,
     anchorLo: a0,
     anchorHi: a1,
-    anchorRect: { x: anchor.x - panel.x, y: anchor.y - panel.y, width: Math.max(0, anchor.width), height: Math.max(0, anchor.height) },
+    anchorRect: covered
+      ? undefined
+      : { x: anchor.x - panel.x, y: anchor.y - panel.y, width: Math.max(0, anchor.width), height: Math.max(0, anchor.height) },
     source: toLocal(frame, -gap, sourceCross),
     target: toLocal(frame, 0, targetCross),
   }
@@ -639,6 +652,16 @@ function rectReach(a: number, b: number, th: number): number {
   return Math.min(c > 1e-6 ? a / c : Infinity, s > 1e-6 ? b / s : Infinity)
 }
 
+/** The bloom's start point (panel-local): `b.origin` kept a droplet radius inside the panel,
+ *  else the center. Pure. */
+export function bloomOrigin(b: Pick<EmergeBridge, 'width' | 'height' | 'origin'>, drop = 0): EmergePoint {
+  const W = b.width
+  const H = b.height
+  if (!b.origin) return { x: W / 2, y: H / 2 }
+  const r = Math.min(drop / 2, W / 2, H / 2)
+  return { x: clamp(b.origin.x, r, Math.max(r, W - r)), y: clamp(b.origin.y, r, Math.max(r, H - r)) }
+}
+
 /** `slosh`: closeSlosh strength (0..2), the close's inward pull-and-wobble. */
 function bloomPose(t: number, b: EmergeBridge, phase: EmergePhase, feel: EmergeFeel, fx: Required<EmergeEffects>, seed: number, slosh = 1): EmergePose {
   const circles: EmergeCircle[] = Array.from({ length: EMERGE_CIRCLES }, zero)
@@ -648,6 +671,8 @@ function bloomPose(t: number, b: EmergeBridge, phase: EmergePhase, feel: EmergeF
   const H = b.height
   const cx = W / 2
   const cy = H / 2
+  // Start point (bloom origin, else the center). The body's center slides from it to the
+  // panel's center as it spreads, so the puddle grows out of that spot and stays inside.
   const m = Math.min(W, H)
   const merge = fx.bloomStart === 'merge'
   const d0 = clamp(m * BLOOM.drop, BLOOM.dropMin, BLOOM.dropMax) * (merge ? 0.7 : 1)
@@ -683,10 +708,13 @@ function bloomPose(t: number, b: EmergeBridge, phase: EmergePhase, feel: EmergeF
   }
   let w = Math.max(0, (d0 + (W - d0) * base) * appear + 2 * ov)
   let h = Math.max(0, (d0 + (H - d0) * base) * appear + 2 * ov)
-  // The overshoot stops short of the trigger: the edge facing it only bulges into the gap.
-  let bcx = cx
-  let bcy = cy
-  const trim = Math.max(0, ov - Math.max(0, b.gap - BLOOM.clear))
+  const o = bloomOrigin(b, d0)
+  const ob = clamp(base)
+  let bcx = lerp(o.x, cx, ob)
+  let bcy = lerp(o.y, cy, ob)
+  // The overshoot stops short of the trigger: the edge facing it only bulges into the gap
+  // (no trigger to clear when the panel covers it).
+  const trim = b.anchorRect ? Math.max(0, ov - Math.max(0, b.gap - BLOOM.clear)) : 0
   if (trim > 0) {
     if (b.dir.x !== 0) w = Math.max(0, w - trim)
     else h = Math.max(0, h - trim)
@@ -732,8 +760,8 @@ function bloomPose(t: number, b: EmergeBridge, phase: EmergePhase, feel: EmergeF
       const r = rd * (0.75 + 0.5 * hash(seed, k, 7)) * grow * fuse * (1 + 0.4 * smooth((t - 0.08) / 0.15))
       if (r < 0.3) continue
       circles[EMERGE_BLOOM_LOBES + k] = {
-        x: cx + Math.cos(ph) * W * BLOOM.seedSpread * rad * pull,
-        y: cy + Math.sin(ph) * H * BLOOM.seedSpread * rad * pull,
+        x: o.x + Math.cos(ph) * W * BLOOM.seedSpread * rad * pull,
+        y: o.y + Math.sin(ph) * H * BLOOM.seedSpread * rad * pull,
         r,
       }
     }
@@ -792,6 +820,10 @@ export interface EmergeOptions extends EmergeEffects, EmergeMomentumEffects, Eme
   anchor?: Element | (() => Element | EmergeRect | null | undefined) | null
   /** Side of the anchor the panel is on. Default: the host's `data-side`, then 'bottom'. */
   side?: EmergeSide | (() => EmergeSide | null | undefined)
+  /** Bloom style: where the puddle starts and shrinks back to, an element (its center) or a
+   *  point (same space as `host.getBoundingClientRect()`). null / absent: the panel's center.
+   *  Read every frame (a select passes its selected item). */
+  bloomOrigin?: Element | (() => Element | EmergePoint | null | undefined) | null
   /** Animation speed multiplier. Default 1. */
   speed?: number
   /** Feel preset. Default: `--goop-preset` on the host, then 'playful'. */
@@ -949,6 +981,17 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
     return 'getBoundingClientRect' in a ? rectOf(a) : a
   }
 
+  const originPoint = (): EmergePoint | null => {
+    const g = opts.bloomOrigin
+    const o = typeof g === 'function' ? g() : g
+    if (!o) return null
+    if ('getBoundingClientRect' in o) {
+      const r = rectOf(o)
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 }
+    }
+    return o
+  }
+
   let colors: EmergeSurfaceColors | null = null
   /** Resolve the surface colors now (on open, so a reopen picks up theme / trigger changes). */
   const applyColors = (): void => {
@@ -986,7 +1029,10 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
       width: s === 'top' || s === 'bottom' ? 36 : 1,
       height: s === 'top' || s === 'bottom' ? 1 : 36,
     }
-    return emergeBridge(a, p, s, feel)
+    const b = emergeBridge(a, p, s, feel)
+    const o = originPoint()
+    if (o) b.origin = { x: o.x - p.x, y: o.y - p.y }
+    return b
   }
 
   const setPad = (side: number, bottom: number): void => {

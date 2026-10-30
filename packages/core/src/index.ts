@@ -195,6 +195,7 @@ export {
   attachEmerge,
   EMERGE_DETACHED_ANCHOR,
   emergeDetachedBridge,
+  bloomOrigin,
   emergeBloomDuration,
   emergeBridge,
   emergeFlowDuration,
@@ -598,3 +599,18 @@ export {
   type InputRipple,
   type RingPoint,
 } from './input'
+export {
+  SELECT_EFFECTS,
+  SELECT_PLOP_FEEL,
+  findSelectOrigin,
+  plopIn,
+  selectBloomsFromItem,
+  selectPlopFrame,
+  selectPlopKeyframes,
+  type SelectBloomFrom,
+  type SelectEffect,
+  type SelectPlopFeel,
+  type SelectPlopFrame,
+  type SelectPlopOptions,
+  type SelectPosition,
+} from './select'
