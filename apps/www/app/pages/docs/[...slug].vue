@@ -38,6 +38,12 @@ useSeoMeta({
           >
             Coming soon
           </span>
+          <span
+            v-else-if="page.badge === 'experimental'"
+            class="rounded-full bg-[color-mix(in_oklch,var(--goo)_16%,transparent)] px-2 py-0.5 align-middle font-mono text-[11px] font-normal uppercase tracking-wider text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--goo)_70%,transparent)]"
+          >
+            New · experimental
+          </span>
         </h1>
         <p v-if="page.description" class="mt-4 text-lg leading-relaxed text-muted-foreground text-pretty">
           {{ page.description }}

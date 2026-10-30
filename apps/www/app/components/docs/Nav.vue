@@ -18,6 +18,9 @@ const { data: nav } = await useDocsNav()
           >
             <span>{{ item.title }}</span>
             <span v-if="item.status === 'soon'" class="soon">soon</span>
+            <span v-else-if="item.badge === 'experimental'" class="new" title="New · experimental">
+              New<span class="sr-only"> · experimental</span>
+            </span>
           </NuxtLink>
         </li>
       </ul>
@@ -47,5 +50,17 @@ const { data: nav } = await useDocsNav()
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--subtle);
+}
+.new {
+  border-radius: 999px;
+  padding: 0 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--foreground);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--goo) 70%, transparent);
+  background: color-mix(in oklch, var(--goo) 16%, transparent);
 }
 </style>
