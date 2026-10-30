@@ -89,6 +89,16 @@
     animation: goop-emerge-hold var(--goop-emerge-close, 0ms) linear both;
   }
 
+  /* Dialog overlay (GoopDialogOverlay): core pours an opaque goo sheet; the surface's opacity
+     dims the page (goo can't paint translucent color). Tune with --goop-backdrop-color /
+     --goop-backdrop-opacity. The hold keeps reka's Presence mounted while it drains. */
+  [data-goop-backdrop] {
+    --goop-color: var(--goop-backdrop-color, #000);
+  }
+  [data-goop-backdrop][data-state='closed']:not([data-goop-still]) {
+    animation: goop-emerge-hold var(--goop-backdrop-close, 0ms) linear both;
+  }
+
   /* Menu highlight blob (GoopDropdownMenu): core inserts it behind the items and mirrors the
      item's data-variant. Goo can't paint translucent color, so the destructive tint is mixed
      opaque over the popover color. */

@@ -13,6 +13,8 @@ export * from './components/tooltip'
 export * from './components/slider'
 export * from './components/progress'
 export * from './components/sonner'
+export * from './components/dialog'
+export * from './components/alert-dialog'
 export { GOOP_CONFIG_KEY, GoopPlugin, provideGoopConfig, useGoopConfig, type GoopConfig } from './config'
 export {
   CSS_VAR_KEYS,
@@ -23,6 +25,11 @@ export {
   MENU_PROP_KEYS,
   TABS_PROP_KEYS,
   TOOLTIP_PROP_KEYS,
+  DIALOG_PROP_KEYS,
+  toDialogOptions,
+  toBackdropOptions,
+  type GoopDialogProps,
+  type GoopDialogKind,
   GOOP_TUNING_KEYS,
   diffOptions,
   goopPropMeta,
