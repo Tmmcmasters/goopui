@@ -1,211 +1,103 @@
 <script setup lang="ts">
-import type { GoopOptions } from '@goopui/core'
+import { NuxtLink } from '#components'
 
-// The live card is a goo stage: its controls (Drip, per-instance Slow-mo, Let it fly)
-// reach every button inside it. See utils/goopStage.ts.
-const stage = createGoopStage()
+// The catalog index: every component, grouped, each linking to its docs page.
+type Item = { name: string; slug: string; note: string; new?: boolean }
 
-const still: GoopOptions = { interactive: false, drips: false }
-
-const soon = [
-  { name: 'Spinner', slug: 'spinner', note: 'Blobs that orbit and merge.' },
-  { name: 'Switch', slug: 'switch', note: 'The thumb stretches across the track.' },
-  { name: 'Popover', slug: 'popover', note: 'A goo bridge from trigger to content.' },
-  { name: 'Dropdown', slug: 'dropdown', note: 'Opens with a pinch, menu items stay crisp.' },
-  { name: 'Blob', slug: 'blob', note: 'Backgrounds that ooze. The perf stress test.' },
-] as const
+const groups: { title: string; items: Item[] }[] = [
+  {
+    title: 'Forms',
+    items: [
+      { name: 'Input', slug: 'input', note: 'Focus flows a goo ring around the border.', new: true },
+      { name: 'Textarea', slug: 'textarea', note: 'The same focus ring, for long text.', new: true },
+      { name: 'Select', slug: 'select', note: 'The list blooms out of the selected item.', new: true },
+      { name: 'Checkbox', slug: 'checkbox', note: 'Checking drops goo into the box.' },
+      { name: 'RadioGroup', slug: 'radio-group', note: 'The dot flies between options and splats.' },
+      { name: 'Switch', slug: 'switch', note: 'Colour floods in on impact.' },
+      { name: 'Slider', slug: 'slider', note: 'Goo thumbs on a liquid range.' },
+    ],
+  },
+  {
+    title: 'Actions',
+    items: [
+      { name: 'Button', slug: 'button', note: 'Drips, splashes, shockwaves, oil.' },
+      { name: 'Toggle', slug: 'toggle', note: 'Floods with goo when pressed.', new: true },
+      { name: 'ToggleGroup', slug: 'toggle-group', note: 'The fill flows from item to item.' },
+      { name: 'DropdownMenu', slug: 'dropdown-menu', note: 'Blooms open, items stay crisp.' },
+      { name: 'Tabs', slug: 'tabs', note: 'The active blob slides with momentum.' },
+    ],
+  },
+  {
+    title: 'Overlays',
+    items: [
+      { name: 'Dialog', slug: 'dialog', note: 'Blooms from its centre with a big splash.', new: true },
+      { name: 'AlertDialog', slug: 'alert-dialog', note: 'A lighter splash for hard questions.', new: true },
+      { name: 'Sheet', slug: 'sheet', note: 'Blooms in from the screen edge.', new: true },
+      { name: 'Drawer', slug: 'drawer', note: 'Drag it; it rubber-bands and snaps.', new: true },
+      { name: 'Popover', slug: 'popover', note: 'Blooms with a big splash.' },
+      { name: 'Tooltip', slug: 'tooltip', note: 'A small bloom on every hover.' },
+    ],
+  },
+  {
+    title: 'Feedback and layout',
+    items: [
+      { name: 'Toaster', slug: 'toaster', note: 'Sonner toasts, gooey.' },
+      { name: 'Progress', slug: 'progress', note: 'Fills like liquid, with the odd drip.' },
+      { name: 'Spinner', slug: 'spinner', note: 'Blobs that orbit and merge.' },
+      { name: 'Accordion', slug: 'accordion', note: 'Floods the open row; opens on a jelly spring.', new: true },
+      { name: 'Collapsible', slug: 'collapsible', note: 'The accordion, one section.', new: true },
+    ],
+  },
+]
+const { docPath } = useComponentDocs()
+const total = groups.reduce((n, g) => n + g.items.length, 0)
 </script>
 
 <template>
   <section class="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28" aria-labelledby="components">
-    <LandingSectionHead id="components" index="02" label="Components" title="Button drips today. The rest are on the way.">
-      GoopButton is the first one, and it's live below. Hover to drip, swipe through fast to splash, click for a
-      shockwave. The others ship in order.
+    <LandingSectionHead id="components" :title="`${total} components, all of them gooey.`">
+      The shadcn catalog you already use, each on the same reka-ui primitive. Every one is in the grid above; here's where
+      their docs live.
     </LandingSectionHead>
 
-    <div class="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <!-- Live: Button -->
-      <article v-reveal class="card sm:col-span-2 lg:row-span-2">
-        <div class="card-stage stage-lg flex-col gap-10">
-          <div class="flex flex-wrap items-center justify-center gap-4 px-4">
-            <GoopButton :ref="stage.register" v-bind="stage.props">Button</GoopButton>
-            <GoopButton :ref="stage.register" v-bind="stage.props" variant="destructive">Delete</GoopButton>
-            <GoopButton :ref="stage.register" v-bind="stage.props" variant="secondary">Secondary</GoopButton>
-          </div>
-          <div class="flex flex-wrap items-center justify-center gap-4 px-4">
-            <GoopButton :ref="stage.register" v-bind="stage.props" size="sm">Small</GoopButton>
-            <GoopButton
-              :ref="stage.register"
-              v-bind="stage.props"
-              class="rounded-full bg-goo text-goo-foreground [--goop-color:var(--goo)]"
-            >
-              Pill
-            </GoopButton>
-            <GoopButton
-              :ref="stage.register"
-              v-bind="stage.props"
-              size="lg"
-              finish="oil"
-              class="bg-oil text-oil-foreground [--goop-color:var(--oil)]"
-            >
-              Crude oil
-            </GoopButton>
-          </div>
-        </div>
-        <footer class="card-foot">
-          <div class="min-w-0">
-            <p class="flex items-center gap-2 font-mono text-[13px]">
-              GoopButton <span class="pill pill-live">live</span>
-            </p>
-            <p class="mt-1 text-sm text-muted-foreground">Drips, splashes, shockwaves, and an oil finish.</p>
-          </div>
-          <StageControls class="shrink-0" :stage="stage" />
-        </footer>
-      </article>
-
-      <!-- Coming soon: static goo previews -->
-      <article v-for="(c, i) in soon" :key="c.slug" v-reveal="(i % 3) * 60" class="card card-soon">
-        <div class="card-stage">
-          <div v-if="c.slug === 'spinner'" class="flex items-end gap-1.5">
-            <GoopHost class="dot" :options="{ ...still, restingDrips: 1, dripSize: 4, dripLength: 8 }" />
-            <GoopHost class="dot dot-lg" :options="{ ...still, restingDrips: 1, dripSize: 5, dripLength: 12 }" />
-            <GoopHost class="dot" :options="{ ...still, restingDrips: 1, dripSize: 4, dripLength: 8 }" />
-          </div>
-          <div v-else-if="c.slug === 'switch'" class="relative">
-            <GoopHost class="track" :options="{ ...still, restingDrips: 1, dripSize: 5, dripLength: 10 }" />
-            <span class="knob" />
-          </div>
-          <div v-else-if="c.slug === 'popover'" class="flex flex-col items-center gap-3">
-            <GoopHost class="pop" :options="{ ...still, restingDrips: 1, dripSize: 6, dripLength: 12 }">
-              <span class="pop-line w-16" /><span class="pop-line w-10" />
-            </GoopHost>
-            <span class="mini-trigger">Open</span>
-          </div>
-          <div v-else-if="c.slug === 'dropdown'" class="flex flex-col items-start gap-2">
-            <span class="mini-trigger">Menu</span>
-            <GoopHost class="menu" :options="{ ...still, restingDrips: 2, dripSize: 5, dripLength: 10 }">
-              <span class="pop-line w-20" /><span class="pop-line w-14" /><span class="pop-line w-16" />
-            </GoopHost>
-          </div>
-          <GoopHost v-else class="blob" :options="{ ...still, restingDrips: 3, dripSize: 9, dripLength: 22, softness: 6 }" />
-        </div>
-        <footer class="card-foot">
-          <div class="min-w-0">
-            <p class="flex items-center gap-2 font-mono text-[13px]">
-              Goop{{ c.name }} <span class="pill">soon</span>
-            </p>
-            <p class="mt-1 text-sm text-muted-foreground">{{ c.note }}</p>
-          </div>
-        </footer>
-      </article>
+    <div class="mt-14 grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-4">
+      <div v-for="(g, gi) in groups" :key="g.title" v-reveal="gi * 60" class="min-w-0">
+        <h3 class="border-b border-border pb-3 text-sm font-medium">{{ g.title }}</h3>
+        <ul class="mt-1">
+          <li v-for="c in g.items" :key="c.slug">
+            <component :is="docPath(c.slug) ? NuxtLink : 'div'" :to="docPath(c.slug) ?? undefined" class="item" :data-link="docPath(c.slug) ? '' : undefined">
+              <span class="flex items-center gap-2">
+                <span class="item-name">{{ c.name }}</span>
+                <LandingNewTag v-if="c.new" />
+              </span>
+              <span class="mt-0.5 block text-[13px] leading-snug text-muted-foreground">{{ c.note }}</span>
+            </component>
+          </li>
+        </ul>
+      </div>
     </div>
   </section>
 </template>
 
 <style scoped>
-.card {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border-radius: 1.125rem;
-  border: 1px solid var(--border);
-  background: var(--card);
-}
-.card-stage {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 11.5rem;
-  padding: 1.5rem 0 2.25rem;
-  background-image: radial-gradient(circle at 1px 1px, var(--border) 1px, transparent 0);
-  background-size: 18px 18px;
-}
-.stage-lg {
-  min-height: 20rem;
-}
-.card-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.875rem 1rem;
-  border-top: 1px solid var(--border);
-}
-.card-soon .card-stage > * {
-  opacity: 0.9;
-}
-.pill {
-  border-radius: 999px;
-  padding: 0.1rem 0.45rem;
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
-  box-shadow: inset 0 0 0 1px var(--border-strong);
-}
-.pill-live {
-  color: var(--goo-foreground);
-  background: var(--goo);
-  box-shadow: none;
-}
-
-/* Static goo shapes for the coming-soon cards. */
-.dot,
-.track,
-.pop,
-.menu,
-.blob {
-  --goop-color: var(--primary);
-}
-.dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 999px;
-}
-.dot-lg {
-  width: 20px;
-  height: 20px;
-}
-.track {
-  width: 64px;
-  height: 34px;
-  border-radius: 999px;
-}
-.knob {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 26px;
-  height: 26px;
-  border-radius: 999px;
-  background: var(--primary-foreground);
-}
-.pop,
-.menu {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 12px 14px;
-  border-radius: 12px;
-}
-.pop-line {
+.item {
   display: block;
-  height: 6px;
-  border-radius: 99px;
-  background: color-mix(in oklch, var(--primary-foreground) 55%, transparent);
+  margin: 0 -0.625rem;
+  padding: 0.6rem 0.625rem;
+  border-radius: 0.625rem;
+  transition: background-color 150ms ease;
 }
-.mini-trigger {
-  font-size: 12px;
-  padding: 4px 10px;
-  border-radius: 8px;
-  color: var(--muted-foreground);
-  box-shadow: inset 0 0 0 1px var(--border-strong);
+.item[data-link]:hover {
+  background: var(--muted);
 }
-.blob {
-  width: 76px;
-  height: 64px;
-  border-radius: 46% 54% 50% 50% / 55% 50% 50% 45%;
-  --goop-color: var(--goo);
+.item-name {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.item[data-link]:hover .item-name {
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 3px;
 }
 </style>

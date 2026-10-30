@@ -35,13 +35,13 @@ const isActive = (match: string) => route.path.startsWith(match)
       class="mx-auto flex h-full items-center gap-2 px-4 sm:px-6"
       :class="props.wide ? 'max-w-[1440px]' : 'max-w-6xl'"
     >
-      <NuxtLink to="/" class="-ml-1 rounded-md px-1 py-1" aria-label="goopUI home">
+      <NuxtLink to="/" class="-ml-1 rounded-md px-1 py-1 [-webkit-user-drag:none]" aria-label="goopUI home" draggable="false">
         <SiteLogo />
       </NuxtLink>
       <span
         class="ml-1 hidden rounded-full border border-border px-2 py-0.5 font-mono text-[11px] text-muted-foreground sm:inline"
       >
-        v0.1 in progress
+        alpha
       </span>
 
       <nav class="ml-auto flex items-center gap-0.5" aria-label="Main">

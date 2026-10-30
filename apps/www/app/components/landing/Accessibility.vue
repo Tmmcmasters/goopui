@@ -28,7 +28,7 @@ const points = [
   <section class="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28" aria-labelledby="a11y">
     <div class="grid gap-12 lg:grid-cols-[1fr_1fr] lg:gap-16">
       <div>
-        <LandingSectionHead id="a11y" index="05" label="Accessibility" title="The motion is optional. The goo stays.">
+        <LandingSectionHead id="a11y" title="The motion is optional. The goo stays.">
           Reduced motion isn't a broken fallback here. Every component has a still state that keeps its goo shape.
         </LandingSectionHead>
 

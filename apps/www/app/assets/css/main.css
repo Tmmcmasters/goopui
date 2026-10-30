@@ -18,6 +18,11 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-subtle: var(--subtle);
   --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
   --color-primary: var(--primary);
@@ -48,6 +53,12 @@
   --background: oklch(0.985 0.005 90);
   --foreground: oklch(0.2 0.012 60);
   --card: oklch(0.997 0.002 90);
+  --card-foreground: var(--foreground);
+  /* shadcn names the goopUI components read (menus, selects, toggles, dialogs). */
+  --popover: oklch(0.997 0.002 90);
+  --popover-foreground: var(--foreground);
+  --accent: oklch(0.94 0.007 86);
+  --accent-foreground: var(--foreground);
   --muted: oklch(0.955 0.006 88);
   --muted-foreground: oklch(0.47 0.012 70);
   --subtle: oklch(0.6 0.01 75);
@@ -86,6 +97,11 @@
   --background: oklch(0.165 0.006 60);
   --foreground: oklch(0.955 0.006 88);
   --card: oklch(0.195 0.007 60);
+  --card-foreground: var(--foreground);
+  --popover: oklch(0.215 0.008 60);
+  --popover-foreground: var(--foreground);
+  --accent: oklch(0.27 0.008 60);
+  --accent-foreground: var(--foreground);
   --muted: oklch(0.225 0.008 60);
   --muted-foreground: oklch(0.72 0.01 80);
   --subtle: oklch(0.58 0.01 75);

@@ -10,6 +10,10 @@ import tailwindcss from '@tailwindcss/vite'
 // content (no JS = everything visible). Keys match useTheme / useMotionPreference.
 const boot = `(function(){try{var d=document.documentElement;d.classList.add('js');var t=localStorage.getItem('goop-theme');var dark=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);d.classList.toggle('dark',dark);if(localStorage.getItem('goop-reduced-motion')==='true')d.dataset.reducedMotion='true'}catch(e){}})()`
 
+const site = 'https://goop.timmcmasters.work'
+const description =
+  'goopUI is the shadcn catalog made gooey: same components, same API, built on reka-ui, with drips and squish from a tiny physics engine. Alpha.'
+
 const dbDir = process.env.CONTENT_DB_DIR || join(tmpdir(), 'goopui-www-content')
 
 export default defineNuxtConfig({
@@ -26,12 +30,20 @@ export default defineNuxtConfig({
       htmlAttrs: { lang: 'en' },
       title: 'goopUI',
       meta: [
-        { name: 'description', content: 'goopUI: shadcn-style components that drip, squish, and wobble. Same API, built on reka-ui.' },
-        { property: 'og:image', content: '/og.png' },
+        { name: 'description', content: description },
+        { property: 'og:type', content: 'website' },
+        { property: 'og:url', content: site },
+        { property: 'og:site_name', content: 'goopUI' },
+        { property: 'og:title', content: 'goopUI: components that drip' },
+        { property: 'og:description', content: description },
+        { property: 'og:image', content: `${site}/og.png` },
+        { property: 'og:image:alt', content: 'goopUI: Components that drip.' },
         { property: 'og:image:width', content: '1200' },
         { property: 'og:image:height', content: '630' },
         { name: 'twitter:card', content: 'summary_large_image' },
-        { name: 'twitter:image', content: '/og.png' },
+        { name: 'twitter:title', content: 'goopUI: components that drip' },
+        { name: 'twitter:description', content: description },
+        { name: 'twitter:image', content: `${site}/og.png` },
         { name: 'theme-color', content: '#faf8f3', media: '(prefers-color-scheme: light)' },
         { name: 'theme-color', content: '#141210', media: '(prefers-color-scheme: dark)' },
       ],

@@ -55,12 +55,11 @@ const current = computed(() => snippets[tab.value])
     >
       <div class="grid gap-10 lg:grid-cols-[1fr_1.05fr] lg:items-center lg:gap-14">
         <div>
-          <p class="font-mono text-[11px] uppercase tracking-[0.12em] opacity-60">06 · Install</p>
-          <h2 id="install" class="type-display mt-4 text-[clamp(2rem,4.6vw,3.25rem)] leading-[1.02]">
+          <h2 id="install" class="type-display text-[clamp(2rem,4.6vw,3.25rem)] leading-[1.02]">
             Two lines to goopy.
           </h2>
           <p class="mt-4 max-w-md leading-relaxed opacity-75">
-            Add the module or the stylesheet. Then use GoopButton anywhere you'd use Button. The packages publish with v0.1.
+            Add the module or the stylesheet, then use GoopButton where you'd use Button, GoopDialog where you'd use Dialog, and so on. It's alpha, so pin the version.
           </p>
           <div class="mt-8 flex flex-wrap gap-3">
             <GoopButton
@@ -91,7 +90,7 @@ const current = computed(() => snippets[tab.value])
             >
               {{ t === 'nuxt' ? 'Nuxt' : 'Vue' }}
             </button>
-            <span class="ml-auto rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider soon">Coming soon</span>
+            <span class="ml-auto rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider soon">alpha</span>
           </div>
           <CodeSnippet :code="current.install" lang="shell" />
           <CodeSnippet :code="current.code" :lang="current.lang" :filename="current.file" />
