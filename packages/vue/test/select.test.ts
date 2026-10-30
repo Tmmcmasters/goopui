@@ -1,4 +1,4 @@
-import { MENU_FEEL, MENU_HIGHLIGHT_CIRCLES, activeTickerCount } from '@goopui/core'
+import { EMERGE_CLOSE_VAR, MENU_FEEL, MENU_HIGHLIGHT_CIRCLES, activeTickerCount } from '@goopui/core'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 import { defineComponent, h, ref, type PropType } from 'vue'
@@ -237,6 +237,23 @@ describe('GoopSelect', () => {
     expect(el.className).toContain('data-[side=bottom]:translate-y-1')
     expect(el.getAttribute('data-align-trigger')).toBe('false')
     expect(el.parentElement!.hasAttribute('data-reka-popper-content-wrapper')).toBe(true)
+    w.unmount()
+  })
+
+  it("item-aligned close: reka's fixed wrapper (Presence's node) gets the close hold duration", async () => {
+    const w = mount(Demo, { attachTo: document.body })
+    await flushPromises()
+    const el = content()!
+    const wrap = el.parentElement!
+    expect(wrap.hasAttribute('data-reka-popper-content-wrapper')).toBe(false)
+    ;(w.vm as unknown as Vm).open = false
+    await w.vm.$nextTick()
+    expect(el.getAttribute('data-state')).toBe('closed')
+    expect(el.getAttribute('data-goop-emerge')).toBe('closing')
+    const ms = el.style.getPropertyValue(EMERGE_CLOSE_VAR)
+    expect(ms).toMatch(/ms$/)
+    expect(wrap.style.getPropertyValue(EMERGE_CLOSE_VAR)).toBe(ms)
+    await wait(parseFloat(ms) + 50)
     w.unmount()
   })
 

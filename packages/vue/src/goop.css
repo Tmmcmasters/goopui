@@ -88,6 +88,12 @@
   [data-goop-emerge][data-state='closed']:not([data-goop-still]) {
     animation: goop-emerge-hold var(--goop-emerge-close, 0ms) linear both;
   }
+  /* An item-aligned select (GoopSelectContent) sits in reka's plain fixed wrapper, and that
+     wrapper (not the panel) is the node reka's Presence watches, so the hold goes on it too.
+     GoopSelectContent mirrors --goop-emerge-close onto the wrapper as the list closes. */
+  :has(> [data-slot='select-content'][data-align-trigger='true'][data-goop-emerge][data-state='closed']:not([data-goop-still])) {
+    animation: goop-emerge-hold var(--goop-emerge-close, 0ms) linear both;
+  }
 
   /* Dialog overlay (GoopDialogOverlay): core pours an opaque goo sheet; the surface's opacity
      dims the page (goo can't paint translucent color). Tune with --goop-backdrop-color /
