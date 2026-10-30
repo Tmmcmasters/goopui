@@ -17,7 +17,12 @@
 
 import type { GoopPreset } from './constants'
 import {
+  EMERGE_BLOOM_SIDES,
+  EMERGE_BULGE_SLOTS,
   EMERGE_MOMENTUM_CIRCLES,
+  emergeBloomBulges,
+  emergeBulgeCircles,
+  emergeDripKnob,
   emergeMomentum,
   emergeMomentumEnd,
   emergeKeepOff,
@@ -137,10 +142,15 @@ export const EMERGE_FLOW_ROOT = 3
 export const EMERGE_FLOW_NECK = 4
 /** Circles a pose always returns (zero radius when unused): bulb + neck lumps, or in flow
  *  mode root + neck. */
-/** Bloom: lobes around the spreading puddle's edge, then the merge start's seed drops. */
+/** Bloom: lobes around the spreading puddle's edge, then the merge start's seed drops (open)
+ *  or the close slosh's side lumps (close). */
 export const EMERGE_BLOOM_LOBES = 7
 export const EMERGE_BLOOM_SEEDS = 5
-export const EMERGE_CIRCLES = Math.max(1 + EMERGE_NECK_LUMPS, EMERGE_FLOW_ROOT + EMERGE_FLOW_NECK, EMERGE_BLOOM_LOBES + EMERGE_BLOOM_SEEDS)
+export const EMERGE_CIRCLES = Math.max(
+  1 + EMERGE_NECK_LUMPS,
+  EMERGE_FLOW_ROOT + EMERGE_FLOW_NECK,
+  EMERGE_BLOOM_LOBES + Math.max(EMERGE_BLOOM_SEEDS, EMERGE_BULGE_SLOTS),
+)
 
 /** Bridge geometry in panel-local space, plus the main/cross frame it was built in. */
 export interface EmergeBridge {
@@ -400,12 +410,13 @@ export function emergePose(
   b: EmergeBridge,
   phase: EmergePhase = 'open',
   feel: EmergeFeel = EMERGE_FEEL.playful,
-  effects?: EmergeEffects & Pick<EmergeMomentumEffects, 'closeSlosh'>,
+  effects?: EmergeEffects & Pick<EmergeMomentumEffects, 'closeSlosh'> & Pick<EmergeDripOptions, 'sloshVariety'>,
   seed = 0,
 ): EmergePose {
   const fx = resolveFx(effects)
   const tt = clamp(t)
-  if (fx.flow && fx.flowStyle === 'bloom') return bloomPose(tt, b, phase, feel, fx, seed, emergeMomentumStrength(effects?.closeSlosh))
+  if (fx.flow && fx.flowStyle === 'bloom')
+    return bloomPose(tt, b, phase, feel, fx, seed, emergeMomentumStrength(effects?.closeSlosh), emergeDripKnob('sloshVariety', effects?.sloshVariety))
   if (fx.flow) return flowPose(tt, b, phase, feel, fx)
   if (phase === 'open') {
     if (tt >= 1) return emergeRestPose(b)
@@ -669,8 +680,18 @@ export function bloomOrigin(b: Pick<EmergeBridge, 'width' | 'height' | 'origin'>
   return { x: clamp(b.origin.x, r, Math.max(r, W - r)), y: clamp(b.origin.y, r, Math.max(r, H - r)) }
 }
 
-/** `slosh`: closeSlosh strength (0..2), the close's inward pull-and-wobble. */
-function bloomPose(t: number, b: EmergeBridge, phase: EmergePhase, feel: EmergeFeel, fx: Required<EmergeEffects>, seed: number, slosh = 1): EmergePose {
+/** `slosh`: closeSlosh strength (0..2), the close's inward pull-and-wobble. `variety`: the
+ *  sloshVariety knob (per-side overshoot / close slosh, see `emergeBloomBulges`). */
+function bloomPose(
+  t: number,
+  b: EmergeBridge,
+  phase: EmergePhase,
+  feel: EmergeFeel,
+  fx: Required<EmergeEffects>,
+  seed: number,
+  slosh = 1,
+  variety = 1,
+): EmergePose {
   const circles: EmergeCircle[] = Array.from({ length: EMERGE_CIRCLES }, zero)
   if (phase === 'open' && t >= 1) return emergeRestPose(b)
   if (phase === 'close' && t >= 1) return { body: { cx: 0, cy: 0, w: 0, h: 0 }, circles, content: 0 }
@@ -685,7 +706,12 @@ function bloomPose(t: number, b: EmergeBridge, phase: EmergePhase, feel: EmergeF
   const d0 = clamp(m * BLOOM.drop, BLOOM.dropMin, BLOOM.dropMax) * (merge ? 0.7 : 1)
   let base: number
   let appear: number
-  let ov = 0
+  // Per-side push past the panel (px, + outward; top, right, bottom, left): the open's jelly
+  // overshoot or the close's slosh. Each side has its own strength and timing per open.
+  const prof = emergeBloomBulges(seed, variety)
+  const push = [0, 0, 0, 0]
+  // Close slosh: the outward share that swells as lumps (the rest moves the whole side).
+  const lumpH = [0, 0, 0, 0]
   let irr: number
   let lobeK: number
   let content: number
@@ -696,41 +722,66 @@ function bloomPose(t: number, b: EmergeBridge, phase: EmergePhase, feel: EmergeF
     base = 1 - (1 - clamp((t - s0) / (BLOOM.spreadEnd - s0))) ** BLOOM.ease
     if (fx.wobble) {
       // A damped spring past the rect on every side, eased to exactly zero by t = 1.
+      const span = emergeBloomDuration(feel, 'open') * (1 - BLOOM.ovAt)
       const u = clamp((t - BLOOM.ovAt) / (1 - BLOOM.ovAt))
-      ov = (feel.bloomOvershoot ?? 4) * 1.6 * Math.exp(-3 * u) * Math.sin(2 * Math.PI * 1.25 * u) * (1 - smooth((u - 0.55) / 0.45))
+      const env = 1 - smooth((u - 0.55) / 0.45)
+      const A = (feel.bloomOvershoot ?? 4) * 1.6
+      for (let e = 0; e < 4; e++) {
+        const ue = Math.max(0, u - (variety * prof[e]!.lag) / span)
+        push[e] = A * prof[e]!.amp * Math.exp(-3 * ue) * Math.sin(2 * Math.PI * 1.25 * ue) * env
+      }
     }
     irr = 1 - smooth((t - BLOOM.irrAt) / BLOOM.irrLen)
     lobeK = 1 - smooth((t - BLOOM.lobeAt) / BLOOM.lobeLen)
     content = fx.fade ? smooth((t - BLOOM.fadeAt) / BLOOM.fadeLen) : 1
   } else {
-    // A little inward pull and wobble (closeSlosh), then an accelerating contraction to the
-    // center.
+    // A little inward pull and wobble (closeSlosh; each side its own strength and timing),
+    // then an accelerating contraction to the center.
     const g = 1 - clamp(t / 0.86) ** 1.7
-    const pulse = slosh * 0.06 * Math.sin((2 * Math.PI * t) / 0.4) * Math.exp(-3 * t)
-    base = Math.min(1.02, g * (1 - pulse))
+    const dur = emergeBloomDuration(feel, 'close')
+    const pulse = (e: number): number => {
+      const lt = t - (0.5 * variety * prof[e]!.lag) / dur
+      const amp = lerp(1, prof[e]!.amp, variety)
+      return lt <= 0 ? 0 : slosh * 0.06 * amp * Math.sin((2 * Math.PI * lt) / 0.4) * Math.exp(-3 * t)
+    }
+    const ps = [0, 1, 2, 3].map(pulse)
+    base = Math.min(1.02, g * (1 - (ps[0]! + ps[1]! + ps[2]! + ps[3]!) / 4))
     appear = 1 - smooth((t - 0.78) / 0.22)
+    for (let e = 0; e < 4; e++) {
+      const ext = (e === 0 || e === 2 ? H : W) - d0
+      const s = (ext * appear * (Math.min(1.02, g * (1 - ps[e]!)) - base)) / 2
+      // Outward: shared between the whole side (variety 0) and its lumps (variety 1).
+      push[e] = s > 0 ? s * (1 - variety) : s
+      lumpH[e] = s > 0 ? 2 * s * variety : 0
+    }
     irr = smooth((t - 0.15) / 0.3)
     lobeK = smooth((t - 0.2) / 0.3) * (1 - smooth((t - 0.85) / 0.15))
     content = fx.fade ? 1 - smooth(t / 0.22) : 0
   }
-  let w = Math.max(0, (d0 + (W - d0) * base) * appear + 2 * ov)
-  let h = Math.max(0, (d0 + (H - d0) * base) * appear + 2 * ov)
+  const ro = b.origin
+  // An origin on the panel's edge (a sheet's screen edge) pins the puddle to that edge: it
+  // grows out of it, overshoots only away from it and shrinks back into it. Other sides
+  // against the screen edge don't push past it.
+  const pinned = [ro !== undefined && ro.y <= 0.5, ro !== undefined && ro.x >= W - 0.5, ro !== undefined && ro.y >= H - 0.5, ro !== undefined && ro.x <= 0.5]
+  for (let e = 0; e < 4; e++) {
+    if (b.walls?.includes(EMERGE_BLOOM_SIDES[e]!) && !pinned[e]) push[e] = Math.min(0, push[e]!)
+  }
+  let w = Math.max(0, (d0 + (W - d0) * base) * appear + push[1]! + push[3]!)
+  let h = Math.max(0, (d0 + (H - d0) * base) * appear + push[0]! + push[2]!)
   const o = bloomOrigin(b, d0)
   const ob = clamp(base)
-  let bcx = lerp(o.x, cx, ob)
-  let bcy = lerp(o.y, cy, ob)
-  // An origin on the panel's edge (a sheet's screen edge) pins the puddle to that edge: it
-  // grows out of it, overshoots only away from it and shrinks back into it.
-  const ro = b.origin
+  let bcx = lerp(o.x, cx, ob) + (push[1]! - push[3]!) / 2
+  let bcy = lerp(o.y, cy, ob) + (push[2]! - push[0]!) / 2
   if (ro) {
-    if (ro.x <= 0.5) bcx = w / 2
-    else if (ro.x >= W - 0.5) bcx = W - w / 2
-    if (ro.y <= 0.5) bcy = h / 2
-    else if (ro.y >= H - 0.5) bcy = H - h / 2
+    if (pinned[3]) bcx = w / 2
+    else if (pinned[1]) bcx = W - w / 2
+    if (pinned[0]) bcy = h / 2
+    else if (pinned[2]) bcy = H - h / 2
   }
   // The overshoot stops short of the trigger: the edge facing it only bulges into the gap
   // (no trigger to clear when the panel covers it).
-  const trim = b.anchorRect ? Math.max(0, ov - Math.max(0, b.gap - BLOOM.clear)) : 0
+  const facing = b.dir.y > 0 ? 0 : b.dir.x < 0 ? 1 : b.dir.y < 0 ? 2 : 3
+  const trim = b.anchorRect ? Math.max(0, push[facing]! - Math.max(0, b.gap - BLOOM.clear)) : 0
   if (trim > 0) {
     if (b.dir.x !== 0) w = Math.max(0, w - trim)
     else h = Math.max(0, h - trim)
@@ -761,6 +812,15 @@ function bloomPose(t: number, b: EmergeBridge, phase: EmergePhase, feel: EmergeF
       if (r < 0.5) continue
       const dist = Math.max(0, reach - r + r * (0.3 + 0.5 * lead) * irr)
       circles[k] = emergeKeepOff({ x: bcx + Math.cos(th) * dist, y: bcy + Math.sin(th) * dist, r }, b, BLOOM.clear)
+    }
+  }
+  if (phase === 'close' && body.w > 0) {
+    // Close slosh lumps: each side's outward swing swells as its own lumps (off-centre, one
+    // or two), never past a screen edge or over the trigger.
+    const bx = { x0: bcx - w / 2, y0: bcy - h / 2, x1: bcx + w / 2, y1: bcy + h / 2 }
+    for (let e = 0; e < 4; e++) {
+      if (b.walls?.includes(EMERGE_BLOOM_SIDES[e]!) || pinned[e]) continue
+      emergeBulgeCircles(bx, e, lumpH[e]!, prof[e]!, circles, EMERGE_BLOOM_LOBES, (c) => emergeKeepOff(c, b, BLOOM.clear))
     }
   }
   if (merge && phase === 'open') {

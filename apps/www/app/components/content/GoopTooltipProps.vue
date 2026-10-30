@@ -13,6 +13,7 @@ const rows = [
   { prop: 'openDripSize', type: 'number', def: '1', note: 'Burst drop size, 0.3 to 2.5.' },
   { prop: 'openDripFling', type: 'number', def: '1', note: 'How far the drops are flung, 0 to 3.' },
   { prop: 'openDripVariety', type: 'number', def: '0.7', note: 'Mix of globs and specks, 0 to 1.' },
+  { prop: 'sloshVariety', type: 'number', def: '1', note: 'How differently each side bulges on open and close (off-centre, one or two lumps, staggered), 0 to 1. 0 is an even, centred bulge.' },
   { prop: 'closeSlosh', type: 'boolean | number', def: 'true (0.5)', note: 'On close, the near edge sloshes against the trigger. true is a light 0.5; a number from 0 to 2 sets the strength.' },
   { prop: 'surface', type: `'popover' | 'trigger' | string`, def: `'popover'`, note: `'popover' is shadcn's inverted tooltip (foreground goo, background text). 'trigger' takes the trigger's background and text color. Any CSS color works, and the arrow follows.` },
   { prop: 'speed', type: 'number', def: '1', note: 'Animation speed multiplier.' },
