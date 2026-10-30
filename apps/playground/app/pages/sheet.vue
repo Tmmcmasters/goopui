@@ -1,30 +1,40 @@
 <script setup lang="ts">
-import type { GoopPreset, GoopRendererName } from '@goopui/core'
+import { EMERGE_DRIP_KNOBS, type EmergeDripOptions, type GoopPreset, type GoopRendererName } from '@goopui/core'
 
 const sides = ['top', 'right', 'bottom', 'left'] as const
 
 /** GoopSheetContent props from the panel, applied to every goop sheet on the page. */
 const goo = ref(true)
-const lobes = ref(true)
-const slosh = ref(true)
-const drips = ref(true)
-const suck = ref(true)
+const bloomStart = ref<'single' | 'merge'>('single')
+const wobble = ref(true)
 const fade = ref(true)
+const openSlosh = ref(true)
+const openDrips = ref(true)
+const closeSlosh = ref(true)
+/** Splash strength (0..2) and knobs; 'default splash' leaves them at the defaults. */
+const auto = ref(true)
+const dripStrength = ref(1)
+const dripKnobs = reactive(
+  Object.fromEntries(Object.entries(EMERGE_DRIP_KNOBS).map(([k, m]) => [k, m.default])) as Required<EmergeDripOptions>,
+)
+const knobList = Object.entries(EMERGE_DRIP_KNOBS) as [keyof EmergeDripOptions, (typeof EMERGE_DRIP_KNOBS)[keyof EmergeDripOptions]][]
 const speed = ref(1)
 const preset = ref<GoopPreset | ''>('')
 const renderer = ref<GoopRendererName | ''>('')
 const engine = computed(() => ({
   goo: goo.value,
-  lobes: lobes.value,
-  slosh: slosh.value,
-  drips: drips.value,
-  suck: suck.value,
+  bloomStart: bloomStart.value,
+  wobble: wobble.value,
   fade: fade.value,
+  openSlosh: openSlosh.value,
+  closeSlosh: closeSlosh.value,
+  openDrips: openDrips.value ? (auto.value ? undefined : dripStrength.value) : false,
+  ...(auto.value ? {} : dripKnobs),
   speed: speed.value,
   preset: preset.value || undefined,
   renderer: renderer.value || undefined,
 }))
-const toggles = { goo, lobes, slosh, drips, suck, fade }
+const toggles = { goo, wobble, fade, openSlosh, openDrips, closeSlosh }
 
 const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
 </script>
@@ -37,9 +47,28 @@ const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
           <input v-model="r.value" type="checkbox">
           <span class="text-xs text-muted-foreground">{{ name }}</span>
         </label>
+        <label class="flex items-center gap-2 pb-1" title="Leave splash strength and knobs at their defaults">
+          <input v-model="auto" type="checkbox">
+          <span class="text-xs text-muted-foreground">default splash</span>
+        </label>
+        <label class="grid gap-1">
+          <span class="text-xs text-muted-foreground">drip strength: {{ dripStrength.toFixed(2) }}</span>
+          <input v-model.number="dripStrength" type="range" min="0" max="2" step="0.05" class="w-28" :disabled="!openDrips || auto">
+        </label>
+        <label v-for="[key, m] in knobList" :key="key" class="grid gap-1" :title="m.description">
+          <span class="text-xs text-muted-foreground">{{ key }}: {{ dripKnobs[key].toFixed(2) }}</span>
+          <input v-model.number="dripKnobs[key]" type="range" :min="m.min" :max="m.max" :step="m.step" class="w-28" :disabled="!openDrips || auto">
+        </label>
         <label class="grid gap-1">
           <span class="text-xs text-muted-foreground">speed: {{ speed.toFixed(2) }}x</span>
           <input v-model.number="speed" type="range" min="0.1" max="2" step="0.05" class="w-28">
+        </label>
+        <label class="grid gap-1">
+          <span class="text-xs text-muted-foreground">bloomStart</span>
+          <select v-model="bloomStart" :class="selectClass">
+            <option value="single">single (default)</option>
+            <option value="merge">merge</option>
+          </select>
         </label>
         <label class="grid gap-1">
           <span class="text-xs text-muted-foreground">preset</span>
@@ -61,7 +90,7 @@ const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
       </section>
     </template>
 
-    <CompareRow v-for="side in sides" :key="side" :label="side" :note="side === 'top' ? 'drips hang off the front' : side === 'bottom' ? 'drops flung up at the stop' : undefined">
+    <CompareRow v-for="side in sides" :key="side" :label="side" note="blooms from the middle of the screen edge">
       <template #shadcn>
         <Sheet>
           <SheetTrigger as-child>

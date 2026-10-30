@@ -1,171 +1,128 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  SHEET_CIRCLES,
-  SHEET_CLOSE_VAR,
-  SHEET_CONTENT_VAR,
-  SHEET_DRIPS,
+  DIALOG_FEEL,
+  EMERGE_CIRCLES,
+  EMERGE_CLOSE_VAR,
+  EMERGE_CONTENT_VAR,
+  EMERGE_STATE_ATTR,
   SHEET_FEEL,
-  SHEET_LOBES,
-  SHEET_STATE_ATTR,
   activeTickerCount,
   attachSheet,
-  sheetArrival,
-  sheetCloseStart,
-  sheetDripCount,
-  sheetGeometry,
-  sheetIdle,
-  sheetLobes,
-  sheetOpenStart,
-  sheetPose,
-  sheetRestPose,
-  sheetSettleTime,
-  sheetTravel,
-  type SheetPose,
+  bloomOrigin,
+  emergeBloomDuration,
+  emergeDetachedBridge,
+  emergeMomentum,
+  emergeMomentumEnd,
+  emergePose,
+  emergeRestPose,
+  emergeWalls,
+  sheetBloomOrigin,
+  type EmergeBridge,
+  type EmergeRect,
   type SheetSide,
 } from '../src'
 
+const VIEW = { width: 1280, height: 800 }
 const SIDES: SheetSide[] = ['top', 'right', 'bottom', 'left']
 const F = SHEET_FEEL.playful
-const geomFor = (side: SheetSide) => (side === 'top' || side === 'bottom' ? sheetGeometry(1000, 260, side) : sheetGeometry(384, 800, side))
-/** Body extent along the in-flow axis. */
-const extent = (side: SheetSide, p: SheetPose) => (side === 'top' || side === 'bottom' ? p.body.h : p.body.w)
-const secs = (dur: number) => Array.from({ length: 61 }, (_, i) => (i / 60) * dur)
+const bloom = { flow: true, flowStyle: 'bloom' } as const
+const rectFor = (side: SheetSide): EmergeRect =>
+  side === 'top'
+    ? { x: 0, y: 0, width: VIEW.width, height: 260 }
+    : side === 'bottom'
+      ? { x: 0, y: VIEW.height - 260, width: VIEW.width, height: 260 }
+      : side === 'right'
+        ? { x: VIEW.width - 384, y: 0, width: 384, height: VIEW.height }
+        : { x: 0, y: 0, width: 384, height: VIEW.height }
+
+/** The bridge attachSheet builds: detached, origin at the edge middle, screen-edge walls. */
+const bridgeFor = (side: SheetSide): EmergeBridge => {
+  const r = rectFor(side)
+  const b = emergeDetachedBridge(r, F)
+  const o = sheetBloomOrigin(r, side)
+  b.origin = { x: o.x - r.x, y: o.y - r.y }
+  b.walls = emergeWalls(r, VIEW)
+  return b
+}
 
 afterEach(() => {
   document.body.innerHTML = ''
   delete document.documentElement.dataset.reducedMotion
 })
 
-describe('sheetTravel', () => {
-  it('runs 0 -> 1, overshoots with slosh and settles by the end', () => {
-    expect(sheetTravel(0, F)).toBeCloseTo(0)
-    expect(sheetTravel(1, F)).toBeCloseTo(1, 1)
-    const peak = Math.max(...secs(1).map((u) => sheetTravel(u, F)))
-    expect(peak).toBeGreaterThan(1.05)
-  })
-  it('never overshoots without slosh', () => {
-    for (const u of secs(1)) expect(sheetTravel(u, F, false)).toBeLessThanOrEqual(1 + 1e-9)
-    expect(sheetTravel(0.8, F, false)).toBeCloseTo(1)
-  })
-  it('the wilder the preset, the bigger the slosh', () => {
-    const peak = (p: keyof typeof SHEET_FEEL) => Math.max(...secs(1).map((u) => sheetTravel(u, SHEET_FEEL[p])))
-    expect(peak('wild')).toBeGreaterThan(peak('playful'))
-    expect(peak('playful')).toBeGreaterThan(peak('subtle'))
-  })
-})
-
-describe('sheetPose', () => {
-  it('always returns SHEET_CIRCLES circles', () => {
-    for (const side of SIDES) for (const s of secs(F.open)) expect(sheetPose(s, geomFor(side), 'open').circles).toHaveLength(SHEET_CIRCLES)
+describe('sheet bloom geometry', () => {
+  it('starts at the middle of the screen edge', () => {
+    expect(sheetBloomOrigin({ x: 0, y: 0, width: 400, height: 800 }, 'left')).toEqual({ x: 0, y: 400 })
+    expect(sheetBloomOrigin({ x: 10, y: 0, width: 400, height: 800 }, 'right')).toEqual({ x: 410, y: 400 })
+    expect(sheetBloomOrigin({ x: 0, y: 0, width: 1000, height: 300 }, 'top')).toEqual({ x: 500, y: 0 })
+    expect(sheetBloomOrigin({ x: 0, y: 500, width: 1000, height: 300 }, 'bottom')).toEqual({ x: 500, y: 800 })
   })
 
-  it('oozes out from the sheet edge on every side and lands on the full sheet', () => {
-    for (const side of SIDES) {
-      const g = geomFor(side)
-      const start = sheetPose(0, g, 'open')
-      expect(extent(side, start)).toBe(0)
-      expect(start.circles.every((c) => c.r < 1)).toBe(true)
-      const end = sheetPose(F.open, g, 'open', F, { drips: false })
-      expect(end.body).toEqual(sheetRestPose(g).body)
-      // The body is pinned to the viewport edge the sheet comes from.
-      const mid = sheetPose(F.open * 0.15, g, 'open')
-      const { cx, cy, w, h } = mid.body
-      if (side === 'left') expect(cx - w / 2).toBeCloseTo(0)
-      if (side === 'right') expect(cx + w / 2).toBeCloseTo(g.width)
-      if (side === 'top') expect(cy - h / 2).toBeCloseTo(0)
-      if (side === 'bottom') expect(cy + h / 2).toBeCloseTo(g.height)
+  it('marks the panel edges that lie on the screen edge as walls', () => {
+    expect(emergeWalls(rectFor('right'), VIEW)).toEqual(['top', 'right', 'bottom'])
+    expect(emergeWalls(rectFor('top'), VIEW)).toEqual(['top', 'right', 'left'])
+    expect(emergeWalls({ x: 400, y: 200, width: 400, height: 200 }, VIEW)).toEqual([])
+  })
+
+  it.each(SIDES)('%s: the first droplet sits against the screen edge, at its middle', (side) => {
+    const b = bridgeFor(side)
+    const p = emergePose(0.03, b, 'open', F, bloom)
+    const o = bloomOrigin(b)
+    expect(p.body.w).toBeGreaterThan(0)
+    expect(p.body.w).toBeLessThan(b.width / 3)
+    expect(p.body.h).toBeLessThan(b.height / 3)
+    const edge = { top: p.body.cy - p.body.h / 2, bottom: p.body.cy + p.body.h / 2 - b.height, left: p.body.cx - p.body.w / 2, right: p.body.cx + p.body.w / 2 - b.width }[side]
+    expect(Math.abs(edge)).toBeLessThan(1)
+    if (side === 'top' || side === 'bottom') expect(p.body.cx).toBeCloseTo(o.x, 3)
+    else expect(p.body.cy).toBeCloseTo(o.y, 3)
+  })
+
+  it.each(SIDES)('%s: blooms to the full rect, overshooting the inner edge', (side) => {
+    const b = bridgeFor(side)
+    const inner = (p: ReturnType<typeof emergePose>) =>
+      side === 'right' ? -(p.body.cx - p.body.w / 2) : side === 'left' ? p.body.cx + p.body.w / 2 - b.width : side === 'top' ? p.body.cy + p.body.h / 2 - b.height : -(p.body.cy - p.body.h / 2)
+    let over = -Infinity
+    for (let t = 0.3; t <= 1; t += 0.01) over = Math.max(over, inner(emergePose(t, b, 'open', F, bloom)))
+    expect(over).toBeGreaterThan(5)
+    expect(emergePose(1, b, 'open', F, bloom)).toEqual(emergeRestPose(b))
+  })
+
+  it.each(SIDES)('%s: close shrinks back into the edge middle', (side) => {
+    const b = bridgeFor(side)
+    const o = bloomOrigin(b, 20)
+    const late = emergePose(0.9, b, 'close', F, bloom)
+    expect(late.body.w).toBeLessThan(b.width / 4)
+    expect(Math.hypot(late.body.cx - o.x, late.body.cy - o.y)).toBeLessThan(20)
+    expect(emergePose(1, b, 'close', F, bloom).body.w).toBe(0)
+  })
+
+  it.each(SIDES)('%s: the splash never flies off the screen edge, and lands on-screen', (side) => {
+    const b = bridgeFor(side)
+    const rest = emergeRestPose(b)
+    let drops = 0
+    for (let seed = 0; seed < 4; seed++) {
+      for (let sec = 0; sec < emergeMomentumEnd('open'); sec += 0.02) {
+        const p = emergeMomentum(rest, b, 'open', sec, { openSlosh: false }, { bloom: true, seed, splash: F.bloomSplash })
+        for (const c of p.circles.slice(EMERGE_CIRCLES)) {
+          if (c.r <= 0) continue
+          drops++
+          // Panel-local -> viewport.
+          const x = c.x + rectFor(side).x
+          const y = c.y + rectFor(side).y
+          if (side === 'right') expect(x).toBeLessThan(VIEW.width + 1)
+          if (side === 'left') expect(x).toBeGreaterThan(-1)
+          if (side === 'top') expect(y).toBeGreaterThan(-1)
+          if (side === 'bottom') expect(y).toBeLessThan(VIEW.height + 1)
+        }
+      }
     }
+    expect(drops).toBeGreaterThan(50)
   })
 
-  it('sloshes past the rest line by at most the preset overshoot (plus lobes)', () => {
-    const g = geomFor('right')
-    const over = (fx = {}) =>
-      Math.max(
-        ...secs(F.open).map((s) => {
-          const p = sheetPose(s, g, 'open', F, fx)
-          return Math.max(...p.circles.filter((c) => c.r > 0).map((c) => g.width - c.x + c.r - g.width), extent('right', p) - g.width)
-        }),
-      )
-    expect(over()).toBeGreaterThan(4)
-    expect(over({ lobes: false })).toBeLessThanOrEqual(F.overshoot + 0.5)
-    expect(over({ lobes: false, slosh: false })).toBeLessThanOrEqual(0.5)
-  })
-
-  it('lobes make an uneven front while moving; off, the front is straight', () => {
-    const g = geomFor('left')
-    const p = sheetPose(F.open * 0.2, g, 'open')
-    const { count } = sheetLobes(g, F)
-    const lobes = p.circles.slice(0, count)
-    expect(lobes.every((c) => c.r > 0)).toBe(true)
-    const tips = lobes.map((c) => c.x + c.r)
-    expect(Math.max(...tips) - Math.min(...tips)).toBeGreaterThan(5)
-    // Middle leads the corners on the way out.
-    expect(tips[Math.floor(count / 2)]!).toBeGreaterThan(tips[0]!)
-    const flat = sheetPose(F.open * 0.2, g, 'open', F, { lobes: false })
-    expect(flat.circles.slice(0, SHEET_LOBES).every((c) => c.r === 0)).toBe(true)
-  })
-
-  it('top sheets grow hanging drips that keep swaying; bottom sheets fling drops that fall back', () => {
-    const top = geomFor('top')
-    const n = sheetDripCount(top)
-    expect(n).toBeGreaterThan(1)
-    expect(n).toBeLessThanOrEqual(SHEET_DRIPS)
-    const bulbs = (s: number) => sheetPose(s, top, 'open').circles.slice(SHEET_LOBES).filter((c) => c.r > 0)
-    expect(bulbs(F.open * 0.1)).toHaveLength(0)
-    const late = bulbs(F.open + 2)
-    expect(late.length).toBe(n * 3)
-    expect(Math.max(...late.map((c) => c.y + c.r))).toBeGreaterThan(top.height + 5)
-    // Still moving after the open.
-    expect(bulbs(F.open + 2)).not.toEqual(bulbs(F.open + 2.4))
-    expect(sheetIdle(top)).toBe(true)
-    expect(sheetSettleTime(top, F)).toBe(Infinity)
-
-    const bottom = geomFor('bottom')
-    const fling = secs(sheetSettleTime(bottom, F)).flatMap((s) => sheetPose(s, bottom, 'open').circles.slice(SHEET_LOBES))
-    // Drops go above the sheet's top edge (y < 0), then are gone once settled.
-    expect(Math.min(...fling.filter((c) => c.r > 0).map((c) => c.y))).toBeLessThan(-5)
-    expect(sheetPose(sheetSettleTime(bottom, F) + 0.01, bottom, 'open').circles.slice(SHEET_LOBES).every((c) => c.r === 0)).toBe(true)
-    expect(sheetIdle(bottom)).toBe(false)
-  })
-
-  it('no drips on left / right sheets or with drips off', () => {
-    expect(sheetDripCount(geomFor('left'))).toBe(0)
-    expect(sheetDripCount(geomFor('right'))).toBe(0)
-    const p = sheetPose(F.open + 1, geomFor('top'), 'open', F, { drips: false })
-    expect(p.circles.slice(SHEET_LOBES).every((c) => c.r === 0)).toBe(true)
-  })
-
-  it('close bulges out first, then gets sucked back into the edge, accelerating', () => {
-    for (const side of SIDES) {
-      const g = geomFor(side)
-      const e = secs(F.close).map((s) => extent(side, sheetPose(s, g, 'close', F, { lobes: false })))
-      expect(Math.max(...e.slice(0, 8))).toBeGreaterThan(g.depth)
-      expect(e[e.length - 1]).toBe(0)
-      // Accelerating: the second half covers more ground than the first.
-      const mid = e[30]!
-      expect(g.depth - mid).toBeLessThan(mid)
-    }
-    // suck off: no bulge.
-    const g = geomFor('right')
-    for (const s of secs(F.close)) expect(extent('right', sheetPose(s, g, 'close', F, { suck: false, lobes: false }))).toBeLessThanOrEqual(g.depth + 1e-6)
-  })
-
-  it('fades content in late on open and out first on close; fade off keeps it shown', () => {
-    const g = geomFor('right')
-    expect(sheetPose(0, g, 'open').content).toBe(0)
-    expect(sheetPose(F.open, g, 'open').content).toBe(1)
-    expect(sheetPose(F.close * 0.25, g, 'close').content).toBe(0)
-    expect(sheetPose(0, g, 'open', F, { fade: false }).content).toBe(1)
-  })
-
-  it('reversal starts match the current front', () => {
-    const g = geomFor('right')
-    expect(sheetCloseStart(g.depth, g)).toBe(0)
-    expect(sheetCloseStart(0, g)).toBeCloseTo(1)
-    const u = sheetOpenStart(g.depth / 2, g)
-    expect(sheetTravel(u, F)).toBeGreaterThanOrEqual(0.5)
-    expect(sheetTravel(u - 0.01, F)).toBeLessThan(0.5)
-    expect(sheetArrival(F)).toBeLessThan(F.open)
+  it('is a bigger, slower bloom than the dialog with a short close', () => {
+    expect(emergeBloomDuration(F, 'open')).toBeGreaterThan(emergeBloomDuration(DIALOG_FEEL.playful, 'open'))
+    expect(emergeBloomDuration(F, 'close')).toBeLessThanOrEqual(0.34)
+    expect(F.bloomOvershoot!).toBeGreaterThan(DIALOG_FEEL.playful.bloomOvershoot!)
   })
 })
 
@@ -180,31 +137,34 @@ describe('attachSheet', () => {
     return el
   }
 
-  it('adds an aria-hidden goo surface with a blob per circle and publishes state vars', () => {
-    const el = host()
-    const h = attachSheet(el, { renderer: 'svg' })
-    const surface = el.querySelector('[data-goop="surface"]')!
-    expect(surface.getAttribute('aria-hidden')).toBe('true')
-    expect(surface.querySelectorAll('[data-goop="blob"]')).toHaveLength(SHEET_CIRCLES)
-    expect(el.getAttribute(SHEET_STATE_ATTR)).toBe('closed')
-    expect(el.style.getPropertyValue(SHEET_CONTENT_VAR)).toBe('0')
-    h.open()
-    expect(h.state).toBe('opening')
-    expect(activeTickerCount()).toBeGreaterThan(0)
-    // Nothing out yet: closing right away takes no time.
-    expect(h.close()).toBe(0)
-    // From fully open, the close plays.
-    h.update({ reducedMotion: true })
-    h.open()
-    h.update({ reducedMotion: false })
-    expect(h.state).toBe('open')
-    const ms = h.close()
-    expect(ms).toBeGreaterThan(0)
-    expect(el.style.getPropertyValue(SHEET_CLOSE_VAR)).toBe(`${ms}ms`)
-    h.destroy()
-    expect(el.querySelector('[data-goop="surface"]')).toBeNull()
-    expect(el.hasAttribute(SHEET_STATE_ATTR)).toBe(false)
-    expect(activeTickerCount()).toBe(0)
+  it('blooms with the emerge engine, then stops ticking (no idle drips)', () => {
+    vi.useFakeTimers()
+    try {
+      const el = host()
+      const h = attachSheet(el, { renderer: 'svg' })
+      const surface = el.querySelector('[data-goop="surface"]')!
+      expect(surface.getAttribute('aria-hidden')).toBe('true')
+      expect(el.getAttribute(EMERGE_STATE_ATTR)).toBe('closed')
+      expect(el.style.getPropertyValue(EMERGE_CONTENT_VAR)).toBe('0')
+      h.open()
+      expect(h.state).toBe('opening')
+      expect(activeTickerCount()).toBeGreaterThan(0)
+      vi.advanceTimersByTime(4000)
+      expect(h.state).toBe('open')
+      expect(activeTickerCount()).toBe(0)
+      expect(el.style.getPropertyValue(EMERGE_CONTENT_VAR)).toBe('1')
+      const ms = h.close()
+      expect(ms).toBe(Math.round(emergeBloomDuration(F, 'close') * 1000))
+      expect(el.style.getPropertyValue(EMERGE_CLOSE_VAR)).toBe(`${ms}ms`)
+      vi.advanceTimersByTime(2000)
+      expect(h.state).toBe('closed')
+      h.destroy()
+      expect(el.querySelector('[data-goop="surface"]')).toBeNull()
+      expect(el.hasAttribute(EMERGE_STATE_ATTR)).toBe(false)
+      expect(activeTickerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('reduced motion: opens and closes instantly, no ticker', () => {
@@ -214,7 +174,7 @@ describe('attachSheet', () => {
     h.open()
     expect(h.state).toBe('open')
     expect(el.hasAttribute('data-goop-still')).toBe(true)
-    expect(el.style.getPropertyValue(SHEET_CONTENT_VAR)).toBe('1')
+    expect(el.style.getPropertyValue(EMERGE_CONTENT_VAR)).toBe('1')
     expect(activeTickerCount()).toBe(0)
     expect(h.close()).toBe(0)
     expect(h.state).toBe('closed')

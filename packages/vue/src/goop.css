@@ -99,18 +99,12 @@
     animation: goop-emerge-hold var(--goop-backdrop-close, 0ms) linear both;
   }
 
-  /* Sheets (GoopSheetContent): core draws the sheet as goo oozing in from its edge and
-     publishes the content's opacity; shadcn's border + shadow-lg become a drop-shadow on the
-     goo. The hold keeps reka's Presence mounted while the goo is sucked back in. */
-  [data-goop-sheet] {
-    --goop-sheet-shadow: drop-shadow(0 0 0.5px color-mix(in oklab, var(--foreground, #000) 35%, transparent))
+  /* Sheets (GoopSheetContent): core blooms the sheet from its screen edge with the emerge
+     engine (content opacity, tint and the close hold come from the [data-goop-emerge] rules
+     above); shadcn's border + shadow-lg become a bigger drop-shadow on the goo. */
+  [data-slot='sheet-content'][data-goop-emerge] {
+    --goop-surface-shadow: drop-shadow(0 0 0.5px color-mix(in oklab, var(--foreground, #000) 35%, transparent))
       drop-shadow(0 10px 15px rgb(0 0 0 / 0.1));
-  }
-  [data-goop-sheet] > :not([data-goop='surface']) {
-    opacity: var(--goop-sheet-content, 1);
-  }
-  [data-goop-sheet][data-state='closed']:not([data-goop-still]) {
-    animation: goop-emerge-hold var(--goop-sheet-close, 0ms) linear both;
   }
 
   /* Menu highlight blob (GoopDropdownMenu): core inserts it behind the items and mirrors the

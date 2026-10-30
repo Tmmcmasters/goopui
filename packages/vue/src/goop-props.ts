@@ -54,8 +54,6 @@ import {
   type RadioEffect,
   type RadioGroupOptions,
   TOASTER_EFFECTS,
-  SHEET_EFFECTS,
-  type SheetEffect,
   type SheetOptions,
   DRAWER_EFFECTS,
   type DrawerEffect,
@@ -1085,31 +1083,55 @@ export function toBackdropOptions(
 }
 
 // ---- GoopSheet ------------------------------------------------------------------------------
-// The sheet's goo comes from core's `attachSheet`: SHEET_EFFECTS (lobes, slosh, drips, suck,
-// fade), each on by default, plus speed / preset / renderer. A sheet is a big surface, so it
-// draws with the canvas renderer unless a prop or the app config says otherwise. `goo: false`
-// is a plain shadcn Sheet.
+// The sheet blooms from the middle of its screen edge with core's emerge engine (`attachSheet`
+// = detached bloom + edge origin + SHEET_FEEL): it spreads in lobes to fill the sheet,
+// overshoots the inner edge and wobbles, splashes off the inner edge and sides (never
+// off-screen), and on close shrinks back into the edge. Same toggles as the dialog's bloom. A
+// sheet is a big surface, so it draws with the canvas renderer unless a prop or the app config
+// says otherwise. `goo: false` is a plain shadcn Sheet.
 
 /** Every GoopSheetContent engine prop. */
-export const SHEET_PROP_KEYS = ['goo', ...SHEET_EFFECTS, 'speed', 'preset', 'renderer'] as const
+export const SHEET_PROP_KEYS = [
+  'goo',
+  'bloomStart',
+  'wobble',
+  'fade',
+  'openSlosh',
+  'openDrips',
+  'closeSlosh',
+  ...EMERGE_DRIP_KEYS,
+  'speed',
+  'preset',
+  'renderer',
+] as const
 
 /** Engine props of GoopSheetContent. */
 export interface GoopSheetProps {
   /** Master switch. `false` renders a plain shadcn SheetContent (slide in / out). */
   goo?: boolean
-  /** Lobed, rippling leading edge whose middle leads the corners while it moves (false: a
-   *  straight front). */
-  lobes?: boolean
-  /** The front overshoots its rest line and sloshes back when it stops (false: smooth ease). */
-  slosh?: boolean
-  /** Drips off the front: top sheets grow drips that hang and sway, bottom sheets fling drops
-   *  that fall back in. Left / right sheets have none. */
-  drips?: boolean
-  /** Close: a small outward bulge, then the goo is sucked back into the edge, corners
-   *  lagging (false: a plain retreat). */
-  suck?: boolean
-  /** Content fades in as the goo arrives and fades out first on close. */
+  /** Bloom start: 'single' (default: one droplet swells at the edge) or 'merge' (a few drops
+   *  fuse). */
+  bloomStart?: EmergeBloomStart
+  /** The open overshoot past the inner edge and its jelly settle. */
+  wobble?: boolean
+  /** Content fades in once the goo has mostly spread (and out first on close). */
   fade?: boolean
+  /** Open: the edges bulge past rest, rebound and wobble. `true`, `false` or a 0..2 strength. */
+  openSlosh?: boolean | number
+  /** Open: the big splash (globs, drops and specks fling off the inner edge and sides, fall
+   *  and fade; none off-screen). `true`, `false` or 0..2. */
+  openDrips?: boolean | number
+  /** Splash drop count scale (0..3; default 1). */
+  openDripAmount?: number
+  /** Splash drop size scale (0.3..2.5; default 1). */
+  openDripSize?: number
+  /** How far splash drops are flung (0..3; default 1). */
+  openDripFling?: number
+  /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
+  openDripVariety?: number
+  /** Close: the goo pulls in and wobbles before it shrinks back into the edge. `true`,
+   *  `false` or 0..2. */
+  closeSlosh?: boolean | number
   /** Animation speed multiplier. */
   speed?: number
   /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
@@ -1120,7 +1142,7 @@ export interface GoopSheetProps {
 
 /** Compile-time guards: every sheet option core grows must be a prop (or adapter-owned). */
 type SheetAdapterOwned = 'side' | 'surface' | 'feel' | 'reducedMotion'
-type SheetUnhandled = Exclude<keyof SheetOptions | SheetEffect, keyof GoopSheetProps | SheetAdapterOwned>
+type SheetUnhandled = Exclude<keyof SheetOptions, keyof GoopSheetProps | SheetAdapterOwned>
 const _allSheetOptionsHandled: [SheetUnhandled] extends [never] ? true : { unhandled: SheetUnhandled } = true
 void _allSheetOptionsHandled
 type SheetPropsListed = Exclude<keyof GoopSheetProps, (typeof SHEET_PROP_KEYS)[number]>
@@ -1129,14 +1151,22 @@ void _allSheetPropsListed
 
 /** Sheet options over app config (renderer: prop, then config, then canvas). */
 export function toSheetOptions(props: GoopSheetProps, config: GoopOptions = {}): SheetOptions {
-  const out: SheetOptions = {
+  return {
+    bloomStart: props.bloomStart ?? 'single',
+    wobble: props.wobble !== false,
+    fade: props.fade !== false,
+    openSlosh: props.openSlosh ?? true,
+    openDrips: props.openDrips ?? true,
+    closeSlosh: props.closeSlosh ?? true,
+    openDripAmount: props.openDripAmount,
+    openDripSize: props.openDripSize,
+    openDripFling: props.openDripFling,
+    openDripVariety: props.openDripVariety,
     speed: props.speed ?? 1,
     preset: props.preset ?? config.preset,
     renderer: props.renderer ?? config.renderer ?? 'canvas',
     reducedMotion: config.reducedMotion,
   }
-  for (const k of SHEET_EFFECTS) out[k] = props[k] !== false
-  return out
 }
 
 // ---- GoopToaster ----------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-import { SHEET_CIRCLES, activeTickerCount, isLoopRunning } from '@goopui/core'
+import { EMERGE_CIRCLES, EMERGE_MOMENTUM_CIRCLES, activeTickerCount, isLoopRunning } from '@goopui/core'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 import { defineComponent, h, ref, type PropType } from 'vue'
@@ -62,8 +62,8 @@ describe('GoopSheet', () => {
     const surface = el.firstElementChild as HTMLElement
     expect(surface.getAttribute('data-goop')).toBe('surface')
     expect(surface.getAttribute('aria-hidden')).toBe('true')
-    expect(surface.querySelectorAll('[data-goop="blob"]')).toHaveLength(SHEET_CIRCLES)
-    expect(el.hasAttribute('data-goop-sheet')).toBe(true)
+    expect(surface.querySelectorAll('[data-goop="blob"]')).toHaveLength(EMERGE_CIRCLES + EMERGE_MOMENTUM_CIRCLES)
+    expect(el.hasAttribute('data-goop-emerge')).toBe(true)
     expect(document.querySelector('[data-slot="sheet-overlay"]')).not.toBeNull()
     expect(el.querySelector('[data-slot="sheet-close"] .sr-only')!.textContent).toBe('Close')
     expect(isLoopRunning()).toBe(true)
@@ -88,7 +88,7 @@ describe('GoopSheet', () => {
     const el = content()!
     expect(el.className.split(' ')).toEqual(expect.arrayContaining(['bg-background', 'border-r', 'shadow-lg', 'data-[state=open]:slide-in-from-left']))
     expect(el.querySelector('[data-goop]')).toBeNull()
-    expect(el.hasAttribute('data-goop-sheet')).toBe(false)
+    expect(el.hasAttribute('data-goop-emerge')).toBe(false)
     w.unmount()
   })
 
@@ -97,9 +97,9 @@ describe('GoopSheet', () => {
     const w = mount(Demo, { attachTo: document.body })
     await flushPromises()
     const el = content()!
-    expect(el.getAttribute('data-goop-sheet')).toBe('open')
+    expect(el.getAttribute('data-goop-emerge')).toBe('open')
     expect(el.hasAttribute('data-goop-still')).toBe(true)
-    expect(el.style.getPropertyValue('--goop-sheet-content')).toBe('1')
+    expect(el.style.getPropertyValue('--goop-emerge-content')).toBe('1')
     expect(activeTickerCount()).toBe(0)
     w.unmount()
   })
@@ -107,7 +107,7 @@ describe('GoopSheet', () => {
   it('honors app config (reducedMotion forced on)', async () => {
     const w = mount(Demo, { global: { plugins: [[GoopPlugin, { reducedMotion: true }]] }, attachTo: document.body })
     await flushPromises()
-    expect(content()!.getAttribute('data-goop-sheet')).toBe('open')
+    expect(content()!.getAttribute('data-goop-emerge')).toBe('open')
     w.unmount()
   })
 
@@ -118,14 +118,14 @@ describe('GoopSheet', () => {
     await w.find('[data-slot="sheet-trigger"]').trigger('click')
     await flushPromises()
     const el = content()!
-    expect(el.getAttribute('data-goop-sheet')).toBe('opening')
-    expect(el.style.getPropertyValue('--goop-sheet-content')).toBe('0')
+    expect(el.getAttribute('data-goop-emerge')).toBe('opening')
+    expect(el.style.getPropertyValue('--goop-emerge-content')).toBe('0')
     const seen: string[] = []
     const mo = new MutationObserver(() => {
-      const s = el.getAttribute('data-goop-sheet')
+      const s = el.getAttribute('data-goop-emerge')
       if (s && seen.at(-1) !== s) seen.push(s)
     })
-    mo.observe(el, { attributes: true, attributeFilter: ['data-goop-sheet'] })
+    mo.observe(el, { attributes: true, attributeFilter: ['data-goop-emerge'] })
     await w.find('[data-slot="sheet-trigger"]').trigger('click')
     await flushPromises()
     mo.disconnect()
@@ -150,18 +150,22 @@ describe('GoopSheet', () => {
     ;(w.vm as unknown as { goo: boolean }).goo = false
     await flushPromises()
     expect(content()!.querySelector('[data-goop="surface"]')).toBeNull()
-    expect(content()!.hasAttribute('data-goop-sheet')).toBe(false)
+    expect(content()!.hasAttribute('data-goop-emerge')).toBe(false)
     w.unmount()
   })
 })
 
 describe('toSheetOptions', () => {
-  it('every effect defaults on; false turns it off; canvas unless told otherwise', () => {
+  it('bloom toggles default on; false turns them off; canvas unless told otherwise', () => {
     const o = toSheetOptions({})
-    expect(o).toMatchObject({ lobes: true, slosh: true, drips: true, suck: true, fade: true, renderer: 'canvas', speed: 1 })
-    expect(toSheetOptions({ drips: false, suck: false })).toMatchObject({ drips: false, suck: false, lobes: true })
+    expect(o).toMatchObject({ bloomStart: 'single', wobble: true, fade: true, openSlosh: true, openDrips: true, closeSlosh: true, renderer: 'canvas', speed: 1 })
+    expect(toSheetOptions({ openDrips: false, closeSlosh: 0.5, wobble: false })).toMatchObject({ openDrips: false, closeSlosh: 0.5, wobble: false, openSlosh: true })
+    expect(toSheetOptions({ openDripAmount: 2, bloomStart: 'merge' })).toMatchObject({ openDripAmount: 2, bloomStart: 'merge' })
     expect(toSheetOptions({}, { renderer: 'svg' }).renderer).toBe('svg')
     expect(toSheetOptions({ renderer: 'svg' }, { renderer: 'canvas', preset: 'wild' })).toMatchObject({ renderer: 'svg', preset: 'wild' })
-    expect(SHEET_PROP_KEYS).toEqual(expect.arrayContaining(['goo', 'lobes', 'slosh', 'drips', 'suck', 'fade', 'speed', 'preset', 'renderer']))
+    expect(SHEET_PROP_KEYS).toEqual(
+      expect.arrayContaining(['goo', 'bloomStart', 'wobble', 'fade', 'openSlosh', 'openDrips', 'closeSlosh', 'openDripAmount', 'openDripSize', 'openDripFling', 'openDripVariety', 'speed', 'preset', 'renderer']),
+    )
+    for (const gone of ['lobes', 'slosh', 'drips', 'suck']) expect(SHEET_PROP_KEYS).not.toContain(gone)
   })
 })

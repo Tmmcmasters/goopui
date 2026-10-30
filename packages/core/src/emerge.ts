@@ -24,6 +24,7 @@ import {
   emergeMomentumStrength,
   type EmergeDripOptions,
   type EmergeMomentumEffects,
+  type EmergeSplashScale,
 } from './emerge-momentum'
 import type { GooFilterParams } from './filter'
 import { removeTicker, wakeTicker, type Ticker } from './loop'
@@ -88,6 +89,8 @@ export interface EmergeFeel {
   bloomClose?: number
   /** Bloom: jelly overshoot (px) past each side of the panel as the puddle lands. Default 4. */
   bloomOvershoot?: number
+  /** Bloom: splash drop count / size / fling scales (x the drip knobs). Default 1 each. */
+  bloomSplash?: Readonly<EmergeSplashScale>
 }
 
 export const EMERGE_FEEL: Readonly<Record<GoopPreset, Readonly<EmergeFeel>>> = Object.freeze({
@@ -165,6 +168,10 @@ export interface EmergeBridge {
   anchorRect?: EmergeRect
   /** Bloom: where the puddle starts (and shrinks back to), panel-local. Default the center. */
   origin?: EmergePoint
+  /** Bloom: panel edges that sit against the viewport edge (detached panels, e.g. a sheet).
+   *  The splash keeps its drops out of the off-screen region beyond them (drops that would
+   *  launch there move to the opposite edge). */
+  walls?: EmergeSide[]
   /** Points on the anchor edge and the panel's near edge, panel-local. */
   source: EmergePoint
   target: EmergePoint
@@ -712,6 +719,15 @@ function bloomPose(t: number, b: EmergeBridge, phase: EmergePhase, feel: EmergeF
   const ob = clamp(base)
   let bcx = lerp(o.x, cx, ob)
   let bcy = lerp(o.y, cy, ob)
+  // An origin on the panel's edge (a sheet's screen edge) pins the puddle to that edge: it
+  // grows out of it, overshoots only away from it and shrinks back into it.
+  const ro = b.origin
+  if (ro) {
+    if (ro.x <= 0.5) bcx = w / 2
+    else if (ro.x >= W - 0.5) bcx = W - w / 2
+    if (ro.y <= 0.5) bcy = h / 2
+    else if (ro.y >= H - 0.5) bcy = H - h / 2
+  }
   // The overshoot stops short of the trigger: the edge facing it only bulges into the gap
   // (no trigger to clear when the panel covers it).
   const trim = b.anchorRect ? Math.max(0, ov - Math.max(0, b.gap - BLOOM.clear)) : 0
@@ -822,7 +838,7 @@ export interface EmergeOptions extends EmergeEffects, EmergeMomentumEffects, Eme
   side?: EmergeSide | (() => EmergeSide | null | undefined)
   /** Bloom style: where the puddle starts and shrinks back to, an element (its center) or a
    *  point (same space as `host.getBoundingClientRect()`). null / absent: the panel's center.
-   *  Read every frame (a select passes its selected item). */
+   *  Read every frame (a select passes its selected item; a sheet its screen edge's middle). */
   bloomOrigin?: Element | (() => Element | EmergePoint | null | undefined) | null
   /** Animation speed multiplier. Default 1. */
   speed?: number
@@ -849,7 +865,8 @@ export interface EmergeOptions extends EmergeEffects, EmergeMomentumEffects, Eme
   /** Free-floating panel with no anchor to keep clear of (dialogs): implies the bloom flow
    *  style (`flow` / `flowStyle` are ignored), the overshoot and splash reach every side, and
    *  drop size follow EMERGE_DETACHED_ANCHOR instead of an anchor. `anchor` is then only read
-   *  for a `surfaceColor: 'trigger'`. */
+   *  for a `surfaceColor: 'trigger'`. `bloomOrigin` still applies, and panel edges against
+   *  the viewport edge become splash walls (no drops fly off-screen from them). */
   detached?: boolean
 }
 
@@ -863,6 +880,18 @@ export function emergeDetachedBridge(panel: EmergeRect, feel: EmergeFeel = EMERG
   const far = 1e6
   const b = emergeBridge({ x: panel.x + panel.width / 2 - A / 2, y: panel.y - far - A, width: A, height: A }, panel, 'bottom', feel)
   return { ...b, anchorRect: undefined }
+}
+
+/** Panel edges (of `panel`, viewport space) lying on the viewport's edge (`view` is its
+ *  size), within `tol` px or past it. Pure. */
+export function emergeWalls(panel: EmergeRect, view: { width: number; height: number }, tol = 2): EmergeSide[] {
+  const out: EmergeSide[] = []
+  if (view.width <= 0 || view.height <= 0) return out
+  if (panel.y <= tol) out.push('top')
+  if (panel.x + panel.width >= view.width - tol) out.push('right')
+  if (panel.y + panel.height >= view.height - tol) out.push('bottom')
+  if (panel.x <= tol) out.push('left')
+  return out
 }
 
 /** Normalize options: `detached` forces the bloom flow. */
@@ -1020,7 +1049,20 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
     const w = panel.width || host.offsetWidth
     const h = panel.height || host.offsetHeight
     const p = { ...panel, width: w, height: h }
-    if (opts.detached) return emergeDetachedBridge(p, feel)
+    if (opts.detached) {
+      const b = emergeDetachedBridge(p, feel)
+      const o = originPoint()
+      if (o) b.origin = { x: o.x - p.x, y: o.y - p.y }
+      // A panel against the screen edge (a sheet) keeps its splash on-screen.
+      const de = doc.documentElement
+      const vw = Math.min(win?.innerWidth ?? Infinity, de?.clientWidth || Infinity)
+      const vh = Math.min(win?.innerHeight ?? Infinity, de?.clientHeight || Infinity)
+      if (w > 0 && h > 0 && Number.isFinite(vw) && Number.isFinite(vh)) {
+        const walls = emergeWalls(p, { width: vw, height: vh })
+        if (walls.length) b.walls = walls
+      }
+      return b
+    }
     // No anchor: emerge from just outside the panel's near edge.
     const s = side()
     const a = anchorRect() ?? {
@@ -1082,6 +1124,7 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
         preset: presetName,
         seed,
         bloom: bloomOn(),
+        splash: feel.bloomSplash,
         bodyAt: (s) => emergePose((s + shift()) / phaseDur('open'), b, 'open', feel, opts, seed).body,
       })
     }
