@@ -12,7 +12,8 @@ export function useElementRef(): [ShallowRef<HTMLElement | null>, (c: Element | 
 }
 
 /** Attach core's accordion goo to `el` while `options` is non-null (browser-only: refs are
- *  only set on mount). Option changes update it; an `open` change animates. */
+ *  only set on mount). Option changes update it. Open / close is read from
+ *  the DOM by core (the trigger's `data-state`). */
 export function useAccordionGoo(
   el: Ref<HTMLElement | null>,
   options: Ref<AccordionOptions | null>,

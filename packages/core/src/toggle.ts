@@ -497,8 +497,31 @@ export interface ToggleHandle {
   destroy(): void
 }
 
-const isOn = (el: Element): boolean =>
+const isPressed = (el: Element): boolean =>
   el.getAttribute('data-state') === 'on' || el.getAttribute('aria-pressed') === 'true'
+
+/** How `attachToggleFill` reads and draws a host that is not a toggle (e.g. an accordion
+ *  trigger, which is `data-state="open"` when on). */
+export interface ToggleFillConfig {
+  /** `data-goop-part` of the goo layer. Default 'toggle'. */
+  part?: string
+  /** CSS color the goo paints with. Default `var(--goop-toggle-fill, var(--accent))`. */
+  color?: string
+  /** Is the host on? Default: `data-state="on"` or `aria-pressed="true"`. */
+  isOn?: (el: Element) => boolean
+  /** Attributes whose changes may flip `isOn`. Default `data-state`, `aria-pressed`. */
+  attrs?: string[]
+  /** Grow the filled box past the host's border box by this many px per side (negative
+   *  shrinks it). Default 0. */
+  bleed?: { x: number; y: number }
+  /** Attribute set on the host while its fill is at least half full (e.g. to switch the text
+   *  to a contrasting color as the goo arrives, and back as it drains). */
+  fullAttr?: string
+  /** Where the label sits (host padding box), measured with the layout: with it, `fullAttr` is
+   *  set while the goo covers that point instead of by fill level, so the text color flips
+   *  as the front actually crosses the label. */
+  labelAt?: (host: HTMLElement) => TogglePoint | null
+}
 
 const effectsOf = (o: ToggleGroupOptions): ToggleEffects => ({
   flood: gooEffectValue(o.flood),
@@ -514,7 +537,16 @@ const PRESS_MS = 1200
 /** Set on a group item while its goo shows (pressed or still draining). */
 export const TOGGLE_FILLED_ATTR = 'data-goop-filled'
 
-function attachEngine(host: HTMLElement, getItems: () => HTMLElement[], options: ToggleGroupOptions, part: string, markFill = false): ToggleHandle {
+function attachEngine(
+  host: HTMLElement,
+  getItems: () => HTMLElement[],
+  options: ToggleGroupOptions,
+  part: string,
+  markFill = false,
+  cfg: ToggleFillConfig = {},
+): ToggleHandle {
+  const isOn = cfg.isOn ?? isPressed
+  const bleed = cfg.bleed ?? { x: 0, y: 0 }
   const doc = host.ownerDocument
   const win = doc.defaultView
   let opts: ToggleGroupOptions = { ...options }
@@ -543,15 +575,21 @@ function attachEngine(host: HTMLElement, getItems: () => HTMLElement[], options:
     return { x: cx - hr.left - host.clientLeft, y: cy - hr.top - host.clientTop }
   }
   const rectOf = (el: HTMLElement): ToggleRect => {
-    if (el === host) return { x: -host.clientLeft, y: -host.clientTop, w: host.offsetWidth || host.getBoundingClientRect().width, h: host.offsetHeight || host.getBoundingClientRect().height }
+    if (el === host) {
+      const w = host.offsetWidth || host.getBoundingClientRect().width
+      const h = host.offsetHeight || host.getBoundingClientRect().height
+      return { x: -host.clientLeft - bleed.x, y: -host.clientTop - bleed.y, w: Math.max(1, w + 2 * bleed.x), h: Math.max(1, h + 2 * bleed.y) }
+    }
     const er = el.getBoundingClientRect()
     const p = local(er.left, er.top)
     return { x: p.x, y: p.y, w: er.width, h: er.height }
   }
   const center = (r: ToggleRect): TogglePoint => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 })
+  let label: TogglePoint | null = null
   const measure = (): void => {
     els = getItems()
     rects = els.map(rectOf)
+    label = cfg.labelAt ? cfg.labelAt(host) : null
   }
   const short = (): number => {
     const sizes = rects.map((r) => Math.min(r.w, r.h)).filter((s) => s > 0)
@@ -592,6 +630,15 @@ function attachEngine(host: HTMLElement, getItems: () => HTMLElement[], options:
         if (filled !== el.hasAttribute(TOGGLE_FILLED_ATTR)) el.toggleAttribute(TOGGLE_FILLED_ATTR, filled)
       })
     }
+    if (cfg.fullAttr) {
+      const attr = cfg.fullAttr
+      const lp = label
+      els.forEach((el, i) => {
+        const level = last!.levels[i] ?? 0
+        const full = lp && level > 0 && level < 1 ? last!.circles.some((c) => c.r > 0 && Math.hypot(c.x - lp.x, c.y - lp.y) < c.r) : level >= 0.5
+        if (full !== el.hasAttribute(attr)) el.toggleAttribute(attr, full)
+      })
+    }
     const cs = last.circles
     while (blobs.length < cs.length) blobs.push(layer.createBlob())
     for (let i = 0; i < blobs.length; i++) {
@@ -620,7 +667,7 @@ function attachEngine(host: HTMLElement, getItems: () => HTMLElement[], options:
     const l = layout()
     params = l.params
     layer = resolveRenderer(opts.renderer)(host, l.params)
-    layer.layer.style.setProperty('--goop-color', `var(${TOGGLE_COLOR_VAR}, var(--accent, currentColor))`)
+    layer.layer.style.setProperty('--goop-color', cfg.color ?? `var(${TOGGLE_COLOR_VAR}, var(--accent, currentColor))`)
     layer.layer.setAttribute('data-goop-part', part)
     layer.setBodyScale(0, 0)
     layer.setPadding({ side: l.pad, bottom: l.pad })
@@ -732,7 +779,7 @@ function attachEngine(host: HTMLElement, getItems: () => HTMLElement[], options:
   ro?.observe(host)
   const MO = win?.MutationObserver
   const mo = MO ? new MO(() => sync()) : undefined
-  mo?.observe(host, { attributes: true, attributeFilter: ['data-state', 'aria-pressed'], subtree: true, childList: true })
+  mo?.observe(host, { attributes: true, attributeFilter: cfg.attrs ?? ['data-state', 'aria-pressed'], subtree: true, childList: true })
   const unwatch = watchReducedMotion(doc, () => {
     reduced = readReduced()
     draw()
@@ -773,7 +820,10 @@ function attachEngine(host: HTMLElement, getItems: () => HTMLElement[], options:
       unwatch()
       host.removeEventListener('pointerdown', onPointerDown, true)
       teardown()
-      if (markFill) for (const el of anims.keys()) el.removeAttribute(TOGGLE_FILLED_ATTR)
+      for (const el of anims.keys()) {
+        if (markFill) el.removeAttribute(TOGGLE_FILLED_ATTR)
+        if (cfg.fullAttr) el.removeAttribute(cfg.fullAttr)
+      }
       anims = new Map()
       flights = []
       host.style.isolation = prevIsolation
@@ -787,8 +837,16 @@ function attachEngine(host: HTMLElement, getItems: () => HTMLElement[], options:
  * `aria-pressed`). Pressing floods it from the press point, un-pressing drains it.
  */
 export function attachToggle(host: HTMLElement, options: ToggleOptions = {}): ToggleHandle {
+  return attachToggleFill(host, options)
+}
+
+/**
+ * The single-toggle goo fill on any `host`, read and drawn as `config` says (GoopAccordion's
+ * trigger rows use it: `data-state="open"`, a bled-out row, a contrasting text color once full).
+ */
+export function attachToggleFill(host: HTMLElement, options: ToggleOptions = {}, config: ToggleFillConfig = {}): ToggleHandle {
   const { pressed: _p, ...rest } = options
-  return attachEngine(host, () => [host], { ...rest, flow: false, merge: false }, 'toggle')
+  return attachEngine(host, () => [host], { ...rest, flow: false, merge: false }, config.part ?? 'toggle', false, config)
 }
 
 /**
