@@ -1,16 +1,16 @@
 <script setup lang="ts">
-// GoopDrawerTrigger: shadcn-vue's DrawerTrigger.
-import type { DrawerTriggerProps } from 'vaul-vue'
-import { DrawerTrigger } from 'vaul-vue'
+// GoopDrawerTrigger: shadcn-vue's DrawerTrigger (reka-ui's DialogTrigger).
+import type { DialogTriggerProps } from 'reka-ui'
+import { DialogTrigger } from 'reka-ui'
 
-const props = defineProps<DrawerTriggerProps>()
+const props = defineProps<DialogTriggerProps>()
 </script>
 
 <template>
-  <DrawerTrigger
+  <DialogTrigger
     data-slot="drawer-trigger"
     v-bind="props"
   >
     <slot />
-  </DrawerTrigger>
+  </DialogTrigger>
 </template>

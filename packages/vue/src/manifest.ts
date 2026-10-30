@@ -87,6 +87,7 @@ export const goopComponents = [
   'GoopDrawerFooter',
   'GoopDrawerHeader',
   'GoopDrawerOverlay',
+  'GoopDrawerPortal',
   'GoopDrawerTitle',
   'GoopDrawerTrigger',
   'GoopAccordion',

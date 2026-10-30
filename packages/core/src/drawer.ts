@@ -583,8 +583,9 @@ export interface DrawerController {
   /** Animate to snap point `index` (when open). */
   snapTo(index: number): void
   update(opts?: DrawerOptions): void
-  /** 0..1: how far a nested child drawer is open on top (the panel recedes). */
-  setNested(t: number): void
+  /** 0..1: how far a nested child drawer is open on top (the panel recedes; eased unless
+   *  `instant`, e.g. while the child is being dragged). */
+  setNested(t: number, instant?: boolean): void
   /** Re-measure and redraw now. */
   refresh(): void
   /** Kick the goo edge outward by a px/s impulse. */
@@ -681,6 +682,7 @@ export function createDrawer(panel: HTMLElement, options: DrawerOptions = {}, ev
   let resting = true
   let drag: Drag | null = null
   let nested = 0
+  let nestedTarget = 0
   let lastX = Number.NaN
   let vel = 0 // smoothed edge velocity, px/s (+ out)
   let peak = 0
@@ -1001,7 +1003,6 @@ export function createDrawer(panel: HTMLElement, options: DrawerOptions = {}, ev
 
   const frame = (dt: number): boolean => {
     measure()
-    const prev = spring.x
     if (drag?.active) {
       const min = Math.min(...snaps)
       const max = Math.max(...snaps)
@@ -1035,11 +1036,14 @@ export function createDrawer(panel: HTMLElement, options: DrawerOptions = {}, ev
       vel += ((Math.abs(raw) > 12000 ? 0 : raw) - vel) * Math.min(1, dt * 30)
     } else if (dt > 0) vel *= Math.exp(-dt * 20)
     lastX = spring.x
-    void prev
+    if (nested !== nestedTarget) {
+      nested += (nestedTarget - nested) * Math.min(1, dt * (reduced ? 30 : 12))
+      if (Math.abs(nested - nestedTarget) < 0.002) nested = nestedTarget
+    }
     applyPanel()
     const gooBusy = state === 'closed' ? false : drawGoo(dt)
     const gripBusy = drawGrip(dt)
-    const moving = !resting || !!drag || Math.abs(vel) > 2
+    const moving = !resting || !!drag || Math.abs(vel) > 2 || nested !== nestedTarget
     return (moving || (!reduced && (gooBusy || gripBusy))) && state !== 'closed'
   }
 
@@ -1355,10 +1359,11 @@ export function createDrawer(panel: HTMLElement, options: DrawerOptions = {}, ev
         wake()
       }
     },
-    setNested(t) {
+    setNested(t, instant = false) {
       const n = clamp(Number.isFinite(t) ? t : 0, 0, 1)
-      if (n === nested) return
-      nested = n
+      if (n === nestedTarget && (!instant || n === nested)) return
+      nestedTarget = n
+      if (instant || state === 'closed') nested = n
       if (state !== 'closed') {
         applyPanel()
         wake()
