@@ -38,9 +38,9 @@ const sides = ['top', 'right', 'bottom', 'left'] as const
       </GoopTooltip>
       <GoopTooltip>
         <GoopTooltipTrigger as-child>
-          <GoopButton variant="secondary">With drips</GoopButton>
+          <GoopButton variant="secondary">Bigger splash</GoopButton>
         </GoopTooltipTrigger>
-        <GoopTooltipContent open-drips>Drips are off by default</GoopTooltipContent>
+        <GoopTooltipContent :open-drips="1.5">A bigger splash</GoopTooltipContent>
       </GoopTooltip>
     </template>
   </GoopTooltipProvider>
