@@ -193,6 +193,8 @@ export {
   EMERGE_STATE_ATTR,
   EMERGE_STILL_ATTR,
   attachEmerge,
+  EMERGE_DETACHED_ANCHOR,
+  emergeDetachedBridge,
   emergeBloomDuration,
   emergeBridge,
   emergeFlowDuration,
@@ -284,6 +286,27 @@ export {
   type TabsIndicatorOptions,
 } from './tabs'
 export { TOOLTIP_BLOOM_SPLASH, TOOLTIP_FEEL, TOOLTIP_MOMENTUM } from './tooltip'
+export {
+  ALERT_DIALOG_MOMENTUM,
+  ALERT_DIALOG_SPLASH,
+  BACKDROP_CLOSE_VAR,
+  BACKDROP_FEEL,
+  BACKDROP_DRIPS,
+  BACKDROP_LUMPS,
+  BACKDROP_STATE_ATTR,
+  BACKDROP_STILL_ATTR,
+  DIALOG_FEEL,
+  attachBackdrop,
+  backdropDripStrength,
+  backdropLumpCount,
+  backdropPose,
+  type BackdropFeel,
+  type BackdropHandle,
+  type BackdropOptions,
+  type BackdropPhase,
+  type BackdropPose,
+  type BackdropState,
+} from './dialog'
 export {
   GOO_BRIDGE_NECKS,
   GOO_SPLASH_MAX,

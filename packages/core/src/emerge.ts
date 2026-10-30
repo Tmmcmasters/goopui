@@ -814,6 +814,28 @@ export interface EmergeOptions extends EmergeEffects, EmergeMomentumEffects, Eme
   surfaceColor?: EmergeSurfaceColor
   /** Per-preset feel table. Default EMERGE_FEEL (GoopTooltip passes TOOLTIP_FEEL). */
   feel?: Readonly<Record<GoopPreset, Readonly<EmergeFeel>>>
+  /** Free-floating panel with no anchor to keep clear of (dialogs): implies the bloom flow
+   *  style (`flow` / `flowStyle` are ignored), the overshoot and splash reach every side, and
+   *  drop size follow EMERGE_DETACHED_ANCHOR instead of an anchor. `anchor` is then only read
+   *  for a `surfaceColor: 'trigger'`. */
+  detached?: boolean
+}
+
+/** Detached panels: the virtual anchor size (px) the bulb, slosh and drop size derive from. */
+export const EMERGE_DETACHED_ANCHOR = 44
+
+/** Bridge for a detached panel (no anchor): a virtual EMERGE_DETACHED_ANCHOR-sized anchor far
+ *  above it sets the bulb (slosh / drop size); no anchor rect to keep off, no gap to trim. Pure. */
+export function emergeDetachedBridge(panel: EmergeRect, feel: EmergeFeel = EMERGE_FEEL.playful): EmergeBridge {
+  const A = EMERGE_DETACHED_ANCHOR
+  const far = 1e6
+  const b = emergeBridge({ x: panel.x + panel.width / 2 - A / 2, y: panel.y - far - A, width: A, height: A }, panel, 'bottom', feel)
+  return { ...b, anchorRect: undefined }
+}
+
+/** Normalize options: `detached` forces the bloom flow. */
+function normalizeEmerge(o: EmergeOptions): EmergeOptions {
+  return o.detached ? { ...o, flow: true, flowStyle: 'bloom' } : o
 }
 
 export interface EmergeHandle {
@@ -854,7 +876,7 @@ const READY_MAX_FRAMES = 12
 export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): EmergeHandle {
   const doc = host.ownerDocument
   const win = doc.defaultView
-  let opts: EmergeOptions = { ...options }
+  let opts: EmergeOptions = normalizeEmerge({ ...options })
   let presetName = readPreset(host, opts.preset)
   let feel = (opts.feel ?? EMERGE_FEEL)[presetName]
   let params = emergeGooParams(feel)
@@ -955,6 +977,7 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
     const w = panel.width || host.offsetWidth
     const h = panel.height || host.offsetHeight
     const p = { ...panel, width: w, height: h }
+    if (opts.detached) return emergeDetachedBridge(p, feel)
     // No anchor: emerge from just outside the panel's near edge.
     const s = side()
     const a = anchorRect() ?? {
@@ -1142,7 +1165,7 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
       if (destroyed) return
       const rendererChanged = 'renderer' in next && next.renderer !== opts.renderer
       const colorChanged = 'surfaceColor' in next && next.surfaceColor !== opts.surfaceColor
-      opts = { ...opts, ...next }
+      opts = normalizeEmerge({ ...opts, ...next })
       if (colorChanged && state !== 'closed') applyColors()
       presetName = readPreset(host, opts.preset)
       const nextFeel = (opts.feel ?? EMERGE_FEEL)[presetName]

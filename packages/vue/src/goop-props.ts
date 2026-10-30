@@ -28,6 +28,10 @@ import {
   TOOLTIP_BLOOM_SPLASH,
   TOOLTIP_FEEL,
   TOOLTIP_MOMENTUM,
+  ALERT_DIALOG_MOMENTUM,
+  ALERT_DIALOG_SPLASH,
+  DIALOG_FEEL,
+  type BackdropOptions,
   type TabsEffect,
   type TabsIndicatorOptions,
   CHECKBOX_EFFECTS,
@@ -532,7 +536,7 @@ export interface GoopMenuProps {
 
 /** Compile-time guards: every emerge / highlight option core grows must be handled here. */
 // `surface` (the element) is the adapter's; `surfaceColor` comes from the `surface` prop.
-type MenuAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'surfaceColor' | 'find' | 'feel' | 'reducedMotion'
+type MenuAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'surfaceColor' | 'find' | 'feel' | 'reducedMotion' | 'detached'
 type MenuUnhandled = Exclude<
   keyof EmergeOptions | keyof MenuHighlightOptions | MenuEffect,
   keyof GoopMenuProps | MenuAdapterOwned
@@ -724,7 +728,7 @@ export interface GoopTooltipProps {
 }
 
 // `surface` (the element) is the adapter's; `surfaceColor` comes from the `surface` prop.
-type TooltipAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'surfaceColor' | 'feel' | 'reducedMotion'
+type TooltipAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'surfaceColor' | 'feel' | 'reducedMotion' | 'detached'
 type TooltipUnhandled = Exclude<keyof EmergeOptions, keyof GoopTooltipProps | TooltipAdapterOwned>
 const _allTooltipOptionsHandled: [TooltipUnhandled] extends [never] ? true : { unhandled: TooltipUnhandled } = true
 void _allTooltipOptionsHandled
@@ -762,6 +766,147 @@ export function toTooltipOptions(props: GoopTooltipProps, config: GoopOptions = 
     openDripFling: props.openDripFling ?? S?.openDripFling,
     openDripVariety: props.openDripVariety,
     surfaceColor: props.surface ?? 'popover',
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+}
+
+// ---- GoopDialog / GoopAlertDialog ------------------------------------------------------------
+// The panel blooms with core's emerge engine in `detached` mode (no trigger: it pools from its
+// own center, the overshoot and big all-around splash reach every side, close shrinks it back
+// to the center), fed DIALOG_FEEL. The alert dialog is the serious one: a lighter splash and
+// slosh (core ALERT_DIALOG_SPLASH / ALERT_DIALOG_MOMENTUM). The overlay pours down as a goo
+// sheet with a drippy edge and drains off the bottom on close (core `attachBackdrop`).
+
+/** Every GoopDialogContent / GoopAlertDialogContent engine prop. */
+export const DIALOG_PROP_KEYS = [
+  'goo',
+  'bloomStart',
+  'wobble',
+  'fade',
+  'openSlosh',
+  'openDrips',
+  'closeSlosh',
+  ...EMERGE_DRIP_KEYS,
+  'overlay',
+  'overlayDrips',
+  'surface',
+  'speed',
+  'preset',
+  'renderer',
+] as const
+
+/** Engine props of GoopDialogContent / GoopAlertDialogContent. */
+export interface GoopDialogProps {
+  /** Master switch. `false` renders plain shadcn content and overlay. */
+  goo?: boolean
+  /** Bloom start: 'single' (default: one droplet swells) or 'merge' (a few drops fuse). */
+  bloomStart?: EmergeBloomStart
+  /** The open overshoot past every side and its jelly settle. */
+  wobble?: boolean
+  /** Content fades in once the goo has mostly spread (and out first on close). */
+  fade?: boolean
+  /** Open: every edge bulges past rest, rebounds and wobbles. `true`, `false` or a 0..2
+   *  strength (alert dialog: `true` is a light 0.6). */
+  openSlosh?: boolean | number
+  /** Open: the big all-around splash (globs, drops and specks fling off every side, fall and
+   *  fade). `true`, `false` or 0..2 (alert dialog: a light splash by default). */
+  openDrips?: boolean | number
+  /** Splash drop count scale (0..3; default 1, alert dialog 0.35). */
+  openDripAmount?: number
+  /** Splash drop size scale (0.3..2.5; default 1, alert dialog 0.75). */
+  openDripSize?: number
+  /** How far splash drops are flung (0..3; default 1, alert dialog 0.6). */
+  openDripFling?: number
+  /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
+  openDripVariety?: number
+  /** Close: the panel pulls in and wobbles before it shrinks to the center. `true`, `false`
+   *  or 0..2 (alert dialog: `true` is a light 0.7). */
+  closeSlosh?: boolean | number
+  /** Goo overlay: the dimmed backdrop pours down over the page and drains off the bottom on
+   *  close (default true). `false`: shadcn's fading overlay. */
+  overlay?: boolean
+  /** The overlay's leading edge runs ahead in drips: `true`, `false` (a straight edge) or a
+   *  0..2 strength. */
+  overlayDrips?: boolean | number
+  /** Panel color: 'popover' (default: the content's own shadcn background), 'trigger' (the
+   *  trigger's background and text color), or any CSS color. */
+  surface?: EmergeSurfaceColor
+  /** Animation speed multiplier (panel and overlay). */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory (panel and overlay). */
+  renderer?: GoopRendererOption
+}
+
+// `detached` forces the bloom, so `flow` / `flowStyle` / `bridge` / `momentum` don't apply.
+type DialogAdapterOwned =
+  | 'anchor'
+  | 'side'
+  | 'ready'
+  | 'surface'
+  | 'surfaceColor'
+  | 'feel'
+  | 'reducedMotion'
+  | 'detached'
+  | 'flow'
+  | 'flowStyle'
+  | 'bridge'
+  | 'momentum'
+type DialogUnhandled = Exclude<keyof EmergeOptions, keyof GoopDialogProps | DialogAdapterOwned>
+const _allDialogOptionsHandled: [DialogUnhandled] extends [never] ? true : { unhandled: DialogUnhandled } = true
+void _allDialogOptionsHandled
+// Backdrop: `drips` comes from `overlayDrips`; speed / preset / renderer are shared.
+type BackdropUnhandled = Exclude<keyof BackdropOptions, keyof GoopDialogProps | 'drips' | 'surface' | 'seed' | 'reducedMotion'>
+const _allBackdropOptionsHandled: [BackdropUnhandled] extends [never] ? true : { unhandled: BackdropUnhandled } = true
+void _allBackdropOptionsHandled
+type DialogPropsListed = Exclude<keyof GoopDialogProps, (typeof DIALOG_PROP_KEYS)[number]>
+const _allDialogPropsListed: [DialogPropsListed] extends [never] ? true : { unlisted: DialogPropsListed } = true
+void _allDialogPropsListed
+
+/** 'dialog' (the big splash) or 'alert' (the lighter one). */
+export type GoopDialogKind = 'dialog' | 'alert'
+
+/** Emerge options for a dialog panel over app config. */
+export function toDialogOptions(props: GoopDialogProps, config: GoopOptions = {}, kind: GoopDialogKind = 'dialog'): EmergeOptions {
+  const alert = kind === 'alert'
+  const S = alert ? ALERT_DIALOG_SPLASH : null
+  const M = alert ? ALERT_DIALOG_MOMENTUM : null
+  // `true` / absent: the kind's default strength (alert: light).
+  const strength = (v: boolean | number | undefined, def: boolean | number | undefined): boolean | number =>
+    v === undefined || v === true ? (def ?? true) : v
+  return {
+    feel: DIALOG_FEEL,
+    detached: true,
+    bloomStart: props.bloomStart ?? 'single',
+    wobble: props.wobble !== false,
+    fade: props.fade !== false,
+    openSlosh: strength(props.openSlosh, M?.openSlosh),
+    openDrips: props.openDrips ?? S?.openDrips ?? true,
+    closeSlosh: strength(props.closeSlosh, M?.closeSlosh),
+    openDripAmount: props.openDripAmount ?? S?.openDripAmount,
+    openDripSize: props.openDripSize ?? S?.openDripSize,
+    openDripFling: props.openDripFling ?? S?.openDripFling,
+    openDripVariety: props.openDripVariety,
+    surfaceColor: props.surface ?? 'popover',
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+}
+
+/** Backdrop options for the goo overlay over app config, or null when it is off. */
+export function toBackdropOptions(
+  props: Pick<GoopDialogProps, 'goo' | 'overlay' | 'overlayDrips' | 'speed' | 'preset' | 'renderer'>,
+  config: GoopOptions = {},
+): BackdropOptions | null {
+  if (props.goo === false || props.overlay === false) return null
+  return {
+    drips: props.overlayDrips ?? true,
     speed: props.speed ?? 1,
     preset: props.preset ?? config.preset,
     renderer: props.renderer ?? config.renderer,
