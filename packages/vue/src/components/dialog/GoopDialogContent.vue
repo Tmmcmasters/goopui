@@ -86,7 +86,7 @@ defineExpose({
 <template>
   <DialogPortal>
     <GoopDialogOverlay
-      :goo="goo && overlay !== false"
+      :goo="goo && overlay === true"
       :drips="overlayDrips"
       :speed="speed"
       :preset="preset"

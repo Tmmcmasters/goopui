@@ -18,7 +18,7 @@ const props = withDefaults(
       renderer?: GoopDialogProps['renderer']
     }
   >(),
-  { goo: true, drips: undefined, speed: undefined, preset: undefined, renderer: undefined },
+  { goo: false, drips: undefined, speed: undefined, preset: undefined, renderer: undefined },
 )
 </script>
 

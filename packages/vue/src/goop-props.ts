@@ -994,8 +994,8 @@ export interface GoopDialogProps {
   /** Close: the panel pulls in and wobbles before it shrinks to the center. `true`, `false`
    *  or 0..2 (alert dialog: `true` is a light 0.7). */
   closeSlosh?: boolean | number
-  /** Goo overlay: the dimmed backdrop pours down over the page and drains off the bottom on
-   *  close (default true). `false`: shadcn's fading overlay. */
+  /** Goo overlay (opt-in): the dimmed backdrop pours down over the page and drains off the bottom on
+   *  close. Default `false`: shadcn's fading overlay. */
   overlay?: boolean
   /** The overlay's leading edge runs ahead in drips: `true`, `false` (a straight edge) or a
    *  0..2 strength. */

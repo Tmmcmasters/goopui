@@ -12,7 +12,7 @@ const fade = ref(true)
 const openSlosh = ref(true)
 const openDrips = ref(true)
 const closeSlosh = ref(true)
-const overlay = ref(true)
+const overlay = ref(false)
 const overlayDrips = ref(true)
 /** Strengths (0..2) while the toggles are on; 'auto' leaves the kind's default (alert: light). */
 const auto = ref(true)

@@ -115,8 +115,8 @@ describe('GoopDialog', () => {
     expect(activeTickerCount()).toBe(0)
   })
 
-  it('the overlay is a pouring goo sheet', async () => {
-    const w = mount(Demo, { attachTo: document.body })
+  it(':overlay="true" opts into the pouring goo sheet', async () => {
+    const w = mount(Demo, { props: { content: { overlay: true } }, attachTo: document.body })
     await flushPromises()
     const ov = q('dialog-overlay')!
     expect(ov.getAttribute('data-goop-backdrop')).toBe('opening')
@@ -125,8 +125,8 @@ describe('GoopDialog', () => {
     w.unmount()
   })
 
-  it(':overlay="false" keeps the panel goo and shadcn\'s fading overlay', async () => {
-    const w = mount(Demo, { props: { content: { overlay: false } }, attachTo: document.body })
+  it('by default keeps the panel goo over shadcn\'s fading overlay', async () => {
+    const w = mount(Demo, { attachTo: document.body })
     await flushPromises()
     const ov = q('dialog-overlay')!
     expect(ov.hasAttribute('data-goop-backdrop')).toBe(false)
@@ -160,7 +160,7 @@ describe('GoopDialog', () => {
 
   it('reduced motion: opens at rest, nothing ticks', async () => {
     document.documentElement.dataset.reducedMotion = 'true'
-    const w = mount(Demo, { attachTo: document.body })
+    const w = mount(Demo, { props: { content: { overlay: true } }, attachTo: document.body })
     await flushPromises()
     const el = q('dialog-content')!
     expect(el.getAttribute('data-goop-emerge')).toBe('open')
@@ -179,7 +179,7 @@ describe('GoopDialog', () => {
   })
 
   it('opens on the trigger and plays the close (panel and overlay) when it closes', async () => {
-    const w = mount(Demo, { props: { open: false }, attachTo: document.body })
+    const w = mount(Demo, { props: { open: false, content: { overlay: true } }, attachTo: document.body })
     await flushPromises()
     expect(q('dialog-content')).toBeNull()
     await w.find('[data-slot="dialog-trigger"]').trigger('click')
@@ -214,7 +214,7 @@ describe('GoopAlertDialog', () => {
     const el = q('alert-dialog-content')!
     expect(el.getAttribute('role')).toBe('alertdialog')
     expect(el.getAttribute('data-goop-emerge')).toBe('opening')
-    expect(q('alert-dialog-overlay')!.getAttribute('data-goop-backdrop')).toBe('opening')
+    expect(q('alert-dialog-overlay')!.hasAttribute('data-goop-backdrop')).toBe(false)
     const action = q('alert-dialog-action')!
     const cancel = q('alert-dialog-cancel')!
     expect(action.tagName).toBe('BUTTON')

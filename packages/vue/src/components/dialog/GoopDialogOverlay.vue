@@ -18,7 +18,7 @@ const props = withDefaults(
   defineProps<
     DialogOverlayProps & {
       class?: HTMLAttributes['class']
-      /** Master switch. `false` renders shadcn's fading overlay. */
+      /** Goo pour (opt-in). Default `false`: shadcn's fading overlay. */
       goo?: boolean
       /** Drippy leading edge: `true`, `false` (a straight edge) or a 0..2 strength. */
       drips?: GoopDialogProps['overlayDrips']
@@ -27,7 +27,7 @@ const props = withDefaults(
       renderer?: GoopDialogProps['renderer']
     }
   >(),
-  { goo: true, drips: undefined, speed: undefined, preset: undefined, renderer: undefined },
+  { goo: false, drips: undefined, speed: undefined, preset: undefined, renderer: undefined },
 )
 
 const delegated = computed(() => {

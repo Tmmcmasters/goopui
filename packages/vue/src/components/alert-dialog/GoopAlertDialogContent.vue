@@ -71,7 +71,7 @@ defineExpose({
 <template>
   <AlertDialogPortal>
     <GoopAlertDialogOverlay
-      :goo="goo && overlay !== false"
+      :goo="goo && overlay === true"
       :drips="overlayDrips"
       :speed="speed"
       :preset="preset"
