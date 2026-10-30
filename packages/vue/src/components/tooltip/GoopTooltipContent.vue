@@ -43,6 +43,7 @@ const props = withDefaults(defineProps<TooltipContentProps & GoopTooltipProps & 
   openDripSize: undefined,
   openDripFling: undefined,
   openDripVariety: undefined,
+  sloshVariety: undefined,
   surface: undefined,
   speed: undefined,
   preset: undefined,

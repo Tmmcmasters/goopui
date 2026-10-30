@@ -11,6 +11,11 @@
 // `attachMenuHighlight(container)` follows the item carrying `data-highlighted` (reka-ui and
 // Radix set it for pointer hover AND keyboard focus) inside `container`, which is the menu's
 // item list. Nothing here touches `document`/`window` until it runs.
+//
+// Follow the pointer: the swell of the goo (the neck and tail while travelling, and a soft
+// bulge while the pointer slides along an item) sits under the cursor's position along the
+// item, on a spring of its own so it trails the cursor a little. Keyboard navigation (no
+// pointer since the last key) keeps it centred.
 
 import type { GoopPreset } from './constants'
 import {
@@ -22,6 +27,7 @@ import {
 } from './emerge'
 import type { GooFilterParams } from './filter'
 import { removeTicker, wakeTicker, type Ticker } from './loop'
+import { markMovingGooHost } from './page-edge'
 import { isReducedMotion, watchReducedMotion } from './reduced-motion'
 import type { GoopBlob, GoopRenderer } from './renderer'
 import { resolveRenderer, type GoopRendererOption } from './renderers/resolve'
@@ -48,6 +54,10 @@ export interface MenuFeel {
   decay: number
   /** Goo blur (px). */
   softness: number
+  /** Pointer-follow bulge: how far it swells (peak, fraction of the item's half height) at
+   *  full pointer speed: a low, wide mound (MENU_SWELL_WIDTH of the item). Default 0 (no
+   *  bulge; tabs). */
+  swell?: number
 }
 
 export const MENU_FEEL: Readonly<Record<GoopPreset, Readonly<MenuFeel>>> = Object.freeze({
@@ -62,6 +72,7 @@ export const MENU_FEEL: Readonly<Record<GoopPreset, Readonly<MenuFeel>>> = Objec
     hide: 0.12,
     decay: 7,
     softness: 3,
+    swell: 0.04,
   }),
   playful: Object.freeze({
     head: { response: 0.24, dampingRatio: 0.62 },
@@ -74,6 +85,7 @@ export const MENU_FEEL: Readonly<Record<GoopPreset, Readonly<MenuFeel>>> = Objec
     hide: 0.14,
     decay: 4.5,
     softness: 3.5,
+    swell: 0.07,
   }),
   wild: Object.freeze({
     head: { response: 0.3, dampingRatio: 0.45 },
@@ -86,6 +98,7 @@ export const MENU_FEEL: Readonly<Record<GoopPreset, Readonly<MenuFeel>>> = Objec
     hide: 0.16,
     decay: 3,
     softness: 4,
+    swell: 0.1,
   }),
 })
 
@@ -94,17 +107,27 @@ export const MENU_EFFECTS = ['highlight', 'pop', 'submenus'] as const
 export type MenuEffect = (typeof MENU_EFFECTS)[number]
 
 /** Highlight toggles. `wobble`: head overshoot + jelly grow-in. `momentum`: tail, stretch and
- *  neck while travelling. `pop`: the select squish. All default true. */
+ *  neck while travelling. `pop`: the select squish. `followPointer`: the swell sits under the
+ *  pointer instead of the item's center. All default true. */
 export interface MenuHighlightEffects {
   wobble?: boolean
   momentum?: boolean
   pop?: boolean
+  followPointer?: boolean
 }
 
 /** Neck lumps between the body and the tail. */
 export const MENU_NECK_LUMPS = 3
-/** Circles a pose returns: tail + neck lumps. */
-export const MENU_HIGHLIGHT_CIRCLES = 1 + MENU_NECK_LUMPS
+/** Circles tracing the pointer swell (a soft mound of overlapping circles, never a knob). */
+export const MENU_SWELL_CIRCLES = 9
+/** Index of the first swell circle in a pose. */
+export const MENU_SWELL_AT = 1 + MENU_NECK_LUMPS
+/** The swell's base width, as a fraction of the item's width. */
+export const MENU_SWELL_WIDTH = 1 / 3
+/** Circles a pose returns: tail + neck lumps + the pointer swell. */
+export const MENU_HIGHLIGHT_CIRCLES = MENU_SWELL_AT + MENU_SWELL_CIRCLES
+/** Pointer speed (px/s along the item) at which the swell is full. */
+export const MENU_SWELL_SPEED = 700
 /** Smallest neck lump radius, as a fraction of the item's half height: never a string. */
 export const MENU_NECK_MIN = 0.6
 
@@ -116,6 +139,10 @@ export interface MenuHighlightState {
   h: SpringState
   tx: SpringState
   ty: SpringState
+  /** Bulge x: where the swell sits along the item (springs toward the pointer). */
+  bx: SpringState
+  /** Where `bx` is heading (the pointer, clamped into the item; else the item's center). */
+  bt: number
   /** 0..1 progress of the grow-in. */
   appear: number
   /** 1 = shown, 0 = hidden (shrinks out). */
@@ -128,7 +155,8 @@ export interface MenuHighlightState {
 
 export interface MenuHighlightPose {
   body: EmergeBody
-  /** Tail then neck lumps (MENU_HIGHLIGHT_CIRCLES), zero-radius when unused. */
+  /** Tail, neck lumps, then the pointer swell (MENU_HIGHLIGHT_CIRCLES), zero-radius when
+   *  unused. */
   circles: EmergeCircle[]
 }
 
@@ -143,15 +171,38 @@ const fxOf = (fx: MenuHighlightEffects = {}): Required<MenuHighlightEffects> => 
   wobble: fx.wobble !== false,
   momentum: fx.momentum !== false,
   pop: fx.pop !== false,
+  followPointer: fx.followPointer !== false,
 })
 
 /** A hidden highlight with nothing to show. */
 export function menuHighlightInit(): MenuHighlightState {
-  return { x: spring(), y: spring(), w: spring(), h: spring(), tx: spring(), ty: spring(), appear: 1, fade: 0, pop: 1, shown: false }
+  return {
+    x: spring(),
+    y: spring(),
+    w: spring(),
+    h: spring(),
+    tx: spring(),
+    ty: spring(),
+    bx: spring(),
+    bt: 0,
+    appear: 1,
+    fade: 0,
+    pop: 1,
+    shown: false,
+  }
 }
 
-/** Snap the whole blob onto `r` at rest (no motion). */
-export function menuHighlightSnap(s: MenuHighlightState, r: EmergeRect): void {
+/** Where the swell aims on `r`: the pointer x (container coordinates) clamped so the swell's
+ *  peak stays clear of the item's round ends, or the center when there is no pointer. */
+export function menuBulgeTarget(r: EmergeRect, pointer?: number | null): number {
+  const cx = r.x + r.width / 2
+  if (pointer == null || !Number.isFinite(pointer)) return cx
+  const inset = Math.min(r.height / 2, r.width / 2)
+  return clamp(pointer, r.x + inset, r.x + r.width - inset)
+}
+
+/** Snap the whole blob onto `r` at rest (no motion). `pointer`: where the swell rests. */
+export function menuHighlightSnap(s: MenuHighlightState, r: EmergeRect, pointer?: number | null): void {
   const cx = r.x + r.width / 2
   const cy = r.y + r.height / 2
   s.x = spring(cx)
@@ -160,6 +211,8 @@ export function menuHighlightSnap(s: MenuHighlightState, r: EmergeRect): void {
   s.h = spring(r.height)
   s.tx = spring(cx)
   s.ty = spring(cy)
+  s.bt = menuBulgeTarget(r, pointer)
+  s.bx = spring(s.bt)
   s.appear = 1
   s.fade = 1
   s.shown = true
@@ -184,7 +237,8 @@ const criticalOf = (response: number) => {
 
 /**
  * Advance the highlight by `dt` seconds toward `target` (container coordinates; null = no
- * item highlighted). Mutates `s`. Pure apart from that: same inputs, same result.
+ * item highlighted). `pointer`: the pointer's x in container coordinates (null: keyboard,
+ * the swell centres). Mutates `s`. Pure apart from that: same inputs, same result.
  */
 export function menuHighlightStep(
   s: MenuHighlightState,
@@ -192,6 +246,7 @@ export function menuHighlightStep(
   dt: number,
   feel: MenuFeel = MENU_FEEL.playful,
   effects?: MenuHighlightEffects,
+  pointer?: number | null,
 ): void {
   const fx = fxOf(effects)
   if (s.pop < 1) s.pop = Math.min(1, s.pop + dt / Math.max(1e-3, feel.pop))
@@ -202,7 +257,7 @@ export function menuHighlightStep(
   }
   if (!s.shown && s.fade <= 0.01) {
     // Appearing from nothing: grow in place instead of flying in from the last spot.
-    menuHighlightSnap(s, target)
+    menuHighlightSnap(s, target, fx.followPointer ? pointer : null)
     s.appear = 0
   }
   s.shown = true
@@ -214,6 +269,9 @@ export function menuHighlightStep(
   stepSpring(s.y, target.y + target.height / 2, head, dt)
   stepSpring(s.w, target.width, head, dt)
   stepSpring(s.h, target.height, head, dt)
+  // The swell trails the pointer on the tail's (softer) spring: springy, not glued.
+  s.bt = menuBulgeTarget(target, fx.followPointer ? pointer : null)
+  stepSpring(s.bx, s.bt, tail, dt)
   if (!fx.momentum) {
     s.tx = { x: s.x.x, v: s.x.v }
     s.ty = { x: s.y.x, v: s.y.v }
@@ -249,7 +307,8 @@ export function menuHighlightSettled(s: MenuHighlightState, target: EmergeRect |
     near(s.w, target.width) &&
     near(s.h, target.height) &&
     near(s.tx, cx) &&
-    near(s.ty, cy)
+    near(s.ty, cy) &&
+    near(s.bx, s.bt)
   )
 }
 
@@ -286,6 +345,25 @@ export function menuHighlightPose(
   let w = w0 * grow * sq.sx
   let h = h0 * grow * sq.sy
   const circles: EmergeCircle[] = Array.from({ length: MENU_HIGHLIGHT_CIRCLES }, zero)
+  const half = (h0 / 2) * grow
+  // The swell: a low, wide mound (raised cosine, MENU_SWELL_WIDTH of the item) under the
+  // pointer, traced by overlapping circles centred on the bar, each `half + g(x)` round. Zero
+  // slope at its peak and where it meets the flat edges: a soft rise, not a knob. Near an
+  // end of the item the side toward it narrows (the peak stays under the pointer).
+  const bulge = fx.followPointer ? clamp(s.bx.x, cx - w / 2 + half, cx + w / 2 - half) : s.x.x
+  const swell = fx.followPointer ? (feel.swell ?? 0) * smooth(Math.abs(s.bx.v) / MENU_SWELL_SPEED) : 0
+  const hw = (w * MENU_SWELL_WIDTH) / 2
+  const lo = Math.min(hw, bulge - (cx - w / 2 + half))
+  const hi = Math.min(hw, cx + w / 2 - half - bulge)
+  if (swell > 0.005 && w > 2 * half && lo + hi > 4) {
+    const d = half * swell
+    for (let i = 0; i < MENU_SWELL_CIRCLES; i++) {
+      const f = -1 + (2 * (i + 1)) / (MENU_SWELL_CIRCLES + 1)
+      const g = (d * (1 + Math.cos(Math.PI * f))) / 2
+      if (g < 0.05) continue
+      circles[MENU_SWELL_AT + i] = { x: bulge + f * (f < 0 ? lo : hi), y: cy, r: half + g }
+    }
+  }
   const dx = s.tx.x - cx
   const dy = s.ty.x - cy
   const dist = Math.hypot(dx, dy)
@@ -310,17 +388,18 @@ export function menuHighlightPose(
   }
   // Tail blob and fat neck lumps from the body's trailing edge to it.
   const lagged = clamp(dist / Math.max(1e-6, feel.lag * h0))
-  const half = (h0 / 2) * grow
   const tailR = half * lerp(0.95, 0.72, lagged)
-  circles[0] = { x: s.tx.x, y: s.ty.x, r: tailR }
+  // Down a column the neck and tail ride the swell's x (under the pointer), not the center.
+  const off = vertical ? bulge - s.x.x : 0
+  circles[0] = { x: s.tx.x + off, y: s.ty.x, r: tailR }
   const edge = vertical ? h / 2 : w / 2
-  const ex = vertical ? s.x.x : cx + ux * edge
+  const ex = vertical ? bulge : cx + ux * edge
   const ey = vertical ? cy + uy * edge : s.y.x
   const neckR = half * Math.max(MENU_NECK_MIN, 0.88 - 0.24 * lagged)
   for (let i = 0; i < MENU_NECK_LUMPS; i++) {
     const f = (i + 1) / (MENU_NECK_LUMPS + 1)
     const wob = i === 1 ? 1.08 : 1
-    circles[1 + i] = { x: lerp(ex, s.tx.x, f), y: lerp(ey, s.ty.x, f), r: Math.min(neckR * wob, thick) }
+    circles[1 + i] = { x: lerp(ex, s.tx.x + off, f), y: lerp(ey, s.ty.x, f), r: Math.min(neckR * wob, thick) }
   }
   return { body: { cx, cy, w, h }, circles }
 }
@@ -392,8 +471,13 @@ export function attachMenuHighlight(container: HTMLElement, options: MenuHighlig
   let destroyed = false
   let pad = -1
   let size = { w: -1, h: -1 }
+  /** Container client size at the last measure (the element is kept inside it). */
+  let box = { w: Infinity, h: Infinity }
   let target: Element | null = null
   let rect: EmergeRect | null = null
+  /** Last pointer clientX over the container; null after a key press (keyboard: centred). */
+  let pointerX: number | null = null
+  let aim: number | null = null
   const s = menuHighlightInit()
 
   const readReduced = (): boolean =>
@@ -404,6 +488,8 @@ export function attachMenuHighlight(container: HTMLElement, options: MenuHighlig
   el.setAttribute('data-goop', MENU_HIGHLIGHT_PART)
   el.setAttribute('aria-hidden', 'true')
   el.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;z-index:-1;pointer-events:none;'
+  // It rides the active item every frame: its goo layer re-cuts at the page edge per frame.
+  markMovingGooHost(el)
   container.prepend(el)
   container.setAttribute(MENU_CONTAINER_ATTR, '')
   const prevPosition = container.style.position
@@ -417,6 +503,8 @@ export function attachMenuHighlight(container: HTMLElement, options: MenuHighlig
   const measure = (item: Element): EmergeRect => {
     const c = container.getBoundingClientRect()
     const r = item.getBoundingClientRect()
+    aim = pointerX === null ? null : pointerX - c.left - container.clientLeft + container.scrollLeft
+    box = { w: container.clientWidth || Infinity, h: container.clientHeight || Infinity }
     return {
       x: r.left - c.left - container.clientLeft + container.scrollLeft,
       y: r.top - c.top - container.clientTop + container.scrollTop,
@@ -438,8 +526,13 @@ export function attachMenuHighlight(container: HTMLElement, options: MenuHighlig
       el.style.width = `${W}px`
       el.style.height = `${H}px`
     }
-    const ox = Math.round(s.x.x - W / 2)
-    const oy = Math.round(s.y.x - H / 2)
+    // Keep the element's own box inside the container (its spring overshoot would otherwise
+    // poke past the container and could grow the page at its edge). The body transform and
+    // circles are relative to it, so this doesn't move the goo.
+    const keep = (v: number, size: number, room: number, item: number | undefined): number =>
+      Math.min(Math.max(v, Math.min(0, item ?? 0)), Math.max(room - size, item ?? 0))
+    const ox = keep(Math.round(s.x.x - W / 2), W, box.w, rect?.x)
+    const oy = keep(Math.round(s.y.x - H / 2), H, box.h, rect?.y)
     el.style.transform = `translate(${ox}px, ${oy}px)`
     const off = body.w <= 0 || body.h <= 0
     const t = off
@@ -489,6 +582,7 @@ export function attachMenuHighlight(container: HTMLElement, options: MenuHighlig
       }
     }
     rect = target ? measure(target) : null
+    if (!rect) aim = null
   }
 
   const tick: Ticker = (dt) => {
@@ -501,7 +595,7 @@ export function attachMenuHighlight(container: HTMLElement, options: MenuHighlig
       draw()
       return false
     }
-    menuHighlightStep(s, rect, dt * speed(), feel, opts)
+    menuHighlightStep(s, rect, dt * speed(), feel, opts, aim)
     draw()
     return !menuHighlightSettled(s, rect)
   }
@@ -516,6 +610,23 @@ export function attachMenuHighlight(container: HTMLElement, options: MenuHighlig
   syncTarget()
   if (rect) menuHighlightSnap(s, rect)
   draw()
+
+  // Pointer follow: track the pointer over the list; any key hands the swell back to the
+  // center (keyboard navigation).
+  const onPointer = (e: PointerEvent): void => {
+    if (opts.followPointer === false) return
+    if (pointerX === e.clientX) return
+    pointerX = e.clientX
+    if (target) kick()
+  }
+  const onKey = (): void => {
+    if (pointerX === null) return
+    pointerX = null
+    kick()
+  }
+  container.addEventListener('pointermove', onPointer, { passive: true })
+  container.addEventListener('pointerdown', onPointer, { passive: true })
+  doc.addEventListener('keydown', onKey, true)
 
   const mo = win?.MutationObserver
     ? new win.MutationObserver(kick)
@@ -566,6 +677,9 @@ export function attachMenuHighlight(container: HTMLElement, options: MenuHighlig
       if (destroyed) return
       destroyed = true
       removeTicker(tick)
+      container.removeEventListener('pointermove', onPointer)
+      container.removeEventListener('pointerdown', onPointer)
+      doc.removeEventListener('keydown', onKey, true)
       mo?.disconnect()
       ro?.disconnect()
       unwatch()

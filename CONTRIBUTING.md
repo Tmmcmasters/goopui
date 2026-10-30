@@ -32,6 +32,20 @@ pnpm 12 blocks dependency install scripts by default. If a new dependency needs 
 4. **Always honor `prefers-reduced-motion`.** Keep the goo's shape static, with no simulation, splash, or drips.
 5. **Accessibility first.** The goo layer is `aria-hidden` and sits behind the real, unfiltered content.
 6. **Tests.** Add Vitest tests in `packages/core` and/or `packages/vue`.
+7. **Goo never grows the page.** Layers overflow their component on purpose, so anything past the page's right or bottom edge would add scroll. Draw goo through a renderer (`resolveRenderer`): it cuts and clips its layer at the page edge (`packages/core/src/page-edge.ts`). Core parts that move their own host every frame call `markMovingGooHost`.
+
+## Overflow check
+
+Vitest can't measure layout, so a Playwright script checks that no effect grows the page's scroll size. It opens every playground page, plus every component pinned to the bottom-right corner of a short page (`/edge?c=<name>`), fires each component's effects (hover swipes, fast hits, clicks, open/close, drags) and samples `scrollWidth`/`scrollHeight` every frame against a baseline with all goo hidden.
+
+```sh
+pnpm dev:playground                                   # in one terminal
+pnpm check:overflow                                   # every case, against http://localhost:3000
+pnpm check:overflow edge                              # just the edge cases (or `pages`, or names like edge:button)
+BASE_URL=http://localhost:3039 VERBOSE=1 pnpm check:overflow   # another port; VERBOSE names the parts that stuck out
+```
+
+It uses `playwright-core`, so it needs a Chromium: run `pnpm exec playwright-core install chromium-headless-shell` once, or point `CHROMIUM_PATH` at any Chromium binary. Run it when you add a component or change how goo leaves one, and add the component to `apps/playground/app/pages/edge.vue` and the list in `scripts/check-overflow.mjs`.
 
 ## Pull requests
 

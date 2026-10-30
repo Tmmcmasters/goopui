@@ -301,6 +301,10 @@ describe('menu props', () => {
     expect(opts.emerge).toMatchObject({ wobble: false, preset: 'subtle', speed: 2 })
     expect(opts.highlight).toMatchObject({ pop: false, wobble: false })
     expect(toMenuOptions(resolveMenuProps({ highlight: false })).highlight).toBeNull()
+    // followPointer: on by default, inherited by submenus, passed to the highlight.
+    expect(toMenuOptions(resolveMenuProps({})).highlight).toMatchObject({ followPointer: true })
+    const still = resolveMenuProps({ followPointer: false })
+    expect(toMenuOptions(resolveMenuProps({}, still)).highlight).toMatchObject({ followPointer: false })
   })
 
   it("surface defaults to 'trigger', is inherited, and maps to core surfaceColor", () => {
@@ -318,8 +322,8 @@ describe('menu props', () => {
 
   it('pass the open-burst knobs to the panel, inherited by submenus (unset: core defaults)', () => {
     expect(toMenuOptions(resolveMenuProps({})).emerge.openDripAmount).toBeUndefined()
-    const root = resolveMenuProps({ openDripAmount: 2, openDripVariety: 0.2 })
+    const root = resolveMenuProps({ openDripAmount: 2, openDripVariety: 0.2, sloshVariety: 0.4 })
     const sub = resolveMenuProps({ openDripSize: 1.5 }, root)
-    expect(toMenuOptions(sub).emerge).toMatchObject({ openDripAmount: 2, openDripVariety: 0.2, openDripSize: 1.5 })
+    expect(toMenuOptions(sub).emerge).toMatchObject({ openDripAmount: 2, openDripVariety: 0.2, openDripSize: 1.5, sloshVariety: 0.4 })
   })
 })

@@ -17,13 +17,21 @@
 
 import type { GoopPreset } from './constants'
 import {
+  EMERGE_BLOOM_SIDES,
+  EMERGE_BULGE_CIRCLES,
+  EMERGE_MOUND_CIRCLES,
+  emergeMound,
   EMERGE_MOMENTUM_CIRCLES,
+  emergeBloomBulges,
+  emergeBulgeCircles,
+  emergeDripKnob,
   emergeMomentum,
   emergeMomentumEnd,
   emergeKeepOff,
   emergeMomentumStrength,
   type EmergeDripOptions,
   type EmergeMomentumEffects,
+  type EmergeSplashScale,
 } from './emerge-momentum'
 import type { GooFilterParams } from './filter'
 import { removeTicker, wakeTicker, type Ticker } from './loop'
@@ -88,6 +96,8 @@ export interface EmergeFeel {
   bloomClose?: number
   /** Bloom: jelly overshoot (px) past each side of the panel as the puddle lands. Default 4. */
   bloomOvershoot?: number
+  /** Bloom: splash drop count / size / fling scales (x the drip knobs). Default 1 each. */
+  bloomSplash?: Readonly<EmergeSplashScale>
 }
 
 export const EMERGE_FEEL: Readonly<Record<GoopPreset, Readonly<EmergeFeel>>> = Object.freeze({
@@ -134,10 +144,19 @@ export const EMERGE_FLOW_ROOT = 3
 export const EMERGE_FLOW_NECK = 4
 /** Circles a pose always returns (zero radius when unused): bulb + neck lumps, or in flow
  *  mode root + neck. */
-/** Bloom: lobes around the spreading puddle's edge, then the merge start's seed drops. */
+/** Bloom: lobes around the spreading puddle's edge, then the merge start's seed drops (open)
+ *  or the close slosh's side lumps (close). */
 export const EMERGE_BLOOM_LOBES = 7
+/** Circles per rim lobe: each lobe is a low, wide mound (`emergeMound`), not one knob. */
+export const EMERGE_LOBE_CIRCLES = EMERGE_MOUND_CIRCLES
+/** Circles the lobed rim uses; the seed drops / close slosh lumps follow them. */
+export const EMERGE_BLOOM_RIM = EMERGE_BLOOM_LOBES * EMERGE_LOBE_CIRCLES
 export const EMERGE_BLOOM_SEEDS = 5
-export const EMERGE_CIRCLES = Math.max(1 + EMERGE_NECK_LUMPS, EMERGE_FLOW_ROOT + EMERGE_FLOW_NECK, EMERGE_BLOOM_LOBES + EMERGE_BLOOM_SEEDS)
+export const EMERGE_CIRCLES = Math.max(
+  1 + EMERGE_NECK_LUMPS,
+  EMERGE_FLOW_ROOT + EMERGE_FLOW_NECK,
+  EMERGE_BLOOM_RIM + Math.max(EMERGE_BLOOM_SEEDS, EMERGE_BULGE_CIRCLES),
+)
 
 /** Bridge geometry in panel-local space, plus the main/cross frame it was built in. */
 export interface EmergeBridge {
@@ -160,8 +179,15 @@ export interface EmergeBridge {
   /** The anchor's facing edge as a cross range, panel-local (flow mode spreads over it). */
   anchorLo: number
   anchorHi: number
-  /** The anchor's rect, panel-local (the bloom splash keeps its drops off it). */
+  /** The anchor's rect, panel-local (the bloom splash keeps its drops off it). Absent when
+   *  the panel covers the anchor (a select's item-aligned list sits over its trigger). */
   anchorRect?: EmergeRect
+  /** Bloom: where the puddle starts (and shrinks back to), panel-local. Default the center. */
+  origin?: EmergePoint
+  /** Bloom: panel edges that sit against the viewport edge (detached panels, e.g. a sheet).
+   *  The splash keeps its drops out of the off-screen region beyond them (drops that would
+   *  launch there move to the opposite edge). */
+  walls?: EmergeSide[]
   /** Points on the anchor edge and the panel's near edge, panel-local. */
   source: EmergePoint
   target: EmergePoint
@@ -232,6 +258,14 @@ export function emergeBridge(
   const sourceCross = clamp(targetCross, a0 + aIn, Math.max(a0 + aIn, a1 - aIn))
   const dir = side === 'bottom' ? { x: 0, y: 1 } : side === 'top' ? { x: 0, y: -1 } : side === 'right' ? { x: 1, y: 0 } : { x: -1, y: 0 }
   const frame = { side, width, height }
+  // A panel lying over its anchor has nothing to keep clear of (and no gap to bulge into).
+  const covered =
+    anchor.width > 0 &&
+    anchor.height > 0 &&
+    anchor.x < panel.x + width &&
+    anchor.x + anchor.width > panel.x &&
+    anchor.y < panel.y + height &&
+    anchor.y + anchor.height > panel.y
   return {
     side,
     dir,
@@ -245,7 +279,9 @@ export function emergeBridge(
     bulb,
     anchorLo: a0,
     anchorHi: a1,
-    anchorRect: { x: anchor.x - panel.x, y: anchor.y - panel.y, width: Math.max(0, anchor.width), height: Math.max(0, anchor.height) },
+    anchorRect: covered
+      ? undefined
+      : { x: anchor.x - panel.x, y: anchor.y - panel.y, width: Math.max(0, anchor.width), height: Math.max(0, anchor.height) },
     source: toLocal(frame, -gap, sourceCross),
     target: toLocal(frame, 0, targetCross),
   }
@@ -380,12 +416,13 @@ export function emergePose(
   b: EmergeBridge,
   phase: EmergePhase = 'open',
   feel: EmergeFeel = EMERGE_FEEL.playful,
-  effects?: EmergeEffects & Pick<EmergeMomentumEffects, 'closeSlosh'>,
+  effects?: EmergeEffects & Pick<EmergeMomentumEffects, 'closeSlosh'> & Pick<EmergeDripOptions, 'sloshVariety'>,
   seed = 0,
 ): EmergePose {
   const fx = resolveFx(effects)
   const tt = clamp(t)
-  if (fx.flow && fx.flowStyle === 'bloom') return bloomPose(tt, b, phase, feel, fx, seed, emergeMomentumStrength(effects?.closeSlosh))
+  if (fx.flow && fx.flowStyle === 'bloom')
+    return bloomPose(tt, b, phase, feel, fx, seed, emergeMomentumStrength(effects?.closeSlosh), emergeDripKnob('sloshVariety', effects?.sloshVariety))
   if (fx.flow) return flowPose(tt, b, phase, feel, fx)
   if (phase === 'open') {
     if (tt >= 1) return emergeRestPose(b)
@@ -613,6 +650,11 @@ const BLOOM = {
   lobeLen: 0.3,
   /** Lobes' angular pull toward the edge midpoints (1: none; smaller: closer to midpoints). */
   lobeMid: 0.6,
+  /** How far a lobe pokes past the rim (x its radius): base + lead (-1..1) share. */
+  lobePoke: 0.15,
+  lobeLead: 0.25,
+  /** Lobe mound half width, x the lobe's radius. */
+  lobeWidth: 1.6,
   /** Gap (px) the open overshoot and lobes keep from the trigger. */
   clear: 1.5,
   /** Merge seed drops sit within this fraction of the panel around its center. */
@@ -639,8 +681,28 @@ function rectReach(a: number, b: number, th: number): number {
   return Math.min(c > 1e-6 ? a / c : Infinity, s > 1e-6 ? b / s : Infinity)
 }
 
-/** `slosh`: closeSlosh strength (0..2), the close's inward pull-and-wobble. */
-function bloomPose(t: number, b: EmergeBridge, phase: EmergePhase, feel: EmergeFeel, fx: Required<EmergeEffects>, seed: number, slosh = 1): EmergePose {
+/** The bloom's start point (panel-local): `b.origin` kept a droplet radius inside the panel,
+ *  else the center. Pure. */
+export function bloomOrigin(b: Pick<EmergeBridge, 'width' | 'height' | 'origin'>, drop = 0): EmergePoint {
+  const W = b.width
+  const H = b.height
+  if (!b.origin) return { x: W / 2, y: H / 2 }
+  const r = Math.min(drop / 2, W / 2, H / 2)
+  return { x: clamp(b.origin.x, r, Math.max(r, W - r)), y: clamp(b.origin.y, r, Math.max(r, H - r)) }
+}
+
+/** `slosh`: closeSlosh strength (0..2), the close's inward pull-and-wobble. `variety`: the
+ *  sloshVariety knob (per-side overshoot / close slosh, see `emergeBloomBulges`). */
+function bloomPose(
+  t: number,
+  b: EmergeBridge,
+  phase: EmergePhase,
+  feel: EmergeFeel,
+  fx: Required<EmergeEffects>,
+  seed: number,
+  slosh = 1,
+  variety = 1,
+): EmergePose {
   const circles: EmergeCircle[] = Array.from({ length: EMERGE_CIRCLES }, zero)
   if (phase === 'open' && t >= 1) return emergeRestPose(b)
   if (phase === 'close' && t >= 1) return { body: { cx: 0, cy: 0, w: 0, h: 0 }, circles, content: 0 }
@@ -648,12 +710,19 @@ function bloomPose(t: number, b: EmergeBridge, phase: EmergePhase, feel: EmergeF
   const H = b.height
   const cx = W / 2
   const cy = H / 2
+  // Start point (bloom origin, else the center). The body's center slides from it to the
+  // panel's center as it spreads, so the puddle grows out of that spot and stays inside.
   const m = Math.min(W, H)
   const merge = fx.bloomStart === 'merge'
   const d0 = clamp(m * BLOOM.drop, BLOOM.dropMin, BLOOM.dropMax) * (merge ? 0.7 : 1)
   let base: number
   let appear: number
-  let ov = 0
+  // Per-side push past the panel (px, + outward; top, right, bottom, left): the open's jelly
+  // overshoot or the close's slosh. Each side has its own strength and timing per open.
+  const prof = emergeBloomBulges(seed, variety)
+  const push = [0, 0, 0, 0]
+  // Close slosh: the outward share that swells as lumps (the rest moves the whole side).
+  const lumpH = [0, 0, 0, 0]
   let irr: number
   let lobeK: number
   let content: number
@@ -664,29 +733,66 @@ function bloomPose(t: number, b: EmergeBridge, phase: EmergePhase, feel: EmergeF
     base = 1 - (1 - clamp((t - s0) / (BLOOM.spreadEnd - s0))) ** BLOOM.ease
     if (fx.wobble) {
       // A damped spring past the rect on every side, eased to exactly zero by t = 1.
+      const span = emergeBloomDuration(feel, 'open') * (1 - BLOOM.ovAt)
       const u = clamp((t - BLOOM.ovAt) / (1 - BLOOM.ovAt))
-      ov = (feel.bloomOvershoot ?? 4) * 1.6 * Math.exp(-3 * u) * Math.sin(2 * Math.PI * 1.25 * u) * (1 - smooth((u - 0.55) / 0.45))
+      const env = 1 - smooth((u - 0.55) / 0.45)
+      const A = (feel.bloomOvershoot ?? 4) * 0.8
+      for (let e = 0; e < 4; e++) {
+        const ue = Math.max(0, u - (variety * prof[e]!.lag) / span)
+        push[e] = A * prof[e]!.amp * Math.exp(-3 * ue) * Math.sin(2 * Math.PI * 1.25 * ue) * env
+      }
     }
     irr = 1 - smooth((t - BLOOM.irrAt) / BLOOM.irrLen)
     lobeK = 1 - smooth((t - BLOOM.lobeAt) / BLOOM.lobeLen)
     content = fx.fade ? smooth((t - BLOOM.fadeAt) / BLOOM.fadeLen) : 1
   } else {
-    // A little inward pull and wobble (closeSlosh), then an accelerating contraction to the
-    // center.
+    // A little inward pull and wobble (closeSlosh; each side its own strength and timing),
+    // then an accelerating contraction to the center.
     const g = 1 - clamp(t / 0.86) ** 1.7
-    const pulse = slosh * 0.06 * Math.sin((2 * Math.PI * t) / 0.4) * Math.exp(-3 * t)
-    base = Math.min(1.02, g * (1 - pulse))
+    const dur = emergeBloomDuration(feel, 'close')
+    const pulse = (e: number): number => {
+      const lt = t - (0.5 * variety * prof[e]!.lag) / dur
+      const amp = lerp(1, prof[e]!.amp, variety)
+      return lt <= 0 ? 0 : slosh * 0.06 * amp * Math.sin((2 * Math.PI * lt) / 0.4) * Math.exp(-3 * t)
+    }
+    const ps = [0, 1, 2, 3].map(pulse)
+    base = Math.min(1.02, g * (1 - (ps[0]! + ps[1]! + ps[2]! + ps[3]!) / 4))
     appear = 1 - smooth((t - 0.78) / 0.22)
+    for (let e = 0; e < 4; e++) {
+      const ext = (e === 0 || e === 2 ? H : W) - d0
+      const s = (ext * appear * (Math.min(1.02, g * (1 - ps[e]!)) - base)) / 2
+      // Outward: shared between the whole side (variety 0) and its lumps (variety 1).
+      push[e] = s > 0 ? s * (1 - variety) : s
+      lumpH[e] = s > 0 ? s * variety : 0
+    }
     irr = smooth((t - 0.15) / 0.3)
     lobeK = smooth((t - 0.2) / 0.3) * (1 - smooth((t - 0.85) / 0.15))
     content = fx.fade ? 1 - smooth(t / 0.22) : 0
   }
-  let w = Math.max(0, (d0 + (W - d0) * base) * appear + 2 * ov)
-  let h = Math.max(0, (d0 + (H - d0) * base) * appear + 2 * ov)
-  // The overshoot stops short of the trigger: the edge facing it only bulges into the gap.
-  let bcx = cx
-  let bcy = cy
-  const trim = Math.max(0, ov - Math.max(0, b.gap - BLOOM.clear))
+  const ro = b.origin
+  // An origin on the panel's edge (a sheet's screen edge) pins the puddle to that edge: it
+  // grows out of it, overshoots only away from it and shrinks back into it. Other sides
+  // against the screen edge don't push past it.
+  const pinned = [ro !== undefined && ro.y <= 0.5, ro !== undefined && ro.x >= W - 0.5, ro !== undefined && ro.y >= H - 0.5, ro !== undefined && ro.x <= 0.5]
+  for (let e = 0; e < 4; e++) {
+    if (b.walls?.includes(EMERGE_BLOOM_SIDES[e]!) && !pinned[e]) push[e] = Math.min(0, push[e]!)
+  }
+  let w = Math.max(0, (d0 + (W - d0) * base) * appear + push[1]! + push[3]!)
+  let h = Math.max(0, (d0 + (H - d0) * base) * appear + push[0]! + push[2]!)
+  const o = bloomOrigin(b, d0)
+  const ob = clamp(base)
+  let bcx = lerp(o.x, cx, ob) + (push[1]! - push[3]!) / 2
+  let bcy = lerp(o.y, cy, ob) + (push[2]! - push[0]!) / 2
+  if (ro) {
+    if (pinned[3]) bcx = w / 2
+    else if (pinned[1]) bcx = W - w / 2
+    if (pinned[0]) bcy = h / 2
+    else if (pinned[2]) bcy = H - h / 2
+  }
+  // The overshoot stops short of the trigger: the edge facing it only bulges into the gap
+  // (no trigger to clear when the panel covers it).
+  const facing = b.dir.y > 0 ? 0 : b.dir.x < 0 ? 1 : b.dir.y < 0 ? 2 : 3
+  const trim = b.anchorRect ? Math.max(0, push[facing]! - Math.max(0, b.gap - BLOOM.clear)) : 0
   if (trim > 0) {
     if (b.dir.x !== 0) w = Math.max(0, w - trim)
     else h = Math.max(0, h - trim)
@@ -715,8 +821,36 @@ function bloomPose(t: number, b: EmergeBridge, phase: EmergePhase, feel: EmergeF
       if (lead > 0) lead *= 1 - 0.85 * soft
       const r = rl * (0.75 + 0.4 * hash(seed, k, 3)) * (1 - 0.4 * soft)
       if (r < 0.5) continue
-      const dist = Math.max(0, reach - r + r * (0.3 + 0.5 * lead) * irr)
-      circles[k] = emergeKeepOff({ x: bcx + Math.cos(th) * dist, y: bcy + Math.sin(th) * dist, r }, b, BLOOM.clear)
+      // How far the lobe pokes past the rim: kept low (a soft swell, not a knob).
+      const poke = r * (BLOOM.lobePoke + BLOOM.lobeLead * lead) * irr
+      const dist = Math.max(0, reach - r + poke)
+      // The lobe swells out of the edge it hits as a low, wide mound (`lobeWidth` x its
+      // radius each side), its shoulders sloping gently into the rim: no knob, no kink.
+      const top = dist + r - reach
+      if (top < 0.3) continue
+      const onSide = Math.abs(Math.cos(th) * reach) >= a - 1e-6
+      const len = onSide ? h : w
+      const u = onSide ? Math.sin(th) * dist + bb : Math.cos(th) * dist + a
+      const inset = Math.min(10, len / 6)
+      const hw = r * BLOOM.lobeWidth
+      const m = emergeMound(u, Math.min(top, (onSide ? w : h) / 4), Math.max(0, Math.min(hw, u - inset)), Math.max(0, Math.min(hw, len - inset - u)), len, onSide ? w : h)
+      const nx = onSide ? Math.sign(Math.cos(th)) : 0
+      const ny = onSide ? 0 : Math.sign(Math.sin(th))
+      for (let i = 0; i < m.length; i++) {
+        const q = m[i]!
+        if (q.r <= 0) continue
+        const c = onSide ? { x: bcx + nx * (a - q.back), y: bcy - bb + q.u, r: q.r } : { x: bcx - a + q.u, y: bcy + ny * (bb - q.back), r: q.r }
+        circles[k * EMERGE_LOBE_CIRCLES + i] = emergeKeepOff(c, b, BLOOM.clear)
+      }
+    }
+  }
+  if (phase === 'close' && body.w > 0) {
+    // Close slosh lumps: each side's outward swing swells as its own lumps (off-centre, one
+    // or two), never past a screen edge or over the trigger.
+    const bx = { x0: bcx - w / 2, y0: bcy - h / 2, x1: bcx + w / 2, y1: bcy + h / 2 }
+    for (let e = 0; e < 4; e++) {
+      if (b.walls?.includes(EMERGE_BLOOM_SIDES[e]!) || pinned[e]) continue
+      emergeBulgeCircles(bx, e, lumpH[e]!, prof[e]!, circles, EMERGE_BLOOM_RIM, (c) => emergeKeepOff(c, b, BLOOM.clear))
     }
   }
   if (merge && phase === 'open') {
@@ -731,9 +865,9 @@ function bloomPose(t: number, b: EmergeBridge, phase: EmergePhase, feel: EmergeF
       const fuse = 1 - smooth((t - 0.26) / 0.22)
       const r = rd * (0.75 + 0.5 * hash(seed, k, 7)) * grow * fuse * (1 + 0.4 * smooth((t - 0.08) / 0.15))
       if (r < 0.3) continue
-      circles[EMERGE_BLOOM_LOBES + k] = {
-        x: cx + Math.cos(ph) * W * BLOOM.seedSpread * rad * pull,
-        y: cy + Math.sin(ph) * H * BLOOM.seedSpread * rad * pull,
+      circles[EMERGE_BLOOM_RIM + k] = {
+        x: o.x + Math.cos(ph) * W * BLOOM.seedSpread * rad * pull,
+        y: o.y + Math.sin(ph) * H * BLOOM.seedSpread * rad * pull,
         r,
       }
     }
@@ -792,6 +926,10 @@ export interface EmergeOptions extends EmergeEffects, EmergeMomentumEffects, Eme
   anchor?: Element | (() => Element | EmergeRect | null | undefined) | null
   /** Side of the anchor the panel is on. Default: the host's `data-side`, then 'bottom'. */
   side?: EmergeSide | (() => EmergeSide | null | undefined)
+  /** Bloom style: where the puddle starts and shrinks back to, an element (its center) or a
+   *  point (same space as `host.getBoundingClientRect()`). null / absent: the panel's center.
+   *  Read every frame (a select passes its selected item; a sheet its screen edge's middle). */
+  bloomOrigin?: Element | (() => Element | EmergePoint | null | undefined) | null
   /** Animation speed multiplier. Default 1. */
   speed?: number
   /** Feel preset. Default: `--goop-preset` on the host, then 'playful'. */
@@ -814,6 +952,41 @@ export interface EmergeOptions extends EmergeEffects, EmergeMomentumEffects, Eme
   surfaceColor?: EmergeSurfaceColor
   /** Per-preset feel table. Default EMERGE_FEEL (GoopTooltip passes TOOLTIP_FEEL). */
   feel?: Readonly<Record<GoopPreset, Readonly<EmergeFeel>>>
+  /** Free-floating panel with no anchor to keep clear of (dialogs): implies the bloom flow
+   *  style (`flow` / `flowStyle` are ignored), the overshoot and splash reach every side, and
+   *  drop size follow EMERGE_DETACHED_ANCHOR instead of an anchor. `anchor` is then only read
+   *  for a `surfaceColor: 'trigger'`. `bloomOrigin` still applies, and panel edges against
+   *  the viewport edge become splash walls (no drops fly off-screen from them). */
+  detached?: boolean
+}
+
+/** Detached panels: the virtual anchor size (px) the bulb, slosh and drop size derive from. */
+export const EMERGE_DETACHED_ANCHOR = 44
+
+/** Bridge for a detached panel (no anchor): a virtual EMERGE_DETACHED_ANCHOR-sized anchor far
+ *  above it sets the bulb (slosh / drop size); no anchor rect to keep off, no gap to trim. Pure. */
+export function emergeDetachedBridge(panel: EmergeRect, feel: EmergeFeel = EMERGE_FEEL.playful): EmergeBridge {
+  const A = EMERGE_DETACHED_ANCHOR
+  const far = 1e6
+  const b = emergeBridge({ x: panel.x + panel.width / 2 - A / 2, y: panel.y - far - A, width: A, height: A }, panel, 'bottom', feel)
+  return { ...b, anchorRect: undefined }
+}
+
+/** Panel edges (of `panel`, viewport space) lying on the viewport's edge (`view` is its
+ *  size), within `tol` px or past it. Pure. */
+export function emergeWalls(panel: EmergeRect, view: { width: number; height: number }, tol = 2): EmergeSide[] {
+  const out: EmergeSide[] = []
+  if (view.width <= 0 || view.height <= 0) return out
+  if (panel.y <= tol) out.push('top')
+  if (panel.x + panel.width >= view.width - tol) out.push('right')
+  if (panel.y + panel.height >= view.height - tol) out.push('bottom')
+  if (panel.x <= tol) out.push('left')
+  return out
+}
+
+/** Normalize options: `detached` forces the bloom flow. */
+function normalizeEmerge(o: EmergeOptions): EmergeOptions {
+  return o.detached ? { ...o, flow: true, flowStyle: 'bloom' } : o
 }
 
 export interface EmergeHandle {
@@ -854,7 +1027,7 @@ const READY_MAX_FRAMES = 12
 export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): EmergeHandle {
   const doc = host.ownerDocument
   const win = doc.defaultView
-  let opts: EmergeOptions = { ...options }
+  let opts: EmergeOptions = normalizeEmerge({ ...options })
   let presetName = readPreset(host, opts.preset)
   let feel = (opts.feel ?? EMERGE_FEEL)[presetName]
   let params = emergeGooParams(feel)
@@ -927,6 +1100,17 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
     return 'getBoundingClientRect' in a ? rectOf(a) : a
   }
 
+  const originPoint = (): EmergePoint | null => {
+    const g = opts.bloomOrigin
+    const o = typeof g === 'function' ? g() : g
+    if (!o) return null
+    if ('getBoundingClientRect' in o) {
+      const r = rectOf(o)
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 }
+    }
+    return o
+  }
+
   let colors: EmergeSurfaceColors | null = null
   /** Resolve the surface colors now (on open, so a reopen picks up theme / trigger changes). */
   const applyColors = (): void => {
@@ -955,6 +1139,20 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
     const w = panel.width || host.offsetWidth
     const h = panel.height || host.offsetHeight
     const p = { ...panel, width: w, height: h }
+    if (opts.detached) {
+      const b = emergeDetachedBridge(p, feel)
+      const o = originPoint()
+      if (o) b.origin = { x: o.x - p.x, y: o.y - p.y }
+      // A panel against the screen edge (a sheet) keeps its splash on-screen.
+      const de = doc.documentElement
+      const vw = Math.min(win?.innerWidth ?? Infinity, de?.clientWidth || Infinity)
+      const vh = Math.min(win?.innerHeight ?? Infinity, de?.clientHeight || Infinity)
+      if (w > 0 && h > 0 && Number.isFinite(vw) && Number.isFinite(vh)) {
+        const walls = emergeWalls(p, { width: vw, height: vh })
+        if (walls.length) b.walls = walls
+      }
+      return b
+    }
     // No anchor: emerge from just outside the panel's near edge.
     const s = side()
     const a = anchorRect() ?? {
@@ -963,7 +1161,10 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
       width: s === 'top' || s === 'bottom' ? 36 : 1,
       height: s === 'top' || s === 'bottom' ? 1 : 36,
     }
-    return emergeBridge(a, p, s, feel)
+    const b = emergeBridge(a, p, s, feel)
+    const o = originPoint()
+    if (o) b.origin = { x: o.x - p.x, y: o.y - p.y }
+    return b
   }
 
   const setPad = (side: number, bottom: number): void => {
@@ -1013,6 +1214,7 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
         preset: presetName,
         seed,
         bloom: bloomOn(),
+        splash: feel.bloomSplash,
         bodyAt: (s) => emergePose((s + shift()) / phaseDur('open'), b, 'open', feel, opts, seed).body,
       })
     }
@@ -1142,7 +1344,7 @@ export function attachEmerge(host: HTMLElement, options: EmergeOptions = {}): Em
       if (destroyed) return
       const rendererChanged = 'renderer' in next && next.renderer !== opts.renderer
       const colorChanged = 'surfaceColor' in next && next.surfaceColor !== opts.surfaceColor
-      opts = { ...opts, ...next }
+      opts = normalizeEmerge({ ...opts, ...next })
       if (colorChanged && state !== 'closed') applyColors()
       presetName = readPreset(host, opts.preset)
       const nextFeel = (opts.feel ?? EMERGE_FEEL)[presetName]

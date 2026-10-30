@@ -71,8 +71,9 @@ export function findActiveTab(list: Element): Element | null {
   return null
 }
 
-/** Indicator options: the menu highlight's, minus the select pop and target finder. */
-export type TabsIndicatorOptions = Omit<MenuHighlightOptions, 'pop' | 'find'>
+/** Indicator options: the menu highlight's, minus the select pop, target finder and pointer
+ *  follow (the indicator marks the active tab, not the hovered one). */
+export type TabsIndicatorOptions = Omit<MenuHighlightOptions, 'pop' | 'find' | 'followPointer'>
 
 /**
  * Attach a goo active-tab indicator to a tab list. Inserts an aria-hidden
@@ -80,5 +81,5 @@ export type TabsIndicatorOptions = Omit<MenuHighlightOptions, 'pop' | 'find'>
  * Reduced motion: the blob snaps to the active tab, no travel.
  */
 export function attachTabsIndicator(list: HTMLElement, options: TabsIndicatorOptions = {}): MenuHighlightHandle {
-  return attachMenuHighlight(list, { feel: TABS_FEEL, ...options, pop: false, find: findActiveTab })
+  return attachMenuHighlight(list, { feel: TABS_FEEL, ...options, pop: false, followPointer: false, find: findActiveTab })
 }

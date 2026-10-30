@@ -394,7 +394,7 @@ describe('emerge bloom flow style', () => {
     it(`${start}: grows in all directions, overshoots briefly, ends exactly on the panel`, () => {
       const panel = panelFor('bottom')
       const b = emergeBridge(trigger, panel, 'bottom')
-      const fx = { ...bloom, bloomStart: start }
+      const fx = { ...bloom, bloomStart: start, sloshVariety: 0 }
       expect(emergePose(1, b, 'open', EMERGE_FEEL.playful, fx)).toEqual(emergeRestPose(b))
       for (const preset of ['subtle', 'playful', 'wild'] as const) {
         for (let i = 0; i <= 60; i++) {
@@ -419,8 +419,10 @@ describe('emerge bloom flow style', () => {
 
   it('close contracts to the center and vanishes; content fades first', () => {
     const b = emergeBridge(trigger, panelFor('bottom'), 'bottom')
-    const mid = emergePose(0.6, b, 'close', EMERGE_FEEL.playful, bloom)
+    const mid = emergePose(0.6, b, 'close', EMERGE_FEEL.playful, { ...bloom, sloshVariety: 0 })
     expect(mid.body.cx).toBeCloseTo(b.width / 2, 5)
+    // Varied close slosh: each side on its own, still about centered.
+    expect(Math.abs(emergePose(0.6, b, 'close', EMERGE_FEEL.playful, bloom, 5).body.cx - b.width / 2)).toBeLessThan(3)
     expect(mid.body.w).toBeLessThan(b.width * 0.6)
     expect(mid.content).toBe(0)
     const end = emergePose(1, b, 'close', EMERGE_FEEL.playful, bloom)
@@ -451,6 +453,8 @@ describe('emerge bloom flow style', () => {
 
   it('splash: drops (and lobes, slosh) never start, fly or land on the trigger; the near side still splashes', () => {
     const first = EMERGE_CIRCLES + EMERGE_MOMENTUM_CIRCLES - EMERGE_MOMENTUM_DRIPS - EMERGE_MOMENTUM_NECKS
+    // Collected, then asserted once: ~2M per-circle expect() calls made this time out on CI.
+    const onTrigger: string[] = []
     for (const side of SIDES) {
       for (const align of ['start', 'center', 'end'] as const) {
         const panel = panelFor(side, align)
@@ -468,8 +472,7 @@ describe('emerge bloom flow style', () => {
                 const p = emergeMomentum(pose, b, 'open', sec, { openDripFling: fling }, { bloom: true, seed, preset, bodyAt })
                 // Lobes, slosh bulges, necks and drops alike stay off the trigger.
                 for (const c of p.circles) {
-                  if (c.r <= 0) continue
-                  expect(dist(c)).toBeGreaterThanOrEqual(c.r)
+                  if (c.r > 0 && dist(c) < c.r && onTrigger.length < 5) onTrigger.push(`${side}/${align}/${preset} seed ${seed} t=${sec.toFixed(2)}`)
                 }
                 for (const c of p.circles.slice(first)) {
                   if (c.r <= 0) continue
@@ -484,7 +487,8 @@ describe('emerge bloom flow style', () => {
         }
       }
     }
-  }, 30_000) // sweeps every side × align; slow on CI runners
+    expect(onTrigger).toEqual([])
+  }, 30_000) // sweeps every side × align
 
   it('closeSlosh drives the bloom close wobble; off, the close contracts smoothly', () => {
     const b = emergeBridge(trigger, panelFor('bottom'), 'bottom')
