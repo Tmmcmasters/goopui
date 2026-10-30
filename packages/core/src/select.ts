@@ -131,8 +131,11 @@ export function plopIn(el: Element, options: SelectPlopOptions = {}): Animation 
   if (reduced || typeof (el as HTMLElement).animate !== 'function') return null
   const feel = SELECT_PLOP_FEEL[readPreset(el, options.preset)]
   const speed = Math.max(0.05, options.speed ?? 1)
-  return (el as HTMLElement).animate(selectPlopKeyframes(feel, options.wobble !== false), {
+  const anim = (el as HTMLElement).animate(selectPlopKeyframes(feel, options.wobble !== false), {
     duration: (feel.duration * 1000) / speed,
     easing: 'linear',
   })
+  // A re-plop or unmount cancels it; don't let `finished` surface as an unhandled rejection.
+  anim.finished?.catch(() => {})
+  return anim
 }
