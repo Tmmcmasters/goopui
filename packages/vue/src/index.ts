@@ -19,6 +19,8 @@ export * from './components/sheet'
 export * from './components/drawer'
 export * from './components/accordion'
 export * from './components/collapsible'
+export * from './components/input'
+export * from './components/textarea'
 export { GOOP_CONFIG_KEY, GoopPlugin, provideGoopConfig, useGoopConfig, type GoopConfig } from './config'
 export {
   CSS_VAR_KEYS,
@@ -38,6 +40,8 @@ export {
   diffOptions,
   goopPropMeta,
   goopProgressProps,
+  goopInputProps,
+  toInputOptions,
   goopSliderProps,
   goopSwitchProps,
   goopCheckboxProps,
@@ -92,6 +96,9 @@ export {
   type GoopRadioEngineKey,
   type GoopRadioPropsDefinition,
   type GoopRadioPropsInput,
+  type GoopInputEngineKey,
+  type GoopInputPropsDefinition,
+  type GoopInputPropsInput,
 } from './goop-props'
 export { goopComponents, type GoopComponentName } from './manifest'
 export { seedFrom, useGoop, type UseGoopReturn } from './use-goop'

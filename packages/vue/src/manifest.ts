@@ -85,6 +85,8 @@ export const goopComponents = [
   'GoopCollapsible',
   'GoopCollapsibleContent',
   'GoopCollapsibleTrigger',
+  'GoopInput',
+  'GoopTextarea',
 ] as const
 
 export type GoopComponentName = (typeof goopComponents)[number]

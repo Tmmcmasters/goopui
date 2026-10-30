@@ -26,5 +26,6 @@ export const catalog: CatalogEntry[] = [
   { path: '/toast', goop: 'GoopToaster', shadcn: 'Sonner', blurb: 'Toasts drop in, merge in the stack, drip away.' },
   { path: '/drawer', goop: 'GoopDrawer', shadcn: 'Drawer', blurb: 'vaul drawer whose edge lags, sloshes and drips as you drag.' },
   { path: '/accordion', goop: 'GoopAccordion', shadcn: 'Accordion', blurb: 'Content pours out of the trigger like thick liquid and gets sucked back up. Collapsible too.' },
+  { path: '/input', goop: 'GoopInput', shadcn: 'Input', blurb: 'Goo focus ring that flows in from the click, ripples as you type.' },
   { path: '/blob', goop: 'GoopBlob', shadcn: null, blurb: 'Background blobs. Perf stress test.' },
 ]
