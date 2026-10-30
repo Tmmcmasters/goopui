@@ -12,11 +12,11 @@
 // clips its goo with `overflow: clip`, so the blob never adds scroll overflow; shadcn's padding
 // is on the groups). With `:goo="false"` it is exactly shadcn's SelectContent. Reduced motion: plain
 // open/close, the blob snaps, no pop, no plop.
-import { findSelectOrigin, selectBloomsFromItem } from '@goopui/core'
+import { EMERGE_CLOSE_VAR, findSelectOrigin, selectBloomsFromItem } from '@goopui/core'
 import { cn } from 'cn'
 import type { SelectContentEmits, SelectContentProps } from 'reka-ui'
 import { SelectContent, SelectPortal, SelectViewport, injectSelectRootContext, useForwardPropsEmits } from 'reka-ui'
-import { computed, useTemplateRef, type HTMLAttributes } from 'vue'
+import { computed, useTemplateRef, watch, type HTMLAttributes } from 'vue'
 import { useGoopConfig } from '../../config'
 import { SELECT_PROP_KEYS, resolveSelectProps, toSelectOptions, type GoopSelectProps } from '../../goop-props'
 import { useMenuGoo } from '../dropdown-menu/use-menu-goo'
@@ -108,6 +108,22 @@ const goo = useMenuGoo({
   origin: () =>
     list.value && selectBloomsFromItem(props.position, select.value.bloomFrom) ? findSelectOrigin(list.value) : null,
 })
+
+// An item-aligned list sits in reka's plain fixed wrapper, which is the node reka's Presence
+// watches (a popper's wrapper hands Presence the panel itself). Mirror the close duration onto
+// it so goop.css's hold keeps the list mounted until the goo has shrunk back. Registered after
+// useMenuGoo's watcher, so the emerge close has set the duration; before render, so the hold
+// is in place when data-state flips and Presence reads the animation.
+watch(
+  () => root.open.value,
+  (open) => {
+    const host = surface.value?.parentElement
+    const wrap = host?.parentElement
+    if (open || !host || !wrap || popper.value) return
+    const ms = host.style.getPropertyValue(EMERGE_CLOSE_VAR)
+    if (ms) wrap.style.setProperty(EMERGE_CLOSE_VAR, ms)
+  },
+)
 
 provideGoopSelectContent({
   blob: computed(() => options.value.highlight !== null),
