@@ -27,6 +27,7 @@ import {
 } from './emerge'
 import type { GooFilterParams } from './filter'
 import { removeTicker, wakeTicker, type Ticker } from './loop'
+import { markMovingGooHost } from './page-edge'
 import { isReducedMotion, watchReducedMotion } from './reduced-motion'
 import type { GoopBlob, GoopRenderer } from './renderer'
 import { resolveRenderer, type GoopRendererOption } from './renderers/resolve'
@@ -470,6 +471,8 @@ export function attachMenuHighlight(container: HTMLElement, options: MenuHighlig
   let destroyed = false
   let pad = -1
   let size = { w: -1, h: -1 }
+  /** Container client size at the last measure (the element is kept inside it). */
+  let box = { w: Infinity, h: Infinity }
   let target: Element | null = null
   let rect: EmergeRect | null = null
   /** Last pointer clientX over the container; null after a key press (keyboard: centred). */
@@ -485,6 +488,8 @@ export function attachMenuHighlight(container: HTMLElement, options: MenuHighlig
   el.setAttribute('data-goop', MENU_HIGHLIGHT_PART)
   el.setAttribute('aria-hidden', 'true')
   el.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;z-index:-1;pointer-events:none;'
+  // It rides the active item every frame: its goo layer re-cuts at the page edge per frame.
+  markMovingGooHost(el)
   container.prepend(el)
   container.setAttribute(MENU_CONTAINER_ATTR, '')
   const prevPosition = container.style.position
@@ -499,6 +504,7 @@ export function attachMenuHighlight(container: HTMLElement, options: MenuHighlig
     const c = container.getBoundingClientRect()
     const r = item.getBoundingClientRect()
     aim = pointerX === null ? null : pointerX - c.left - container.clientLeft + container.scrollLeft
+    box = { w: container.clientWidth || Infinity, h: container.clientHeight || Infinity }
     return {
       x: r.left - c.left - container.clientLeft + container.scrollLeft,
       y: r.top - c.top - container.clientTop + container.scrollTop,
@@ -520,8 +526,13 @@ export function attachMenuHighlight(container: HTMLElement, options: MenuHighlig
       el.style.width = `${W}px`
       el.style.height = `${H}px`
     }
-    const ox = Math.round(s.x.x - W / 2)
-    const oy = Math.round(s.y.x - H / 2)
+    // Keep the element's own box inside the container (its spring overshoot would otherwise
+    // poke past the container and could grow the page at its edge). The body transform and
+    // circles are relative to it, so this doesn't move the goo.
+    const keep = (v: number, size: number, room: number, item: number | undefined): number =>
+      Math.min(Math.max(v, Math.min(0, item ?? 0)), Math.max(room - size, item ?? 0))
+    const ox = keep(Math.round(s.x.x - W / 2), W, box.w, rect?.x)
+    const oy = keep(Math.round(s.y.x - H / 2), H, box.h, rect?.y)
     el.style.transform = `translate(${ox}px, ${oy}px)`
     const off = body.w <= 0 || body.h <= 0
     const t = off
