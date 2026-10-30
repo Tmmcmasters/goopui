@@ -70,7 +70,7 @@ export const MENU_FEEL: Readonly<Record<GoopPreset, Readonly<MenuFeel>>> = Objec
     hide: 0.12,
     decay: 7,
     softness: 3,
-    swell: 0.14,
+    swell: 0.07,
   }),
   playful: Object.freeze({
     head: { response: 0.24, dampingRatio: 0.62 },
@@ -83,7 +83,7 @@ export const MENU_FEEL: Readonly<Record<GoopPreset, Readonly<MenuFeel>>> = Objec
     hide: 0.14,
     decay: 4.5,
     softness: 3.5,
-    swell: 0.26,
+    swell: 0.13,
   }),
   wild: Object.freeze({
     head: { response: 0.3, dampingRatio: 0.45 },
@@ -96,7 +96,7 @@ export const MENU_FEEL: Readonly<Record<GoopPreset, Readonly<MenuFeel>>> = Objec
     hide: 0.16,
     decay: 3,
     softness: 4,
-    swell: 0.38,
+    swell: 0.19,
   }),
 })
 
