@@ -22,6 +22,8 @@ export * from './components/accordion'
 export * from './components/collapsible'
 export * from './components/input'
 export * from './components/textarea'
+export * from './components/toggle'
+export * from './components/toggle-group'
 export { GOOP_CONFIG_KEY, GoopPlugin, provideGoopConfig, useGoopConfig, type GoopConfig } from './config'
 export {
   CSS_VAR_KEYS,
@@ -63,6 +65,16 @@ export {
   toProgressOptions,
   toSliderOptions,
   toSwitchOptions,
+  goopToggleProps,
+  goopToggleGroupProps,
+  toToggleOptions,
+  toToggleGroupOptions,
+  type GoopToggleEngineKey,
+  type GoopTogglePropsDefinition,
+  type GoopTogglePropsInput,
+  type GoopToggleGroupEngineKey,
+  type GoopToggleGroupPropsDefinition,
+  type GoopToggleGroupPropsInput,
   TOASTER_PROP_KEYS,
   ACCORDION_PROP_KEYS,
   toAccordionOptions,
