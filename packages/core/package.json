@@ -1,6 +1,6 @@
 {
   "name": "@goopui/core",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha.0",
   "description": "Framework-agnostic engine for goopUI gooey, dripping UI elements",
   "type": "module",
   "license": "MIT",
@@ -32,7 +32,8 @@
   "main": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
   "files": [
-    "dist"
+    "dist",
+    "!**/._*"
   ],
   "scripts": {
     "build": "tsdown",
@@ -43,10 +44,13 @@
     "clean": "rm -rf dist .turbo",
     "demo": "tsdown && node demo/serve.mjs"
   },
-  "publishConfig": {
-    "access": "public"
-  },
   "devDependencies": {
     "happy-dom": "^21.0.4"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
