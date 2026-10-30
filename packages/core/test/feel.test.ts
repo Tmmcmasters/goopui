@@ -19,6 +19,10 @@ import {
 } from '../src'
 import { ParticleFluid } from '../src/fluid'
 
+/** The goo filter sits on the SVG layer's inner goo box (or on the layer itself). */
+const filterOf = (layer: HTMLElement): string =>
+  (layer.querySelector<HTMLElement>('[data-goop="goo"]') ?? layer).style.filter
+
 // ---- manual clock + rAF pump ------------------------------------------------
 let clock = 0
 let frames: FrameRequestCallback[] = []
@@ -822,12 +826,12 @@ describe('puddles', () => {
 describe('gloss, label ride, keyboard toggles', () => {
   it('gloss is opt-in: off by default, `true` adds the static shading to the filter', () => {
     const on = setup({ gloss: true, renderer: createSvgFilterRenderer })
-    expect(on.h.layer.style.filter).toMatch(/-g0_/)
+    expect(filterOf(on.h.layer)).toMatch(/-g0_/)
     expect(on.h.tuning.gloss).toBe(0.6)
     const byDefault = setup({ renderer: createSvgFilterRenderer })
-    expect(byDefault.h.layer.style.filter).not.toMatch(/-g\d/)
+    expect(filterOf(byDefault.h.layer)).not.toMatch(/-g\d/)
     const off = setup({ gloss: false, renderer: createSvgFilterRenderer })
-    expect(off.h.layer.style.filter).not.toMatch(/-g\d/)
+    expect(filterOf(off.h.layer)).not.toMatch(/-g\d/)
   })
 
   it('label ride moves [data-goop-label] content with the body, and not at all when off', () => {

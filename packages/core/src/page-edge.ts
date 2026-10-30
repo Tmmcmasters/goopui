@@ -113,7 +113,9 @@ export function pageEdgeLimit(hostEdge: number, reach: number, pageEdge: number,
   if (reach <= 0) return null
   const room = pageEdge - hostEdge
   if (reach + margin <= room) return null
-  return Math.floor(Math.min(room, reach))
+  // Land exactly on the page edge: flooring a fractional room to whole px would cut the last
+  // on-screen pixel row/column. Snap down to layout units (1/64 px) so it never lands past.
+  return room < reach ? Math.floor(room * 64) / 64 : Math.floor(reach)
 }
 
 /** Measure the dirty entries. Returns true when the viewport (not the content) set an edge. */
@@ -142,9 +144,17 @@ function measure(doc: Document, entries: Iterable<Entry>): boolean {
     e.fixed ??= inFixed(host)
     const reach = e.client.reach()
     const margin = e.client.margin ?? PAGE_EDGE_MARGIN
+    // The layer is positioned from the host's padding box: measure from its far edges, or
+    // the clip lands a border width short of the page edge (cutting on-screen goo).
+    const cs = doc.defaultView?.getComputedStyle(host)
+    const bw = parseFloat(cs?.borderRightWidth ?? '') || 0
+    const bh = parseFloat(cs?.borderBottomWidth ?? '') || 0
     const cut = e.fixed
       ? FREE
-      : { right: pageEdgeLimit(r.right, reach.right, edgeX, margin), bottom: pageEdgeLimit(r.bottom, reach.bottom, edgeY, margin) }
+      : {
+          right: pageEdgeLimit(r.right - bw, reach.right, edgeX, margin),
+          bottom: pageEdgeLimit(r.bottom - bh, reach.bottom, edgeY, margin),
+        }
     if (cut.right !== e.cut.right || cut.bottom !== e.cut.bottom) next.push([e, cut])
   }
   // Reads first, then writes.

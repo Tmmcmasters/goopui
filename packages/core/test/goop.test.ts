@@ -10,6 +10,9 @@ import {
   type GoopHandle,
 } from '../src'
 
+/** The goo filter sits on the SVG layer's inner goo box (or on the layer itself). */
+const filterOf = (layer: HTMLElement): string =>
+  (layer.querySelector<HTMLElement>('[data-goop="goo"]') ?? layer).style.filter
 const blobs = (host: Element) => host.querySelectorAll(`[${GOOP_PART_ATTR}="blob"]`)
 const layerOf = (host: Element) => host.querySelector<HTMLElement>(`[${GOOP_PART_ATTR}="layer"]`)
 
@@ -78,12 +81,12 @@ describe('attachGoop', () => {
     expect(layer.style.pointerEvents).toBe('none')
     expect(layer.style.position).toBe('absolute')
     expect(layer.style.zIndex).toBe('-1')
-    expect(layer.style.filter).toMatch(/^url\(#goop-goo-/)
+    expect(filterOf(layer)).toMatch(/^url\(#goop-goo-/)
     expect(layer.querySelector(`[${GOOP_PART_ATTR}="body"]`)).not.toBeNull()
     expect(host.style.isolation).toBe('isolate')
     expect(host.textContent).toBe('Click')
     // the filter it points to exists in the shared defs svg
-    const id = layer.style.filter.match(/#([^)"]+)/)![1]!
+    const id = filterOf(layer).match(/#([^)"]+)/)![1]!
     expect(document.querySelector(`svg[${GOO_DEFS_ATTR}] #${id}`)).not.toBeNull()
   })
 
@@ -91,7 +94,7 @@ describe('attachGoop', () => {
     stubMatchMedia()
     const a = attach(makeHost())
     const b = attach(makeHost())
-    expect(a.layer.style.filter).toBe(b.layer.style.filter)
+    expect(filterOf(a.layer)).toBe(filterOf(b.layer))
     expect(document.querySelectorAll(`svg[${GOO_DEFS_ATTR}] filter`)).toHaveLength(1)
   })
 
@@ -137,11 +140,11 @@ describe('attachGoop', () => {
     stubMatchMedia()
     const host = makeHost()
     const h = attach(host)
-    const before = h.layer.style.filter
+    const before = filterOf(h.layer)
     host.style.setProperty('--goop-blur', '9')
     h.update()
     expect(h.tuning.softness).toBe(9)
-    expect(h.layer.style.filter).not.toBe(before)
+    expect(filterOf(h.layer)).not.toBe(before)
     expect(document.querySelectorAll(`svg[${GOO_DEFS_ATTR}] filter`)).toHaveLength(1)
   })
 
@@ -250,15 +253,15 @@ describe('oil finish', () => {
     stubMatchMedia()
     const host = makeHost()
     const h = attach(host, { finish: 'oil', renderer: 'svg' })
-    expect(h.layer.style.filter).toMatch(/goop-oil-/)
-    const id = h.layer.style.filter.match(/#([^)"]+)/)![1]!
+    expect(filterOf(h.layer)).toMatch(/goop-oil-/)
+    const id = filterOf(h.layer).match(/#([^)"]+)/)![1]!
     const f = document.getElementById(id)!
     expect(f.querySelector('feImage')?.getAttribute('href')).toMatch(/^data:image\/svg\+xml/)
     expect(f.querySelector('feDisplacementMap')).toBeNull() // cheap path: no per-frame displacement
     expect(f.querySelector('feTurbulence')).toBeNull()
     expect(f.querySelector('feBlend')).not.toBeNull()
     h.update({ finish: 'solid' })
-    expect(h.layer.style.filter).toMatch(/goop-goo-/)
+    expect(filterOf(h.layer)).toMatch(/goop-goo-/)
     expect(document.getElementById(id)).toBeNull()
     h.update({ finish: 'oil' })
     h.destroy()
@@ -271,8 +274,8 @@ describe('oil finish', () => {
     host.style.setProperty('--goop-finish', 'oil')
     host.style.setProperty('--goop-oil-intensity', '0.3')
     const h = attach(host, { renderer: 'svg' })
-    expect(h.layer.style.filter).toMatch(/goop-oil-/)
-    const id = h.layer.style.filter.match(/#([^)"]+)/)![1]!
+    expect(filterOf(h.layer)).toMatch(/goop-oil-/)
+    const id = filterOf(h.layer).match(/#([^)"]+)/)![1]!
     const strength = document.getElementById(id)!.querySelector('feColorMatrix[in="sheen"]')!
     expect(strength.getAttribute('values')!.trim().endsWith('0.300 0')).toBe(true)
   })
@@ -282,10 +285,10 @@ describe('oil renderer choice', () => {
   it('oil without an explicit renderer upgrades to canvas; solid stays svg', () => {
     stubMatchMedia()
     const oil = attach(makeHost(), { finish: 'oil' })
-    expect(oil.layer.style.filter).not.toMatch(/goop-oil-/)
+    expect(filterOf(oil.layer)).not.toMatch(/goop-oil-/)
     expect(oil.layer.querySelector('canvas')).not.toBeNull()
     const solid = attach(makeHost())
-    expect(solid.layer.style.filter).toMatch(/goop-goo-/)
+    expect(filterOf(solid.layer)).toMatch(/goop-goo-/)
   })
 })
 
@@ -322,7 +325,7 @@ describe('hot renderer swap', () => {
     expect(h.inspect().drips).toBe(drips)
     expect(layerOf(host)).toBe(h.layer)
     h.update({ finish: 'solid', renderer: 'svg' })
-    expect(h.layer.style.filter).toMatch(/goop-goo-/)
+    expect(filterOf(h.layer)).toMatch(/goop-goo-/)
     expect(h.inspect().drips).toBe(drips)
   })
 })

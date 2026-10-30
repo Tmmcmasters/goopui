@@ -41,6 +41,8 @@ describe('pageEdgeLimit', () => {
   it('caps the reach at the page edge (inside the host when it pokes past)', () => {
     expect(pageEdgeLimit(990, 50, 1000)).toBe(10)
     expect(pageEdgeLimit(1010, 50, 1000)).toBe(-10)
+    // A fractional host edge lands exactly on the page edge (flooring would cut the last px).
+    expect(pageEdgeLimit(990.28125, 50, 1000)).toBe(9.71875)
     // Near (within the margin) but the visible reach fits: clip at the reach.
     expect(pageEdgeLimit(800, 50, 1000)).toBe(50)
     expect(pageEdgeLimit(800, 50, 1000, 0)).toBeNull()
@@ -58,11 +60,23 @@ describe('page edge guard', () => {
     const layer = r.layer
     expect(layer.style.overflowX).toBe('clip')
     expect(layer.style.overflowY).toBe('clip')
-    // Clip edge (box + overflow-clip-margin, or the box alone without support) <= page edge.
-    const m = parseFloat(layer.style.overflowClipMargin || '0')
-    expect(990 - parseFloat(layer.style.right) + m).toBeLessThanOrEqual(1000)
-    expect(690 - parseFloat(layer.style.bottom) + m).toBeLessThanOrEqual(700)
+    // The clip lands exactly on the page edge, with no clip margin.
+    expect(990 - parseFloat(layer.style.right)).toBe(1000)
+    expect(690 - parseFloat(layer.style.bottom)).toBe(700)
+    expect(layer.style.overflowClipMargin).toBe('')
     expect(layer.style.borderRadius).toBe('0px')
+    // The clipping layer isn't the filtered element (Chromium would cut the filter output at
+    // its box): the goo box inside keeps its full padded size, and the layer's near sides
+    // sit past the filter's reach (20% of the 160x150 goo box).
+    const goo = layer.querySelector('[data-goop="goo"]') as HTMLElement
+    expect(layer.style.filter).toBe('')
+    expect(goo.style.filter).toMatch(/^url\(#goop-goo-/)
+    expect(parseFloat(layer.style.left)).toBeLessThanOrEqual(-30 - 0.2 * 160)
+    expect(parseFloat(layer.style.top)).toBeLessThanOrEqual(-30 - 0.2 * 150)
+    const gooLeft = 890 + parseFloat(layer.style.left) + parseFloat(goo.style.left)
+    const gooRight = 1000 - parseFloat(goo.style.right)
+    const gooBottom = 700 - parseFloat(goo.style.bottom)
+    expect([gooLeft, gooRight, gooBottom]).toEqual([860, 1020, 770])
 
     // Page grows (content resize): the layer is free again, back to inheriting its corners.
     page(3000, 3000)
