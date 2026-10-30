@@ -4,8 +4,8 @@
 // false) whose panel blooms like GoopPopoverContent, but detached: a dialog has no trigger to
 // grow from, so it pools from its own center, spreads with a lobed edge, overshoots every
 // side and splashes all around (the big splash); close pulls in, wobbles and shrinks back to
-// the center (core `attachEmerge`, `detached: true`, DIALOG_FEEL). The overlay pours down as a
-// goo sheet and drains off on close (GoopDialogOverlay; `:overlay="false"` for shadcn's fade).
+// the center (core `attachEmerge`, `detached: true`, DIALOG_FEEL). The overlay is shadcn's fade;
+// `:overlay="true"` opts into the goo sheet that pours down and drains off (GoopDialogOverlay).
 //
 // The panel's shadcn background and shadow move onto the goo (`--goop-color:
 // var(--background)`). Content opacity follows `--goop-emerge-content`, and goop.css's hold

@@ -3,8 +3,8 @@
 // portal over an overlay, same props/emits, `class` merge). The panel blooms from its own
 // center like GoopDialogContent, but an alert is the serious one: a lighter splash (a few
 // small drops, core ALERT_DIALOG_SPLASH) and a lighter slosh (ALERT_DIALOG_MOMENTUM); every
-// toggle and knob still turns it up or off. The overlay pours down as a goo sheet
-// (`:overlay="false"` for shadcn's fade). `:goo="false"`: exactly shadcn's AlertDialogContent.
+// toggle and knob still turns it up or off. The overlay is shadcn's fade; `:overlay="true"`
+// opts into the goo sheet that pours down. `:goo="false"`: exactly shadcn's AlertDialogContent.
 // Reduced motion: plain open/close.
 import { cn } from 'cn'
 import type { AlertDialogContentEmits, AlertDialogContentProps } from 'reka-ui'
