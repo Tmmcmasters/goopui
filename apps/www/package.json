@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "node -e \"for (const d of ['.nuxt','node_modules/.cache','node_modules/.vite']) require('fs').rmSync(d,{recursive:true,force:true})\" && nuxt dev --port 3001",
     "build": "nuxt build",
+    "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "clean": "rm -rf .nuxt .output .turbo .data",
