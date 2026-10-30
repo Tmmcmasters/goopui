@@ -16,6 +16,7 @@ export * from './components/sonner'
 export * from './components/dialog'
 export * from './components/alert-dialog'
 export * from './components/sheet'
+export * from './components/drawer'
 export { GOOP_CONFIG_KEY, GoopPlugin, provideGoopConfig, useGoopConfig, type GoopConfig } from './config'
 export {
   CSS_VAR_KEYS,
@@ -57,6 +58,9 @@ export {
   SHEET_PROP_KEYS,
   toSheetOptions,
   type GoopSheetProps,
+  DRAWER_PROP_KEYS,
+  toDrawerOptions,
+  type GoopDrawerProps,
   type GoopToasterProps,
   type GoopCssVarKey,
   type GoopEngineKey,
