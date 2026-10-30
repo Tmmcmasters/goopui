@@ -27,7 +27,7 @@ const points = [
 
 <template>
   <section class="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28" aria-labelledby="what">
-    <LandingSectionHead id="what" index="01" label="What it is" title="The shadcn you know, with goo in it.">
+    <LandingSectionHead id="what" title="The shadcn you know, with goo in it.">
       goopUI copies shadcn's components and API. Underneath, a small engine draws a goo body behind each one and runs the drip
       physics.
     </LandingSectionHead>

@@ -3,9 +3,9 @@ const rows = [
   {
     name: 'Vue + Nuxt',
     pkgs: ['@goopui/vue', '@goopui/nuxt'],
-    status: 'In progress',
+    status: 'Alpha',
     live: true,
-    body: 'First, because it proves the API. SFCs that work in plain Vue/Vite, plus a Nuxt module that auto-imports them.',
+    body: 'First, because it proves the API. SFCs that work in plain Vue and Vite, plus a Nuxt module that auto-imports them. In alpha now.',
   },
   {
     name: 'React',
@@ -26,7 +26,7 @@ const rows = [
 
 <template>
   <section class="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28" aria-labelledby="frameworks">
-    <LandingSectionHead id="frameworks" index="03" label="Frameworks" title="One engine. Thin adapters.">
+    <LandingSectionHead id="frameworks" title="One engine. Thin adapters.">
       The goo lives in <code class="inline-code">@goopui/core</code>: plain TypeScript and DOM, no framework, and no
       <code class="inline-code">document</code> access at import time, so it's SSR-safe. Each framework package is a thin wrapper
       around it.

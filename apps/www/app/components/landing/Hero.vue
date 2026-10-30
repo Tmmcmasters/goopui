@@ -1,226 +1,105 @@
 <script setup lang="ts">
-// The slime slab. The whole panel is one goo body (canvas renderer, interactive), so the
-// engine does all of it: hover drips along the bottom edge under the cursor, lean and
-// momentum, a click-like shockwave on fast swipes (hitEffect: 'shockwave') and on clicks,
-// with particles that fly across the page (splash: 'escape'). Organic resting drips are
-// placed per drip ({ x, size, length }). Reduced motion: still shape + resting drips.
-//
-// Until the goo attaches (SSR, slow JS) the panel paints its own background, so it never
-// flashes empty.
-import type { GoopHandle, GoopOptions } from '@goopui/core'
-
-const { reduced } = useMotionPreference()
-
-const section = ref<HTMLElement | null>(null)
-const ready = ref(false)
-let slab: GoopHandle | null = null
-
-const SLAB: GoopOptions = {
-  renderer: 'canvas',
-  softness: 7,
-  edgeSharpness: 24,
-  // 0.5 keeps the straight edges exactly on the box, so the goo body matches the panel.
-  edge: 0.5,
-  thickness: 1.2,
-  dripSize: 15,
-  dripLength: 70,
-  dripCount: 2,
-  dripVariance: 0.75,
-  maxDrips: 16,
-  fallDistance: 170,
-  gravity: 950,
-  // A big fat drip, a little one beside it, the longest one, a medium one near the corner.
-  restingDrips: [
-    { x: 0.25, size: 1.15, length: 1.3 },
-    { x: 0.37, size: 0.6, length: 0.55 },
-    { x: 0.71, size: 1.45, length: 2.1 },
-    { x: 0.885, size: 0.85, length: 0.9 },
-  ],
-  // A panel this big should barely lean; the goo, not the layout, does the moving.
-  pointerReaction: 0.22,
-  inertia: 0.8,
-  squish: 0.012,
-  clickGoop: 0.12,
-  shockwave: 1.4,
-  hitEffect: 'shockwave',
-  splash: 'escape',
-  oiliness: 0.6,
-  // Pulling taffy out of a text panel fights text selection; gloss and puddles stay off.
-  taffy: false,
-  gloss: false,
-  puddles: false,
-  keyboard: false,
-}
-
-const onSlab = (h: GoopHandle) => {
-  slab = h
-  ready.value = true
-}
-
-// An idle drip now and then keeps the panel alive when nobody's touching it.
-let visible = true
-let lastActive = 0
-let ambientTimer: ReturnType<typeof setTimeout> | undefined
-const scheduleAmbient = () => {
-  clearTimeout(ambientTimer)
-  ambientTimer = setTimeout(
-    () => {
-      const host = slab?.layer.parentElement
-      if (host && visible && !document.hidden && performance.now() - lastActive > 2200) {
-        slab?.drip(host.offsetWidth * (0.1 + Math.random() * 0.8))
-      }
-      scheduleAmbient()
-    },
-    1900 + Math.random() * 2200,
-  )
-}
-const markActive = () => (lastActive = performance.now())
-
-let io: IntersectionObserver | null = null
-onMounted(() => {
-  io = new IntersectionObserver(([e]) => (visible = !!e?.isIntersecting))
-  if (section.value) io.observe(section.value)
-  scheduleAmbient()
-})
-onUnmounted(() => {
-  clearTimeout(ambientTimer)
-  io?.disconnect()
-})
-
-const copied = ref(false)
-const copyInstall = async () => {
-  try {
-    await navigator.clipboard.writeText('pnpm add @goopui/nuxt')
-    copied.value = true
-    setTimeout(() => (copied.value = false), 1600)
-  } catch {}
-}
+// Launch hero: the live puddle logo, the line, two CTAs. The showcase right under it is
+// the real demo, so the hero stays short and quiet (dark ink; green only on the logo).
+const repo = 'https://github.com/Tmmcmasters/goopui'
+// GitHub's mark (Octicons "mark-github", 16px grid).
+const githubMark =
+  'M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z'
 </script>
 
 <template>
-  <section
-    ref="section"
-    class="hero relative px-3 pb-16 pt-[calc(var(--header-h)+12px)] sm:px-6 sm:pb-24 sm:pt-[calc(var(--header-h)+20px)]"
-    data-goop-splash-zone
-    @pointermove.passive="markActive"
-  >
-    <!-- pb-16/24 below the slab is the runway for falling drops. Shockwave particles leave
-         it and fly across the page in the engine's shared overlay. -->
-    <GoopHost
-      class="slab relative mx-auto max-w-6xl"
-      :data-ready="ready || undefined"
-      :data-reduced="reduced || undefined"
-      :options="SLAB"
-      @ready="onSlab"
-    >
-      <div class="relative z-10 px-6 pb-16 pt-14 sm:px-12 sm:pb-24 sm:pt-20 lg:px-16 lg:pb-28 lg:pt-24">
-        <p class="intro intro-1 inline-flex items-center gap-2 rounded-full bg-goo-foreground/8 px-3 py-1 font-mono text-xs">
-          <span class="size-1.5 rounded-full bg-goo-foreground" />
-          shadcn, but it drips
-        </p>
-        <h1
-          class="type-display intro intro-2 mt-6 text-[clamp(3rem,9.6vw,8.5rem)] leading-[0.94] text-balance"
-        >
-          Components that drip.
-        </h1>
-        <p class="intro intro-3 mt-6 max-w-[44ch] text-[1.0625rem] leading-relaxed text-goo-foreground/80 sm:text-lg">
-          goopUI is the shadcn catalog made gooey. Same components, same API, built on reka-ui, with a tiny physics
-          engine that makes them swell, squish, and drip.
-        </p>
-        <!-- The CTAs have their own goo; keep their presses from also hitting the panel. -->
-        <div class="intro intro-4 mt-9 flex flex-wrap items-center gap-3" @pointerdown.stop>
-          <GoopButton
-            as-child
-            size="lg"
-            class="hero-cta h-12 gap-2 px-6 text-base"
-            :resting-drips="1"
-            :drip-size="7"
-            :drip-length="14"
-          >
-            <NuxtLink to="/docs/getting-started/introduction">
-              Read the docs
-              <SiteIcon name="arrowRight" :size="16" />
-            </NuxtLink>
-          </GoopButton>
-          <button type="button" class="install-chip" :aria-label="copied ? 'Copied' : 'Copy install command'" @click="copyInstall">
-            <span class="opacity-60">$</span>
-            <span>pnpm add @goopui/nuxt</span>
-            <span class="relative grid size-4 place-items-center">
-              <Transition name="swap" mode="out-in">
-                <SiteIcon v-if="copied" key="c" name="check" :size="15" />
-                <SiteIcon v-else key="p" name="copy" :size="15" class="opacity-60" />
-              </Transition>
-            </span>
-          </button>
-        </div>
-        <p class="intro intro-4 mt-3 font-mono text-[11px] text-goo-foreground/80">Packages publish with v0.1. The engine is live on this page.</p>
-        <p class="intro intro-5 mt-14 font-mono text-xs text-goo-foreground/80 sm:absolute sm:bottom-14 sm:right-12 sm:mt-0 lg:right-16">
-          <span class="hidden sm:inline">Hover, swipe hard, click ↓</span>
-          <span class="sm:hidden">Tap the slime ↓</span>
-        </p>
-      </div>
+  <section class="hero mx-auto flex max-w-6xl flex-col items-center px-4 pb-12 pt-[calc(var(--header-h)+56px)] text-center sm:px-6 sm:pb-16 sm:pt-[calc(var(--header-h)+80px)]">
+    <!-- A NuxtLink to "/": on the landing a click stays put, so the goo's click squish plays. -->
+    <NuxtLink to="/" class="intro logo-link" aria-label="goopUI home" draggable="false">
+      <SiteLogo size="xl" />
+    </NuxtLink>
 
-    </GoopHost>
+    <a :href="repo" target="_blank" rel="noopener" class="intro intro-1 wip mt-10">
+      <span class="wip-dot" aria-hidden="true" />
+      <span>Work in progress</span>
+      <span class="wip-sep" aria-hidden="true">·</span>
+      <span class="font-mono text-[11px] tracking-wide">alpha</span>
+    </a>
+
+    <h1 class="type-display intro intro-2 mt-5 text-[clamp(2.75rem,8.4vw,6rem)] leading-[0.95] text-balance">
+      Components that drip.
+    </h1>
+    <p class="intro intro-3 mt-6 max-w-[46ch] text-[1.0625rem] leading-relaxed text-muted-foreground text-pretty sm:text-lg">
+      goopUI is the shadcn catalog made gooey. Same components, same API, built on reka-ui, with a tiny physics engine
+      that makes them swell, squish, and drip.
+    </p>
+
+    <div class="intro intro-4 mt-9 flex flex-wrap items-center justify-center gap-3">
+      <GoopButton as-child size="lg" class="h-11 px-5 text-[15px]" :resting-drips="1">
+        <NuxtLink to="/docs/getting-started/installation">
+          Get started
+          <SiteIcon name="arrowRight" :size="16" data-icon="inline-end" />
+        </NuxtLink>
+      </GoopButton>
+      <GoopButton as-child size="lg" variant="outline" class="h-11 px-5 text-[15px]">
+        <a :href="repo" target="_blank" rel="noopener">
+          <svg data-icon="inline-start" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path :d="githubMark" />
+          </svg>
+          Star on GitHub
+        </a>
+      </GoopButton>
+    </div>
   </section>
 </template>
 
 <style scoped>
-.slab {
-  --slab-r: clamp(22px, 3vw, 34px);
-  /* Painted by the goo body once it attaches; until then (SSR) the panel paints itself. */
-  background: var(--goo);
-  color: var(--goo-foreground);
-  border-radius: var(--slab-r);
-  --goop-color: var(--goo);
+.logo-link {
+  display: block;
+  border-radius: 0.75rem;
+  outline-offset: 8px;
+  -webkit-user-drag: none;
 }
-.slab[data-ready] {
-  background: transparent;
-}
-.hero-cta {
-  background: var(--goo-foreground);
-  color: var(--goo);
-  --goop-color: var(--goo-foreground);
-}
-.install-chip {
+.wip {
   display: inline-flex;
   align-items: center;
-  gap: 0.6rem;
-  height: 3rem;
-  padding: 0 1rem;
-  border-radius: 0.75rem;
-  font-family: var(--font-mono);
+  gap: 0.5rem;
+  height: 1.875rem;
+  padding: 0 0.8rem 0 0.7rem;
+  border-radius: 999px;
   font-size: 0.8125rem;
-  color: var(--goo-foreground);
-  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--goo-foreground) 22%, transparent);
+  color: var(--muted-foreground);
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--border);
   transition:
-    background-color 150ms ease,
-    transform 140ms var(--ease-out-strong);
+    color 150ms ease,
+    box-shadow 150ms ease;
 }
-.install-chip:hover {
-  background: color-mix(in oklch, var(--goo-foreground) 7%, transparent);
+.wip:hover {
+  color: var(--foreground);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
 }
-.install-chip:active {
-  transform: scale(0.97);
+.wip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 99px;
+  background: var(--slime);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--slime) 22%, transparent);
+}
+.wip-sep {
+  color: var(--subtle);
 }
 
-/* Load-in: a short staggered rise. Hero only; the rest of the page uses v-reveal. */
+/* Load-in: one short staggered rise for the hero. */
 .intro {
   animation: intro-rise 900ms var(--ease-out-strong) both;
 }
-.intro-2 {
+.intro-1 {
   animation-delay: 60ms;
 }
+.intro-2 {
+  animation-delay: 110ms;
+}
 .intro-3 {
-  animation-delay: 120ms;
+  animation-delay: 170ms;
 }
 .intro-4 {
-  animation-delay: 180ms;
-}
-.intro-5 {
-  animation-delay: 420ms;
-}
-.slab {
-  animation: slab-in 1000ms var(--ease-out-strong) both;
+  animation-delay: 230ms;
 }
 @keyframes intro-rise {
   from {
@@ -228,32 +107,12 @@ const copyInstall = async () => {
     transform: translateY(12px);
   }
 }
-@keyframes slab-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.985);
-  }
-}
 @media (prefers-reduced-motion: reduce) {
-  .intro,
-  .slab {
+  .intro {
     animation: none;
   }
 }
-html[data-reduced-motion='true'] .intro,
-html[data-reduced-motion='true'] .slab {
+html[data-reduced-motion='true'] .intro {
   animation: none;
-}
-
-.swap-enter-active,
-.swap-leave-active {
-  transition:
-    opacity 120ms ease,
-    transform 160ms var(--ease-out-strong);
-}
-.swap-enter-from,
-.swap-leave-to {
-  opacity: 0;
-  transform: scale(0.8);
 }
 </style>
