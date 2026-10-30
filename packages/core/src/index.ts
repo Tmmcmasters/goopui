@@ -193,6 +193,7 @@ export {
   EMERGE_STATE_ATTR,
   EMERGE_STILL_ATTR,
   attachEmerge,
+  bloomOrigin,
   emergeBloomDuration,
   emergeBridge,
   emergeFlowDuration,
@@ -438,3 +439,18 @@ export {
   type ToasterHandle,
   type ToasterOptions,
 } from './toast'
+export {
+  SELECT_EFFECTS,
+  SELECT_PLOP_FEEL,
+  findSelectOrigin,
+  plopIn,
+  selectBloomsFromItem,
+  selectPlopFrame,
+  selectPlopKeyframes,
+  type SelectBloomFrom,
+  type SelectEffect,
+  type SelectPlopFeel,
+  type SelectPlopFrame,
+  type SelectPlopOptions,
+  type SelectPosition,
+} from './select'

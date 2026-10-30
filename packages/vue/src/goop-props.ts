@@ -20,6 +20,7 @@ import {
   GOOP_PRESETS,
   GOOP_VAR_META,
   MENU_EFFECTS,
+  SELECT_EFFECTS,
   PROGRESS_EFFECTS,
   SLIDER_EFFECTS,
   SWITCH_EFFECTS,
@@ -45,6 +46,9 @@ import {
   type EmergeSurfaceColor,
   type MenuEffect,
   type MenuHighlightOptions,
+  type SelectBloomFrom,
+  type SelectEffect,
+  type SelectPlopOptions,
   type ProgressEffect,
   type ProgressOptions,
   type SliderEffect,
@@ -532,7 +536,7 @@ export interface GoopMenuProps {
 
 /** Compile-time guards: every emerge / highlight option core grows must be handled here. */
 // `surface` (the element) is the adapter's; `surfaceColor` comes from the `surface` prop.
-type MenuAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'surfaceColor' | 'find' | 'feel' | 'reducedMotion'
+type MenuAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'surfaceColor' | 'find' | 'feel' | 'reducedMotion' | 'bloomOrigin'
 type MenuUnhandled = Exclude<
   keyof EmergeOptions | keyof MenuHighlightOptions | MenuEffect,
   keyof GoopMenuProps | MenuAdapterOwned
@@ -600,6 +604,96 @@ export function toMenuOptions(
       surfaceColor: menu.surface,
     },
     highlight: menu.goo && menu.highlight ? { ...common, wobble: menu.wobble, momentum: menu.momentum, pop: menu.pop } : null,
+  }
+}
+
+// ---- GoopSelect -----------------------------------------------------------------------------
+// The listbox reuses the dropdown's goo (emerge panel with the bloom open, menu highlight blob
+// and select pop) and adds core's SELECT_EFFECTS `plop` (the check mark drops in when an item
+// is chosen) and `bloomFrom` (an item-aligned list blooms out of the selected item).
+
+/** Every GoopSelectContent engine prop. */
+export const SELECT_PROP_KEYS = [
+  'goo',
+  'flow',
+  'flowStyle',
+  'bloomStart',
+  'bloomFrom',
+  ...EMERGE_EFFECT_KEYS,
+  ...EMERGE_DRIP_KEYS,
+  ...SELECT_EFFECTS,
+  'surface',
+  'speed',
+  'preset',
+  'renderer',
+] as const
+
+/** Engine props of GoopSelectContent. Same meaning as GoopDropdownMenuContent's, except as
+ *  noted. Every toggle defaults on. */
+export interface GoopSelectProps extends Omit<GoopMenuProps, 'submenus' | 'surface'> {
+  /** Where the bloom starts: 'auto' (default: the selected item when `position` is
+   *  'item-aligned', so the list grows out of the value you clicked; the list's own center
+   *  for 'popper'), 'selected' or 'center'. Close shrinks back to the same spot. */
+  bloomFrom?: SelectBloomFrom
+  /** The chosen item's check mark plops in: falls in small, squashes flat as it lands and
+   *  jiggles back to round (`wobble` off: one plain rebound). */
+  plop?: boolean
+  /** Panel color: 'popover' (default: shadcn's popover tokens; a select trigger is an
+   *  outlined field, so its color is not the list's), 'trigger', or any CSS color. */
+  surface?: EmergeSurfaceColor
+}
+
+/** Compile-time guards: every emerge / highlight / plop option and select effect core grows
+ *  must be handled here. `bloomOrigin` is set by the adapter from `bloomFrom`. */
+type SelectAdapterOwned = MenuAdapterOwned
+type SelectUnhandled = Exclude<
+  keyof EmergeOptions | keyof MenuHighlightOptions | keyof SelectPlopOptions | SelectEffect,
+  keyof GoopSelectProps | SelectAdapterOwned
+>
+const _allSelectOptionsHandled: [SelectUnhandled] extends [never] ? true : { unhandled: SelectUnhandled } = true
+void _allSelectOptionsHandled
+type SelectPropsListed = Exclude<keyof GoopSelectProps, (typeof SELECT_PROP_KEYS)[number]>
+const _allSelectPropsListed: [SelectPropsListed] extends [never] ? true : { unlisted: SelectPropsListed } = true
+void _allSelectPropsListed
+
+/** Fully resolved select settings (no undefined toggles). */
+export interface ResolvedSelectProps
+  extends Required<Omit<GoopSelectProps, 'preset' | 'renderer' | (typeof EMERGE_DRIP_KEYS)[number]>>,
+    Pick<GoopSelectProps, (typeof EMERGE_DRIP_KEYS)[number]> {
+  preset?: GoopPreset
+  renderer?: GoopRendererOption
+}
+
+const SELECT_TOGGLES = ['goo', 'flow', ...EMERGE_EFFECT_KEYS, ...SELECT_EFFECTS] as const
+
+/** Resolve select props over the defaults. */
+export function resolveSelectProps(props: GoopSelectProps): ResolvedSelectProps {
+  const out = { speed: props.speed ?? 1 } as ResolvedSelectProps
+  for (const k of SELECT_TOGGLES) out[k] = props[k] ?? true
+  for (const k of EMERGE_DRIP_KEYS) if (props[k] !== undefined) out[k] = props[k]
+  out.flowStyle = props.flowStyle ?? 'bloom'
+  out.bloomStart = props.bloomStart ?? 'single'
+  out.bloomFrom = props.bloomFrom ?? 'auto'
+  out.surface = props.surface ?? 'popover'
+  out.preset = props.preset
+  out.renderer = props.renderer
+  return out
+}
+
+/** Core options for the listbox (emerge), the highlight blob and the check plop, over app
+ *  config. `highlight` / `plop` are null when off. */
+export function toSelectOptions(
+  select: ResolvedSelectProps,
+  config: GoopOptions = {},
+): { emerge: EmergeOptions; highlight: MenuHighlightOptions | null; plop: SelectPlopOptions | null } {
+  const { emerge, highlight } = toMenuOptions({ ...select, submenus: false }, config)
+  return {
+    emerge,
+    highlight,
+    plop:
+      select.goo && select.plop
+        ? { speed: select.speed, preset: select.preset ?? config.preset, wobble: select.wobble, reducedMotion: config.reducedMotion }
+        : null,
   }
 }
 
@@ -724,7 +818,7 @@ export interface GoopTooltipProps {
 }
 
 // `surface` (the element) is the adapter's; `surfaceColor` comes from the `surface` prop.
-type TooltipAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'surfaceColor' | 'feel' | 'reducedMotion'
+type TooltipAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'surfaceColor' | 'feel' | 'reducedMotion' | 'bloomOrigin'
 type TooltipUnhandled = Exclude<keyof EmergeOptions, keyof GoopTooltipProps | TooltipAdapterOwned>
 const _allTooltipOptionsHandled: [TooltipUnhandled] extends [never] ? true : { unhandled: TooltipUnhandled } = true
 void _allTooltipOptionsHandled

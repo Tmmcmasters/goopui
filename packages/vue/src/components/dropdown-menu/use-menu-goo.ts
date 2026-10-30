@@ -22,6 +22,10 @@ export interface MenuGooInput {
   highlight: Ref<MenuHighlightOptions | null>
   /** Close the whole menu (after the select pop). */
   close: () => void
+  /** The panel is in place (default: reka's popper wrapper has left its parking spot). */
+  ready?: (host: HTMLElement) => boolean
+  /** Where a bloom starts (core `bloomOrigin`); null / absent: the panel's center. */
+  origin?: () => Element | null | undefined
 }
 
 /** reka parks the floating wrapper at translate(0, -200%) until floating-ui has placed it. */
@@ -43,7 +47,14 @@ export function useMenuGoo(input: MenuGooInput) {
     detachEmerge()
     const host = el?.parentElement
     if (!el || !host) return
-    emerge.value = attachEmerge(host, { ...input.emerge.value, surface: el, anchor: () => input.anchor() ?? null, ready: () => positioned(host) })
+    const ready = input.ready ?? positioned
+    emerge.value = attachEmerge(host, {
+      ...input.emerge.value,
+      surface: el,
+      anchor: () => input.anchor() ?? null,
+      ready: () => ready(host),
+      bloomOrigin: input.origin ? () => input.origin?.() ?? null : null,
+    })
     if (input.open()) emerge.value.open()
   }
 
@@ -83,11 +94,15 @@ export function useMenuGoo(input: MenuGooInput) {
   })
 
   /** Item selected: squish the highlight, and if the menu would close, close it once the pop
-   *  has played. Respects a consumer's `event.preventDefault()` (menu stays open). */
-  const select = (event: Event) => {
+   *  has played. Respects a consumer's `event.preventDefault()` (menu stays open).
+   *  `commit` runs right away in place of the primitive's default action (a select sets its
+   *  value); `close: false` keeps the menu open (a multi-select). */
+  const select = (event: Event, opts: { commit?: () => void; close?: boolean } = {}) => {
     const ms = highlight.value?.pop() ?? 0
     if (ms <= 0 || event.defaultPrevented) return
     event.preventDefault()
+    opts.commit?.()
+    if (opts.close === false) return
     clearTimeout(timer)
     timer = setTimeout(input.close, ms)
   }

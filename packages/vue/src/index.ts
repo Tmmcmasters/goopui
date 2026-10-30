@@ -8,6 +8,7 @@ export * from './components/checkbox'
 export * from './components/radio-group'
 export * from './components/popover'
 export * from './components/dropdown-menu'
+export * from './components/select'
 export * from './components/tabs'
 export * from './components/tooltip'
 export * from './components/slider'
@@ -21,6 +22,7 @@ export {
   EMERGE_EFFECT_KEYS,
   FEATURE_KEYS,
   MENU_PROP_KEYS,
+  SELECT_PROP_KEYS,
   TABS_PROP_KEYS,
   TOOLTIP_PROP_KEYS,
   GOOP_TUNING_KEYS,
@@ -36,7 +38,9 @@ export {
   goopProps,
   isGoopFeature,
   resolveMenuProps,
+  resolveSelectProps,
   toMenuOptions,
+  toSelectOptions,
   toTabsOptions,
   toTooltipOptions,
   toGoopOptions,
@@ -51,6 +55,8 @@ export {
   type GoopEngineKey,
   type GoopFeatureKey,
   type GoopMenuProps,
+  type GoopSelectProps,
+  type ResolvedSelectProps,
   type GoopTabsProps,
   type GoopTooltipProps,
   type ResolvedMenuProps,
