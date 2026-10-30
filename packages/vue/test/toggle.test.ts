@@ -46,6 +46,8 @@ describe('GoopToggle', () => {
     expect(btn.classes()).toContain('h-8')
     expect(btn.attributes()).toHaveProperty('data-goop-active')
     expect(btn.classes()).toContain('data-[state=on]:bg-transparent')
+    // Its goo layer sits under its own background: no drain marker needed.
+    expect(btn.classes()).not.toContain('data-[goop-filled]:hover:bg-transparent')
     expect(layers(btn.element)).toHaveLength(1)
     expect(layers(btn.element)[0]!.getAttribute('aria-hidden')).toBe('true')
     await btn.trigger('click')
@@ -91,6 +93,10 @@ describe('GoopToggleGroup', () => {
     expect(items[0]!.attributes('data-spacing')).toBe('0')
     expect(items[0]!.classes()).toContain('border-input')
     expect(items[0]!.attributes('data-state')).toBe('on')
+    // The goo sits under the items: a draining (un-pressed, hovered) item drops its hover background.
+    expect(items[1]!.classes()).toContain('data-[goop-filled]:hover:bg-transparent')
+    expect(items[0]!.attributes()).toHaveProperty('data-goop-filled')
+    expect(items[1]!.attributes()).not.toHaveProperty('data-goop-filled')
     w.unmount()
   })
 
