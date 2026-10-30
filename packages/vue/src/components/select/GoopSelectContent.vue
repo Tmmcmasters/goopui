@@ -46,6 +46,7 @@ const props = withDefaults(defineProps<SelectContentProps & GoopSelectProps & { 
   openDripSize: undefined,
   openDripFling: undefined,
   openDripVariety: undefined,
+  sloshVariety: undefined,
   closeSlosh: undefined,
   highlight: undefined,
   pop: undefined,

@@ -532,7 +532,7 @@ export function toProgressOptions(props: GoopProgressPropsInput, config: GoopOpt
 /** Emerge toggles shared with GoopPopoverContent. */
 export const EMERGE_EFFECT_KEYS = ['bridge', 'wobble', 'momentum', 'fade', 'openSlosh', 'openDrips', 'closeSlosh'] as const
 /** Numeric open-burst knobs (core EMERGE_DRIP_KNOBS), shared with GoopPopoverContent. */
-export const EMERGE_DRIP_KEYS = ['openDripAmount', 'openDripSize', 'openDripFling', 'openDripVariety'] as const
+export const EMERGE_DRIP_KEYS = ['openDripAmount', 'openDripSize', 'openDripFling', 'openDripVariety', 'sloshVariety'] as const
 /** Every GoopDropdownMenuContent / SubContent engine prop. */
 export const MENU_PROP_KEYS = [
   'goo',
@@ -591,6 +591,9 @@ export interface GoopMenuProps {
   openDripFling?: number
   /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
   openDripVariety?: number
+  /** 0..1: how differently each side bulges on open and sloshes on close (off-centre, one or
+   *  two lumps, staggered; re-rolled every open). Default 1; 0: an even, centred bulge. */
+  sloshVariety?: number
   /** On close, the goo lags and the near edge sloshes against the trigger (bloom: the
    *  panel pulls in and wobbles before it shrinks to the center). */
   closeSlosh?: boolean
@@ -682,6 +685,7 @@ export function toMenuOptions(
       openDripSize: menu.openDripSize,
       openDripFling: menu.openDripFling,
       openDripVariety: menu.openDripVariety,
+      sloshVariety: menu.sloshVariety,
       surfaceColor: menu.surface,
     },
     highlight: menu.goo && menu.highlight ? { ...common, wobble: menu.wobble, momentum: menu.momentum, pop: menu.pop, followPointer: menu.followPointer } : null,
@@ -884,6 +888,9 @@ export interface GoopTooltipProps {
   openDripFling?: number
   /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
   openDripVariety?: number
+  /** 0..1: how differently each side bulges on open and sloshes on close (off-centre, one or
+   *  two lumps, staggered; re-rolled every open). Default 1; 0: an even, centred bulge. */
+  sloshVariety?: number
   /** Close: the near edge sloshes against the trigger (bloom: the inward pull-and-wobble
    *  before it shrinks to the center). `true` (light, 0.5), `false` or 0..2. */
   closeSlosh?: boolean | number
@@ -937,6 +944,7 @@ export function toTooltipOptions(props: GoopTooltipProps, config: GoopOptions = 
     openDripSize: props.openDripSize ?? S?.openDripSize,
     openDripFling: props.openDripFling ?? S?.openDripFling,
     openDripVariety: props.openDripVariety,
+    sloshVariety: props.sloshVariety,
     surfaceColor: props.surface ?? 'popover',
     speed: props.speed ?? 1,
     preset: props.preset ?? config.preset,
@@ -994,6 +1002,9 @@ export interface GoopDialogProps {
   openDripFling?: number
   /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
   openDripVariety?: number
+  /** 0..1: how differently each side bulges on open and sloshes on close (off-centre, one or
+   *  two lumps, staggered; re-rolled every open). Default 1; 0: an even, centred bulge. */
+  sloshVariety?: number
   /** Close: the panel pulls in and wobbles before it shrinks to the center. `true`, `false`
    *  or 0..2 (alert dialog: `true` is a light 0.7). */
   closeSlosh?: boolean | number
@@ -1064,6 +1075,7 @@ export function toDialogOptions(props: GoopDialogProps, config: GoopOptions = {}
     openDripSize: props.openDripSize ?? S?.openDripSize,
     openDripFling: props.openDripFling ?? S?.openDripFling,
     openDripVariety: props.openDripVariety,
+    sloshVariety: props.sloshVariety,
     surfaceColor: props.surface ?? 'popover',
     speed: props.speed ?? 1,
     preset: props.preset ?? config.preset,
@@ -1134,6 +1146,9 @@ export interface GoopSheetProps {
   openDripFling?: number
   /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
   openDripVariety?: number
+  /** 0..1: how differently each side bulges on open and sloshes on close (off-centre, one or
+   *  two lumps, staggered; re-rolled every open). Default 1; 0: an even, centred bulge. */
+  sloshVariety?: number
   /** Close: the goo pulls in and wobbles before it shrinks back into the edge. `true`,
    *  `false` or 0..2. */
   closeSlosh?: boolean | number
@@ -1167,6 +1182,7 @@ export function toSheetOptions(props: GoopSheetProps, config: GoopOptions = {}):
     openDripSize: props.openDripSize,
     openDripFling: props.openDripFling,
     openDripVariety: props.openDripVariety,
+    sloshVariety: props.sloshVariety,
     speed: props.speed ?? 1,
     preset: props.preset ?? config.preset,
     renderer: props.renderer ?? config.renderer ?? 'canvas',

@@ -48,10 +48,13 @@ describe('dialog panel (detached bloom)', () => {
     expect(first.body.cy).toBeCloseTo(panel.height / 2, 5)
     let maxH = 0
     for (let t = 0; t <= 1; t += 0.01) {
-      const p = emergePose(t, b, 'open', DIALOG_FEEL.playful, bloom)
-      // Nothing trims the overshoot: it stays centered.
+      const p = emergePose(t, b, 'open', DIALOG_FEEL.playful, { ...bloom, sloshVariety: 0 })
+      // Nothing trims the overshoot: with no slosh variety it stays centered.
       if (p.body.w > 0) expect(p.body.cy).toBeCloseTo(panel.height / 2, 5)
       maxH = Math.max(maxH, p.body.h)
+      // Varied (the default): each side overshoots on its own, a few px off center at most.
+      const v = emergePose(t, b, 'open', DIALOG_FEEL.playful, bloom, 3)
+      if (v.body.w > 0) expect(Math.abs(v.body.cy - panel.height / 2)).toBeLessThanOrEqual(8)
     }
     expect(maxH).toBeGreaterThan(panel.height + 2)
     expect(emergePose(1, b, 'open', DIALOG_FEEL.playful, bloom)).toEqual(emergeRestPose(b))

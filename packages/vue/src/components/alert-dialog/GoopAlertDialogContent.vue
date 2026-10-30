@@ -32,6 +32,7 @@ const props = withDefaults(defineProps<AlertDialogContentProps & GoopDialogProps
   openDripSize: undefined,
   openDripFling: undefined,
   openDripVariety: undefined,
+  sloshVariety: undefined,
   overlay: undefined,
   overlayDrips: undefined,
   surface: undefined,

@@ -40,6 +40,7 @@ const props = withDefaults(defineProps<DropdownMenuContentProps & GoopMenuProps 
   openDripSize: undefined,
   openDripFling: undefined,
   openDripVariety: undefined,
+  sloshVariety: undefined,
   closeSlosh: undefined,
   highlight: undefined,
   pop: undefined,

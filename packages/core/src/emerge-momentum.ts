@@ -40,6 +40,11 @@ export interface EmergeDripOptions {
   /** 0..1: how mixed the spray is (big lead globs vs specks, uneven spacing, timing and
    *  angles). 0 makes every drop alike. Default 0.7. */
   openDripVariety?: number
+  /** 0..1: how differently each side of a bloomed panel bulges on open (and sloshes on
+   *  close): off-centre lumps of varied width and height, sometimes two, sometimes barely
+   *  any, the sides peaking at slightly different moments; re-rolled every open. 0 is the
+   *  even, centred bulge on every side. Default 1. */
+  sloshVariety?: number
 }
 
 /** Range, default and description of each open-burst knob (for sliders / docs). */
@@ -48,6 +53,7 @@ export const EMERGE_DRIP_KNOBS = Object.freeze({
   openDripSize: Object.freeze({ default: 1, min: 0.3, max: 2.5, step: 0.05, label: 'Drip size', description: 'Size of the burst drops.' }),
   openDripFling: Object.freeze({ default: 1, min: 0, max: 3, step: 0.05, label: 'Drip fling', description: 'How far the drops are flung before they fall.' }),
   openDripVariety: Object.freeze({ default: 0.7, min: 0, max: 1, step: 0.05, label: 'Drip variety', description: 'Mix of big globs, drops and specks, and how uneven the spray is; 0 makes them alike.' }),
+  sloshVariety: Object.freeze({ default: 1, min: 0, max: 1, step: 0.05, label: 'Slosh variety', description: 'How differently each side bulges on open and close (off-centre, one or two lumps, staggered); 0 is an even, centred bulge.' }),
 }) as Readonly<Record<keyof EmergeDripOptions, Readonly<{ default: number; min: number; max: number; step: number; label: string; description: string }>>>
 
 /** A burst knob's value: default when unset / not finite, clamped to its range. */
@@ -141,6 +147,21 @@ export const EMERGE_MOMENTUM = Object.freeze({
     perimScale: Object.freeze([0.55, 1.25] as const),
     /** Slosh: per-edge kick delay (s; top, right, bottom, left) so the ring wobbles unevenly. */
     lag: Object.freeze([0, 0.022, 0.01, 0.032] as const),
+    /** Per-open side variation (x `sloshVariety`): kick delays up to `lag` s, the peak up to
+     *  `at` off the side's middle (0.5 +- 0.3: 20-80% along), width / height spread, the
+     *  odds a side splits into two lumps (`double`, their offset from the middle `split`) or
+     *  barely bulges (`barely`, at `barelyAmp` of the strength). The four sides average the
+     *  preset's strength. */
+    vary: Object.freeze({
+      lag: 0.065,
+      at: 0.3,
+      width: 0.35,
+      height: 0.35,
+      double: 0.32,
+      split: Object.freeze([0.16, 0.26] as const),
+      barely: 0.16,
+      barelyAmp: 0.18,
+    }),
     /** Slosh size floor: fraction of the panel's smaller side (the anchor may be tiny). */
     sloshRef: 0.12,
     /** Outward fan along each edge (rad), so drops near corners fly diagonally. */
@@ -197,6 +218,111 @@ export function emergeMomentumEnd(phase: EmergePhase): number {
 function rand(seed: number, a: number, b: number): number {
   const s = Math.sin(seed * 127.1 + a * 311.7 + b * 74.7) * 43758.5453
   return s - Math.floor(s)
+}
+
+/** One lump of a bloomed side's bulge. */
+export interface EmergeBulgeLump {
+  /** 0..1 along the side (top / bottom: left to right; left / right: top to bottom). */
+  at: number
+  /** Width and height, x the centred bulge's. */
+  width: number
+  height: number
+  /** Circle slot (0..EMERGE_BULGE_SLOTS-1): sides 0..3 (top, right, bottom, left) own slots
+   *  0..3; a side's second lump takes one of the spare slots 4..6. */
+  slot: number
+}
+
+/** A bloomed side's slosh, fixed per open (see `emergeBloomBulges`). */
+export interface EmergeBulgeSide {
+  /** Kick delay (s). */
+  lag: number
+  /** Strength (x the preset's; the four sides' peaks average 1). */
+  amp: number
+  lumps: readonly EmergeBulgeLump[]
+}
+
+/** Circle slots a bloom's side bulges use: one per side, plus up to three second lumps. */
+export const EMERGE_BULGE_SLOTS = 7
+
+/**
+ * Per-open side bulge profiles (top, right, bottom, left) for the bloom's open slosh,
+ * overshoot and close slosh. `variety` 0: every side alike (one centred lump, the fixed
+ * `bloom.lag` stagger). Deterministic per (seed, variety). Pure.
+ */
+export function emergeBloomBulges(seed: number, variety = 1): EmergeBulgeSide[] {
+  const v = clamp(variety)
+  const B = EMERGE_MOMENTUM.bloom
+  const V = B.vary
+  const sides: EmergeBulgeSide[] = []
+  let spare = 4
+  for (let e = 0; e < 4; e++) {
+    const r = (k: number): number => rand(seed, 41 + e * 3, k)
+    const pm = (k: number): number => r(k) * 2 - 1
+    const lag = lerp(B.lag[e]!, V.lag * r(1), v)
+    const roll = r(2)
+    let amp = 1
+    let lumps: EmergeBulgeLump[]
+    if (roll < V.barely * v) {
+      amp = lerp(1, V.barelyAmp, v)
+      lumps = [{ at: 0.5 + pm(3) * V.at * v, width: 1, height: 1, slot: e }]
+    } else if (roll > 1 - V.double * v && spare < EMERGE_BULGE_SLOTS) {
+      const off = lerp(V.split[0], V.split[1], r(3)) * v
+      const tilt = pm(4) * 0.06 * v
+      lumps = [
+        { at: clamp(0.5 - off + tilt, 0.2, 0.8), width: lerp(1, 0.55 + 0.15 * r(5), v), height: lerp(1, 0.7 + 0.3 * r(6), v), slot: e },
+        { at: clamp(0.5 + off + tilt, 0.2, 0.8), width: lerp(1, 0.55 + 0.15 * r(7), v), height: lerp(1, 0.7 + 0.3 * r(8), v), slot: spare++ },
+      ]
+    } else {
+      lumps = [{ at: 0.5 + pm(3) * V.at * v, width: 1 + pm(5) * V.width * v, height: 1 + pm(6) * V.height * v, slot: e }]
+    }
+    sides.push({ lag, amp, lumps })
+  }
+  // Keep the overall strength: the sides' peaks average 1.
+  const peak = (s: EmergeBulgeSide): number => s.amp * Math.max(...s.lumps.map((l) => l.height))
+  const mean = sides.reduce((a, s) => a + peak(s), 0) / 4
+  return mean > 0 ? sides.map((s) => ({ ...s, amp: s.amp / mean })) : sides
+}
+
+/** Bloom sides in profile order, for matching `b.walls`. */
+export const EMERGE_BLOOM_SIDES = Object.freeze(['top', 'right', 'bottom', 'left'] as const)
+
+/**
+ * Bloom: side `e` (0 top, 1 right, 2 bottom, 3 left) of `bx` pushed `d` px out as `side`'s
+ * lumps, written to `out[base + lump.slot]`; `keep` adjusts each circle (keep it off the
+ * trigger). Each lump's circle stays within the side's length so it never swells the
+ * neighbouring sides; lumps near a corner come out narrower. Pure.
+ */
+export function emergeBulgeCircles(
+  bx: { x0: number; y0: number; x1: number; y1: number },
+  e: number,
+  d: number,
+  side: EmergeBulgeSide,
+  out: EmergeCircle[],
+  base: number,
+  keep: (c: EmergeCircle) => EmergeCircle = (c) => c,
+): void {
+  if (d < 0.5) return
+  const S = EMERGE_MOMENTUM.slosh
+  const horiz = e === 0 || e === 2
+  const len = horiz ? bx.x1 - bx.x0 : bx.y1 - bx.y0
+  const depth = horiz ? bx.y1 - bx.y0 : bx.x1 - bx.x0
+  const r0 = Math.max(0, Math.min(len * S.width, len / 2.3, depth / 2, 80))
+  for (const l of side.lumps) {
+    const u = clamp(l.at, 0.05, 0.95) * len
+    const r = Math.min(r0 * l.width, Math.min(u, len - u) / 1.1, len / 2.3, depth / 2)
+    const dk = Math.min(d * l.height, r)
+    if (r < 1 || dk < 0.5) continue
+    const back = r - dk
+    const c =
+      e === 0
+        ? { x: bx.x0 + u, y: bx.y0 + back, r }
+        : e === 1
+          ? { x: bx.x1 - back, y: bx.y0 + u, r }
+          : e === 2
+            ? { x: bx.x0 + u, y: bx.y1 - back, r }
+            : { x: bx.x0 + back, y: bx.y0 + u, r }
+    out[base + l.slot] = keep(c)
+  }
 }
 
 /** Panel body in main/cross terms (main grows away from the anchor). */
@@ -710,14 +836,17 @@ function bloomMomentum(
   const bx = boxOf(body)
   const strength = emergeMomentumStrength(effects.openSlosh)
   if (bx && strength > 0) {
-    // Radial slosh: every edge kicks outward (slightly out of step), rebounds and wobbles.
+    // Radial slosh: every edge kicks outward (out of step, each side its own per-open lumps:
+    // off-centre, one or two, varied size), rebounds and wobbles. Sides against the screen
+    // edge (a sheet's) stay put.
     const size = Math.max(b.bulb, Math.min(b.width, b.height) * B.sloshRef)
+    const prof = emergeBloomBulges(ctx.seed ?? 0, emergeDripKnob('sloshVariety', effects.sloshVariety))
+    const walls = b.walls ?? []
     const nb = { ...bx }
     for (let e = 0; e < 4; e++) {
-      const d = emergeSloshOffset(sec - B.lag[e]!, size, strength, preset)
-      const horiz = e === 0 || e === 2
-      const len = horiz ? bx.x1 - bx.x0 : bx.y1 - bx.y0
-      const depth = horiz ? bx.y1 - bx.y0 : bx.x1 - bx.x0
+      if (walls.includes(EMERGE_BLOOM_SIDES[e]!)) continue
+      const p = prof[e]!
+      const d = emergeSloshOffset(sec - p.lag, size, strength, preset) * p.amp
       if (d < 0) {
         const k = Math.min(S.maxInward, -d * S.inward)
         if (e === 0) nb.y0 += k
@@ -726,23 +855,8 @@ function bloomMomentum(
         else nb.x0 += k
         continue
       }
-      const r = Math.max(0, Math.min(len * S.width, len / 2.3, depth / 2, 80))
-      const dk = Math.min(d, r)
-      if (r < 1 || dk < 0.5) continue
-      const back = r - dk
-      const mx = (bx.x0 + bx.x1) / 2
-      const my = (bx.y0 + bx.y1) / 2
       // The edge facing the trigger only bulges into the gap, never over the trigger.
-      extra[e] = emergeKeepOff(
-        e === 0
-          ? { x: mx, y: bx.y0 + back, r }
-          : e === 1
-            ? { x: bx.x1 - back, y: my, r }
-            : e === 2
-              ? { x: mx, y: bx.y1 - back, r }
-              : { x: bx.x0 + back, y: my, r },
-        b,
-      )
+      emergeBulgeCircles(bx, e, d, p, extra, 0, (c) => emergeKeepOff(c, b))
     }
     if (nb.x0 !== bx.x0 || nb.x1 !== bx.x1 || nb.y0 !== bx.y0 || nb.y1 !== bx.y1) {
       body = { cx: (nb.x0 + nb.x1) / 2, cy: (nb.y0 + nb.y1) / 2, w: nb.x1 - nb.x0, h: nb.y1 - nb.y0 }

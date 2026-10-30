@@ -394,7 +394,7 @@ describe('emerge bloom flow style', () => {
     it(`${start}: grows in all directions, overshoots briefly, ends exactly on the panel`, () => {
       const panel = panelFor('bottom')
       const b = emergeBridge(trigger, panel, 'bottom')
-      const fx = { ...bloom, bloomStart: start }
+      const fx = { ...bloom, bloomStart: start, sloshVariety: 0 }
       expect(emergePose(1, b, 'open', EMERGE_FEEL.playful, fx)).toEqual(emergeRestPose(b))
       for (const preset of ['subtle', 'playful', 'wild'] as const) {
         for (let i = 0; i <= 60; i++) {
@@ -419,8 +419,10 @@ describe('emerge bloom flow style', () => {
 
   it('close contracts to the center and vanishes; content fades first', () => {
     const b = emergeBridge(trigger, panelFor('bottom'), 'bottom')
-    const mid = emergePose(0.6, b, 'close', EMERGE_FEEL.playful, bloom)
+    const mid = emergePose(0.6, b, 'close', EMERGE_FEEL.playful, { ...bloom, sloshVariety: 0 })
     expect(mid.body.cx).toBeCloseTo(b.width / 2, 5)
+    // Varied close slosh: each side on its own, still about centered.
+    expect(Math.abs(emergePose(0.6, b, 'close', EMERGE_FEEL.playful, bloom, 5).body.cx - b.width / 2)).toBeLessThan(3)
     expect(mid.body.w).toBeLessThan(b.width * 0.6)
     expect(mid.content).toBe(0)
     const end = emergePose(1, b, 'close', EMERGE_FEEL.playful, bloom)

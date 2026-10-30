@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   DIALOG_FEEL,
+  EMERGE_BLOOM_LOBES,
+  EMERGE_BULGE_SLOTS,
   EMERGE_CIRCLES,
   EMERGE_CLOSE_VAR,
   EMERGE_CONTENT_VAR,
@@ -94,6 +96,34 @@ describe('sheet bloom geometry', () => {
     expect(late.body.w).toBeLessThan(b.width / 4)
     expect(Math.hypot(late.body.cx - o.x, late.body.cy - o.y)).toBeLessThan(20)
     expect(emergePose(1, b, 'close', F, bloom).body.w).toBe(0)
+  })
+
+  it.each(SIDES)('%s: the varied slosh, overshoot and close slosh never push past a screen edge', (side) => {
+    const b = bridgeFor(side)
+    const walls = b.walls ?? []
+    for (let seed = 1; seed <= 6; seed++) {
+      for (const phase of ['open', 'close'] as const) {
+        const dur = phase === 'open' ? emergeMomentumEnd('open') : emergeBloomDuration(F, 'close')
+        for (let sec = 0; sec < dur; sec += 0.015) {
+          const t = sec / emergeBloomDuration(F, phase)
+          const base = phase === 'open' && t >= 1 ? emergeRestPose(b) : emergePose(t, b, phase, F, bloom, seed)
+          const p = emergeMomentum(base, b, phase, sec, { openDrips: false }, { bloom: true, seed })
+          const boxes = [
+            // The slosh lumps: the close's (in the pose) and the open's (momentum).
+            ...[...p.circles.slice(EMERGE_BLOOM_LOBES, EMERGE_BLOOM_LOBES + EMERGE_BULGE_SLOTS), ...p.circles.slice(EMERGE_CIRCLES, EMERGE_CIRCLES + EMERGE_BULGE_SLOTS)]
+              .filter((c) => c.r > 0)
+              .map((c) => ({ x0: c.x - c.r, y0: c.y - c.r, x1: c.x + c.r, y1: c.y + c.r })),
+            ...(p.body.w > 0 ? [{ x0: p.body.cx - p.body.w / 2, y0: p.body.cy - p.body.h / 2, x1: p.body.cx + p.body.w / 2, y1: p.body.cy + p.body.h / 2 }] : []),
+          ]
+          for (const k of boxes) {
+            if (walls.includes('top')) expect(k.y0).toBeGreaterThan(-0.5)
+            if (walls.includes('left')) expect(k.x0).toBeGreaterThan(-0.5)
+            if (walls.includes('bottom')) expect(k.y1).toBeLessThan(b.height + 0.5)
+            if (walls.includes('right')) expect(k.x1).toBeLessThan(b.width + 0.5)
+          }
+        }
+      }
+    }
   })
 
   it.each(SIDES)('%s: the splash never flies off the screen edge, and lands on-screen', (side) => {

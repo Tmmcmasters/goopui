@@ -55,6 +55,7 @@ const props = withDefaults(
     openDripSize: undefined,
     openDripFling: undefined,
     openDripVariety: undefined,
+    sloshVariety: undefined,
     speed: undefined,
     preset: undefined,
     renderer: undefined,
