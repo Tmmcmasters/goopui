@@ -285,7 +285,8 @@ export function drawerCircleCount(length: number, r: number): number {
 
 /**
  * The edge band circles for a W x H panel attached at `dir` (pure). Circle i sits one radius
- * in from the leading edge, pushed out by the edge's offset there.
+ * in from the leading edge, pushed out by the edge's offset there; a big outward bulge also
+ * gets filler circles down to the body so it stays one solid lobe.
  */
 export function drawerEdgeCircles(edge: DrawerEdge, dir: DrawerDirection, W: number, H: number, r: number, count?: number): DrawerCircle[] {
   const L = isVertical(dir) ? W : H
@@ -295,10 +296,15 @@ export function drawerEdgeCircles(edge: DrawerEdge, dir: DrawerDirection, W: num
     const f = m <= 1 ? 0.5 : i / (m - 1)
     const u = r + f * Math.max(0, L - 2 * r)
     const d = drawerEdgeAt(edge, f)
-    if (dir === 'bottom') out.push({ x: u, y: r - d, r })
-    else if (dir === 'top') out.push({ x: u, y: H - r + d, r })
-    else if (dir === 'left') out.push({ x: W - r + d, y: u, r })
-    else out.push({ x: r - d, y: u, r })
+    // A big bulge would leave a gap between its circle and the body: fill the column.
+    const fill = d > r * 0.6 ? Math.ceil(d / (r * 1.1)) : 0
+    for (let j = 0; j <= fill; j++) {
+      const dj = (d * (fill + 1 - j)) / (fill + 1)
+      if (dir === 'bottom') out.push({ x: u, y: r - dj, r })
+      else if (dir === 'top') out.push({ x: u, y: H - r + dj, r })
+      else if (dir === 'left') out.push({ x: W - r + dj, y: u, r })
+      else out.push({ x: r - dj, y: u, r })
+    }
   }
   return out
 }
@@ -502,7 +508,7 @@ export function drawerSplashDrops(input: DrawerSplashInput, feel: Readonly<Drawe
     const ang = base + (rand(seed + 5, i) - 0.5) * 2 * D.cone[c]! + (fi - 0.5) * D.fan * (vertical ? 1 : -1) * (dir === 'bottom' || dir === 'left' ? 1 : -1)
     const sp = feel.splashLaunch * speeds[c]! * (0.7 + 0.6 * rand(seed + 7, i)) * (0.6 + 0.4 * k) * clamp(firm, 0.8, 1.3)
     // The panel yanks away (toward closed = -out); the drops keep a little of that.
-    const carry = input.speed * (0.12 + 0.12 * rand(seed + 9, i))
+    const carry = Math.min(input.speed, 2500) * (0.04 + 0.06 * rand(seed + 9, i))
     const r = Math.max(D.minPx, feel.splashSize * sizes[c]! * (0.75 + 0.5 * rand(seed + 13, i)) * (0.8 + 0.2 * k))
     drops.push({
       x: p.x,
@@ -873,6 +879,8 @@ export function createDrawer(panel: HTMLElement, options: DrawerOptions = {}, ev
     if (!splashOverlay) {
       try {
         splashOverlay = acquireGoopOverlay(doc, { renderer: opts.renderer ?? 'canvas', color, params: drawerGooParams(preset), zIndex: 2147482000 })
+        // The same soft ring as the panel, so drops read on a page of the panel's color.
+        splashOverlay.host.style.filter = `var(--goop-surface-shadow,${DEFAULT_SHADOW})`
       } catch {
         splashOverlay = null
         return
@@ -1231,6 +1239,9 @@ export function createDrawer(panel: HTMLElement, options: DrawerOptions = {}, ev
     drawerTrack(d.tracker, e.timeStamp / 1000, d.raw)
     const v = drawerVelocity(d.tracker, e.timeStamp / 1000)
     measure()
+    // Land the panel on the finger's last position first (the splash starts from there).
+    spring.x = drawerDragOffset(d.raw, { min: Math.min(...snaps), max: Math.max(...snaps), size, dismissible: opts.dismissible !== false, dimension: viewport })
+    applyPanel()
     endDrag()
     suppressClick = true
     setTimeout(() => (suppressClick = false), 0)
