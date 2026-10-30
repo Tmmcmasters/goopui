@@ -13,6 +13,8 @@ export * from './components/tooltip'
 export * from './components/slider'
 export * from './components/progress'
 export * from './components/sonner'
+export * from './components/accordion'
+export * from './components/collapsible'
 export { GOOP_CONFIG_KEY, GoopPlugin, provideGoopConfig, useGoopConfig, type GoopConfig } from './config'
 export {
   CSS_VAR_KEYS,
@@ -45,6 +47,9 @@ export {
   toSliderOptions,
   toSwitchOptions,
   TOASTER_PROP_KEYS,
+  ACCORDION_PROP_KEYS,
+  toAccordionOptions,
+  type GoopAccordionProps,
   toToasterOptions,
   type GoopToasterProps,
   type GoopCssVarKey,
