@@ -43,6 +43,7 @@ const props = withDefaults(defineProps<DropdownMenuContentProps & GoopMenuProps 
   closeSlosh: undefined,
   highlight: undefined,
   pop: undefined,
+  followPointer: undefined,
   submenus: undefined,
   surface: undefined,
   speed: undefined,

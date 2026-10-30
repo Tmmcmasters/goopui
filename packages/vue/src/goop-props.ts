@@ -542,6 +542,7 @@ export const MENU_PROP_KEYS = [
   ...EMERGE_EFFECT_KEYS,
   ...EMERGE_DRIP_KEYS,
   ...MENU_EFFECTS,
+  'followPointer',
   'surface',
   'speed',
   'preset',
@@ -597,6 +598,9 @@ export interface GoopMenuProps {
   highlight?: boolean
   /** Jelly squish of the highlight when an item is selected, before the menu closes. */
   pop?: boolean
+  /** The highlight's swell (its neck while it slides, and a soft bulge as the pointer moves
+   *  along an item) follows the pointer with a little lag (false, or keyboard: centred). */
+  followPointer?: boolean
   /** Submenus emerge from their row (false: plain shadcn submenus). */
   submenus?: boolean
   /** Panel color: 'trigger' (default: the trigger's background and text color, falling back
@@ -632,7 +636,7 @@ export interface ResolvedMenuProps
   renderer?: GoopRendererOption
 }
 
-const MENU_TOGGLES = ['goo', 'flow', ...EMERGE_EFFECT_KEYS, ...MENU_EFFECTS] as const
+const MENU_TOGGLES = ['goo', 'flow', ...EMERGE_EFFECT_KEYS, ...MENU_EFFECTS, 'followPointer'] as const
 
 /** Resolve menu props over a parent menu's resolved settings (submenus) or the defaults. */
 export function resolveMenuProps(props: GoopMenuProps, parent?: ResolvedMenuProps | null): ResolvedMenuProps {
@@ -680,7 +684,7 @@ export function toMenuOptions(
       openDripVariety: menu.openDripVariety,
       surfaceColor: menu.surface,
     },
-    highlight: menu.goo && menu.highlight ? { ...common, wobble: menu.wobble, momentum: menu.momentum, pop: menu.pop } : null,
+    highlight: menu.goo && menu.highlight ? { ...common, wobble: menu.wobble, momentum: menu.momentum, pop: menu.pop, followPointer: menu.followPointer } : null,
   }
 }
 
@@ -699,6 +703,7 @@ export const SELECT_PROP_KEYS = [
   ...EMERGE_EFFECT_KEYS,
   ...EMERGE_DRIP_KEYS,
   ...SELECT_EFFECTS,
+  'followPointer',
   'surface',
   'speed',
   'preset',
@@ -741,7 +746,7 @@ export interface ResolvedSelectProps
   renderer?: GoopRendererOption
 }
 
-const SELECT_TOGGLES = ['goo', 'flow', ...EMERGE_EFFECT_KEYS, ...SELECT_EFFECTS] as const
+const SELECT_TOGGLES = ['goo', 'flow', ...EMERGE_EFFECT_KEYS, ...SELECT_EFFECTS, 'followPointer'] as const
 
 /** Resolve select props over the defaults. */
 export function resolveSelectProps(props: GoopSelectProps): ResolvedSelectProps {

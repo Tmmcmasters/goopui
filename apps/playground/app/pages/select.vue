@@ -29,6 +29,8 @@ const bloomStart = ref<'single' | 'merge'>('single')
 const bloomFrom = ref<SelectBloomFrom>('auto')
 const highlight = ref(true)
 const pop = ref(true)
+/** The highlight's swell follows the pointer along the item (false: centred). */
+const followPointer = ref(true)
 const plop = ref(true)
 const bridge = ref(true)
 const wobble = ref(true)
@@ -52,6 +54,7 @@ const engine = computed(() => ({
   goo: goo.value,
   highlight: highlight.value,
   pop: pop.value,
+  followPointer: followPointer.value,
   plop: plop.value,
   flow: flow.value,
   flowStyle: flowStyle.value,
@@ -69,7 +72,7 @@ const engine = computed(() => ({
   renderer: renderer.value || undefined,
   surface: surface.value,
 }))
-const toggles = { goo, flow, highlight, pop, plop, bridge, wobble, momentum, fade, openSlosh, openDrips, closeSlosh }
+const toggles = { goo, flow, highlight, pop, followPointer, plop, bridge, wobble, momentum, fade, openSlosh, openDrips, closeSlosh }
 
 const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
 </script>

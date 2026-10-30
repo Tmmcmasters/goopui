@@ -49,6 +49,7 @@ const props = withDefaults(defineProps<SelectContentProps & GoopSelectProps & { 
   closeSlosh: undefined,
   highlight: undefined,
   pop: undefined,
+  followPointer: undefined,
   plop: undefined,
   surface: undefined,
   speed: undefined,

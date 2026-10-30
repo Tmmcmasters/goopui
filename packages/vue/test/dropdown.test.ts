@@ -301,6 +301,10 @@ describe('menu props', () => {
     expect(opts.emerge).toMatchObject({ wobble: false, preset: 'subtle', speed: 2 })
     expect(opts.highlight).toMatchObject({ pop: false, wobble: false })
     expect(toMenuOptions(resolveMenuProps({ highlight: false })).highlight).toBeNull()
+    // followPointer: on by default, inherited by submenus, passed to the highlight.
+    expect(toMenuOptions(resolveMenuProps({})).highlight).toMatchObject({ followPointer: true })
+    const still = resolveMenuProps({ followPointer: false })
+    expect(toMenuOptions(resolveMenuProps({}, still)).highlight).toMatchObject({ followPointer: false })
   })
 
   it("surface defaults to 'trigger', is inherited, and maps to core surfaceColor", () => {

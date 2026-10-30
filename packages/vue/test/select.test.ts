@@ -292,6 +292,8 @@ describe('select props', () => {
     expect(opts.plop).toMatchObject({ wobble: false, preset: 'subtle', speed: 2 })
     expect(toSelectOptions(resolveSelectProps({ plop: false })).plop).toBeNull()
     expect(toSelectOptions(resolveSelectProps({ highlight: false })).highlight).toBeNull()
+    expect(toSelectOptions(resolveSelectProps({})).highlight).toMatchObject({ followPointer: true })
+    expect(toSelectOptions(resolveSelectProps({ followPointer: false })).highlight).toMatchObject({ followPointer: false })
     expect(toSelectOptions(resolveSelectProps({ goo: false })).plop).toBeNull()
   })
 
