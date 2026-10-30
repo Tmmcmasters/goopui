@@ -70,7 +70,9 @@ describe('GoopAccordion', () => {
       expect(l.querySelectorAll('[data-goop="blob"]')).toHaveLength(ACCORDION_CIRCLES)
       expect(item.querySelector('[data-goop-accordion-source]')).not.toBeNull()
     }
-    expect(triggers()[0]!.className).toContain('px-3')
+    // shadcn's layout exactly: no extra padding with goo on.
+    expect(triggers()[0]!.className).not.toContain('px-3')
+    expect(triggers()[0]!.className).toContain('py-4')
     w.unmount()
     expect(activeTickerCount()).toBe(0)
   })
@@ -82,15 +84,12 @@ describe('GoopAccordion', () => {
     await flushPromises()
     expect(items()[0]!.getAttribute('data-state')).toBe('open')
     expect(activeTickerCount()).toBeGreaterThan(0)
-    expect(Number.parseFloat(items()[0]!.style.getPropertyValue(ACCORDION_TIMING_VARS.delay))).toBeCloseTo(
-      ACCORDION_FEEL.playful.lead,
-      2,
-    )
+    expect(Number.parseFloat(items()[0]!.style.getPropertyValue(ACCORDION_TIMING_VARS.delay))).toBe(0)
     triggers()[2]!.click()
     await flushPromises()
     expect(items()[2]!.getAttribute('data-state')).toBe('open')
     expect(Number.parseFloat(items()[2]!.style.getPropertyValue(ACCORDION_TIMING_VARS.delay))).toBeCloseTo(
-      ACCORDION_FEEL.playful.lead + ACCORDION_FEEL.playful.handoff,
+      ACCORDION_FEEL.playful.handoff,
       2,
     )
     w.unmount()
@@ -105,7 +104,7 @@ describe('GoopAccordion', () => {
     triggers()[0]!.click()
     await flushPromises()
     expect(items()[0]!.getAttribute('data-state')).toBe('closed')
-    // Jump the close to its end: the card is gone.
+    // Jump the close to its end: no goo left.
     item.handle.update({ reducedMotion: true })
     expect(item.handle.pose?.rect).toBeNull()
     w.unmount()
@@ -118,10 +117,7 @@ describe('GoopAccordion', () => {
     await flushPromises()
     triggers()[1]!.click()
     await flushPromises()
-    expect(Number.parseFloat(items()[1]!.style.getPropertyValue(ACCORDION_TIMING_VARS.delay))).toBeCloseTo(
-      ACCORDION_FEEL.playful.lead,
-      2,
-    )
+    expect(Number.parseFloat(items()[1]!.style.getPropertyValue(ACCORDION_TIMING_VARS.delay))).toBe(0)
     w.unmount()
     const off = mount(Demo, { props: { root: { goo: false } }, attachTo: document.body })
     await flushPromises()
@@ -136,8 +132,9 @@ describe('GoopAccordion', () => {
 
   it('maps props to core options', () => {
     expect(toAccordionOptions({ goo: false })).toBeNull()
-    expect(toAccordionOptions({ drips: false, jelly: 2, speed: 1.5 }, { preset: 'wild' })).toMatchObject({
-      drips: false,
+    expect(toAccordionOptions({ splash: false, splashAmount: 2, jelly: 2, speed: 1.5 }, { preset: 'wild' })).toMatchObject({
+      splash: false,
+      splashAmount: 2,
       jelly: 2,
       speed: 1.5,
       preset: 'wild',

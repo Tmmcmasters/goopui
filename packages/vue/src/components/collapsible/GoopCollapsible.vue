@@ -1,9 +1,9 @@
 <script setup lang="ts">
 // GoopCollapsible: shadcn-vue's Collapsible (reka-ui CollapsibleRoot, same props / emits / slot,
 // `class` merge). With goo on, core's `attachAccordion` adds one aria-hidden goo layer to the
-// root: opening pours the content down out of the trigger (the trigger is the goo's source
-// blob; lead drips, then a jelly fill over everything down to the content's end), closing
-// sucks it back up into the trigger with a slosh. The real content stays unfiltered on top.
+// root: opening pours the content down out of the trigger as liquid (jelly landing, a splash
+// off the bottom edge), closing sucks it back up into the trigger with a slosh. No goo at rest;
+// the real content stays unfiltered on top.
 // Engine props as GoopAccordion (`handoff` does nothing here). `:goo="false"` = plain shadcn.
 import type { CollapsibleRootEmits, CollapsibleRootProps } from 'reka-ui'
 import { CollapsibleRoot, useForwardPropsEmits } from 'reka-ui'
@@ -15,11 +15,11 @@ import { useAccordionGoo, useElementRef } from '../accordion/use-accordion-goo'
 
 const props = withDefaults(defineProps<CollapsibleRootProps & GoopAccordionProps & { class?: HTMLAttributes['class'] }>(), {
   goo: undefined,
-  fill: undefined,
-  drips: undefined,
+  pour: undefined,
   jelly: undefined,
+  splash: undefined,
+  splashAmount: undefined,
   slosh: undefined,
-  source: undefined,
   handoff: undefined,
   speed: undefined,
   preset: undefined,

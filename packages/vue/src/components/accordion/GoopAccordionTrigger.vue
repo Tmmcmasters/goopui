@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // GoopAccordionTrigger: shadcn-vue's AccordionTrigger (AccordionHeader + AccordionTrigger, the
-// chevron `icon` slot, same classes). With goo on, the chevron is the goo's source: a goo blob
-// sits behind it (`data-goop-accordion-source`; put that attribute on a custom icon to keep
-// it), and the trigger gets side padding so the goo card has room around the label.
+// chevron `icon` slot, same classes). With goo on, the chevron is the goo's source: the pour
+// wells out of it and the close is sucked back into it (`data-goop-accordion-source`; put that
+// attribute on a custom icon to keep it). Layout is shadcn's exactly.
 import { cn } from 'cn'
 import type { AccordionTriggerProps } from 'reka-ui'
 import { AccordionHeader, AccordionTrigger } from 'reka-ui'
@@ -27,7 +27,6 @@ const goo = computed(() => !!ctx?.options.value)
       :class="
         cn(
           'focus-visible:border-ring focus-visible:ring-ring/50 flex flex-1 items-start justify-between gap-4 rounded-md py-4 text-left text-sm font-medium transition-all outline-none hover:underline focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 [&[data-state=open]>svg]:rotate-180',
-          goo && 'px-3',
           props.class,
         )
       "

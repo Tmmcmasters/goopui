@@ -1264,29 +1264,29 @@ export function toDrawerOptions(props: GoopDrawerProps, config: GoopOptions = {}
 }
 
 // ---- GoopAccordion / GoopCollapsible ----------------------------------------------------------
-// Core `attachAccordion` on each item (and on the collapsible root): ACCORDION_EFFECTS (fill,
-// drips, jelly, slosh, source, handoff), each `true` (default), `false`, or a 0..2 strength,
-// plus speed / preset / renderer. Set them on GoopAccordion (every item follows) or
-// GoopCollapsible. `goo: false` is plain shadcn.
+// Core `attachAccordion` on each item (and on the collapsible root): ACCORDION_EFFECTS (pour,
+// jelly, splash, slosh, handoff), each `true` (default), `false`, or a 0..2 strength, the
+// `splashAmount` knob, plus speed / preset / renderer. Set them on GoopAccordion (every item
+// follows) or GoopCollapsible. `goo: false` is plain shadcn.
 
 /** Every GoopAccordion / GoopCollapsible engine prop. */
-export const ACCORDION_PROP_KEYS = ['goo', ...ACCORDION_EFFECTS, 'speed', 'preset', 'renderer'] as const
+export const ACCORDION_PROP_KEYS = ['goo', ...ACCORDION_EFFECTS, 'splashAmount', 'speed', 'preset', 'renderer'] as const
 
 /** Engine props of GoopAccordion and GoopCollapsible. */
 export interface GoopAccordionProps {
   /** Master switch. `false` renders a plain shadcn Accordion / Collapsible. */
   goo?: boolean
-  /** The open content sits on a goo card that pours down out of the trigger. */
-  fill?: boolean | number
-  /** Drips lead the goo down on open and hang off it as it is sucked back up. `true`, `false` or 0..2. */
-  drips?: boolean | number
-  /** Jelly overshoot + wobble when the fill lands. `true`, `false` or 0..2. */
+  /** The content pours down as liquid on open and is sucked back up into the trigger on close. */
+  pour?: boolean | number
+  /** Jelly overshoot + wobble when the pour lands (the content's height too). `true`, `false` or 0..2. */
   jelly?: boolean | number
-  /** The chevron blob sloshes after the goo is sucked back in. `true`, `false` or 0..2. */
+  /** A splash of drops flies off the bottom edge when the pour lands. `true`, `false` or 0..2. */
+  splash?: boolean | number
+  /** Splash drop count, x the preset (0..3, default 1). */
+  splashAmount?: number
+  /** The goo sloshes in the trigger after it is sucked back in. `true`, `false` or 0..2. */
   slosh?: boolean | number
-  /** A goo blob behind the chevron (collapsible: the trigger) that the goo pours out of. */
-  source?: boolean | number
-  /** Accordion: liquid moves from the closing item into the opening one. `true`, `false` or 0..2. */
+  /** Accordion: the opening item waits a beat for the closing one. `true`, `false` or 0..2. */
   handoff?: boolean | number
   /** Animation speed multiplier. */
   speed?: number
@@ -1314,6 +1314,7 @@ export function toAccordionOptions(props: GoopAccordionProps, config: GoopOption
     reducedMotion: config.reducedMotion,
   }
   if (props.speed !== undefined) out.speed = props.speed
+  if (props.splashAmount !== undefined) out.splashAmount = props.splashAmount
   for (const k of ACCORDION_EFFECTS) if (props[k] !== undefined) out[k] = props[k]
   return out
 }

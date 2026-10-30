@@ -1,9 +1,9 @@
 <script setup lang="ts">
 // GoopAccordionItem: shadcn-vue's AccordionItem (reka-ui AccordionItem, `class` merge). Inside a
 // GoopAccordion with goo on, core's `attachAccordion` adds one aria-hidden goo layer to the
-// item: opening pours the content down out of the trigger (lead drips, then a jelly fill),
-// closing sucks it back up into the chevron blob with a slosh. The real trigger and content
-// stay unfiltered on top. Browser-only: SSR and first paint render plain shadcn markup.
+// item: opening pours the content down as liquid (jelly landing, a splash off the bottom edge),
+// closing sucks it back up into the chevron with a slosh. At rest there is no goo: the item
+// looks exactly like shadcn. Browser-only: SSR and first paint render plain shadcn markup.
 import { cn } from 'cn'
 import type { AccordionItemProps } from 'reka-ui'
 import { AccordionItem, useForwardProps } from 'reka-ui'
