@@ -1,4 +1,4 @@
-import { ACCORDION_CIRCLES, ACCORDION_TIMING_VARS, ACCORDION_FEEL, activeTickerCount } from '@goopui/core'
+import { ACCORDION_FLOODED_ATTR, ACCORDION_STILL_ATTR, ACCORDION_TIMING_VARS, activeTickerCount, type AccordionHandle } from '@goopui/core'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 import { defineComponent, h, ref, type PropType } from 'vue'
@@ -38,6 +38,8 @@ const Demo = defineComponent({
 const items = () => [...document.querySelectorAll<HTMLElement>('[data-slot="accordion-item"]')]
 const triggers = () => [...document.querySelectorAll<HTMLElement>('[data-slot="accordion-trigger"]')]
 const layer = (el: Element) => el.querySelector<HTMLElement>(':scope > [data-goop="layer"]')
+const handles = (w: ReturnType<typeof mount>) =>
+  w.findAllComponents(GoopAccordionItem).map((c) => (c.vm as unknown as { handle: AccordionHandle }).handle)
 
 afterEach(() => {
   document.body.innerHTML = ''
@@ -58,84 +60,83 @@ describe('GoopAccordion', () => {
       expect(goopComponents).toContain(name)
   })
 
-  it('renders shadcn parts with an aria-hidden goo layer per item and a chevron source', async () => {
+  it('renders shadcn parts with an aria-hidden goo layer in each trigger; idle at rest', async () => {
     const w = mount(Demo, { attachTo: document.body })
     await flushPromises()
     expect(items()).toHaveLength(3)
     for (const item of items()) {
       expect(item.hasAttribute('data-goop-accordion')).toBe(true)
       expect(item.className).toContain('border-b')
-      const l = layer(item)!
-      expect(l.getAttribute('aria-hidden')).toBe('true')
-      expect(l.querySelectorAll('[data-goop="blob"]')).toHaveLength(ACCORDION_CIRCLES)
-      expect(item.querySelector('[data-goop-accordion-source]')).not.toBeNull()
+      expect(layer(item)).toBeNull()
+      const t = item.querySelector<HTMLElement>('[data-slot="accordion-trigger"]')!
+      expect(t.hasAttribute('data-goop-accordion-trigger')).toBe(true)
+      expect(layer(t)!.getAttribute('aria-hidden')).toBe('true')
+      expect(item.style.getPropertyValue(ACCORDION_TIMING_VARS.openEase)).toMatch(/^linear\(/)
     }
-    // shadcn's layout exactly: no extra padding with goo on.
-    expect(triggers()[0]!.className).not.toContain('px-3')
+    // shadcn's layout exactly.
     expect(triggers()[0]!.className).toContain('py-4')
+    expect(triggers()[0]!.className).not.toContain('px-')
+    expect(activeTickerCount()).toBe(0)
     w.unmount()
     expect(activeTickerCount()).toBe(0)
   })
 
-  it('opening animates; switching items hands the goo over and delays the opening item', async () => {
+  it('opening floods the row; switching drains the old row while the new one floods', async () => {
     const w = mount(Demo, { attachTo: document.body })
     await flushPromises()
     triggers()[0]!.click()
     await flushPromises()
     expect(items()[0]!.getAttribute('data-state')).toBe('open')
     expect(activeTickerCount()).toBeGreaterThan(0)
-    expect(Number.parseFloat(items()[0]!.style.getPropertyValue(ACCORDION_TIMING_VARS.delay))).toBe(0)
+    const [a, , c] = handles(w)
+    expect(a!.running).toBe(true)
     triggers()[2]!.click()
     await flushPromises()
-    expect(items()[2]!.getAttribute('data-state')).toBe('open')
-    expect(Number.parseFloat(items()[2]!.style.getPropertyValue(ACCORDION_TIMING_VARS.delay))).toBeCloseTo(
-      ACCORDION_FEEL.playful.handoff,
-      2,
-    )
-    w.unmount()
-  })
-
-  it('collapsing a controlled single accordion (model -> undefined) sucks the goo back up', async () => {
-    const w = mount(Demo, { attachTo: document.body })
-    await flushPromises()
-    triggers()[0]!.click()
-    await flushPromises()
-    const item = w.findAllComponents(GoopAccordionItem)[0]!.vm as unknown as { handle: { pose: { rect: unknown } | null; update(o: object): void } }
-    triggers()[0]!.click()
-    await flushPromises()
     expect(items()[0]!.getAttribute('data-state')).toBe('closed')
-    // Jump the close to its end: no goo left.
-    item.handle.update({ reducedMotion: true })
-    expect(item.handle.pose?.rect).toBeNull()
+    expect(items()[2]!.getAttribute('data-state')).toBe('open')
+    expect(a!.running).toBe(true)
+    expect(c!.running).toBe(true)
     w.unmount()
+    expect(activeTickerCount()).toBe(0)
   })
 
-  it('handoff off: no delay; goo off: plain shadcn', async () => {
-    const w = mount(Demo, { props: { root: { handoff: false } }, attachTo: document.body })
-    await flushPromises()
-    triggers()[0]!.click()
+  it('reduced motion: the open row is a static flooded fill, no ticker', async () => {
+    document.documentElement.dataset.reducedMotion = 'true'
+    const w = mount(Demo, { attachTo: document.body })
     await flushPromises()
     triggers()[1]!.click()
     await flushPromises()
-    expect(Number.parseFloat(items()[1]!.style.getPropertyValue(ACCORDION_TIMING_VARS.delay))).toBe(0)
+    expect(items()[1]!.hasAttribute(ACCORDION_STILL_ATTR)).toBe(true)
+    expect(triggers()[1]!.hasAttribute(ACCORDION_FLOODED_ATTR)).toBe(true)
+    expect(triggers()[0]!.hasAttribute(ACCORDION_FLOODED_ATTR)).toBe(false)
+    expect(activeTickerCount()).toBe(0)
+    triggers()[1]!.click()
+    await flushPromises()
+    expect(triggers()[1]!.hasAttribute(ACCORDION_FLOODED_ATTR)).toBe(false)
     w.unmount()
+  })
+
+  it('goo off: plain shadcn', async () => {
     const off = mount(Demo, { props: { root: { goo: false } }, attachTo: document.body })
     await flushPromises()
     for (const item of items()) {
-      expect(layer(item)).toBeNull()
       expect(item.hasAttribute('data-goop-accordion')).toBe(false)
+      expect(item.querySelector('[data-goop="layer"]')).toBeNull()
     }
-    expect(triggers()[0]!.className).not.toContain('px-3')
-    expect(document.querySelector('[data-slot="accordion-content"]')?.className ?? 'animate-accordion').toContain('animate-accordion')
+    expect(triggers()[0]!.hasAttribute('data-goop-accordion-trigger')).toBe(false)
+    triggers()[0]!.click()
+    await flushPromises()
+    expect(document.querySelector('[data-slot="accordion-content"]')!.className).toContain('animate-accordion')
     off.unmount()
   })
 
   it('maps props to core options', () => {
     expect(toAccordionOptions({ goo: false })).toBeNull()
-    expect(toAccordionOptions({ splash: false, splashAmount: 2, jelly: 2, speed: 1.5 }, { preset: 'wild' })).toMatchObject({
-      splash: false,
-      splashAmount: 2,
-      jelly: 2,
+    expect(toAccordionOptions({ droplets: false, wobble: 2, jelly: 0.5, flood: true, speed: 1.5 }, { preset: 'wild' })).toMatchObject({
+      droplets: false,
+      wobble: 2,
+      jelly: 0.5,
+      flood: true,
       speed: 1.5,
       preset: 'wild',
     })
@@ -154,15 +155,15 @@ describe('GoopCollapsible', () => {
     },
   })
 
-  it('attaches goo to the root, the trigger is the source, toggling animates', async () => {
+  it('floods the trigger on open, the content springs, cleans up', async () => {
     const w = mount(C, { attachTo: document.body })
     await flushPromises()
     const root = document.querySelector<HTMLElement>('[data-slot="collapsible"]')!
     expect(root.className).toContain('w-80')
     expect(root.hasAttribute('data-goop-accordion')).toBe(true)
-    expect(layer(root)).not.toBeNull()
     const trigger = document.querySelector<HTMLElement>('[data-slot="collapsible-trigger"]')!
-    expect(trigger.hasAttribute('data-goop-accordion-source')).toBe(true)
+    expect(trigger.hasAttribute('data-goop-accordion-trigger')).toBe(true)
+    expect(layer(trigger)).not.toBeNull()
     trigger.click()
     await flushPromises()
     expect(root.getAttribute('data-state')).toBe('open')

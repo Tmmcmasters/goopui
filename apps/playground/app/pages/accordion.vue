@@ -11,14 +11,12 @@ const faq = [
 /** Accordion / Collapsible props from the panel, applied to every goop instance on the page. */
 const speed = ref(1)
 /** Effect toggles (core ACCORDION_EFFECTS). */
-const fx = reactive({ pour: true, jelly: true, splash: true, slosh: true, handoff: true })
-const splashAmount = ref(1)
+const fx = reactive({ flood: true, wobble: true, droplets: true, jelly: true })
 const preset = ref<GoopPreset | ''>('')
 const renderer = ref<GoopRendererName | ''>('')
 const engine = computed(() => ({
   speed: speed.value,
   ...fx,
-  splashAmount: splashAmount.value,
   preset: preset.value || undefined,
   renderer: renderer.value || undefined,
 }))
@@ -44,10 +42,6 @@ const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
           <span class="text-xs text-muted-foreground">{{ name }}</span>
         </label>
         <label class="grid gap-1">
-          <span class="text-xs text-muted-foreground">splash amount: {{ splashAmount.toFixed(2) }}x</span>
-          <input v-model.number="splashAmount" type="range" min="0" max="3" step="0.05" class="w-28" :disabled="!fx.splash">
-        </label>
-        <label class="grid gap-1">
           <span class="text-xs text-muted-foreground">preset</span>
           <select v-model="preset" :class="selectClass">
             <option value="">auto (playful)</option>
@@ -67,7 +61,7 @@ const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
       </section>
     </template>
 
-    <CompareRow label="single" note="collapsible; the opening item waits a beat for the closing one (handoff)">
+    <CompareRow label="single" note="collapsible; the open row floods from the click point, the old one drains">
       <template #shadcn>
         <Accordion v-model="single" type="single" collapsible class="w-full">
           <AccordionItem v-for="item in faq" :key="item.value" :value="item.value">
@@ -105,7 +99,7 @@ const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
       </template>
     </CompareRow>
 
-    <CompareRow label="collapsible" note="Collapsible: the trigger is the goo source">
+    <CompareRow label="collapsible" note="Collapsible: the trigger floods while open">
       <template #shadcn>
         <Collapsible v-model:open="open" class="flex w-[350px] flex-col gap-2">
           <div class="flex items-center justify-between gap-4 px-4">

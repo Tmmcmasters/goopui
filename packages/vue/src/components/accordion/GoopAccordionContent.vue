@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // GoopAccordionContent: shadcn-vue's AccordionContent (reka-ui AccordionContent, `class` merge on
-// the inner div). With goo on, its height animation is goop.css's (timed by core so the reveal
-// follows the pour, jelly overshoot included; reka's --reka-accordion-content-height) instead
-// of tw-animate's. Layout is shadcn's exactly.
+// the inner div). With goo on, its height animation is goop.css's: a jelly spring on open
+// (overshoot + settle) and a short spring on close, timed by core (reka's
+// --reka-accordion-content-height) instead of tw-animate's. Layout is shadcn's exactly.
 import { cn } from 'cn'
 import type { AccordionContentProps } from 'reka-ui'
 import { AccordionContent } from 'reka-ui'
@@ -16,7 +16,7 @@ const delegated = computed(() => {
   return rest
 })
 const ctx = injectGoopAccordion()
-const goo = computed(() => !!ctx?.options.value)
+const goo = computed(() => !!ctx?.value)
 </script>
 
 <template>

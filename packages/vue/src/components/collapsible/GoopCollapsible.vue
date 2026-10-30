@@ -1,26 +1,22 @@
 <script setup lang="ts">
 // GoopCollapsible: shadcn-vue's Collapsible (reka-ui CollapsibleRoot, same props / emits / slot,
-// `class` merge). With goo on, core's `attachAccordion` adds one aria-hidden goo layer to the
-// root: opening pours the content down out of the trigger as liquid (jelly landing, a splash
-// off the bottom edge), closing sucks it back up into the trigger with a slosh. No goo at rest;
-// the real content stays unfiltered on top.
-// Engine props as GoopAccordion (`handoff` does nothing here). `:goo="false"` = plain shadcn.
+// `class` merge). With goo on, core's `attachAccordion` floods the trigger (GoopCollapsibleTrigger)
+// with goo from the click point while open (GoopToggle's fill) and opens the content on a jelly
+// spring. Engine props as GoopAccordion. `:goo="false"` = plain shadcn.
 import type { CollapsibleRootEmits, CollapsibleRootProps } from 'reka-ui'
 import { CollapsibleRoot, useForwardPropsEmits } from 'reka-ui'
-import { computed, shallowRef, watch, type HTMLAttributes } from 'vue'
+import { computed, type HTMLAttributes } from 'vue'
 import { useGoopConfig } from '../../config'
 import { ACCORDION_PROP_KEYS, toAccordionOptions, type GoopAccordionProps } from '../../goop-props'
-import { provideGoopCollapsible } from '../accordion/context'
+import { provideGoopAccordion } from '../accordion/context'
 import { useAccordionGoo, useElementRef } from '../accordion/use-accordion-goo'
 
 const props = withDefaults(defineProps<CollapsibleRootProps & GoopAccordionProps & { class?: HTMLAttributes['class'] }>(), {
   goo: undefined,
-  pour: undefined,
+  flood: undefined,
+  wobble: undefined,
+  droplets: undefined,
   jelly: undefined,
-  splash: undefined,
-  splashAmount: undefined,
-  slosh: undefined,
-  handoff: undefined,
   speed: undefined,
   preset: undefined,
   renderer: undefined,
@@ -37,22 +33,9 @@ const delegated = computed(
 )
 const forwarded = useForwardPropsEmits(delegated, emits)
 
-// Mirror of reka's open state: what reka emits, and any change of the controlling prop.
-const current = shallowRef<boolean>(props.open ?? props.defaultOpen ?? false)
-watch(
-  () => props.open,
-  (v) => {
-    if (v !== undefined) current.value = v
-  },
-)
-const onUpdate = (v: boolean): void => {
-  current.value = v
-}
-
 const config = useGoopConfig()
-const base = computed(() => toAccordionOptions(props, config))
-provideGoopCollapsible(computed(() => base.value !== null))
-const options = computed(() => (base.value ? { ...base.value, open: current.value, flow: 'source' as const } : null))
+const options = computed(() => toAccordionOptions(props, config))
+provideGoopAccordion(options)
 const [el, setEl] = useElementRef()
 const handle = useAccordionGoo(el, options)
 
@@ -72,7 +55,6 @@ defineExpose({
     v-bind="forwarded"
     :data-goop-accordion="options ? '' : undefined"
     :class="props.class"
-    @update:open="onUpdate"
   >
     <slot v-bind="slotProps" />
   </CollapsibleRoot>

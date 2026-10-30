@@ -1,13 +1,13 @@
 <script setup lang="ts">
 // GoopAccordionItem: shadcn-vue's AccordionItem (reka-ui AccordionItem, `class` merge). Inside a
-// GoopAccordion with goo on, core's `attachAccordion` adds one aria-hidden goo layer to the
-// item: opening pours the content down as liquid (jelly landing, a splash off the bottom edge),
-// closing sucks it back up into the chevron with a slosh. At rest there is no goo: the item
-// looks exactly like shadcn. Browser-only: SSR and first paint render plain shadcn markup.
+// GoopAccordion with goo on, core's `attachAccordion` puts GoopToggle's goo fill on the item's
+// trigger row (one aria-hidden layer inside the trigger) and times the content's jelly spring.
+// Closed items look exactly like shadcn. Browser-only: SSR and first paint render plain shadcn
+// markup.
 import { cn } from 'cn'
 import type { AccordionItemProps } from 'reka-ui'
 import { AccordionItem, useForwardProps } from 'reka-ui'
-import { computed, onBeforeUnmount, watch, type HTMLAttributes } from 'vue'
+import { computed, type HTMLAttributes } from 'vue'
 import { injectGoopAccordion } from './context'
 import { useAccordionGoo, useElementRef } from './use-accordion-goo'
 
@@ -20,20 +20,8 @@ const delegated = computed(() => {
 const forwarded = useForwardProps(delegated)
 
 const ctx = injectGoopAccordion()
-const goo = computed(() => !!ctx?.options.value)
+const options = computed(() => ctx?.value ?? null)
 const [el, setEl] = useElementRef()
-watch(el, (node, prev) => {
-  if (prev) ctx?.register(props.value, null)
-  if (node) ctx?.register(props.value, node)
-})
-onBeforeUnmount(() => ctx?.register(props.value, null))
-
-const options = computed(() => {
-  const base = ctx?.options.value
-  if (!ctx || !base) return null
-  const open = ctx.isOpen(props.value)
-  return { ...base, open, flow: ctx.flowFor(props.value, open) }
-})
 const handle = useAccordionGoo(el, options)
 
 defineExpose({
@@ -50,7 +38,7 @@ defineExpose({
     :ref="setEl"
     data-slot="accordion-item"
     v-bind="forwarded"
-    :data-goop-accordion="goo ? '' : undefined"
+    :data-goop-accordion="options ? '' : undefined"
     :class="cn('border-b last:border-b-0', props.class)"
   >
     <slot v-bind="slotProps" />

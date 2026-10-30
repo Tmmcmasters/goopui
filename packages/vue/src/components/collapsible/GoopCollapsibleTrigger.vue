@@ -1,18 +1,19 @@
 <script setup lang="ts">
 // GoopCollapsibleTrigger: shadcn-vue's CollapsibleTrigger (reka-ui, unstyled, `asChild`). With
-// goo on it is the goo's source: the content pours out of it and is sucked back into it.
+// goo on it floods with goo from the click point while the collapsible is open
+// (`data-goop-accordion-trigger`; its text switches to the goo's foreground once flooded).
 import type { CollapsibleTriggerProps } from 'reka-ui'
 import { CollapsibleTrigger } from 'reka-ui'
 import { computed } from 'vue'
-import { injectGoopCollapsible } from '../accordion/context'
+import { injectGoopAccordion } from '../accordion/context'
 
 const props = defineProps<CollapsibleTriggerProps>()
-const goo = injectGoopCollapsible()
-const on = computed(() => !!goo?.value)
+const ctx = injectGoopAccordion()
+const on = computed(() => !!ctx?.value)
 </script>
 
 <template>
-  <CollapsibleTrigger data-slot="collapsible-trigger" v-bind="props" :data-goop-accordion-source="on ? '' : undefined">
+  <CollapsibleTrigger data-slot="collapsible-trigger" v-bind="props" :data-goop-accordion-trigger="on ? '' : undefined">
     <slot />
   </CollapsibleTrigger>
 </template>
