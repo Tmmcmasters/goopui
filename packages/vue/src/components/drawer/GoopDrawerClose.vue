@@ -1,16 +1,16 @@
 <script setup lang="ts">
-// GoopDrawerClose: shadcn-vue's DrawerClose.
-import type { DrawerCloseProps } from 'vaul-vue'
-import { DrawerClose } from 'vaul-vue'
+// GoopDrawerClose: shadcn-vue's DrawerClose (reka-ui's DialogClose).
+import type { DialogCloseProps } from 'reka-ui'
+import { DialogClose } from 'reka-ui'
 
-const props = defineProps<DrawerCloseProps>()
+const props = defineProps<DialogCloseProps>()
 </script>
 
 <template>
-  <DrawerClose
+  <DialogClose
     data-slot="drawer-close"
     v-bind="props"
   >
     <slot />
-  </DrawerClose>
+  </DialogClose>
 </template>

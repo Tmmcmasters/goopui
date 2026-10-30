@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import type { GoopPreset, GoopRendererName } from '@goopui/core'
+import type { DrawerDirection, GoopPreset, GoopRendererName } from '@goopui/core'
 
-// The shadcn column uses GoopDrawer with `:goo="false"`, which renders exactly shadcn-vue's
-// Drawer (vaul-vue + shadcn classes); the playground has no separate shadcn drawer copy.
-const directions = ['top', 'right', 'left'] as const
+// The shadcn column uses GoopDrawer with `:goo="false"`: shadcn-vue's Drawer look (same parts,
+// classes and vaul API), still driven by goopUI's own drag engine (no vaul-vue).
+const directions = ['bottom', 'top', 'left', 'right'] as const
+const direction = ref<DrawerDirection>('bottom')
 
 /** GoopDrawerContent props from the panel, applied to every goop drawer on the page. */
 const goo = ref(true)
@@ -12,7 +13,7 @@ const slosh = ref(true)
 const rise = ref(true)
 const stretch = ref(true)
 const handle = ref(true)
-const drips = ref(true)
+const splash = ref(true)
 /** Strength (0..2) applied to every effect that's on. */
 const strength = ref(1)
 const speed = ref(1)
@@ -26,12 +27,23 @@ const engine = computed(() => ({
   rise: on(rise),
   stretch: on(stretch),
   handle: handle.value,
-  drips: on(drips),
+  splash: on(splash),
   speed: speed.value,
   preset: preset.value || undefined,
   renderer: renderer.value || undefined,
 }))
-const toggles = { goo, lag, slosh, rise, stretch, handle, drips }
+const toggles = { goo, lag, slosh, rise, stretch, handle, splash }
+
+/** GoopDrawer root (vaul) props. */
+const dismissible = ref(true)
+const handleOnly = ref(false)
+const scaleBackground = ref(true)
+const root = computed(() => ({
+  direction: direction.value,
+  dismissible: dismissible.value,
+  handleOnly: handleOnly.value,
+  shouldScaleBackground: scaleBackground.value,
+}))
 
 const snapPoints = [0.35, 0.65, 1]
 const snapShadcn = ref<number | string | null>(snapPoints[0]!)
@@ -47,6 +59,12 @@ const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
   <ComparePage path="/drawer">
     <template #controls>
       <section class="mb-6 flex flex-wrap items-end gap-4 rounded-xl border p-4 text-sm" aria-label="Drawer props">
+        <label class="grid gap-1">
+          <span class="text-xs text-muted-foreground">direction</span>
+          <select v-model="direction" :class="selectClass" data-testid="direction">
+            <option v-for="d in directions" :key="d" :value="d">{{ d }}</option>
+          </select>
+        </label>
         <label v-for="(r, name) in toggles" :key="name" class="flex items-center gap-2 pb-1">
           <input v-model="r.value" type="checkbox">
           <span class="text-xs text-muted-foreground">{{ name }}</span>
@@ -76,14 +94,26 @@ const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
             <option value="svg">svg</option>
           </select>
         </label>
+        <label class="flex items-center gap-2 pb-1">
+          <input v-model="dismissible" type="checkbox">
+          <span class="text-xs text-muted-foreground">dismissible</span>
+        </label>
+        <label class="flex items-center gap-2 pb-1">
+          <input v-model="handleOnly" type="checkbox">
+          <span class="text-xs text-muted-foreground">handleOnly</span>
+        </label>
+        <label class="flex items-center gap-2 pb-1">
+          <input v-model="scaleBackground" type="checkbox">
+          <span class="text-xs text-muted-foreground">shouldScaleBackground</span>
+        </label>
       </section>
     </template>
 
-    <CompareRow label="bottom" note="drag it, flick it down, pull it up past the top">
+    <CompareRow :label="direction" note="drag it, flick it away, pull it past full open">
       <template v-for="side in (['shadcn', 'goop'] as const)" :key="side" #[side]>
-        <GoopDrawer>
+        <GoopDrawer v-bind="root">
           <GoopDrawerTrigger as-child>
-            <GoopButton variant="outline" :goo="side === 'goop'">
+            <GoopButton variant="outline" :goo="side === 'goop'" :data-testid="`open-${side}`">
               Open drawer
             </GoopButton>
           </GoopDrawerTrigger>
@@ -127,7 +157,7 @@ const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
 
     <CompareRow label="snap points" note="0.35 / 0.65 / 1: the edge sloshes on every snap">
       <template #shadcn>
-        <GoopDrawer v-model:active-snap-point="snapShadcn" :snap-points="snapPoints">
+        <GoopDrawer v-model:active-snap-point="snapShadcn" :snap-points="snapPoints" :dismissible="dismissible">
           <GoopDrawerTrigger as-child>
             <GoopButton variant="outline" :goo="false">
               Snap points ({{ snapShadcn }})
@@ -142,9 +172,9 @@ const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
         </GoopDrawer>
       </template>
       <template #goop>
-        <GoopDrawer v-model:active-snap-point="snapGoop" :snap-points="snapPoints">
+        <GoopDrawer v-model:active-snap-point="snapGoop" :snap-points="snapPoints" :dismissible="dismissible">
           <GoopDrawerTrigger as-child>
-            <GoopButton variant="outline">
+            <GoopButton variant="outline" data-testid="open-snap">
               Snap points ({{ snapGoop }})
             </GoopButton>
           </GoopDrawerTrigger>
@@ -158,31 +188,6 @@ const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
                 {{ p }}
               </GoopButton>
             </div>
-          </GoopDrawerContent>
-        </GoopDrawer>
-      </template>
-    </CompareRow>
-
-    <CompareRow label="directions" note="top, right, left: the leading edge follows">
-      <template v-for="side in (['shadcn', 'goop'] as const)" :key="side" #[side]>
-        <GoopDrawer v-for="d in directions" :key="d" :direction="d">
-          <GoopDrawerTrigger as-child>
-            <GoopButton variant="outline" size="sm" :goo="side === 'goop'">
-              {{ d }}
-            </GoopButton>
-          </GoopDrawerTrigger>
-          <GoopDrawerContent v-bind="side === 'goop' ? engine : { goo: false }">
-            <GoopDrawerHeader>
-              <GoopDrawerTitle>Direction: {{ d }}</GoopDrawerTitle>
-              <GoopDrawerDescription>Swipe it back toward the {{ d }} edge.</GoopDrawerDescription>
-            </GoopDrawerHeader>
-            <GoopDrawerFooter>
-              <GoopDrawerClose as-child>
-                <GoopButton variant="outline" :goo="side === 'goop'">
-                  Close
-                </GoopButton>
-              </GoopDrawerClose>
-            </GoopDrawerFooter>
           </GoopDrawerContent>
         </GoopDrawer>
       </template>

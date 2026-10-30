@@ -1,11 +1,11 @@
 <script setup lang="ts">
-// GoopDrawerTitle: shadcn-vue's DrawerTitle.
-import type { DrawerTitleProps } from 'vaul-vue'
+// GoopDrawerTitle: shadcn-vue's DrawerTitle (reka-ui's DialogTitle).
+import type { DialogTitleProps } from 'reka-ui'
 import { cn } from 'cn'
-import { DrawerTitle } from 'vaul-vue'
+import { DialogTitle } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
 
-const props = defineProps<DrawerTitleProps & { class?: HTMLAttributes['class'] }>()
+const props = defineProps<DialogTitleProps & { class?: HTMLAttributes['class'] }>()
 const delegated = computed(() => {
   const { class: _class, ...rest } = props
   return rest
@@ -13,11 +13,11 @@ const delegated = computed(() => {
 </script>
 
 <template>
-  <DrawerTitle
+  <DialogTitle
     data-slot="drawer-title"
     v-bind="delegated"
     :class="cn('text-foreground font-semibold', props.class)"
   >
     <slot />
-  </DrawerTitle>
+  </DialogTitle>
 </template>

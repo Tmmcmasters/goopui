@@ -1,11 +1,11 @@
 <script setup lang="ts">
-// GoopDrawerDescription: shadcn-vue's DrawerDescription.
-import type { DrawerDescriptionProps } from 'vaul-vue'
+// GoopDrawerDescription: shadcn-vue's DrawerDescription (reka-ui's DialogDescription).
+import type { DialogDescriptionProps } from 'reka-ui'
 import { cn } from 'cn'
-import { DrawerDescription } from 'vaul-vue'
+import { DialogDescription } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
 
-const props = defineProps<DrawerDescriptionProps & { class?: HTMLAttributes['class'] }>()
+const props = defineProps<DialogDescriptionProps & { class?: HTMLAttributes['class'] }>()
 const delegated = computed(() => {
   const { class: _class, ...rest } = props
   return rest
@@ -13,11 +13,11 @@ const delegated = computed(() => {
 </script>
 
 <template>
-  <DrawerDescription
+  <DialogDescription
     data-slot="drawer-description"
     v-bind="delegated"
     :class="cn('text-muted-foreground text-sm', props.class)"
   >
     <slot />
-  </DrawerDescription>
+  </DialogDescription>
 </template>

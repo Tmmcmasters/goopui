@@ -1,31 +1,51 @@
-// Drawer goo: the background of a vaul drawer panel as a live goo surface.
+// Drawer: a draggable panel whose background IS a live goo surface (GoopDrawer).
 //
-// vaul owns the panel's motion (drag, snap points, open/close animations, its transforms).
-// This module never writes the panel's transform: it MEASURES where vaul put the panel every
-// frame, derives the leading edge's velocity, and drives a goo skin from that:
+// This module owns the whole drawer motion. One ticker, every frame:
+//   1. the panel's offset (drawer-physics.ts): the finger while dragging (rubber-banded past
+//      full open, and past the lowest snap point when not dismissible), else a spring toward
+//      the active snap point / fully open / closed;
+//   2. writes the panel transform, the overlay's opacity and the background scale;
+//   3. steps and draws the goo from that SAME offset, so panel and goo cannot come apart.
 //
-//   lag      the leading edge (top edge of a bottom drawer) trails behind fast motion: a
-//            fast flick down stretches it up behind the panel, a fast rise dips it in.
-//   slosh    when the motion stops (release, snap point, end of a drag) the edge keeps going,
-//            overshoots and wobbles out (an underdamped string of springs).
+// Goo (all toggleable, 0..2 strengths):
+//   lag      the leading edge trails fast moves: a fast pull in stretches it out behind the
+//            panel, a fast push out dips it in.
+//   slosh    when motion stops (release, snap, landing) the edge keeps going, overshoots and
+//            wobbles out (an underdamped string of springs).
 //   rise     opening lands with an extra jelly overshoot of the edge.
-//   stretch  dragging past the edge (vaul's rubber band) pulls a globby bump toward the finger.
-//   handle   the drag handle is its own little goo blob: it swells on press, stretches along
-//            the drag and trails a droplet that snaps back.
-//   drips    on dismiss, drops pinch off the edge and plop down off-screen (on a page overlay,
-//            so they outlive the unmounted panel).
+//   stretch  dragging past full open pulls a globby bump out toward the finger.
+//   handle   the drag handle is a small goo blob: swells on press, stretches along the drag
+//            and trails a droplet that snaps back.
+//   splash   a fling-dismiss tears a spray of drops (big globs, drops, specks, like the bloom
+//            splash) off the leading edge; they fly, fall and fade on a page overlay.
 //
 // Geometry: the renderer's body is the panel, inset by one column radius on the leading side;
 // a row of overlapping circles fills that band, each riding its own spring, so the edge can
-// bulge out AND dip in. The body also extends past the trailing side when vaul over-drags the
-// panel off its screen edge (vaul's `::after` filler inherits our clear background).
+// bulge out AND dip in. The body extends past the trailing side when the panel is pulled off
+// its screen edge (over-drag past open), so no gap opens behind it.
 //
 // Pure: `DRAWER_FEEL`, `drawerEdgeShape`, `createDrawerEdge`, `drawerEdgeTargets`,
 // `stepDrawerEdge`, `drawerEdgeSettled`, `drawerEdgeCircles`, `drawerBodyPose`,
-// `drawerHandlePose`. DOM: `attachDrawer`. Nothing touches `document`/`window` until then.
+// `drawerHandlePose`, `drawerSplashDrops`, `drawerTransform`, `drawerBackgroundScale`.
+// DOM: `createDrawer`. Nothing touches `document`/`window` until then.
 
-import type { GoopPreset } from './constants'
-import { emergeMomentumStrength } from './emerge-momentum'
+import { GOOP_PHYSICS, type GoopPreset } from './constants'
+import {
+  DRAWER_PHYSICS,
+  createDrawerVelocityTracker,
+  drawerDragOffset,
+  drawerFade,
+  drawerReleaseTarget,
+  drawerSnapIndex,
+  drawerSnapOffsets,
+  drawerTrack,
+  drawerVelocity,
+  stepDrawerSpring,
+  type DrawerSnapPoint,
+  type DrawerSpring,
+  type DrawerVelocityTracker,
+} from './drawer-physics'
+import { EMERGE_MOMENTUM, emergeMomentumStrength } from './emerge-momentum'
 import type { GooFilterParams } from './filter'
 import { removeTicker, wakeTicker, type Ticker } from './loop'
 import { isReducedMotion, watchReducedMotion } from './reduced-motion'
@@ -67,10 +87,12 @@ export interface DrawerFeel {
   handleSwell: number
   /** Handle elongation per 1000 px/s of drag. */
   handleStretch: number
-  /** Drops shed on dismiss. */
-  drips: number
-  /** Drop radius (varied by seed). */
-  dripSize: number
+  /** Drops a fling-dismiss splash sheds (at full strength and a firm fling). */
+  splash: number
+  /** Splash size unit (px): a mid drop's radius; lead globs / specks scale it. */
+  splashSize: number
+  /** Splash launch speed (px/s) off the edge. */
+  splashLaunch: number
   /** Goo blur. */
   softness: number
 }
@@ -78,34 +100,37 @@ export interface DrawerFeel {
 export const DRAWER_FEEL: Readonly<Record<GoopPreset, Readonly<DrawerFeel>>> = Object.freeze({
   subtle: Object.freeze({
     spacing: 30, radius: 14, lag: 0.016, bulge: 22, dip: 7, response: 0.34, damping: 0.42, coupling: 0.3,
-    reach: 26, reachWidth: 70, rise: 170, settle: 0.18, handleSwell: 1.1, handleStretch: 0.22, drips: 3, dripSize: 6, softness: 6,
+    reach: 26, reachWidth: 70, rise: 170, settle: 0.18, handleSwell: 1.1, handleStretch: 0.22,
+    splash: 9, splashSize: 5, splashLaunch: 380, softness: 6,
   }),
   playful: Object.freeze({
     spacing: 28, radius: 16, lag: 0.028, bulge: 38, dip: 10, response: 0.4, damping: 0.26, coupling: 0.34,
-    reach: 46, reachWidth: 85, rise: 300, settle: 0.26, handleSwell: 1.18, handleStretch: 0.4, drips: 4, dripSize: 8, softness: 7,
+    reach: 46, reachWidth: 85, rise: 300, settle: 0.26, handleSwell: 1.18, handleStretch: 0.4,
+    splash: 18, splashSize: 6.5, splashLaunch: 520, softness: 7,
   }),
   wild: Object.freeze({
     spacing: 26, radius: 18, lag: 0.042, bulge: 60, dip: 13, response: 0.48, damping: 0.16, coupling: 0.38,
-    reach: 72, reachWidth: 100, rise: 460, settle: 0.34, handleSwell: 1.28, handleStretch: 0.6, drips: 6, dripSize: 11, softness: 8,
+    reach: 72, reachWidth: 100, rise: 460, settle: 0.34, handleSwell: 1.28, handleStretch: 0.6,
+    splash: 28, splashSize: 8, splashLaunch: 680, softness: 8,
   }),
 })
 
 /** Effect toggles: `true` (1) / `false` (0) or a 0..2 strength. All default true. */
 export interface DrawerEffects {
-  /** The leading edge trails behind fast motion (flicks, open, dismiss). */
+  /** The leading edge trails behind fast motion (drags, flicks, open, close). */
   lag?: boolean | number
-  /** The edge overshoots and wobbles when motion stops (release, snap points). */
+  /** The edge overshoots and wobbles when motion stops (release, snap points, landing). */
   slosh?: boolean | number
   /** Opening lands with an extra jelly overshoot of the edge. */
   rise?: boolean | number
-  /** Dragging past the edge pulls a globby bump toward the finger. */
+  /** Dragging past full open pulls a globby bump toward the finger. */
   stretch?: boolean | number
   /** The drag handle is a goo blob: swells, stretches along the drag, trails a droplet. */
   handle?: boolean | number
-  /** Dismiss: drops pinch off the edge and plop down off-screen. */
-  drips?: boolean | number
+  /** Fling-dismiss: a splash of drops tears off the leading edge, flies, falls and fades. */
+  splash?: boolean | number
 }
-export const DRAWER_EFFECTS = ['lag', 'slosh', 'rise', 'stretch', 'handle', 'drips'] as const satisfies readonly (keyof DrawerEffects)[]
+export const DRAWER_EFFECTS = ['lag', 'slosh', 'rise', 'stretch', 'handle', 'splash'] as const satisfies readonly (keyof DrawerEffects)[]
 export type DrawerEffect = (typeof DRAWER_EFFECTS)[number]
 
 /** Goo filter for a drawer. */
@@ -260,7 +285,8 @@ export function drawerCircleCount(length: number, r: number): number {
 
 /**
  * The edge band circles for a W x H panel attached at `dir` (pure). Circle i sits one radius
- * in from the leading edge, pushed out by the edge's offset there.
+ * in from the leading edge, pushed out by the edge's offset there; a big outward bulge also
+ * gets filler circles down to the body so it stays one solid lobe.
  */
 export function drawerEdgeCircles(edge: DrawerEdge, dir: DrawerDirection, W: number, H: number, r: number, count?: number): DrawerCircle[] {
   const L = isVertical(dir) ? W : H
@@ -270,10 +296,15 @@ export function drawerEdgeCircles(edge: DrawerEdge, dir: DrawerDirection, W: num
     const f = m <= 1 ? 0.5 : i / (m - 1)
     const u = r + f * Math.max(0, L - 2 * r)
     const d = drawerEdgeAt(edge, f)
-    if (dir === 'bottom') out.push({ x: u, y: r - d, r })
-    else if (dir === 'top') out.push({ x: u, y: H - r + d, r })
-    else if (dir === 'left') out.push({ x: W - r + d, y: u, r })
-    else out.push({ x: r - d, y: u, r })
+    // A big bulge would leave a gap between its circle and the body: fill the column.
+    const fill = d > r * 0.6 ? Math.ceil(d / (r * 1.1)) : 0
+    for (let j = 0; j <= fill; j++) {
+      const dj = (d * (fill + 1 - j)) / (fill + 1)
+      if (dir === 'bottom') out.push({ x: u, y: r - dj, r })
+      else if (dir === 'top') out.push({ x: u, y: H - r + dj, r })
+      else if (dir === 'left') out.push({ x: W - r + dj, y: u, r })
+      else out.push({ x: r - dj, y: u, r })
+    }
   }
   return out
 }
@@ -356,18 +387,177 @@ export function drawerHandleSettled(st: DrawerHandleState): boolean {
   return ok(st.swell, 1) && Math.abs(st.stretch.x) < 0.004 && Math.abs(st.stretch.v) < 0.02 && Math.abs(st.drop.x) < 0.1 && Math.abs(st.drop.v) < 0.4
 }
 
+
+// ---- panel pose (pure) ----------------------------------------------------------------------
+
+/** Unit vector pointing OUT of the panel's leading edge (toward the screen centre). */
+export function drawerOutward(dir: DrawerDirection): { x: number; y: number } {
+  return dir === 'bottom' ? { x: 0, y: -1 } : dir === 'top' ? { x: 0, y: 1 } : dir === 'left' ? { x: 1, y: 0 } : { x: -1, y: 0 }
+}
+
+/** NESTED: a parent drawer shrinks back this far (px of the viewport) when a child opens. */
+export const DRAWER_NESTED_DISPLACEMENT = 16
+/** Background scale: the wrapper shrinks by this many px of the viewport width (vaul). */
+export const DRAWER_WINDOW_TOP_OFFSET = 26
+export const DRAWER_BORDER_RADIUS = 8
+
+/**
+ * CSS transform for the panel at `offset` (px toward closed) attached at `dir` (pure).
+ * `nested` 0..1: a child drawer is open on top (the panel recedes like vaul's nested drawers).
+ */
+export function drawerTransform(dir: DrawerDirection, offset: number, nested = 0, viewport = 1000): string {
+  const n = clamp(nested, 0, 1)
+  const o = Math.round((offset - DRAWER_NESTED_DISPLACEMENT * n) * 100) / 100
+  const s = drawerOutward(dir)
+  const tx = -s.x * o
+  const ty = -s.y * o
+  const t = `translate3d(${tx === 0 ? 0 : tx}px, ${ty === 0 ? 0 : ty}px, 0)`
+  if (n <= 0) return t
+  const v = Math.max(1, viewport)
+  const sc = 1 - (n * DRAWER_NESTED_DISPLACEMENT) / v
+  return `${t} scale(${Math.round(sc * 10000) / 10000})`
+}
+
+/** The page wrapper's style at background-scale progress `t` 0..1 (pure; vaul's look). */
+export function drawerBackgroundScale(dir: DrawerDirection, t: number, viewportWidth: number): { transform: string; borderRadius: string; transformOrigin: string } {
+  const k = clamp(t, 0, 1)
+  const s = 1 - (k * DRAWER_WINDOW_TOP_OFFSET) / Math.max(1, viewportWidth)
+  const d = Math.round(k * 14 * 100) / 100
+  const vertical = dir === 'top' || dir === 'bottom'
+  return {
+    transform: `scale(${Math.round(s * 10000) / 10000}) translate3d(${vertical ? 0 : d}px, ${vertical ? d : 0}px, 0)`,
+    borderRadius: `${Math.round(k * DRAWER_BORDER_RADIUS * 100) / 100}px`,
+    transformOrigin: vertical ? 'top' : 'left',
+  }
+}
+
+// ---- splash (pure) --------------------------------------------------------------------------
+
+/** One splash drop's launch (viewport px, px/s, s). */
+export interface DrawerSplashDrop {
+  x: number
+  y: number
+  vx: number
+  vy: number
+  r: number
+  /** Seconds after the fling it lets go of the edge (it necks out until then). */
+  delay: number
+  /** Flight + fade time after letting go. */
+  life: number
+}
+
+export interface DrawerSplashInput {
+  dir: DrawerDirection
+  /** The panel's viewport rect at release. */
+  rect: { left: number; top: number; width: number; height: number }
+  /** Fling speed (px/s, toward closed). */
+  speed: number
+  /** Splash strength 0..2. */
+  strength: number
+  seed?: number
+  /** Leading edge offsets (px, + out) to start drops at the bulges. */
+  edge?: readonly number[]
+}
+
+/**
+ * The fling-dismiss splash (pure): lead globs, mid drops and specks (the button hit-spray
+ * classes) tear off the leading edge in a fanned cone, outward, carrying some of the panel's
+ * own speed; they then fly, fall (screen-down gravity) and shrink away (`DrawerSplashDrop.life`).
+ */
+export function drawerSplashDrops(input: DrawerSplashInput, feel: Readonly<DrawerFeel> = DRAWER_FEEL.playful): DrawerSplashDrop[] {
+  const k = clamp(input.strength, 0, 2)
+  if (k <= 0 || input.speed <= 0) return []
+  const D = EMERGE_MOMENTUM.drips
+  const G = GOOP_PHYSICS
+  const seed = input.seed ?? 0
+  const { dir, rect } = input
+  const vertical = dir === 'top' || dir === 'bottom'
+  const L = vertical ? rect.width : rect.height
+  const firm = clamp(input.speed / 1500, 0.6, 1.6)
+  const n = clamp(Math.round(feel.splash * (0.5 + 0.5 * k) * firm * clamp(L / 420, 0.6, 1.5)), 1, 48)
+  const out = drawerOutward(dir)
+  // Leading edge in viewport space.
+  const edgeAt = (u: number, lift: number): { x: number; y: number } => {
+    if (dir === 'bottom') return { x: rect.left + u, y: rect.top - lift }
+    if (dir === 'top') return { x: rect.left + u, y: rect.top + rect.height + lift }
+    if (dir === 'left') return { x: rect.left + rect.width + lift, y: rect.top + u }
+    return { x: rect.left - lift, y: rect.top + u }
+  }
+  const sizes = [G.eruptLeadSize / G.eruptMidSize, 1, G.eruptSpeckSize / G.eruptMidSize]
+  const speeds = [G.eruptLeadSpeed / G.eruptMidSpeed, 1, G.eruptSpeckSpeed / G.eruptMidSpeed]
+  const leads = Math.max(1, Math.round(n * D.leads * 1.3))
+  const mids = Math.round(n * D.mids)
+  const edge = input.edge ?? []
+  const base = Math.atan2(out.y, out.x)
+  const drops: DrawerSplashDrop[] = []
+  for (let i = 0; i < n; i++) {
+    const c = i < leads ? 0 : i < leads + mids ? 1 : 2
+    // Spread along the edge, jittered, kept off the very corners.
+    const f = clamp((i + 0.5) / n + (rand(seed, i * 3 + 1) - 0.5) / n, 0.04, 0.96)
+    const order = rand(seed + 11, i)
+    const u = L * (0.06 + 0.88 * ((f + order * 0.15) % 1))
+    const fi = u / Math.max(1, L)
+    let lift = 0
+    if (edge.length > 1) {
+      const x = fi * (edge.length - 1)
+      const a = Math.floor(x)
+      lift = Math.max(0, edge[a] ?? 0) * 0.6
+    }
+    const p = edgeAt(u, lift)
+    // Cone per class, fanned outward toward the ends of the edge.
+    const ang = base + (rand(seed + 5, i) - 0.5) * 2 * D.cone[c]! + (fi - 0.5) * D.fan * (vertical ? 1 : -1) * (dir === 'bottom' || dir === 'left' ? 1 : -1)
+    const sp = feel.splashLaunch * speeds[c]! * (0.7 + 0.6 * rand(seed + 7, i)) * (0.6 + 0.4 * k) * clamp(firm, 0.8, 1.3)
+    // The panel yanks away (toward closed = -out); the drops keep a little of that.
+    const carry = Math.min(input.speed, 2500) * (0.04 + 0.06 * rand(seed + 9, i))
+    const r = Math.max(D.minPx, feel.splashSize * sizes[c]! * (0.75 + 0.5 * rand(seed + 13, i)) * (0.8 + 0.2 * k))
+    drops.push({
+      x: p.x,
+      y: p.y,
+      vx: Math.cos(ang) * sp - out.x * carry,
+      vy: Math.sin(ang) * sp - out.y * carry,
+      r,
+      delay: (c === 0 ? 0.03 : 0) + rand(seed + 17, i) * 0.04,
+      life: D.life[c]! * (0.85 + 0.3 * rand(seed + 19, i)),
+    })
+  }
+  return drops
+}
+
 // ---- DOM ------------------------------------------------------------------------------------
 
 export interface DrawerOptions extends DrawerEffects {
-  /** Panel direction. Default: the host's `data-vaul-drawer-direction`, then 'bottom'. */
+  /** Draw the panel's background as goo. false: plain panel (the physics still drive it). Default true. */
+  goo?: boolean
+  /** Screen edge the drawer is attached to. Default 'bottom'. */
   direction?: DrawerDirection
-  /** The drag handle element. Default: `[data-goop-drawer-handle]` inside the host. */
+  /** vaul snap points: viewport fractions or px strings, least visible first. */
+  snapPoints?: readonly DrawerSnapPoint[]
+  /** The snap point to rest at (default the first). Changing it while open animates there. */
+  activeSnapPoint?: DrawerSnapPoint | null
+  /** Snap index from which the overlay is fully shown (default the last snap point). */
+  fadeFromIndex?: number
+  /** false: dragging cannot close it (rubber-bands past the lowest point). Default true. */
+  dismissible?: boolean
+  /** 0..1 share of the panel dragged past which a slow release closes. Default 0.25. */
+  closeThreshold?: number
+  /** Only the handle starts a drag. Default false. */
+  handleOnly?: boolean
+  /** Scale the page wrapper back while open (vaul's `shouldScaleBackground`). Default false. */
+  scaleBackground?: boolean
+  /** With `scaleBackground`: paint <body> black behind the scaled page. Default true. */
+  setBackgroundColorOnScale?: boolean
+  /** The page wrapper to scale, or a selector. Default `[data-vaul-drawer-wrapper]`, then
+   *  `[data-goop-drawer-wrapper]`, then `[vaul-drawer-wrapper]`. */
+  wrapper?: HTMLElement | string | null
+  /** Overlay element: its opacity follows the drag. */
+  overlay?: HTMLElement | null
+  /** The drag handle element. Default: `[data-goop-drawer-handle]` inside the panel. */
   grip?: HTMLElement | null
-  /** Use this element as the goo surface instead of creating one (must be a child of host). */
+  /** Use this element as the goo surface instead of creating one (must be a child of the panel). */
   surface?: HTMLElement
   /** Animation speed multiplier. Default 1. */
   speed?: number
-  /** Feel preset. Default: `--goop-preset` on the host, then 'playful'. */
+  /** Feel preset. Default: `--goop-preset` on the panel, then 'playful'. */
   preset?: GoopPreset
   /** 'canvas' (default: a drawer is a big surface), 'svg', or a custom factory. */
   renderer?: GoopRendererOption
@@ -375,94 +565,186 @@ export interface DrawerOptions extends DrawerEffects {
   reducedMotion?: boolean | 'auto'
 }
 
-export interface DrawerGooHandle {
+/** What the drawer tells its adapter (vaul's emits). */
+export interface DrawerEvents {
+  /** Dragging: share of the panel dragged (0..1+). */
+  onDrag?(percentageDragged: number): void
+  /** A drag was let go: whether the drawer stays open. */
+  onRelease?(open: boolean): void
+  /** The user dragged / flung it closed: the adapter should set `open` to false. */
+  onDismiss?(): void
+  /** The resting snap point changed by a drag (index into `snapPoints`). */
+  onSnap?(index: number): void
+  /** An open / close animation finished. After `false` the panel may unmount. */
+  onSettle?(open: boolean): void
+}
+
+export type DrawerState = 'closed' | 'opening' | 'open' | 'closing'
+
+export interface DrawerController {
+  /** Animate in to the active snap point (instant: no animation, e.g. defaultOpen). */
+  open(opts?: { instant?: boolean }): void
+  /** Animate out (no-op when closed / closing). */
+  close(): void
+  /** Animate to snap point `index` (when open). */
+  snapTo(index: number): void
   update(opts?: DrawerOptions): void
+  /** 0..1: how far a nested child drawer is open on top (the panel recedes; eased unless
+   *  `instant`, e.g. while the child is being dragged). */
+  setNested(t: number, instant?: boolean): void
   /** Re-measure and redraw now. */
   refresh(): void
-  /** Kick the edge outward by a px/s impulse (e.g. a custom snap). */
+  /** Kick the goo edge outward by a px/s impulse. */
   kick(speed?: number): void
+  readonly state: DrawerState
+  /** Current offset (px toward closed; 0 = fully open). */
+  readonly offset: number
+  /** Active snap index (0 without snap points). */
+  readonly snapIndex: number
+  readonly dragging: boolean
   readonly reducedMotion: boolean
-  /** Current edge offsets (px, + = outward), for tests / devtools. */
+  /** Current goo edge offsets (px, + = outward), for tests / devtools. */
   readonly edge: readonly number[]
   destroy(): void
 }
 
-/** Marker on the host while the goo is attached; `data-goop-still` marks reduced motion. */
+/** Marker on the panel while attached; `data-goop-still` marks reduced motion. */
 export const DRAWER_GOO_ATTR = 'data-goop-drawer'
 export const DRAWER_HANDLE_ATTR = 'data-goop-drawer-handle'
+/** Opt-out: a drag starting inside an element with this attribute never moves the drawer. */
+export const DRAWER_NO_DRAG_ATTR = 'data-goop-no-drag'
+/** Page wrapper markers the background scale looks for (vaul's first). */
+export const DRAWER_WRAPPER_SELECTOR = '[data-vaul-drawer-wrapper], [data-goop-drawer-wrapper], [vaul-drawer-wrapper]'
+/** Set on the panel while a drag is live (`data-goop-dragging`). */
+export const DRAWER_DRAGGING_ATTR = 'data-goop-dragging'
 
 const DEFAULT_SHADOW = 'drop-shadow(0 0 0.6px rgb(0 0 0 / 0.3)) drop-shadow(0 -2px 8px rgb(0 0 0 / 0.06))'
-const STILL_FRAMES = 6
-const GRAVITY = 2600
-const isDir = (s: unknown): s is DrawerDirection => s === 'top' || s === 'bottom' || s === 'left' || s === 'right'
+const NO_DRAG = `input, textarea, select, [contenteditable=""], [contenteditable="true"], [data-vaul-no-drag], [${DRAWER_NO_DRAG_ATTR}]`
 
-interface Drop {
-  x: number
-  y: number
-  vx: number
-  vy: number
-  r: number
+interface LiveDrop extends DrawerSplashDrop {
   age: number
   blob: GoopBlob
 }
 
+interface Drag {
+  id: number
+  /** Finger position along the axis at the start (client px). */
+  p0: number
+  /** Cross-axis start (to tell a sideways scroll from a drag). */
+  q0: number
+  off0: number
+  raw: number
+  active: boolean
+  tracker: DrawerVelocityTracker
+  x: number
+  y: number
+  onGrip: boolean
+}
+
 /**
- * Attach the drawer goo to `host` (vaul's DrawerContent element). The host becomes the
- * stacking context; its own background should be clear (the goo, colored by `--goop-color`,
- * is the panel's background).
+ * Drive a drawer panel (`panel`: the dialog content element, CSS-positioned at its fully
+ * open place against its screen edge). The panel's own background should be clear when
+ * `goo` is on: the goo, colored by `--goop-color`, is its background.
  */
-export function attachDrawer(host: HTMLElement, options: DrawerOptions = {}): DrawerGooHandle {
-  const doc = host.ownerDocument
+export function createDrawer(panel: HTMLElement, options: DrawerOptions = {}, events: DrawerEvents = {}): DrawerController {
+  const doc = panel.ownerDocument
   const win = doc.defaultView
   let opts: DrawerOptions = { ...options }
-  let preset = readPreset(host, opts.preset)
+  let preset = readPreset(panel, opts.preset)
   let feel = DRAWER_FEEL[preset]
   let destroyed = false
+  let state: DrawerState = 'closed'
 
   const readReduced = (): boolean =>
     opts.reducedMotion === true || (opts.reducedMotion !== false && isReducedMotion(doc))
   let reduced = readReduced()
-
-  const ownSurface = !opts.surface
-  const surface = opts.surface ?? doc.createElement('span')
-  if (ownSurface) host.prepend(surface)
-  surface.setAttribute('data-goop', 'surface')
-  surface.setAttribute('aria-hidden', 'true')
-  const prevSurfaceCss = surface.style.cssText
-  surface.style.cssText +=
-    ';position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit;' +
-    `filter:var(--goop-surface-shadow,${DEFAULT_SHADOW});`
-  const prevIsolation = host.style.isolation
-  host.style.isolation = 'isolate'
-  host.setAttribute(DRAWER_GOO_ATTR, '')
-
-  const dir = (): DrawerDirection => {
-    if (isDir(opts.direction)) return opts.direction
-    const a = host.getAttribute('data-vaul-drawer-direction')
-    return isDir(a) ? a : 'bottom'
-  }
-  const k = (e: DrawerEffect): number => (reduced ? 0 : emergeMomentumStrength(opts[e]))
+  const dir = (): DrawerDirection => opts.direction ?? 'bottom'
+  const vertical = (): boolean => dir() === 'top' || dir() === 'bottom'
+  const k = (e: DrawerEffect): number => (reduced || opts.goo === false ? 0 : emergeMomentumStrength(opts[e]))
   const speed = (): number => Math.max(0.05, opts.speed ?? 1)
+  const hasSnaps = (): boolean => !!opts.snapPoints && opts.snapPoints.length > 0
 
-  // ---- panel renderer ----
+  const prevPanel = { transform: panel.style.transform, isolation: panel.style.isolation, touchAction: panel.style.touchAction, willChange: panel.style.willChange }
+  panel.style.touchAction = 'none'
+  panel.style.willChange = 'transform'
+  panel.setAttribute(DRAWER_GOO_ATTR, '')
+
+  // ---- geometry ----
+  let size = 0
+  let viewport = 1
+  let snaps: number[] = [0]
+  const measure = (): void => {
+    size = vertical() ? panel.offsetHeight : panel.offsetWidth
+    viewport = Math.max(1, vertical() ? (win?.innerHeight ?? doc.documentElement.clientHeight) : (win?.innerWidth ?? doc.documentElement.clientWidth))
+    snaps = drawerSnapOffsets(opts.snapPoints, size, viewport)
+  }
+  /** Fully hidden, plus room for the goo edge to clear the screen. */
+  const closedOffset = (): number => size + (opts.goo === false || reduced ? 2 : feel.radius + feel.bulge * 0.6 + feel.softness * 2)
+
+  // ---- motion state ----
+  const spring: DrawerSpring = { x: 0, v: 0 }
+  let target = 0
+  let snapIndex = 0
+  let resting = true
+  let drag: Drag | null = null
+  let nested = 0
+  let nestedTarget = 0
+  let lastX = Number.NaN
+  let vel = 0 // smoothed edge velocity, px/s (+ out)
+  let peak = 0
+  let opening = false
+  let seed = Math.floor(Math.random() * 1000)
+
+  const initialIndex = (): number => {
+    const i = drawerSnapIndex(opts.snapPoints, opts.activeSnapPoint, viewport)
+    return i >= 0 ? i : 0
+  }
+
+  // ---- goo surface ----
+  let surface: HTMLElement | null = null
+  let ownSurface = false
+  let prevSurfaceCss = ''
   let renderer: GoopRenderer | null = null
   let blobs: GoopBlob[] = []
   let edge = createDrawerEdge(4)
   let pad = -1
-  const build = (): void => {
+  const teardownGoo = (): void => {
     for (const b of blobs) b.remove()
     blobs = []
     renderer?.destroy()
+    renderer = null
+    if (surface) {
+      if (ownSurface) surface.remove()
+      else surface.style.cssText = prevSurfaceCss
+    }
+    surface = null
+    panel.style.isolation = prevPanel.isolation
+  }
+  const buildGoo = (): void => {
+    teardownGoo()
+    if (opts.goo === false) return
+    ownSurface = !opts.surface
+    surface = opts.surface ?? doc.createElement('span')
+    if (ownSurface) panel.prepend(surface)
+    surface.setAttribute('data-goop', 'surface')
+    surface.setAttribute('aria-hidden', 'true')
+    prevSurfaceCss = surface.style.cssText
+    surface.style.cssText +=
+      ';position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit;' +
+      `filter:var(--goop-surface-shadow,${DEFAULT_SHADOW});`
+    panel.style.isolation = 'isolate'
     renderer = resolveRenderer(opts.renderer ?? 'canvas')(surface, drawerGooParams(preset))
     pad = -1
   }
 
-  // ---- handle renderer ----
+  // ---- handle ----
   let grip: HTMLElement | null = null
   let gripRenderer: GoopRenderer | null = null
   let gripDrop: GoopBlob | null = null
   let gripPrev: { position: string; isolation: string } | null = null
   const hs = createDrawerHandleState()
+  const findGrip = (): HTMLElement | null =>
+    opts.grip === undefined ? panel.querySelector<HTMLElement>(`[${DRAWER_HANDLE_ATTR}]`) : opts.grip
   const buildGrip = (): void => {
     gripDrop?.remove()
     gripDrop = null
@@ -473,12 +755,9 @@ export function attachDrawer(host: HTMLElement, options: DrawerOptions = {}): Dr
       grip.style.isolation = gripPrev.isolation
       grip.removeAttribute('data-goop-grip')
     }
-    grip = opts.grip === undefined ? host.querySelector<HTMLElement>(`[${DRAWER_HANDLE_ATTR}]`) : opts.grip
     gripPrev = null
-    if (!grip || opts.handle === false) {
-      grip = null
-      return
-    }
+    grip = findGrip()
+    if (!grip || opts.goo === false || opts.handle === false) return
     gripPrev = { position: grip.style.position, isolation: grip.style.isolation }
     if (win?.getComputedStyle(grip).position === 'static') grip.style.position = 'relative'
     grip.style.isolation = 'isolate'
@@ -489,139 +768,158 @@ export function attachDrawer(host: HTMLElement, options: DrawerOptions = {}): Dr
     gripDrop = gripRenderer.createBlob()
   }
 
-  // ---- motion state ----
-  let lastPos = Number.NaN
-  let vel = 0 // smoothed edge velocity, px/s (+ out)
-  let peak = 0
-  let opening = host.getAttribute('data-state') !== 'closed'
-  let still = 0
-  let pointer: { x: number; y: number; id: number } | null = null
-  let gripPressed = false
-  let closing = false
-  let closeAge = 0
-  let dripped = false
-  let seed = Math.floor(Math.random() * 1000)
+  // ---- background scale ----
+  let wrapper: HTMLElement | null = null
+  let wrapperPrev: { transform: string; borderRadius: string; transformOrigin: string; overflow: string; transition: string } | null = null
+  let bodyPrev: string | null = null
+  const findWrapper = (): HTMLElement | null => {
+    const w = opts.wrapper
+    if (w && typeof w !== 'string') return w
+    try {
+      return doc.querySelector<HTMLElement>(typeof w === 'string' ? w : DRAWER_WRAPPER_SELECTOR)
+    } catch {
+      return null
+    }
+  }
+  const restoreBackground = (): void => {
+    if (wrapper && wrapperPrev) {
+      wrapper.style.transform = wrapperPrev.transform
+      wrapper.style.borderRadius = wrapperPrev.borderRadius
+      wrapper.style.transformOrigin = wrapperPrev.transformOrigin
+      wrapper.style.overflow = wrapperPrev.overflow
+      wrapper.style.transition = wrapperPrev.transition
+    }
+    wrapper = null
+    wrapperPrev = null
+    if (bodyPrev !== null) {
+      if (bodyPrev) doc.body.style.background = bodyPrev
+      else doc.body.style.removeProperty('background')
+      bodyPrev = null
+    }
+  }
+  const applyBackground = (t: number): void => {
+    if (!opts.scaleBackground || state === 'closed') {
+      restoreBackground()
+      return
+    }
+    if (!wrapper) {
+      wrapper = findWrapper()
+      if (!wrapper) return
+      const s = wrapper.style
+      wrapperPrev = { transform: s.transform, borderRadius: s.borderRadius, transformOrigin: s.transformOrigin, overflow: s.overflow, transition: s.transition }
+    }
+    if (opts.setBackgroundColorOnScale !== false && bodyPrev === null) {
+      bodyPrev = doc.body.style.background
+      doc.body.style.background = 'black'
+    }
+    const st = drawerBackgroundScale(dir(), t, win?.innerWidth ?? doc.documentElement.clientWidth)
+    wrapper.style.transition = 'none'
+    wrapper.style.transformOrigin = st.transformOrigin
+    wrapper.style.transform = st.transform
+    wrapper.style.borderRadius = st.borderRadius
+    wrapper.style.overflow = 'hidden'
+  }
 
-  const viewport = (): { w: number; h: number } => ({
-    w: win?.innerWidth ?? doc.documentElement.clientWidth,
-    h: win?.innerHeight ?? doc.documentElement.clientHeight,
-  })
-  /** Leading edge coordinate along the outward axis (bigger = further out). */
-  const edgePos = (r: DOMRect, d: DrawerDirection): number =>
-    d === 'bottom' ? -r.top : d === 'top' ? r.bottom : d === 'left' ? r.right : -r.left
-
-  // ---- dismiss drips (page overlay, outlives the panel) ----
-  let overlay: GoopOverlay | null = null
-  const drops: Drop[] = []
-  const dripTick: Ticker = (dt) => {
-    if (!overlay) return false
-    const { w, h } = viewport()
-    for (let i = drops.length - 1; i >= 0; i--) {
-      const p = drops[i]!
+  // ---- splash (page overlay, outlives the panel) ----
+  let splashOverlay: GoopOverlay | null = null
+  const live: LiveDrop[] = []
+  const splashTick: Ticker = (dtRaw) => {
+    if (!splashOverlay) return false
+    const dt = dtRaw * speed()
+    const D = EMERGE_MOMENTUM.drips
+    const vw = win?.innerWidth ?? 2000
+    const vh = win?.innerHeight ?? 2000
+    for (let i = live.length - 1; i >= 0; i--) {
+      const p = live[i]!
       p.age += dt
-      p.vy += GRAVITY * dt
-      p.vx *= Math.exp(-1.5 * dt)
+      const t = p.age - p.delay
+      if (t < 0) {
+        // Necking out of the edge: swell in place.
+        p.blob.set(p.x, p.y, p.r * clamp(p.age / Math.max(0.01, p.delay), 0.3, 1))
+        continue
+      }
+      const drag = Math.exp(-D.drag * dt)
+      p.vx *= drag
+      p.vy = p.vy * drag + D.gravity * dt
       p.x += p.vx * dt
       p.y += p.vy * dt
+      const u = t / p.life
+      const fade = u < 1 - D.fade ? 1 : clamp((1 - u) / D.fade, 0, 1)
+      const grow = Math.min(1, (p.age + 0.02) / 0.08)
       const sp = Math.hypot(p.vx, p.vy)
-      const st = 1 + Math.min(0.7, sp / 2600)
-      // Inflate over the first 80ms (they neck off the edge), stretch with speed.
-      const grow = Math.min(1, p.age / 0.08)
-      p.blob.set(p.x, p.y, p.r * grow, 1, 1 / Math.sqrt(st), st)
-      if (p.y - p.r * 2 > h || p.x < -60 || p.x > w + 60 || p.age > 3) {
+      const st = 1 + Math.min(0.6, sp / 2600)
+      p.blob.set(p.x, p.y, p.r * grow * fade, 1, 1 / Math.sqrt(st), st)
+      if (u >= 1 || p.y - p.r > vh + 40 || p.x < -80 || p.x > vw + 80) {
         p.blob.remove()
-        drops.splice(i, 1)
+        live.splice(i, 1)
       }
     }
-    overlay.flush()
-    if (drops.length === 0) {
-      overlay.release()
-      overlay = null
+    splashOverlay.flush()
+    if (live.length === 0) {
+      splashOverlay.release()
+      splashOverlay = null
       return false
     }
     return true
   }
-  const shed = (r: DOMRect, d: DrawerDirection, W: number, H: number): void => {
-    const kd = k('drips')
-    if (kd <= 0 || !win) return
-    const n = Math.max(1, Math.round(feel.drips * Math.min(1.5, kd)))
+  const splash = (flingSpeed: number): void => {
+    const ks = k('splash')
+    if (ks <= 0 || !win) return
     let color = ''
     try {
-      color = win.getComputedStyle(host).getPropertyValue('--goop-color').trim() || win.getComputedStyle(host).color
+      const cs = win.getComputedStyle(panel)
+      color = cs.getPropertyValue('--goop-color').trim() || cs.backgroundColor || cs.color
     } catch {
       return
     }
-    if (!overlay) {
+    const r = panel.getBoundingClientRect()
+    seed++
+    const drops = drawerSplashDrops({ dir: dir(), rect: r, speed: flingSpeed, strength: ks, seed, edge: edge.d }, feel)
+    if (drops.length === 0) return
+    if (!splashOverlay) {
       try {
-        overlay = acquireGoopOverlay(doc, { renderer: opts.renderer ?? 'canvas', color, params: drawerGooParams(preset), zIndex: 2147482000 })
+        splashOverlay = acquireGoopOverlay(doc, { renderer: opts.renderer ?? 'canvas', color, params: drawerGooParams(preset), zIndex: 2147482000 })
+        // The same soft ring as the panel, so drops read on a page of the panel's color.
+        splashOverlay.host.style.filter = `var(--goop-surface-shadow,${DEFAULT_SHADOW})`
       } catch {
-        overlay = null
+        splashOverlay = null
         return
       }
     }
-    // Spawn at the biggest bulges (the drops pinch off where the edge stretched most).
-    const m = edge.d.length
-    const order = edge.d.map((v, i) => ({ v, i })).sort((a, b) => b.v - a.v)
-    const picks: number[] = []
-    for (const o of order) {
-      if (picks.length >= n) break
-      if (picks.every((p) => Math.abs(p - o.i) >= Math.max(1, Math.floor(m / (n + 1))))) picks.push(o.i)
-    }
-    // Panel velocity in viewport space (the drawer moves inward = -out).
-    const vIn = -vel
-    const sx = d === 'left' ? -1 : d === 'right' ? 1 : 0
-    const sy = d === 'top' ? -1 : d === 'bottom' ? 1 : 0
-    for (const [j, i] of picks.entries()) {
-      const f = m <= 1 ? 0.5 : i / (m - 1)
-      const off = Math.max(0, edge.d[i]!)
-      const L = isVertical(d) ? W : H
-      const u = feel.radius + f * Math.max(0, L - 2 * feel.radius)
-      let x: number
-      let y: number
-      if (d === 'bottom') [x, y] = [r.left + u, r.top - off * 0.6]
-      else if (d === 'top') [x, y] = [r.left + u, r.bottom + off * 0.6]
-      else if (d === 'left') [x, y] = [r.right + off * 0.6, r.top + u]
-      else [x, y] = [r.left - off * 0.6, r.top + u]
-      const rr = feel.dripSize * Math.min(1.4, 0.6 + kd * 0.4) * (0.65 + 0.7 * rand(seed + 3, j))
-      const carry = 0.25 + 0.2 * rand(seed + 5, j)
-      drops.push({
-        x,
-        y,
-        vx: vIn * carry * sx + (rand(seed + 7, j) - 0.5) * 120,
-        vy: vIn * carry * sy - 80 * rand(seed + 9, j),
-        r: rr,
-        age: 0,
-        blob: overlay.createBlob(),
-      })
-      // The edge recoils where it pinched.
-      edge.v[i] = edge.v[i]! - off * 14
-    }
-    wakeTicker(dripTick)
+    for (const d of drops) live.push({ ...d, age: 0, blob: splashOverlay.createBlob() })
+    // The edge recoils where the drops tore off.
+    for (let i = 0; i < edge.v.length; i++) edge.v[i] = edge.v[i]! - 120 * ks * drawerEdgeShape(i, edge.v.length)
+    wakeTicker(splashTick)
   }
 
-  // ---- frame ----
-  const draw = (dt: number): boolean => {
+  // ---- apply ----
+  const overlayOpacity = (): number => {
+    if (state === 'closed') return 0
+    const off = Math.max(0, spring.x)
+    return drawerFade(off, size, snaps, hasSnaps(), opts.fadeFromIndex)
+  }
+  const applyPanel = (): void => {
+    panel.style.transform = drawerTransform(dir(), spring.x, nested, viewport)
+    const fade = overlayOpacity()
+    if (opts.overlay) opts.overlay.style.opacity = String(Math.round(fade * 1000) / 1000)
+    applyBackground(fade)
+  }
+
+  const springFeel = (): { period: number; damping: number } => {
+    if (reduced) return DRAWER_PHYSICS.still
+    return state === 'closing' ? DRAWER_PHYSICS.close : state === 'opening' && opening ? DRAWER_PHYSICS.open : DRAWER_PHYSICS.snap
+  }
+
+  // ---- goo draw ----
+  const drawGoo = (dt: number): boolean => {
     if (!renderer) return false
     const d = dir()
-    const W = host.offsetWidth
-    const H = host.offsetHeight
-    const r = host.getBoundingClientRect()
-    const L = isVertical(d) ? W : H
+    const W = panel.offsetWidth
+    const H = panel.offsetHeight
+    const L = vertical() ? W : H
     const R = feel.radius
     const n = drawerEdgeCount(L, feel)
     if (edge.d.length !== n) edge = createDrawerEdge(n, seed)
-
-    // Velocity from vaul's live position.
-    const pos = edgePos(r, d)
-    let moved = false
-    if (dt > 0 && Number.isFinite(lastPos)) {
-      const raw = (pos - lastPos) / (dt / speed())
-      moved = Math.abs(pos - lastPos) > 0.05
-      // A jump (re-layout, resize) is not motion.
-      const v = Math.abs(raw) > 9000 ? 0 : raw
-      vel += (v - vel) * Math.min(1, dt * 30)
-    } else if (dt > 0) vel *= Math.exp(-dt * 20)
-    lastPos = pos
 
     // Slosh on stop: motion that ends hands its momentum to the edge.
     const moving = Math.abs(vel) > 120
@@ -634,13 +932,17 @@ export function attachDrawer(host: HTMLElement, options: DrawerOptions = {}): Dr
       opening = false
     }
 
-    // Stretch toward a finger past the edge.
+    // Stretch: the finger pulled past full open (the rubber band's deficit) bulges toward it.
     let ptr: DrawerEdgeInput['pointer'] = null
-    if (pointer) {
-      const beyond =
-        d === 'bottom' ? r.top - pointer.y : d === 'top' ? pointer.y - r.bottom : d === 'left' ? pointer.x - r.right : r.left - pointer.x
-      const u = isVertical(d) ? pointer.x - r.left : pointer.y - r.top
-      ptr = { u, beyond }
+    if (drag?.active) {
+      const min = snaps.length ? Math.min(...snaps) : 0
+      const deficit = drag.raw < min ? spring.x - drag.raw : 0
+      if (deficit > 0) {
+        const r = panel.getBoundingClientRect()
+        const scale = vertical() ? (W > 0 ? r.width / W : 1) : H > 0 ? r.height / H : 1
+        const u = (vertical() ? drag.x - r.left : drag.y - r.top) / (scale || 1)
+        ptr = { u, beyond: deficit }
+      }
     }
     const targets = drawerEdgeTargets(n, { velocity: vel, lag: k('lag'), stretch: k('stretch'), length: L, pointer: ptr }, feel)
     if (reduced) {
@@ -650,22 +952,8 @@ export function attachDrawer(host: HTMLElement, options: DrawerOptions = {}): Dr
       }
     } else stepDrawerEdge(edge, targets, feel, dt, k('slosh'))
 
-    // Dismiss: once the panel is on its way, drops pinch off the bulges.
-    if (closing && !reduced) {
-      closeAge += dt
-      if (!dripped && closeAge > 0.07 && -vel > 150) {
-        dripped = true
-        shed(r, d, W, H)
-      }
-    }
-
-    // Trailing extension: cover the gap vaul leaves when the panel is over-dragged off its edge.
-    const vp = viewport()
-    const gap = d === 'bottom' ? vp.h - r.bottom : d === 'top' ? r.top : d === 'left' ? r.left : vp.w - r.right
-    const scale = isVertical(d) ? (H > 0 ? r.height / H : 1) : W > 0 ? r.width / W : 1
-    const extend = clamp(gap / (scale || 1), 0, 400)
-
-    // Draw.
+    // Trailing extension: cover the gap behind a panel pulled off its screen edge.
+    const extend = clamp(-spring.x + DRAWER_NESTED_DISPLACEMENT * nested, 0, 600)
     const circles = reduced ? [] : drawerEdgeCircles(edge, d, W, H, R)
     const inset = reduced ? 0 : R
     const pose = drawerBodyPose(d, W, H, inset, extend)
@@ -687,136 +975,433 @@ export function attachDrawer(host: HTMLElement, options: DrawerOptions = {}): Dr
       renderer.setPadding({ side: want, bottom: want })
     }
     renderer.flush()
+    return !drawerEdgeSettled(edge, targets) || peak !== 0
+  }
 
-    // Handle.
-    let gripBusy = false
-    if (grip && gripRenderer && gripDrop) {
-      const kh = k('handle')
-      if (kh > 0) {
-        stepDrawerHandle(hs, gripPressed || (pointer !== null && pointerOnGrip), vel, feel, kh, dt)
-        gripBusy = !drawerHandleSettled(hs) || gripPressed
-      }
-      const thick = isVertical(d) ? grip.offsetHeight : grip.offsetWidth
-      const hp = kh > 0 ? drawerHandlePose(hs, thick) : { along: 1, across: 1, drop: 0, dropR: 0 }
-      const gw = grip.offsetWidth
-      const gh = grip.offsetHeight
-      if (isVertical(d)) gripRenderer.setBodyScale(hp.along, hp.across)
-      else gripRenderer.setBodyScale(hp.across, hp.along)
-      const out = d === 'bottom' ? [0, -1] : d === 'top' ? [0, 1] : d === 'left' ? [1, 0] : [-1, 0]
-      if (hp.dropR > 0) gripDrop.set(gw / 2 + out[0]! * hp.drop, gh / 2 + out[1]! * hp.drop, hp.dropR)
-      else gripDrop.set(0, 0, 0)
-      gripRenderer.flush()
+  const drawGrip = (dt: number): boolean => {
+    if (!grip || !gripRenderer || !gripDrop) return false
+    const kh = k('handle')
+    let busy = false
+    if (kh > 0) {
+      stepDrawerHandle(hs, !!drag?.onGrip, vel, feel, kh, dt)
+      busy = !drawerHandleSettled(hs) || !!drag?.onGrip
     }
+    const thick = vertical() ? grip.offsetHeight : grip.offsetWidth
+    const hp = kh > 0 ? drawerHandlePose(hs, thick) : { along: 1, across: 1, drop: 0, dropR: 0 }
+    const gw = grip.offsetWidth
+    const gh = grip.offsetHeight
+    if (vertical()) gripRenderer.setBodyScale(hp.along, hp.across)
+    else gripRenderer.setBodyScale(hp.across, hp.along)
+    const out = drawerOutward(dir())
+    if (hp.dropR > 0) gripDrop.set(gw / 2 + out.x * hp.drop, gh / 2 + out.y * hp.drop, hp.dropR)
+    else gripDrop.set(0, 0, 0)
+    gripRenderer.flush()
+    return busy
+  }
 
-    if (moved) still = 0
-    else still++
-    const settled = drawerEdgeSettled(edge, targets) && Math.abs(vel) < 5 && peak === 0
-    return !reduced && (!settled || still < STILL_FRAMES || gripBusy || closing || pointer !== null)
+  // ---- frame ----
+  const finishClose = (): void => {
+    state = 'closed'
+    resting = true
+    spring.v = 0
+    if (opts.overlay) opts.overlay.style.opacity = '0'
+    restoreBackground()
+    events.onSettle?.(false)
+  }
+
+  const frame = (dt: number): boolean => {
+    measure()
+    if (drag?.active) {
+      const min = Math.min(...snaps)
+      const max = Math.max(...snaps)
+      spring.x = drawerDragOffset(drag.raw, { min, max, size, dismissible: opts.dismissible !== false, dimension: viewport })
+      resting = false
+    } else if (state !== 'closed') {
+      if (state === 'closing') target = closedOffset()
+      else target = snaps[clamp(snapIndex, 0, snaps.length - 1)] ?? 0
+      if (!resting || Math.abs(spring.x - target) > 0.01) {
+        const atRest = dt > 0 ? stepDrawerSpring(spring, target, dt, springFeel()) : false
+        resting = atRest
+        if (state === 'closing' && (atRest || spring.x >= target - 0.5)) {
+          spring.x = target
+          applyPanel()
+          finishClose()
+          return false
+        }
+        if (atRest && state === 'opening') {
+          state = 'open'
+          events.onSettle?.(true)
+        }
+      } else if (state === 'opening') {
+        state = 'open'
+        resting = true
+        events.onSettle?.(true)
+      }
+    }
+    // Edge velocity from the panel's own motion (+ = outward, toward the screen centre).
+    if (dt > 0 && Number.isFinite(lastX)) {
+      const raw = -(spring.x - lastX) / dt
+      vel += ((Math.abs(raw) > 12000 ? 0 : raw) - vel) * Math.min(1, dt * 30)
+    } else if (dt > 0) vel *= Math.exp(-dt * 20)
+    lastX = spring.x
+    if (nested !== nestedTarget) {
+      nested += (nestedTarget - nested) * Math.min(1, dt * (reduced ? 30 : 12))
+      if (Math.abs(nested - nestedTarget) < 0.002) nested = nestedTarget
+    }
+    applyPanel()
+    const gooBusy = state === 'closed' ? false : drawGoo(dt)
+    const gripBusy = drawGrip(dt)
+    const moving = !resting || !!drag || Math.abs(vel) > 2 || nested !== nestedTarget
+    return (moving || (!reduced && (gooBusy || gripBusy))) && state !== 'closed'
   }
 
   const tick: Ticker = (dt) => {
     if (destroyed) return false
-    return draw(dt * speed())
+    return frame(dt * speed())
   }
   const wake = (): void => {
     if (destroyed) return
-    still = 0
-    if (reduced) {
-      draw(0)
+    if (typeof requestAnimationFrame !== 'function') {
+      // No frames (SSR / tests without rAF): jump straight to where the motion would land.
+      settleNow()
       return
     }
     wakeTicker(tick)
   }
+  const settleNow = (): void => {
+    measure()
+    if (state === 'closing') {
+      spring.x = closedOffset()
+      applyPanel()
+      finishClose()
+      return
+    }
+    if (state !== 'closed') {
+      spring.x = snaps[clamp(snapIndex, 0, snaps.length - 1)] ?? 0
+      spring.v = 0
+      resting = true
+      applyPanel()
+      if (state === 'opening') {
+        state = 'open'
+        events.onSettle?.(true)
+      }
+    }
+  }
 
-  // ---- events ----
-  let pointerOnGrip = false
+  // ---- pointer ----
+  const axis = (e: { clientX: number; clientY: number }): number => (vertical() ? e.clientY : e.clientX)
+  const cross = (e: { clientX: number; clientY: number }): number => (vertical() ? e.clientX : e.clientY)
+  /** +1: moving the finger this way along the axis closes the drawer. */
+  const closeSign = (): number => (dir() === 'bottom' || dir() === 'right' ? 1 : -1)
+
+  /** A scrollable element between `target` and the panel that should take this gesture. */
+  const scrollerTakes = (target: EventTarget | null, towardClose: boolean): boolean => {
+    let el = target instanceof Element ? target : null
+    while (el && el !== panel) {
+      if (el instanceof HTMLElement) {
+        const v = vertical()
+        const canScroll = v ? el.scrollHeight > el.clientHeight + 1 : el.scrollWidth > el.clientWidth + 1
+        if (canScroll) {
+          let style = ''
+          try {
+            style = win?.getComputedStyle(el)[v ? 'overflowY' : 'overflowX'] ?? ''
+          } catch {
+            style = ''
+          }
+          if (style === 'auto' || style === 'scroll') {
+            const pos = v ? el.scrollTop : el.scrollLeft
+            const maxPos = v ? el.scrollHeight - el.clientHeight : el.scrollWidth - el.clientWidth
+            // Distance scrolled away from the edge the drawer closes toward.
+            const fromStart = dir() === 'bottom' || dir() === 'right' ? pos : maxPos - pos
+            if (towardClose && fromStart > 0.5) return true
+            if (!towardClose && fromStart < maxPos - 0.5) {
+              // Pulling open: let the content scroll once the drawer is at its top snap.
+              const top = Math.min(...snaps)
+              if (spring.x <= top + 0.5) return true
+            }
+          }
+        }
+      }
+      el = el.parentElement
+    }
+    return false
+  }
+
+  let suppressClick = false
+  const onClickCapture = (e: Event): void => {
+    if (!suppressClick) return
+    suppressClick = false
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
   const onDown = (e: PointerEvent): void => {
-    pointer = { x: e.clientX, y: e.clientY, id: e.pointerId }
-    pointerOnGrip = !!grip && e.target instanceof Node && grip.contains(e.target)
-    gripPressed = pointerOnGrip
+    if (destroyed || state === 'closed' || state === 'closing' || drag) return
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    const t = e.target instanceof Element ? e.target : null
+    const g = findGrip()
+    const onGrip = !!(g && t && g.contains(t))
+    if (opts.handleOnly && !onGrip) return
+    if (t && !onGrip && t.closest(NO_DRAG)) return
+    measure()
+    drag = {
+      id: e.pointerId,
+      p0: axis(e),
+      q0: cross(e),
+      off0: spring.x,
+      raw: spring.x,
+      active: false,
+      tracker: createDrawerVelocityTracker(),
+      x: e.clientX,
+      y: e.clientY,
+      onGrip,
+    }
+    drawerTrack(drag.tracker, e.timeStamp / 1000, spring.x)
+    win?.addEventListener('pointermove', onMove)
+    win?.addEventListener('pointerup', onUp)
+    win?.addEventListener('pointercancel', onCancel)
+    if (onGrip) wake()
+  }
+
+  const onMove = (e: PointerEvent): void => {
+    if (!drag || e.pointerId !== drag.id) return
+    const d = (axis(e) - drag.p0) * closeSign()
+    drag.x = e.clientX
+    drag.y = e.clientY
+    if (!drag.active) {
+      const dc = Math.abs(cross(e) - drag.q0)
+      if (Math.abs(d) < DRAWER_PHYSICS.slop) {
+        if (dc > DRAWER_PHYSICS.slop * 2) endDrag()
+        return
+      }
+      if (dc > Math.abs(d) * 1.5 || (!drag.onGrip && scrollerTakes(e.target, d > 0))) {
+        endDrag()
+        return
+      }
+      // Text selection would fight the drag.
+      try {
+        win?.getSelection()?.removeAllRanges()
+      } catch {
+        // ignore
+      }
+      drag.active = true
+      drag.p0 = axis(e) - Math.sign(d) * DRAWER_PHYSICS.slop * closeSign()
+      drag.off0 = spring.x
+      panel.setAttribute(DRAWER_DRAGGING_ATTR, '')
+      try {
+        panel.setPointerCapture(e.pointerId)
+      } catch {
+        // ignore (synthetic pointers)
+      }
+      spring.v = 0
+    }
+    drag.raw = drag.off0 + (axis(e) - drag.p0) * closeSign()
+    drawerTrack(drag.tracker, e.timeStamp / 1000, drag.raw)
+    if (size > 0) events.onDrag?.(Math.max(0, drag.raw - drag.off0) / size)
+    e.preventDefault()
     wake()
   }
-  const onMove = (e: PointerEvent): void => {
-    if (pointer && e.pointerId === pointer.id) {
-      pointer.x = e.clientX
-      pointer.y = e.clientY
+
+  const endDrag = (): void => {
+    win?.removeEventListener('pointermove', onMove)
+    win?.removeEventListener('pointerup', onUp)
+    win?.removeEventListener('pointercancel', onCancel)
+    if (drag) {
+      try {
+        if (panel.hasPointerCapture?.(drag.id)) panel.releasePointerCapture(drag.id)
+      } catch {
+        // ignore
+      }
+    }
+    panel.removeAttribute(DRAWER_DRAGGING_ATTR)
+    const wasGrip = drag?.onGrip
+    drag = null
+    if (wasGrip) wake()
+  }
+
+  const onCancel = (e: PointerEvent): void => {
+    if (!drag || e.pointerId !== drag.id) return
+    const was = drag.active
+    endDrag()
+    if (was) {
+      resting = false
       wake()
     }
   }
+
   const onUp = (e: PointerEvent): void => {
-    if (pointer && e.pointerId !== pointer.id) return
-    pointer = null
-    gripPressed = false
-    pointerOnGrip = false
+    if (!drag || e.pointerId !== drag.id) return
+    const d = drag
+    if (!d.active) {
+      endDrag()
+      return
+    }
+    drawerTrack(d.tracker, e.timeStamp / 1000, d.raw)
+    const v = drawerVelocity(d.tracker, e.timeStamp / 1000)
+    measure()
+    // Land the panel on the finger's last position first (the splash starts from there).
+    spring.x = drawerDragOffset(d.raw, { min: Math.min(...snaps), max: Math.max(...snaps), size, dismissible: opts.dismissible !== false, dimension: viewport })
+    applyPanel()
+    endDrag()
+    suppressClick = true
+    setTimeout(() => (suppressClick = false), 0)
+    const decision = drawerReleaseTarget({
+      offset: spring.x,
+      velocity: v,
+      dragged: d.raw - d.off0,
+      size,
+      viewport,
+      snaps,
+      active: snapIndex,
+      dismissible: opts.dismissible !== false,
+      closeThreshold: opts.closeThreshold,
+      hasSnapPoints: hasSnaps(),
+    })
+    resting = false
+    // The spring takes over with the finger's speed (no jump in velocity).
+    spring.v = clamp(v, -8000, 8000)
+    if (decision.kind === 'close') {
+      events.onRelease?.(false)
+      state = 'closing'
+      if (v > DRAWER_PHYSICS.velocity) splash(v)
+      events.onDismiss?.()
+    } else {
+      const was = snapIndex
+      snapIndex = decision.index
+      events.onRelease?.(true)
+      if (hasSnaps() && was !== snapIndex) events.onSnap?.(snapIndex)
+    }
     wake()
   }
-  host.addEventListener('pointerdown', onDown)
-  win?.addEventListener('pointermove', onMove)
-  win?.addEventListener('pointerup', onUp)
-  win?.addEventListener('pointercancel', onUp)
-  win?.addEventListener('resize', wake)
-  const anim = ['animationstart', 'transitionrun', 'transitionstart'] as const
-  for (const e of anim) host.addEventListener(e, wake)
 
-  const onState = (): void => {
-    const s = host.getAttribute('data-state')
-    if (s === 'closed' && !closing) {
-      closing = true
-      closeAge = 0
-      dripped = false
-      seed++
-    } else if (s === 'open' && closing) {
-      closing = false
-      opening = true
-    }
+  panel.addEventListener('pointerdown', onDown)
+  panel.addEventListener('click', onClickCapture, true)
+  const onResize = (): void => {
+    resting = false
+    wake()
   }
-  const mo = typeof MutationObserver === 'function'
-    ? new MutationObserver((records) => {
-        for (const rec of records) if (rec.attributeName === 'data-state') onState()
-        wake()
-      })
-    : null
-  mo?.observe(host, { attributes: true, attributeFilter: ['style', 'data-state', 'data-vaul-drawer-direction', 'class'] })
+  win?.addEventListener('resize', onResize)
+  const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(onResize) : null
+  ro?.observe(panel)
 
-  build()
+  buildGoo()
   buildGrip()
-  onState()
-  draw(0)
-  wake()
-
+  panel.toggleAttribute('data-goop-still', reduced)
   const unwatch = watchReducedMotion(doc, () => {
     reduced = readReduced()
-    host.toggleAttribute('data-goop-still', reduced)
-    if (reduced) removeTicker(tick)
+    panel.toggleAttribute('data-goop-still', reduced)
+    resting = false
     wake()
   })
-  host.toggleAttribute('data-goop-still', reduced)
+
+  // Start hidden: no flash at the open position before the first frame.
+  measure()
+  spring.x = closedOffset()
+  lastX = spring.x
+  panel.style.transform = drawerTransform(dir(), spring.x, 0, viewport)
 
   return {
-    update(next = {}) {
+    open({ instant = false } = {}) {
       if (destroyed) return
-      const rebuild = ('renderer' in next && next.renderer !== opts.renderer) || ('preset' in next && next.preset !== opts.preset)
-      const regrip = ('grip' in next && next.grip !== opts.grip) || ('handle' in next && (next.handle === false) !== (opts.handle === false))
-      opts = { ...opts, ...next }
-      preset = readPreset(host, opts.preset)
-      feel = DRAWER_FEEL[preset]
-      reduced = readReduced()
-      host.toggleAttribute('data-goop-still', reduced)
-      if (reduced) removeTicker(tick)
-      if (rebuild) build()
-      if (regrip || rebuild) buildGrip()
-      draw(0)
+      if (state === 'open' || state === 'opening') return
+      measure()
+      snapIndex = initialIndex()
+      if (state === 'closed') {
+        spring.x = instant ? (snaps[snapIndex] ?? 0) : closedOffset()
+        spring.v = 0
+        lastX = spring.x
+        seed++
+      }
+      state = instant ? 'open' : 'opening'
+      opening = !instant
+      peak = 0
+      resting = instant
+      applyPanel()
+      if (renderer) drawGoo(0)
+      if (instant) events.onSettle?.(true)
       wake()
     },
-    refresh() {
+    close() {
+      if (destroyed || state === 'closed' || state === 'closing') return
+      if (drag) endDrag()
+      state = 'closing'
+      opening = false
+      resting = false
+      wake()
+    },
+    snapTo(index) {
+      if (destroyed || !hasSnaps()) return
+      const i = clamp(Math.round(index), 0, (opts.snapPoints?.length ?? 1) - 1)
+      if (i === snapIndex) return
+      snapIndex = i
+      if (state === 'closed' || state === 'closing') return
+      resting = false
+      wake()
+    },
+    update(next = {}) {
       if (destroyed) return
-      draw(0)
+      const rebuild =
+        ('renderer' in next && next.renderer !== opts.renderer) ||
+        ('preset' in next && next.preset !== opts.preset) ||
+        ('goo' in next && (next.goo === false) !== (opts.goo === false)) ||
+        ('surface' in next && next.surface !== opts.surface)
+      const regrip = rebuild || ('grip' in next && next.grip !== opts.grip) || ('handle' in next && (next.handle === false) !== (opts.handle === false))
+      const prevSnap = opts.activeSnapPoint
+      const prevBg = opts.scaleBackground
+      opts = { ...opts, ...next }
+      preset = readPreset(panel, opts.preset)
+      feel = DRAWER_FEEL[preset]
+      reduced = readReduced()
+      panel.toggleAttribute('data-goop-still', reduced)
+      if (rebuild) buildGoo()
+      if (regrip) buildGrip()
+      if (prevBg && !opts.scaleBackground) restoreBackground()
+      if ('activeSnapPoint' in next && next.activeSnapPoint !== prevSnap) {
+        measure()
+        const i = drawerSnapIndex(opts.snapPoints, opts.activeSnapPoint, viewport)
+        if (i >= 0 && i !== snapIndex) {
+          snapIndex = i
+          resting = false
+        }
+      }
+      resting = false
+      if (state !== 'closed') {
+        frame(0)
+        wake()
+      }
+    },
+    setNested(t, instant = false) {
+      const n = clamp(Number.isFinite(t) ? t : 0, 0, 1)
+      if (n === nestedTarget && (!instant || n === nested)) return
+      nestedTarget = n
+      if (instant || state === 'closed') nested = n
+      if (state !== 'closed') {
+        applyPanel()
+        wake()
+      }
+    },
+    refresh() {
+      if (destroyed || state === 'closed') return
+      resting = false
+      frame(0)
       wake()
     },
     kick(v = feel.rise) {
       if (destroyed || reduced) return
       kickDrawerEdge(edge, v)
       wake()
+    },
+    get state() {
+      return state
+    },
+    get offset() {
+      return spring.x
+    },
+    get snapIndex() {
+      return snapIndex
+    },
+    get dragging() {
+      return !!drag?.active
     },
     get reducedMotion() {
       return reduced
@@ -829,25 +1414,22 @@ export function attachDrawer(host: HTMLElement, options: DrawerOptions = {}): Dr
       destroyed = true
       removeTicker(tick)
       unwatch()
-      mo?.disconnect()
-      host.removeEventListener('pointerdown', onDown)
-      win?.removeEventListener('pointermove', onMove)
-      win?.removeEventListener('pointerup', onUp)
-      win?.removeEventListener('pointercancel', onUp)
-      win?.removeEventListener('resize', wake)
-      for (const e of anim) host.removeEventListener(e, wake)
-      for (const b of blobs) b.remove()
-      blobs = []
-      renderer?.destroy()
-      renderer = null
+      ro?.disconnect()
+      endDrag()
+      panel.removeEventListener('pointerdown', onDown)
+      panel.removeEventListener('click', onClickCapture, true)
+      win?.removeEventListener('resize', onResize)
+      restoreBackground()
       opts = { ...opts, handle: false }
       buildGrip()
-      if (ownSurface) surface.remove()
-      else surface.style.cssText = prevSurfaceCss
-      host.style.isolation = prevIsolation
-      host.removeAttribute(DRAWER_GOO_ATTR)
-      host.removeAttribute('data-goop-still')
-      // Falling drops keep their own ticker and overlay lease; they release themselves.
+      teardownGoo()
+      panel.style.transform = prevPanel.transform
+      panel.style.touchAction = prevPanel.touchAction
+      panel.style.willChange = prevPanel.willChange
+      panel.removeAttribute(DRAWER_GOO_ATTR)
+      panel.removeAttribute('data-goop-still')
+      panel.removeAttribute(DRAWER_DRAGGING_ATTR)
+      // Splash drops keep their own ticker and overlay lease; they release themselves.
     },
   }
 }
