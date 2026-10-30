@@ -162,24 +162,30 @@
     transition: none;
   }
 
-  /* Accordion / Collapsible (GoopAccordionItem, GoopCollapsible): core draws the open item as
-     a goo card (--goop-accordion-fill, default the muted token) behind the real trigger and
-     content, and publishes its timing so the content's height reveal follows the goo: it
-     waits for the lead drips (--goop-accordion-delay), opens over --goop-accordion-open and
-     collapses over --goop-accordion-close. Heights come from reka's content-height vars. Core
-     marks the host data-goop-still under reduced motion: no height animation. */
+  /* Accordion / Collapsible (GoopAccordionItem, GoopCollapsible): core pours the content down
+     as liquid (--goop-accordion-fill, default a light tint of --primary) and sucks it back up;
+     at rest there is no goo. Core publishes the timing so the content's height follows the
+     pour exactly: --goop-accordion-delay (handoff), --goop-accordion-open with the pour
+     spring as a linear() easing (--goop-accordion-open-ease, jelly overshoot included), and
+     --goop-accordion-close / --goop-accordion-close-ease (an accelerating suck). Heights come
+     from reka's content-height vars. Core marks the host data-goop-still under reduced motion:
+     plain shadcn height animation (0.2s ease-out). */
   [data-goop-accordion] > [data-goop='layer'] {
     border-radius: var(--goop-accordion-radius, 0.75rem) !important;
   }
   [data-goop-accordion] [data-goop-accordion-content][data-state='open'] {
-    animation: goop-accordion-down var(--goop-accordion-open, 0.2s) cubic-bezier(0.45, 0, 0.25, 1)
-      var(--goop-accordion-delay, 0s) both;
+    animation: goop-accordion-down var(--goop-accordion-open, 0.2s) ease-out var(--goop-accordion-delay, 0s) backwards;
+    animation-timing-function: var(--goop-accordion-open-ease, ease-out);
   }
   [data-goop-accordion] [data-goop-accordion-content][data-state='closed'] {
-    animation: goop-accordion-up var(--goop-accordion-close, 0.2s) cubic-bezier(0.3, 0, 0.6, 1) both;
+    animation: goop-accordion-up var(--goop-accordion-close, 0.2s) ease-in both;
+    animation-timing-function: var(--goop-accordion-close-ease, ease-in);
   }
-  [data-goop-accordion][data-goop-still] [data-goop-accordion-content] {
-    animation: none;
+  [data-goop-accordion][data-goop-still] [data-goop-accordion-content][data-state='open'] {
+    animation: goop-accordion-down 0.2s ease-out;
+  }
+  [data-goop-accordion][data-goop-still] [data-goop-accordion-content][data-state='closed'] {
+    animation: goop-accordion-up 0.2s ease-out both;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -195,8 +201,11 @@
     transition: none;
   }
   @media (prefers-reduced-motion: reduce) {
-    [data-goop-accordion] [data-goop-accordion-content] {
-      animation: none;
+    [data-goop-accordion] [data-goop-accordion-content][data-state='open'] {
+      animation: goop-accordion-down 0.2s ease-out;
+    }
+    [data-goop-accordion] [data-goop-accordion-content][data-state='closed'] {
+      animation: goop-accordion-up 0.2s ease-out both;
     }
   }
 }

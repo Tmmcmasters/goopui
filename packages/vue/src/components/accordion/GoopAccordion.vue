@@ -1,9 +1,10 @@
 <script setup lang="ts">
 // GoopAccordion: shadcn-vue's Accordion (reka-ui AccordionRoot, same props / emits / slot)
-// whose items pour open like thick liquid. Engine props (fill, drips, jelly, slosh, source,
-// handoff, speed, preset, renderer; `:goo="false"` = plain shadcn) are set here and every
-// GoopAccordionItem follows them. It mirrors reka's open value so that when one item closes
-// as another opens, the closing item's goo drains toward the opening one (`handoff`).
+// whose items pour open like liquid (jelly landing + splash) and are sucked back up into the
+// chevron. Engine props (pour, jelly, splash, splashAmount, slosh, handoff, speed, preset,
+// renderer; `:goo="false"` = plain shadcn) are set here and every GoopAccordionItem follows
+// them. It mirrors reka's open value so that when one item closes as another opens, the
+// opening one waits a beat for the closing one (`handoff`).
 import { accordionFlowBetween, type AccordionFlow } from '@goopui/core'
 import type { AccordionRootEmits, AccordionRootProps } from 'reka-ui'
 import { AccordionRoot, useForwardPropsEmits } from 'reka-ui'
@@ -14,11 +15,11 @@ import { provideGoopAccordion } from './context'
 
 const props = withDefaults(defineProps<AccordionRootProps & GoopAccordionProps>(), {
   goo: undefined,
-  fill: undefined,
-  drips: undefined,
+  pour: undefined,
   jelly: undefined,
+  splash: undefined,
+  splashAmount: undefined,
   slosh: undefined,
-  source: undefined,
   handoff: undefined,
   speed: undefined,
   preset: undefined,

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // GoopCollapsibleTrigger: shadcn-vue's CollapsibleTrigger (reka-ui, unstyled, `asChild`). With
-// goo on it is the goo's source: a goo blob sits behind it and the content pours out of it.
+// goo on it is the goo's source: the content pours out of it and is sucked back into it.
 import type { CollapsibleTriggerProps } from 'reka-ui'
 import { CollapsibleTrigger } from 'reka-ui'
 import { computed } from 'vue'
