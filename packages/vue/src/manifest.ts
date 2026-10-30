@@ -61,6 +61,14 @@ export const goopComponents = [
   'GoopAlertDialogOverlay',
   'GoopAlertDialogTitle',
   'GoopAlertDialogTrigger',
+  'GoopSheet',
+  'GoopSheetClose',
+  'GoopSheetContent',
+  'GoopSheetDescription',
+  'GoopSheetFooter',
+  'GoopSheetHeader',
+  'GoopSheetTitle',
+  'GoopSheetTrigger',
 ] as const
 
 export type GoopComponentName = (typeof goopComponents)[number]

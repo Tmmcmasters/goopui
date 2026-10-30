@@ -1,0 +1,8 @@
+export { default as GoopSheet } from './GoopSheet.vue'
+export { default as GoopSheetClose } from './GoopSheetClose.vue'
+export { default as GoopSheetContent } from './GoopSheetContent.vue'
+export { default as GoopSheetDescription } from './GoopSheetDescription.vue'
+export { default as GoopSheetFooter } from './GoopSheetFooter.vue'
+export { default as GoopSheetHeader } from './GoopSheetHeader.vue'
+export { default as GoopSheetTitle } from './GoopSheetTitle.vue'
+export { default as GoopSheetTrigger } from './GoopSheetTrigger.vue'

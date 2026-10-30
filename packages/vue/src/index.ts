@@ -15,6 +15,7 @@ export * from './components/progress'
 export * from './components/sonner'
 export * from './components/dialog'
 export * from './components/alert-dialog'
+export * from './components/sheet'
 export { GOOP_CONFIG_KEY, GoopPlugin, provideGoopConfig, useGoopConfig, type GoopConfig } from './config'
 export {
   CSS_VAR_KEYS,
@@ -53,6 +54,9 @@ export {
   toSwitchOptions,
   TOASTER_PROP_KEYS,
   toToasterOptions,
+  SHEET_PROP_KEYS,
+  toSheetOptions,
+  type GoopSheetProps,
   type GoopToasterProps,
   type GoopCssVarKey,
   type GoopEngineKey,
