@@ -7,5 +7,5 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["playground"]
+  "ignore": ["playground", "promo", "soon", "www", "@goopui/react", "@goopui/svelte"]
 }

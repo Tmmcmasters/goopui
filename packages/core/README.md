@@ -1,6 +1,12 @@
 # @goopui/core
 
-Framework-agnostic engine for goopUI: gooey filters, drip physics, and DOM helpers. Not usually installed directly; use `@goopui/vue`, `@goopui/react`, or `@goopui/svelte`.
+Framework-agnostic engine for [goopUI](https://goop.timmcmasters.work): gooey filters, drip physics, and DOM helpers. Plain TypeScript and DOM, no framework. Not usually installed directly: use [`@goopui/vue`](https://www.npmjs.com/package/@goopui/vue) or [`@goopui/nuxt`](https://www.npmjs.com/package/@goopui/nuxt) (React and Svelte adapters are coming).
+
+> **Alpha.** APIs may change between `0.x` releases. Docs: https://goop.timmcmasters.work · Source: https://github.com/Tmmcmasters/goopui
+
+```sh
+npm install @goopui/core
+```
 
 ```ts
 import { attachGoop } from '@goopui/core'
