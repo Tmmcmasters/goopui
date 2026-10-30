@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   DIALOG_FEEL,
-  EMERGE_BLOOM_LOBES,
+  EMERGE_BLOOM_RIM,
   EMERGE_BULGE_SLOTS,
+  EMERGE_BULGE_CIRCLES,
+  EMERGE_MOUND_CIRCLES,
   EMERGE_CIRCLES,
   EMERGE_CLOSE_VAR,
   EMERGE_CONTENT_VAR,
@@ -110,7 +112,7 @@ describe('sheet bloom geometry', () => {
           const p = emergeMomentum(base, b, phase, sec, { openDrips: false }, { bloom: true, seed })
           const boxes = [
             // The slosh lumps: the close's (in the pose) and the open's (momentum).
-            ...[...p.circles.slice(EMERGE_BLOOM_LOBES, EMERGE_BLOOM_LOBES + EMERGE_BULGE_SLOTS), ...p.circles.slice(EMERGE_CIRCLES, EMERGE_CIRCLES + EMERGE_BULGE_SLOTS)]
+            ...[...p.circles.slice(EMERGE_BLOOM_RIM, EMERGE_BLOOM_RIM + EMERGE_BULGE_CIRCLES), ...p.circles.slice(EMERGE_CIRCLES, EMERGE_CIRCLES + EMERGE_BULGE_CIRCLES)]
               .filter((c) => c.r > 0)
               .map((c) => ({ x0: c.x - c.r, y0: c.y - c.r, x1: c.x + c.r, y1: c.y + c.r })),
             ...(p.body.w > 0 ? [{ x0: p.body.cx - p.body.w / 2, y0: p.body.cy - p.body.h / 2, x1: p.body.cx + p.body.w / 2, y1: p.body.cy + p.body.h / 2 }] : []),

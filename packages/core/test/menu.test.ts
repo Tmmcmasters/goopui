@@ -5,6 +5,8 @@ import {
   MENU_HIGHLIGHT_CIRCLES,
   MENU_NECK_LUMPS,
   MENU_NECK_MIN,
+  MENU_SWELL_AT,
+  MENU_SWELL_CIRCLES,
   activeTickerCount,
   attachMenuHighlight,
   findMenuHighlight,
@@ -59,7 +61,8 @@ describe('menuHighlightPose', () => {
 })
 
 describe('pointer follow', () => {
-  const SWELL = MENU_HIGHLIGHT_CIRCLES - 1
+  // The swell's peak circle (the middle of the mound).
+  const SWELL = MENU_SWELL_AT + (MENU_SWELL_CIRCLES - 1) / 2
   const runAt = (s: MenuHighlightState, target: EmergeRect, pointer: number | null, seconds: number, fx = {}) => {
     const out = []
     for (let t = 0; t < seconds; t += DT) {
@@ -107,6 +110,18 @@ describe('pointer follow', () => {
       expect(c.r).toBeLessThanOrEqual(half * (1 + MENU_FEEL.playful.swell!) + 1e-6)
       expect(c.x).toBeGreaterThanOrEqual(4 + half - 1e-6)
       expect(c.x).toBeLessThanOrEqual(4 + 180 - half + 1e-6)
+    }
+    // A low, wide mound, not a knob: the circles span a good share of the item and rise
+    // gently to the peak (no neighbour much taller than the next).
+    const wide = swelling.filter((f) => Math.abs(f.s.bx.x - 94) < 30)
+    expect(wide.length).toBeGreaterThan(0)
+    for (const f of wide) {
+      const mound = f.pose.circles.slice(MENU_SWELL_AT, MENU_SWELL_AT + MENU_SWELL_CIRCLES).filter((c) => c.r > 0)
+      expect(mound.length).toBeGreaterThanOrEqual(3)
+      const xs = mound.map((c) => c.x)
+      const peak = f.pose.circles[SWELL]!.r - half
+      if (peak > 0.5) expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(180 / 3 * 0.6)
+      for (const c of mound) expect(c.r - half).toBeLessThanOrEqual(peak + 1e-9)
     }
     // Springy, not glued: it lags behind the pointer early on.
     expect(frames[3]!.s.bx.x).toBeLessThan(100)

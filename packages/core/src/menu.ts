@@ -53,8 +53,9 @@ export interface MenuFeel {
   decay: number
   /** Goo blur (px). */
   softness: number
-  /** Pointer-follow bulge: how far it swells (fraction of the item's half height) at full
-   *  pointer speed. Default 0 (no bulge; tabs). */
+  /** Pointer-follow bulge: how far it swells (peak, fraction of the item's half height) at
+   *  full pointer speed: a low, wide mound (MENU_SWELL_WIDTH of the item). Default 0 (no
+   *  bulge; tabs). */
   swell?: number
 }
 
@@ -70,7 +71,7 @@ export const MENU_FEEL: Readonly<Record<GoopPreset, Readonly<MenuFeel>>> = Objec
     hide: 0.12,
     decay: 7,
     softness: 3,
-    swell: 0.07,
+    swell: 0.04,
   }),
   playful: Object.freeze({
     head: { response: 0.24, dampingRatio: 0.62 },
@@ -83,7 +84,7 @@ export const MENU_FEEL: Readonly<Record<GoopPreset, Readonly<MenuFeel>>> = Objec
     hide: 0.14,
     decay: 4.5,
     softness: 3.5,
-    swell: 0.13,
+    swell: 0.07,
   }),
   wild: Object.freeze({
     head: { response: 0.3, dampingRatio: 0.45 },
@@ -96,7 +97,7 @@ export const MENU_FEEL: Readonly<Record<GoopPreset, Readonly<MenuFeel>>> = Objec
     hide: 0.16,
     decay: 3,
     softness: 4,
-    swell: 0.19,
+    swell: 0.1,
   }),
 })
 
@@ -116,8 +117,14 @@ export interface MenuHighlightEffects {
 
 /** Neck lumps between the body and the tail. */
 export const MENU_NECK_LUMPS = 3
+/** Circles tracing the pointer swell (a soft mound of overlapping circles, never a knob). */
+export const MENU_SWELL_CIRCLES = 9
+/** Index of the first swell circle in a pose. */
+export const MENU_SWELL_AT = 1 + MENU_NECK_LUMPS
+/** The swell's base width, as a fraction of the item's width. */
+export const MENU_SWELL_WIDTH = 1 / 3
 /** Circles a pose returns: tail + neck lumps + the pointer swell. */
-export const MENU_HIGHLIGHT_CIRCLES = 1 + MENU_NECK_LUMPS + 1
+export const MENU_HIGHLIGHT_CIRCLES = MENU_SWELL_AT + MENU_SWELL_CIRCLES
 /** Pointer speed (px/s along the item) at which the swell is full. */
 export const MENU_SWELL_SPEED = 700
 /** Smallest neck lump radius, as a fraction of the item's half height: never a string. */
@@ -184,8 +191,8 @@ export function menuHighlightInit(): MenuHighlightState {
   }
 }
 
-/** Where the swell aims on `r`: the pointer x (container coordinates) clamped so a round
- *  swell stays inside the item, or the center when there is no pointer. */
+/** Where the swell aims on `r`: the pointer x (container coordinates) clamped so the swell's
+ *  peak stays clear of the item's round ends, or the center when there is no pointer. */
 export function menuBulgeTarget(r: EmergeRect, pointer?: number | null): number {
   const cx = r.x + r.width / 2
   if (pointer == null || !Number.isFinite(pointer)) return cx
@@ -338,11 +345,23 @@ export function menuHighlightPose(
   let h = h0 * grow * sq.sy
   const circles: EmergeCircle[] = Array.from({ length: MENU_HIGHLIGHT_CIRCLES }, zero)
   const half = (h0 / 2) * grow
-  // Where the swell sits along the body (pointer-follow), kept inside it.
+  // The swell: a low, wide mound (raised cosine, MENU_SWELL_WIDTH of the item) under the
+  // pointer, traced by overlapping circles centred on the bar, each `half + g(x)` round. Zero
+  // slope at its peak and where it meets the flat edges: a soft rise, not a knob. Near an
+  // end of the item the side toward it narrows (the peak stays under the pointer).
   const bulge = fx.followPointer ? clamp(s.bx.x, cx - w / 2 + half, cx + w / 2 - half) : s.x.x
   const swell = fx.followPointer ? (feel.swell ?? 0) * smooth(Math.abs(s.bx.v) / MENU_SWELL_SPEED) : 0
-  if (swell > 0.005 && w > 2 * half) {
-    circles[MENU_HIGHLIGHT_CIRCLES - 1] = { x: bulge, y: cy, r: half * (1 + swell) }
+  const hw = (w * MENU_SWELL_WIDTH) / 2
+  const lo = Math.min(hw, bulge - (cx - w / 2 + half))
+  const hi = Math.min(hw, cx + w / 2 - half - bulge)
+  if (swell > 0.005 && w > 2 * half && lo + hi > 4) {
+    const d = half * swell
+    for (let i = 0; i < MENU_SWELL_CIRCLES; i++) {
+      const f = -1 + (2 * (i + 1)) / (MENU_SWELL_CIRCLES + 1)
+      const g = (d * (1 + Math.cos(Math.PI * f))) / 2
+      if (g < 0.05) continue
+      circles[MENU_SWELL_AT + i] = { x: bulge + f * (f < 0 ? lo : hi), y: cy, r: half + g }
+    }
   }
   const dx = s.tx.x - cx
   const dy = s.ty.x - cy
