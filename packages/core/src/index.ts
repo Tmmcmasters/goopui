@@ -499,6 +499,7 @@ export {
   type SheetSide,
   type SheetState,
 } from './sheet'
+export {
   DRAWER_EFFECTS,
   DRAWER_FEEL,
   DRAWER_GOO_ATTR,
