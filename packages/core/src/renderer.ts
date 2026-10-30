@@ -5,6 +5,7 @@
 // y grows down), regardless of how the renderer pads its own drawing surface.
 
 import { acquireGooFilter, createOilFilter, type GooFilterLease, type GooFilterParams, type OilFilter } from './filter'
+import { isMovingGooHost, watchPageEdge, type PageEdgeCut } from './page-edge'
 import { readFinish, type GoopFinish, type GoopFinishRenderer } from './renderers/finish'
 
 export interface GoopLayerPadding {
@@ -72,6 +73,21 @@ const BASE_R = 10
 
 const fmt = (n: number): string => (Math.round(n * 100) / 100).toString()
 
+/** How far past its box the goo filter draws, as a fraction of the box (GOO_FILTER_REGION). */
+const FILTER_REACH = 0.2
+
+/** overflow-clip-margin support (Safari lacks it: clip lands on the box there). */
+const clipMarginOk = new WeakMap<Document, boolean>()
+const CLIP_MARGIN_OK = (doc: Document): boolean => {
+  let ok = clipMarginOk.get(doc)
+  if (ok === undefined) {
+    const css = doc.defaultView?.CSS
+    ok = !!css?.supports?.('overflow-clip-margin', '1px')
+    clipMarginOk.set(doc, ok)
+  }
+  return ok
+}
+
 /**
  * SVG-filter renderer: plain <span>s (valid inside <button>) styled as a rounded body and
  * circles, inside a layer with `filter: url(#goo)`. Only transform/opacity change per frame.
@@ -112,27 +128,74 @@ export function createSvgFilterRenderer(
   layer.style.filter = `url(#${lease.id})`
   host.append(layer)
 
-  const setPadding = ({ side, bottom }: GoopLayerPadding): void => {
-    const s = `${-side}px`
-    layer.style.top = s
-    layer.style.left = s
-    layer.style.right = s
-    layer.style.bottom = `${-bottom}px`
+  let oil: OilFilter | null = null
+  // Layer box: `pad` past the host on each side, except where the page edge is closer (see
+  // page-edge.ts). There the far side is cut and the layer clips, so no goo grows the page.
+  let pad: GoopLayerPadding = { side: 0, bottom: 0 }
+  let cut: PageEdgeCut = { right: null, bottom: null }
+  const placeLayer = (pending = false): void => {
+    const { side, bottom } = pad
+    // The filter region reaches 20% of the box past it (GOO_FILTER_REGION). While clipping,
+    // keep that much visible on the near sides with overflow-clip-margin, and pull the far
+    // sides in by the same amount so the clip lands on the page edge.
+    let m = cut.right !== null || cut.bottom !== null ? clipMargin() : 0
+    // Never pull a far side past the near one: a collapsed box clips from the wrong place.
+    if (m && cut.right !== null) m = Math.min(m, side + host.offsetWidth + cut.right)
+    if (m && cut.bottom !== null) m = Math.min(m, side + host.offsetHeight + cut.bottom)
+    m = Math.max(0, Math.floor(m))
+    const right = cut.right === null ? side : cut.right - m
+    const below = cut.bottom === null ? bottom : cut.bottom - m
+    layer.style.top = `${-side}px`
+    layer.style.left = `${-side}px`
+    layer.style.right = `${-right}px`
+    layer.style.bottom = `${-below}px`
     body.style.top = `${side}px`
     body.style.left = `${side}px`
-    body.style.right = `${side}px`
-    body.style.bottom = `${bottom}px`
+    body.style.right = `${right}px`
+    body.style.bottom = `${below}px`
     origin.style.left = `${side}px`
     origin.style.top = `${side}px`
+    layer.style.overflowX = cut.right === null ? '' : 'clip'
+    layer.style.overflowY = cut.bottom === null ? '' : 'clip'
+    layer.style.overflowClipMargin = m ? `${m}px` : ''
+    if (!pending && (cut.right !== null || cut.bottom !== null)) {
+      // overflow clips to the rounded box: square the layer and give the body the host's
+      // corners directly (it normally inherits them through the layer).
+      layer.style.borderRadius = '0'
+      body.style.borderRadius = doc.defaultView?.getComputedStyle(host).borderRadius ?? ''
+    } else {
+      layer.style.borderRadius = 'inherit'
+      body.style.borderRadius = 'inherit'
+    }
+  }
+  const boxW = (): number => host.offsetWidth + pad.side * 2
+  const boxH = (): number => host.offsetHeight + pad.side + pad.bottom
+  const clipMargin = (): number =>
+    CLIP_MARGIN_OK(doc) ? Math.ceil(FILTER_REACH * Math.max(boxW(), boxH())) : 0
+  const edge = watchPageEdge({
+    host,
+    reach: () => ({ right: pad.side + FILTER_REACH * boxW(), bottom: pad.bottom + FILTER_REACH * boxH() }),
+    apply(next, pending) {
+      cut = next
+      placeLayer(pending)
+      if (oil) oil.setBox(layer.offsetWidth, layer.offsetHeight)
+    },
+  })
+  const setPadding = (p: GoopLayerPadding): void => {
+    const grew = p.side > pad.side || p.bottom > pad.bottom
+    pad = { side: p.side, bottom: p.bottom }
+    placeLayer()
+    edge.refresh(grew)
   }
   setPadding({ side: 0, bottom: 0 })
+  let lastSpawn = 0
+  const moving = isMovingGooHost(host)
 
   let bodyTransform = ''
 
   // ---- oil finish ----
   let goo = params
   let finish: GoopFinish = readFinish(host, { finish: 'solid' })
-  let oil: OilFilter | null = null
   const isDark = (): boolean => {
     const c = doc.defaultView?.getComputedStyle(body).backgroundColor ?? ''
     const m = c.match(/[\d.]+/g)
@@ -198,6 +261,12 @@ export function createSvgFilterRenderer(
       body.style.transform = t
     },
     createBlob() {
+      // Goo is spawning: the host may have moved since the last cut.
+      const now = Date.now()
+      if (now - lastSpawn > 250) {
+        lastSpawn = now
+        edge.refresh()
+      }
       const el = span(
         'blob',
         `position:absolute;display:block;left:${-BASE_R}px;top:${-BASE_R}px;width:${BASE_R * 2}px;` +
@@ -225,8 +294,11 @@ export function createSvgFilterRenderer(
         },
       }
     },
-    flush() {},
+    flush() {
+      if (moving) edge.track()
+    },
     destroy() {
+      edge.release()
       layer.remove()
       lease.release()
       oil?.release()
