@@ -3,7 +3,7 @@ import {
   DRAWER_FEEL,
   DRAWER_GOO_ATTR,
   activeTickerCount,
-  attachDrawer,
+  createDrawer,
   createDrawerEdge,
   createDrawerHandleState,
   drawerBodyPose,
@@ -17,6 +17,21 @@ import {
   kickDrawerEdge,
   stepDrawerEdge,
   stepDrawerHandle,
+  DRAWER_PHYSICS,
+  createDrawerVelocityTracker,
+  drawerBackgroundScale,
+  drawerDragOffset,
+  drawerFade,
+  drawerReleaseTarget,
+  drawerRubberBand,
+  drawerSnapIndex,
+  drawerSnapOffsets,
+  drawerSnapVisible,
+  drawerSplashDrops,
+  drawerTrack,
+  drawerTransform,
+  drawerVelocity,
+  stepDrawerSpring,
 } from '../src'
 
 const feel = DRAWER_FEEL.playful
@@ -140,50 +155,217 @@ describe('drawer handle', () => {
   })
 })
 
-describe('attachDrawer (DOM)', () => {
+describe('drawer physics', () => {
+  it('resolves snap points (fractions and px) to offsets from fully open', () => {
+    expect(drawerSnapVisible(0.5, 800)).toBe(400)
+    expect(drawerSnapVisible('300px', 800)).toBe(300)
+    expect(drawerSnapVisible('25%', 800)).toBe(200)
+    expect(drawerSnapOffsets(undefined, 600, 800)).toEqual([0])
+    expect(drawerSnapOffsets([0.25, '400px', 1], 600, 800)).toEqual([400, 200, 0])
+    expect(drawerSnapIndex([0.25, '400px', 1], '400px')).toBe(1)
+    expect(drawerSnapIndex([0.25, 0.5], 0.7)).toBe(-1)
+  })
+
+  it('rubber-bands past full open (never reaching the limit) and past the lowest point when not dismissible', () => {
+    const b = { min: 0, max: 0, size: 500, dismissible: true, dimension: 800 }
+    expect(drawerDragOffset(120, b)).toBe(120)
+    const over = drawerDragOffset(-300, b)
+    expect(over).toBeLessThan(0)
+    expect(over).toBeGreaterThan(-300)
+    expect(drawerDragOffset(-3000, b)).toBeGreaterThan(-800)
+    expect(drawerRubberBand(100, 800)).toBeLessThan(100)
+    const stuck = drawerDragOffset(300, { ...b, dismissible: false })
+    expect(stuck).toBeGreaterThan(0)
+    expect(stuck).toBeLessThan(300)
+  })
+
+  it('tracks release velocity over the last ~100ms only', () => {
+    const tr = createDrawerVelocityTracker()
+    for (let i = 0; i <= 50; i++) drawerTrack(tr, i * 0.016, i < 40 ? i * 2 : 78 + (i - 39) * 30)
+    const v = drawerVelocity(tr, 50 * 0.016)
+    expect(v).toBeGreaterThan(1500)
+    // A finger that stopped before lifting has no velocity.
+    expect(drawerVelocity(tr, 50 * 0.016 + 0.3)).toBe(0)
+  })
+
+  const base = { size: 500, viewport: 800, snaps: [0], active: 0, dismissible: true, hasSnapPoints: false, dragged: 0 }
+  it('release without snap points: flick or past closeThreshold closes, else back open', () => {
+    expect(drawerReleaseTarget({ ...base, offset: 40, velocity: 900 })).toEqual({ kind: 'close' })
+    expect(drawerReleaseTarget({ ...base, offset: 40, velocity: 100 })).toEqual({ kind: 'snap', index: 0 })
+    expect(drawerReleaseTarget({ ...base, offset: 200, velocity: 0 })).toEqual({ kind: 'close' })
+    expect(drawerReleaseTarget({ ...base, offset: 200, velocity: 0, closeThreshold: 0.5 })).toEqual({ kind: 'snap', index: 0 })
+    expect(drawerReleaseTarget({ ...base, offset: 300, velocity: 3000, dismissible: false })).toEqual({ kind: 'snap', index: 0 })
+  })
+
+  it('release with snap points: flicks step one point, hard flings jump, slow releases pick the closest', () => {
+    const s = { ...base, hasSnapPoints: true, snaps: [400, 200, 0], active: 1, offset: 180 }
+    expect(drawerReleaseTarget({ ...s, velocity: -800, dragged: -20 })).toEqual({ kind: 'snap', index: 2 })
+    expect(drawerReleaseTarget({ ...s, velocity: 800, dragged: 20 })).toEqual({ kind: 'snap', index: 0 })
+    expect(drawerReleaseTarget({ ...s, velocity: 0 })).toEqual({ kind: 'snap', index: 1 })
+    expect(drawerReleaseTarget({ ...s, velocity: 0, offset: 330 })).toEqual({ kind: 'snap', index: 0 })
+    expect(drawerReleaseTarget({ ...s, velocity: 2600 })).toEqual({ kind: 'close' })
+    expect(drawerReleaseTarget({ ...s, velocity: -2600 })).toEqual({ kind: 'snap', index: 2 })
+    expect(drawerReleaseTarget({ ...s, active: 0, offset: 420, velocity: 800, dragged: 20 })).toEqual({ kind: 'close' })
+    expect(drawerReleaseTarget({ ...s, active: 0, offset: 420, velocity: 800, dragged: 20, dismissible: false })).toEqual({ kind: 'snap', index: 0 })
+    // Dragged well below the lowest point, slowly: closes.
+    expect(drawerReleaseTarget({ ...s, active: 0, offset: 480, velocity: 0 })).toEqual({ kind: 'close' })
+  })
+
+  it('springs land on target; open/snap carry a little momentum, close never bounces back', () => {
+    const s = { x: 500, v: 0 }
+    let min = Infinity
+    let done = false
+    for (let i = 0; i < 240 && !done; i++) {
+      done = stepDrawerSpring(s, 0, 1 / 60, DRAWER_PHYSICS.open)
+      min = Math.min(min, s.x)
+    }
+    expect(done).toBe(true)
+    expect(s.x).toBe(0)
+    expect(min).toBeLessThan(0)
+    const c = { x: 0, v: 0 }
+    let back = false
+    let last = 0
+    for (let i = 0; i < 240; i++) {
+      stepDrawerSpring(c, 500, 1 / 60, DRAWER_PHYSICS.close)
+      if (c.x < last - 0.01) back = true
+      last = c.x
+    }
+    expect(back).toBe(false)
+    expect(c.x).toBeCloseTo(500, 0)
+  })
+
+  it('overlay fade follows the travel, or only the fadeFromIndex snap range', () => {
+    expect(drawerFade(0, 500, [0], false)).toBe(1)
+    expect(drawerFade(250, 500, [0], false)).toBeCloseTo(0.5, 6)
+    expect(drawerFade(400, 500, [400, 200, 0], true)).toBe(0)
+    expect(drawerFade(200, 500, [400, 200, 0], true)).toBe(0)
+    expect(drawerFade(100, 500, [400, 200, 0], true)).toBeCloseTo(0.5, 6)
+    expect(drawerFade(200, 500, [400, 200, 0], true, 1)).toBe(1)
+  })
+})
+
+describe('drawer pose', () => {
+  it('translates toward the attached edge, and recedes when nested', () => {
+    expect(drawerTransform('bottom', 100)).toBe('translate3d(0px, 100px, 0)')
+    expect(drawerTransform('top', 100)).toBe('translate3d(0px, -100px, 0)')
+    expect(drawerTransform('left', 50)).toBe('translate3d(-50px, 0px, 0)')
+    expect(drawerTransform('right', 50)).toBe('translate3d(50px, 0px, 0)')
+    expect(drawerTransform('bottom', 0, 1, 1000)).toBe('translate3d(0px, -16px, 0) scale(0.984)')
+  })
+
+  it('background scale matches vaul at full open and is identity at 0', () => {
+    const on = drawerBackgroundScale('bottom', 1, 1300)
+    expect(on.transform).toBe('scale(0.98) translate3d(0px, 14px, 0)')
+    expect(on.borderRadius).toBe('8px')
+    expect(on.transformOrigin).toBe('top')
+    expect(drawerBackgroundScale('left', 0, 1300).transform).toBe('scale(1) translate3d(0px, 0px, 0)')
+  })
+
+  it('fling splash: mixed drops off the leading edge, flung outward, short-lived; none at strength 0', () => {
+    const rect = { left: 0, top: 300, width: 400, height: 500 }
+    const drops = drawerSplashDrops({ dir: 'bottom', rect, speed: 2000, strength: 1, seed: 3 })
+    expect(drops.length).toBeGreaterThan(5)
+    const rs = drops.map((d) => d.r)
+    expect(Math.max(...rs)).toBeGreaterThan(Math.min(...rs) * 2.5)
+    for (const d of drops) {
+      expect(d.y).toBeLessThanOrEqual(300)
+      expect(d.x).toBeGreaterThanOrEqual(0)
+      expect(d.x).toBeLessThanOrEqual(400)
+      expect(d.life).toBeLessThan(1)
+    }
+    // Most drops fly up out of a bottom drawer's top edge.
+    expect(drops.filter((d) => d.vy < 0).length).toBeGreaterThan(drops.length / 2)
+    expect(drawerSplashDrops({ dir: 'bottom', rect, speed: 2000, strength: 0 })).toEqual([])
+    const left = drawerSplashDrops({ dir: 'left', rect, speed: 2000, strength: 1, seed: 3 })
+    expect(left.filter((d) => d.vx > 0).length).toBeGreaterThan(left.length / 2)
+  })
+})
+
+describe('createDrawer (DOM)', () => {
   afterEach(() => {
     document.body.innerHTML = ''
   })
-  const panel = () => {
+  const panel = (h = 400) => {
     const host = document.createElement('div')
-    host.setAttribute('data-vaul-drawer-direction', 'bottom')
-    host.setAttribute('data-state', 'open')
+    Object.defineProperty(host, 'offsetHeight', { value: h, configurable: true })
+    Object.defineProperty(host, 'offsetWidth', { value: 600, configurable: true })
     const grip = document.createElement('div')
     grip.setAttribute('data-goop-drawer-handle', '')
     host.append(grip)
     document.body.append(host)
     return { host, grip }
   }
+  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
+  const until = async (fn: () => boolean, ms = 3000) => {
+    const t0 = Date.now()
+    while (!fn() && Date.now() - t0 < ms) await wait(16)
+    return fn()
+  }
 
-  it('builds a surface + handle goo and cleans up on destroy', () => {
+  it('builds a surface + handle goo, starts hidden, and cleans up on destroy', () => {
     const { host, grip } = panel()
-    const h = attachDrawer(host, { renderer: 'svg', reducedMotion: false })
+    const h = createDrawer(host, { renderer: 'svg', reducedMotion: false })
     expect(host.hasAttribute(DRAWER_GOO_ATTR)).toBe(true)
-    expect(host.querySelector('[data-goop="surface"]')).not.toBeNull()
+    expect(host.querySelector('[data-goop="surface"]')?.getAttribute('aria-hidden')).toBe('true')
     expect(grip.querySelector('[data-goop="layer"]')).not.toBeNull()
-    expect(h.edge.length).toBeGreaterThanOrEqual(4)
+    expect(h.state).toBe('closed')
+    expect(h.offset).toBeGreaterThanOrEqual(400)
+    expect(host.style.transform).toContain('translate3d(0px, ')
     h.destroy()
     expect(host.hasAttribute(DRAWER_GOO_ATTR)).toBe(false)
     expect(host.querySelector('[data-goop="surface"]')).toBeNull()
     expect(grip.querySelector('[data-goop="layer"]')).toBeNull()
   })
 
-  it('handle: false skips the handle goo', () => {
+  it('goo: false drives the panel with no surface; handle: false skips the handle goo', () => {
     const { host, grip } = panel()
-    const h = attachDrawer(host, { renderer: 'svg', reducedMotion: false, handle: false })
+    const h = createDrawer(host, { goo: false })
+    expect(host.querySelector('[data-goop="surface"]')).toBeNull()
     expect(grip.querySelector('[data-goop="layer"]')).toBeNull()
+    h.destroy()
+    const h2 = createDrawer(host, { renderer: 'svg', handle: false })
+    expect(grip.querySelector('[data-goop="layer"]')).toBeNull()
+    h2.destroy()
+  })
+
+  it('opens onto the active snap point, snaps, closes, and reports each settle', async () => {
+    const { host } = panel(600)
+    const settled: boolean[] = []
+    const h = createDrawer(host, { renderer: 'svg', snapPoints: [0.25, 1], activeSnapPoint: 0.25 }, { onSettle: (o) => settled.push(o) })
+    const vh = window.innerHeight
+    h.open()
+    expect(h.state).toBe('opening')
+    expect(await until(() => h.state === 'open')).toBe(true)
+    expect(h.offset).toBeCloseTo(Math.max(0, 600 - 0.25 * vh), 0)
+    h.snapTo(1)
+    expect(await until(() => Math.abs(h.offset) < 0.6)).toBe(true)
+    h.close()
+    expect(await until(() => h.state === 'closed')).toBe(true)
+    expect(settled).toEqual([true, false])
     h.destroy()
   })
 
-  it('reduced motion: static goo, no ticker, kicks ignored', () => {
+  it('open({ instant }) lands at once (defaultOpen)', () => {
     const { host } = panel()
-    const before = activeTickerCount()
-    const h = attachDrawer(host, { renderer: 'svg', reducedMotion: true })
+    const settled: boolean[] = []
+    const h = createDrawer(host, { goo: false }, { onSettle: (o) => settled.push(o) })
+    h.open({ instant: true })
+    expect(h.state).toBe('open')
+    expect(h.offset).toBe(0)
+    expect(settled).toEqual([true])
+    h.destroy()
+  })
+
+  it('reduced motion: static goo, kicks ignored, still opens', async () => {
+    const { host } = panel()
+    const h = createDrawer(host, { renderer: 'svg', reducedMotion: true })
     expect(h.reducedMotion).toBe(true)
     expect(host.hasAttribute('data-goop-still')).toBe(true)
     h.kick(500)
     expect(h.edge.every((v) => v === 0)).toBe(true)
-    expect(activeTickerCount()).toBe(before)
+    h.open()
+    expect(await until(() => h.state === 'open')).toBe(true)
+    expect(h.edge.every((v) => v === 0)).toBe(true)
     h.destroy()
   })
 })
