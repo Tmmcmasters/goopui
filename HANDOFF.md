@@ -4,7 +4,7 @@ Repo: **public** `github.com/Tmmcmasters/goopui` (MIT, open-source files + CI ad
 
 ## Pick up here
 
-1. **Finish the edge-clip fix.** An agent was fixing a regression on branch `fix-edge-clip` (from `site-v1`) when the session ended: on narrow screens, goo within ~50px of the right page edge gets cut off on screen (www landing: "Star on GitHub", full-width form buttons, the open Accordion row). Cause: the session-6 scroll fix (`packages/core/src/page-edge.ts`, `placeLayer` in `renderer.ts`, plus the canvas equivalent) pulls the layer in and relies on `overflow-clip-margin`, but Chromium clips filtered SVG goo at the layer's own edge. Requirements: goo on screen is never clipped, **and** goo never grows the page scroll size (`pnpm check:overflow` must still pass; ~15 min). Check whether the branch has a commit; if not, redo it.
+1. **Verify and merge the edge-clip fix.** Regression: on narrow screens, goo within ~50–80px of the right page edge gets cut off on screen (www landing: "Star on GitHub", full-width form buttons, the open Accordion row). Cause: the session-6 scroll fix (`packages/core/src/page-edge.ts`, `placeLayer` in `renderer.ts`, plus the canvas equivalent) put `overflow: clip` on the *filtered* goo layer, and Chromium cuts a filtered element's output at its own box. **Fix committed, unverified:** branch `fix-edge-clip` (from `site-v1`), commit `f07930c`. The filter moves to an inner box that keeps its full size, the unfiltered outer layer clips exactly at the page edge, and the clip margin is gone. It adds `scripts/check-edge-clip.mjs` (`pnpm check:edge-clip`, 390px). The agent was stopped before finishing its checks, so run core/vue typecheck + tests, `pnpm check:edge-clip` and `pnpm check:overflow` (~15 min; both must pass), screenshot the landing at 390px, then merge into `site-v1`. Its worktree is `.claude/worktrees/agent-a2ab288cd7c128a1c`.
 2. **The user reviews the site locally**: `pnpm --filter www dev` (or `cd apps/www && NUXT_IGNORE_LOCK=1 pnpm exec nuxt dev --port 3001`) on `site-v1`, after building the packages. Iterate on their feedback.
 3. **Go live, only after the user's OK** (in this order):
    - PR `site-v1` → `main` (it contains `integrate-s6`, so close or merge #33 with it). Note that merging packages to `main` redeploys whatever Railway serves.
@@ -30,7 +30,7 @@ Repo: **public** `github.com/Tmmcmasters/goopui` (MIT, open-source files + CI ad
 - `main`: everything through PR #32 (open-source setup, auto-deploy, GitHub link).
 - `integrate-s6` (PR #33): the 7 component branches merged + feel fixes (Select close, Dialog fade overlay, ToggleGroup exits, Sheet edge bloom, Drawer rebuild + motion retime, Accordion flood, varied + soft bulges, highlight follows cursor, scroll-overflow fix).
 - `site-v1`: `integrate-s6` + docs (`site-docs`) + landing (`site-landing`) + release prep (`release-alpha`) + www Dockerfile. Pushed.
-- `fix-edge-clip`: in progress (see Pick up here).
+- `fix-edge-clip`: one commit (`f07930c`), unverified (see Pick up here). No agents are running.
 - Component/fix branches (`goop-*`, `fix-*`, `rework-*`, `rebuild-drawer`, `drawer-motion`, `soft-bulges`, `bloom-varied-bulge`, `highlight-follow-cursor`, `accordion-flood`, `fix-scroll-overflow`, `site-docs`, `site-landing`, `release-alpha`, `deploy-soon-github`, `oss-setup`, `soon-github-link`) are all merged into `integrate-s6`/`site-v1`/`main`, so they're safe to delete along with their worktrees under `.claude/worktrees/agent-*` (~10–18 GB of `node_modules` each on this exFAT drive; 146 GB free at session end). Rejected prototypes kept: `brand-tap`, `flow-pour`, `flow-drip`.
 
 ## Deployment
@@ -79,4 +79,4 @@ Repo: **public** `github.com/Tmmcmasters/goopui` (MIT, open-source files + CI ad
 
 ## Running at session end
 
-- `site-v1` is checked out in the main checkout. Dev servers: www (new site) :3001, playground :3006 (`integrate-s6`-era build), coming-soon :3010 (`soon` worktree); some agent servers may linger on 3021–3026 and 3044/3045. Kill by port (`lsof -ti tcp:<port> | xargs kill`).
+- `site-v1` is checked out in the main checkout. All agents are stopped and their dev servers killed. Still running: www (new site) :3001, playground :3006, coming-soon :3010 (`soon` worktree). Kill by port (`lsof -ti tcp:<port> | xargs kill`).
