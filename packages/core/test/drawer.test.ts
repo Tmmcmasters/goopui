@@ -32,6 +32,11 @@ import {
   drawerTransform,
   drawerVelocity,
   stepDrawerSpring,
+  DRAWER_MOTION,
+  planDrawerMove,
+  sampleDrawerMove,
+  stepDrawerMove,
+  type DrawerMove,
 } from '../src'
 
 const feel = DRAWER_FEEL.playful
@@ -211,27 +216,96 @@ describe('drawer physics', () => {
     expect(drawerReleaseTarget({ ...s, active: 0, offset: 480, velocity: 0 })).toEqual({ kind: 'close' })
   })
 
-  it('springs land on target; open/snap carry a little momentum, close never bounces back', () => {
+  it('springs land on target', () => {
     const s = { x: 500, v: 0 }
-    let min = Infinity
     let done = false
-    for (let i = 0; i < 240 && !done; i++) {
-      done = stepDrawerSpring(s, 0, 1 / 60, DRAWER_PHYSICS.open)
-      min = Math.min(min, s.x)
-    }
+    for (let i = 0; i < 240 && !done; i++) done = stepDrawerSpring(s, 0, 1 / 60, { period: 0.4, damping: 0.8 })
     expect(done).toBe(true)
     expect(s.x).toBe(0)
-    expect(min).toBeLessThan(0)
-    const c = { x: 0, v: 0 }
-    let back = false
-    let last = 0
-    for (let i = 0; i < 240; i++) {
-      stepDrawerSpring(c, 500, 1 / 60, DRAWER_PHYSICS.close)
-      if (c.x < last - 0.01) back = true
-      last = c.x
+  })
+
+  /** Run a move at 240 Hz: positions, velocities, the time it finished. */
+  const trace = (m: DrawerMove) => {
+    const s = { x: m.from, v: 0 }
+    const xs: number[] = []
+    const vs: number[] = []
+    let end = -1
+    for (let i = 1; i <= 480 && end < 0; i++) {
+      if (stepDrawerMove(m, s, 1 / 240)) end = i / 240
+      xs.push(s.x)
+      vs.push(s.v)
     }
-    expect(back).toBe(false)
-    expect(c.x).toBeCloseTo(500, 0)
+    return { xs, vs, end, x: s.x }
+  }
+
+  it('open: fast travel that keeps its speed, a small landing overshoot, one damped rebound', () => {
+    const f = DRAWER_MOTION.playful
+    const m = planDrawerMove({ from: 420, to: 0, velocity: 0, kind: 'land', feel: f })!
+    expect(m.kind).toBe('land')
+    const { xs, vs, end, x } = trace(m)
+    expect(x).toBe(0)
+    // About vaul's 0.5 s.
+    expect(end).toBeGreaterThan(0.4)
+    expect(end).toBeLessThan(0.75)
+    // Impact (end of travel) still carries most of the peak speed.
+    const peak = Math.max(...vs.map((v) => -v))
+    const iImpact = Math.round(m.duration * 240) - 1
+    expect(-vs[iImpact]!).toBeGreaterThan(peak * 0.6)
+    // Overshoot past the target: a few % of the travel, capped in px.
+    const over = -Math.min(...xs)
+    expect(over).toBeGreaterThan(4)
+    expect(over).toBeLessThanOrEqual(Math.min(f.overshoot * 420, f.overshootMax) + 0.5)
+    // One rebound, much smaller than the overshoot.
+    const after = xs.slice(xs.indexOf(-over))
+    expect(Math.max(...after)).toBeLessThan(over * 0.35)
+    // Velocity never jumps (continuous across travel -> landing).
+    const before = sampleDrawerMove(m, m.duration - 1e-6)
+    const at = sampleDrawerMove(m, m.duration + 1e-6)
+    expect(at.v).toBeCloseTo(before.v, 0)
+    expect(at.x).toBeCloseTo(before.x, 2)
+    // Overshoot limit (a plain panel never lifts off its screen edge).
+    const flat = trace(planDrawerMove({ from: 420, to: 0, velocity: 0, kind: 'land', feel: f, overshootLimit: 0 })!)
+    expect(Math.min(...flat.xs)).toBeGreaterThanOrEqual(-0.01)
+  })
+
+  it('a release carries its velocity into the move', () => {
+    const m = planDrawerMove({ from: 120, to: 0, velocity: -1500, kind: 'land' })!
+    expect(sampleDrawerMove(m, 0).v).toBeCloseTo(-1500, 0)
+    const { x } = trace(m)
+    expect(x).toBe(0)
+    // Short moves are all landing, from the state they're in.
+    const s = planDrawerMove({ from: 8, to: 0, velocity: -300, kind: 'land' })!
+    expect(sampleDrawerMove(s, 0)).toMatchObject({ x: 8 })
+    expect(sampleDrawerMove(s, 0).v).toBeCloseTo(-300, 6)
+    expect(planDrawerMove({ from: 0, to: 0.1, velocity: 1, kind: 'land' })).toBeNull()
+  })
+
+  it('close falls out: starts slow, accelerates, never bounces; a fling leaves sooner', () => {
+    const m = planDrawerMove({ from: 0, to: 420, velocity: 0, kind: 'fall' })!
+    const { xs, vs, end, x } = trace(m)
+    expect(x).toBe(420)
+    expect(end).toBeGreaterThan(0.25)
+    expect(end).toBeLessThan(0.5)
+    // Ease-in: the first quarter of the time covers well under a quarter of the way.
+    expect(xs[Math.floor(xs.length / 4)]!).toBeLessThan(420 * 0.1)
+    for (let i = 1; i < vs.length; i++) expect(vs[i]!).toBeGreaterThanOrEqual(vs[i - 1]! - 1e-6)
+    const fling = planDrawerMove({ from: 0, to: 420, velocity: 2500, kind: 'fall' })!
+    expect(sampleDrawerMove(fling, 0).v).toBe(2500)
+    expect(trace(fling).end).toBeLessThan(end * 0.6)
+  })
+
+  it('reduced motion: a short ease, no overshoot', () => {
+    const m = planDrawerMove({ from: 420, to: 0, velocity: 0, kind: 'land', reduced: true })!
+    expect(m.kind).toBe('ease')
+    const { xs, end } = trace(m)
+    expect(end).toBeLessThanOrEqual(DRAWER_PHYSICS.still + 1 / 240)
+    expect(Math.min(...xs)).toBeGreaterThanOrEqual(0)
+  })
+
+  it('presets: wilder lands with more overshoot', () => {
+    const o = (p: 'subtle' | 'playful' | 'wild') => -Math.min(...trace(planDrawerMove({ from: 400, to: 0, velocity: 0, kind: 'land', feel: DRAWER_MOTION[p] })!).xs)
+    expect(o('subtle')).toBeLessThan(o('playful'))
+    expect(o('playful')).toBeLessThan(o('wild'))
   })
 
   it('overlay fade follows the travel, or only the fadeFromIndex snap range', () => {

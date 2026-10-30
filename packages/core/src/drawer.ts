@@ -2,17 +2,20 @@
 //
 // This module owns the whole drawer motion. One ticker, every frame:
 //   1. the panel's offset (drawer-physics.ts): the finger while dragging (rubber-banded past
-//      full open, and past the lowest snap point when not dismissible), else a spring toward
-//      the active snap point / fully open / closed;
+//      full open, and past the lowest snap point when not dismissible), else a planned move
+//      toward the active snap point / fully open (fast travel, a landing that overshoots and
+//      rebounds once) or closed (accelerates out like gravity);
 //   2. writes the panel transform, the overlay's opacity and the background scale;
-//   3. steps and draws the goo from that SAME offset, so panel and goo cannot come apart.
+//   3. measures the panel's velocity and acceleration from that offset, and steps and draws
+//      the goo from them, so the edge reacts to whatever the panel actually does.
 //
 // Goo (all toggleable, 0..2 strengths):
 //   lag      the leading edge trails fast moves: a fast pull in stretches it out behind the
 //            panel, a fast push out dips it in.
-//   slosh    when motion stops (release, snap, landing) the edge keeps going, overshoots and
-//            wobbles out (an underdamped string of springs).
-//   rise     opening lands with an extra jelly overshoot of the edge.
+//   slosh    when the panel brakes (landing, snap, release, a drag that stops) the edge keeps
+//            going: the panel's deceleration pushes it on, and it overshoots and wobbles out
+//            (an underdamped string of springs).
+//   rise     an opening panel's landing pushes the edge out further, an extra jelly overshoot.
 //   stretch  dragging past full open pulls a globby bump out toward the finger.
 //   handle   the drag handle is a small goo blob: swells on press, stretches along the drag
 //            and trails a droplet that snaps back.
@@ -31,6 +34,7 @@
 
 import { GOOP_PHYSICS, type GoopPreset } from './constants'
 import {
+  DRAWER_MOTION,
   DRAWER_PHYSICS,
   createDrawerVelocityTracker,
   drawerDragOffset,
@@ -40,7 +44,9 @@ import {
   drawerSnapOffsets,
   drawerTrack,
   drawerVelocity,
-  stepDrawerSpring,
+  planDrawerMove,
+  stepDrawerMove,
+  type DrawerMove,
   type DrawerSnapPoint,
   type DrawerSpring,
   type DrawerVelocityTracker,
@@ -114,6 +120,11 @@ export const DRAWER_FEEL: Readonly<Record<GoopPreset, Readonly<DrawerFeel>>> = O
     splash: 28, splashSize: 8, splashLaunch: 680, softness: 8,
   }),
 })
+
+/** Share of the panel's braking (px/s of speed lost) handed to the edge, per unit `settle`. */
+const SLOSH_GAIN = 1.8
+/** Extra share for an opening panel's landing, per 1000 px/s of `rise`. */
+const RISE_GAIN = 0.6
 
 /** Effect toggles: `true` (1) / `false` (0) or a 0..2 strength. All default true. */
 export interface DrawerEffects {
@@ -206,10 +217,14 @@ export function drawerEdgeTargets(n: number, input: DrawerEdgeInput, feel: Reado
 
 const SUB_DT = 1 / 240
 
-/** Advance the edge by dt s toward `targets` (mutates). `slosh` 0..2: 0 = critically damped. */
-export function stepDrawerEdge(edge: DrawerEdge, targets: readonly number[], feel: Readonly<DrawerFeel>, dt: number, slosh = 1): void {
+/**
+ * Advance the edge by dt s toward `targets` (mutates). `slosh` 0..2: 0 = critically damped.
+ * `force` (px/s^2, + = outward, shaped like a kick): an inertial push, e.g. the panel braking.
+ */
+export function stepDrawerEdge(edge: DrawerEdge, targets: readonly number[], feel: Readonly<DrawerFeel>, dt: number, slosh = 1, force = 0): void {
   if (!(dt > 0)) return
   const n = edge.d.length
+  const push = Number.isFinite(force) ? force : 0
   const w = (2 * Math.PI) / feel.response
   const w2 = w * w
   const s = clamp(slosh, 0, 2)
@@ -227,7 +242,9 @@ export function stepDrawerEdge(edge: DrawerEdge, targets: readonly number[], fee
       const d = edge.d[i]!
       const prev = edge.d[i - 1] ?? d
       const next = edge.d[i + 1] ?? d
-      const a = w2 * kf * ((targets[i] ?? 0) - d) - 2 * zeta * w * Math.sqrt(kf) * edge.v[i]! + coup * w2 * 0.1 * (prev + next - 2 * d)
+      const a =
+        w2 * kf * ((targets[i] ?? 0) - d) - 2 * zeta * w * Math.sqrt(kf) * edge.v[i]! + coup * w2 * 0.1 * (prev + next - 2 * d) +
+        (push === 0 ? 0 : push * drawerEdgeShape(i, n))
       edge.v[i] = edge.v[i]! + a * h
     }
     for (let i = 0; i < n; i++) {
@@ -689,9 +706,10 @@ export function createDrawer(panel: HTMLElement, options: DrawerOptions = {}, ev
   let drag: Drag | null = null
   let nested = 0
   let nestedTarget = 0
+  let move: DrawerMove | null = null
   let lastX = Number.NaN
-  let vel = 0 // smoothed edge velocity, px/s (+ out)
-  let peak = 0
+  let vel = 0 // measured edge velocity, px/s (+ out)
+  let acc = 0 // measured edge acceleration, px/s^2 (+ out)
   let opening = false
   let seed = Math.floor(Math.random() * 1000)
 
@@ -905,10 +923,18 @@ export function createDrawer(panel: HTMLElement, options: DrawerOptions = {}, ev
     applyBackground(fade)
   }
 
-  const springFeel = (): { period: number; damping: number } => {
-    if (reduced) return DRAWER_PHYSICS.still
-    return state === 'closing' ? DRAWER_PHYSICS.close : state === 'opening' && opening ? DRAWER_PHYSICS.open : DRAWER_PHYSICS.snap
-  }
+  /** Plan the move to `to` from where the panel is, at the speed it has. */
+  const planMove = (to: number): DrawerMove | null =>
+    planDrawerMove({
+      from: spring.x,
+      to,
+      velocity: spring.v,
+      kind: state === 'closing' ? 'fall' : 'land',
+      feel: DRAWER_MOTION[preset],
+      reduced,
+      // A plain panel has no goo body to cover a gap behind it: never lift off the screen edge.
+      overshootLimit: opts.goo === false ? Math.max(0, to) : undefined,
+    })
 
   // ---- goo draw ----
   const drawGoo = (dt: number): boolean => {
@@ -921,15 +947,15 @@ export function createDrawer(panel: HTMLElement, options: DrawerOptions = {}, ev
     const n = drawerEdgeCount(L, feel)
     if (edge.d.length !== n) edge = createDrawerEdge(n, seed)
 
-    // Slosh on stop: motion that ends hands its momentum to the edge.
-    const moving = Math.abs(vel) > 120
-    if (moving && Math.abs(vel) > Math.abs(peak)) peak = vel
-    if (!moving && Math.abs(vel) < 40 && Math.abs(peak) > 300) {
-      let kickV = clamp(peak * feel.settle, -feel.rise, feel.rise) * k('slosh')
-      if (opening && peak > 0) kickV += feel.rise * k('rise')
-      if (kickV !== 0) kickDrawerEdge(edge, kickV)
-      peak = 0
-      opening = false
+    // Slosh: when the panel brakes, the goo keeps going. In the panel's frame that is an
+    // inertial push of -acceleration on the edge, from the measured motion, so it lands
+    // exactly when the panel does. Speeding up is the lag's job (it trails), so only braking
+    // pushes; an opening panel's landing (outward motion braking) pushes harder (rise).
+    let push = 0
+    if (vel * acc < 0) {
+      let gain = feel.settle * SLOSH_GAIN * k('slosh')
+      if (opening && vel > 0) gain += (feel.rise / 1000) * RISE_GAIN * k('rise')
+      push = -acc * gain
     }
 
     // Stretch: the finger pulled past full open (the rubber band's deficit) bulges toward it.
@@ -950,7 +976,7 @@ export function createDrawer(panel: HTMLElement, options: DrawerOptions = {}, ev
         edge.d[i] = 0
         edge.v[i] = 0
       }
-    } else stepDrawerEdge(edge, targets, feel, dt, k('slosh'))
+    } else stepDrawerEdge(edge, targets, feel, dt, k('slosh'), push)
 
     // Trailing extension: cover the gap behind a panel pulled off its screen edge.
     const extend = clamp(-spring.x + DRAWER_NESTED_DISPLACEMENT * nested, 0, 600)
@@ -975,7 +1001,7 @@ export function createDrawer(panel: HTMLElement, options: DrawerOptions = {}, ev
       renderer.setPadding({ side: want, bottom: want })
     }
     renderer.flush()
-    return !drawerEdgeSettled(edge, targets) || peak !== 0
+    return !drawerEdgeSettled(edge, targets) || push !== 0
   }
 
   const drawGrip = (dt: number): boolean => {
@@ -1019,30 +1045,45 @@ export function createDrawer(panel: HTMLElement, options: DrawerOptions = {}, ev
     } else if (state !== 'closed') {
       if (state === 'closing') target = closedOffset()
       else target = snaps[clamp(snapIndex, 0, snaps.length - 1)] ?? 0
-      if (!resting || Math.abs(spring.x - target) > 0.01) {
-        const atRest = dt > 0 ? stepDrawerSpring(spring, target, dt, springFeel()) : false
-        resting = atRest
-        if (state === 'closing' && (atRest || spring.x >= target - 0.5)) {
-          spring.x = target
-          applyPanel()
-          finishClose()
-          return false
+      // A new target (snap change, resize) re-plans from where the panel is, at its speed.
+      if (move && Math.abs(move.to - target) > 0.5) move = planMove(target)
+      else if (!move && (!resting || Math.abs(spring.x - target) > 0.01)) move = planMove(target)
+      if (move) {
+        resting = false
+        if (dt > 0 && stepDrawerMove(move, spring, dt)) {
+          move = null
+          resting = true
         }
-        if (atRest && state === 'opening') {
-          state = 'open'
-          events.onSettle?.(true)
-        }
-      } else if (state === 'opening') {
-        state = 'open'
+      } else {
+        spring.x = target
+        spring.v = 0
         resting = true
+      }
+      if (state === 'closing' && resting) {
+        spring.x = target
+        applyPanel()
+        finishClose()
+        return false
+      }
+      if (resting && state === 'opening') {
+        state = 'open'
+        opening = false
         events.onSettle?.(true)
       }
     }
-    // Edge velocity from the panel's own motion (+ = outward, toward the screen centre).
+    // The panel's measured motion (+ = outward, toward the screen centre) drives the goo.
+    // Finger input is noisy, so drags are smoothed; planned moves are followed frame by frame.
     if (dt > 0 && Number.isFinite(lastX)) {
       const raw = -(spring.x - lastX) / dt
-      vel += ((Math.abs(raw) > 12000 ? 0 : raw) - vel) * Math.min(1, dt * 30)
-    } else if (dt > 0) vel *= Math.exp(-dt * 20)
+      const f = Math.min(1, dt * (drag?.active ? 30 : 90))
+      const prev = vel
+      vel += ((Math.abs(raw) > 12000 ? 0 : raw) - vel) * f
+      const a = (vel - prev) / dt
+      acc += (clamp(a, -400000, 400000) - acc) * f
+    } else if (dt > 0) {
+      vel *= Math.exp(-dt * 20)
+      acc = 0
+    }
     lastX = spring.x
     if (nested !== nestedTarget) {
       nested += (nestedTarget - nested) * Math.min(1, dt * (reduced ? 30 : 12))
@@ -1070,6 +1111,7 @@ export function createDrawer(panel: HTMLElement, options: DrawerOptions = {}, ev
   }
   const settleNow = (): void => {
     measure()
+    move = null
     if (state === 'closing') {
       spring.x = closedOffset()
       applyPanel()
@@ -1194,6 +1236,7 @@ export function createDrawer(panel: HTMLElement, options: DrawerOptions = {}, ev
         // ignore (synthetic pointers)
       }
       spring.v = 0
+      move = null
     }
     drag.raw = drag.off0 + (axis(e) - drag.p0) * closeSign()
     drawerTrack(drag.tracker, e.timeStamp / 1000, drag.raw)
@@ -1225,6 +1268,8 @@ export function createDrawer(panel: HTMLElement, options: DrawerOptions = {}, ev
     endDrag()
     if (was) {
       resting = false
+      move = null
+      spring.v = 0
       wake()
     }
   }
@@ -1258,7 +1303,8 @@ export function createDrawer(panel: HTMLElement, options: DrawerOptions = {}, ev
       hasSnapPoints: hasSnaps(),
     })
     resting = false
-    // The spring takes over with the finger's speed (no jump in velocity).
+    // The next move carries on at the finger's speed (no jump in velocity).
+    move = null
     spring.v = clamp(v, -8000, 8000)
     if (decision.kind === 'close') {
       events.onRelease?.(false)
@@ -1291,6 +1337,7 @@ export function createDrawer(panel: HTMLElement, options: DrawerOptions = {}, ev
     reduced = readReduced()
     panel.toggleAttribute('data-goop-still', reduced)
     resting = false
+    move = null
     wake()
   })
 
@@ -1314,7 +1361,7 @@ export function createDrawer(panel: HTMLElement, options: DrawerOptions = {}, ev
       }
       state = instant ? 'open' : 'opening'
       opening = !instant
-      peak = 0
+      move = null
       resting = instant
       applyPanel()
       if (renderer) drawGoo(0)
@@ -1327,6 +1374,7 @@ export function createDrawer(panel: HTMLElement, options: DrawerOptions = {}, ev
       state = 'closing'
       opening = false
       resting = false
+      move = null
       wake()
     },
     snapTo(index) {

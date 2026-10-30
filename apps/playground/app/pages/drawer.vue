@@ -157,7 +157,7 @@ const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
 
     <CompareRow label="snap points" note="0.35 / 0.65 / 1: the edge sloshes on every snap">
       <template #shadcn>
-        <GoopDrawer v-model:active-snap-point="snapShadcn" :snap-points="snapPoints" :dismissible="dismissible">
+        <GoopDrawer v-model:active-snap-point="snapShadcn" :snap-points="snapPoints" :dismissible="dismissible" :direction="direction">
           <GoopDrawerTrigger as-child>
             <GoopButton variant="outline" :goo="false">
               Snap points ({{ snapShadcn }})
@@ -172,7 +172,7 @@ const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
         </GoopDrawer>
       </template>
       <template #goop>
-        <GoopDrawer v-model:active-snap-point="snapGoop" :snap-points="snapPoints" :dismissible="dismissible">
+        <GoopDrawer v-model:active-snap-point="snapGoop" :snap-points="snapPoints" :dismissible="dismissible" :direction="direction">
           <GoopDrawerTrigger as-child>
             <GoopButton variant="outline" data-testid="open-snap">
               Snap points ({{ snapGoop }})
@@ -184,7 +184,7 @@ const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
               <GoopDrawerDescription>Drag between 35%, 65% and full height.</GoopDrawerDescription>
             </GoopDrawerHeader>
             <div class="flex flex-wrap justify-center gap-2 p-4">
-              <GoopButton v-for="p in snapPoints" :key="p" size="sm" variant="outline" @click="snapGoop = p">
+              <GoopButton v-for="p in snapPoints" :key="p" size="sm" variant="outline" :data-testid="`snap-${p}`" @click="snapGoop = p">
                 {{ p }}
               </GoopButton>
             </div>

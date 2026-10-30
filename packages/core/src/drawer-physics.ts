@@ -11,6 +11,19 @@
 // Release follows vaul's thresholds (velocity 0.4 px/ms, closeThreshold 0.25 of the panel,
 // a 2 px/ms hard fling) but with the release velocity measured over the last ~100 ms of the
 // drag (a flick at the end counts even after a slow drag).
+//
+// Motion (`planDrawerMove` / `stepDrawerMove`) is shaped for the goo edge, which reacts to the
+// panel's real velocity and acceleration:
+//   land  open and snap moves: a fast launch that keeps most of its speed until near the
+//         target (or carries the release velocity), then a physical landing: a damped spring
+//         around the target hit at speed, so it overshoots a few % of the travel (capped in
+//         px) and settles with one quick rebound. The hard deceleration at impact is what
+//         sloshes the edge.
+//   fall  close / dismiss: constant acceleration from the current velocity, like gravity
+//         (starts slowly from rest; a fling carries its speed and leaves sooner).
+//   ease  reduced motion: a short ease, no overshoot.
+
+import type { GoopPreset } from './constants'
 
 /** A snap point: a viewport fraction (0..1) or a px string ('300px'). */
 export type DrawerSnapPoint = number | string
@@ -32,13 +45,8 @@ export const DRAWER_PHYSICS = Object.freeze({
   slop: 4,
   /** Window (s) the release velocity is measured over. */
   velocityWindow: 0.1,
-  /** Panel springs: period (s) and damping ratio. Open/snap land with a touch of momentum;
-   *  close is critically damped (it must not bounce back into view). */
-  open: Object.freeze({ period: 0.5, damping: 0.86 }),
-  snap: Object.freeze({ period: 0.42, damping: 0.8 }),
-  close: Object.freeze({ period: 0.36, damping: 1 }),
-  /** Reduced motion: firm, no overshoot. */
-  still: Object.freeze({ period: 0.3, damping: 1 }),
+  /** Reduced motion: a short ease (s), no overshoot. */
+  still: 0.2,
   /** Spring at rest within these (px, px/s). */
   restDistance: 0.5,
   restSpeed: 8,
@@ -232,4 +240,169 @@ export function drawerFade(offset: number, size: number, snaps: readonly number[
   const none = f === 0 ? size : snaps[f - 1]!
   if (none - full <= 0.5) return offset <= full ? 1 : 0
   return clamp((none - offset) / (none - full), 0, 1)
+}
+
+// ---- motion ---------------------------------------------------------------------------------
+
+/** Per-preset panel motion (s, px). Durations scale with `speed` (the caller's dt). */
+export interface DrawerMotionFeel {
+  /** Open / snap travel time (s) for ~450 px from rest (shorter moves are a bit quicker). */
+  travel: number
+  /** Close time (s) from rest over ~450 px (constant acceleration). */
+  close: number
+  /** Landing overshoot: share of the travel, capped at `overshootMax` px. */
+  overshoot: number
+  overshootMax: number
+  /** Landing spring period (s): the reference stiffness, and the whole move when it is short. */
+  landing: number
+  /** Landing damping ratio: one quick, damped rebound. */
+  damping: number
+  /** Impact speed as a share of the move's mean speed (how much speed it keeps into the landing). */
+  impact: number
+}
+
+export const DRAWER_MOTION: Readonly<Record<GoopPreset, Readonly<DrawerMotionFeel>>> = Object.freeze({
+  subtle: Object.freeze({ travel: 0.3, close: 0.34, overshoot: 0.025, overshootMax: 10, landing: 0.26, damping: 0.62, impact: 0.8 }),
+  playful: Object.freeze({ travel: 0.32, close: 0.36, overshoot: 0.04, overshootMax: 18, landing: 0.28, damping: 0.52, impact: 0.95 }),
+  wild: Object.freeze({ travel: 0.34, close: 0.38, overshoot: 0.055, overshootMax: 26, landing: 0.3, damping: 0.44, impact: 1.05 }),
+})
+
+export type DrawerMoveKind = 'land' | 'fall' | 'ease'
+
+/** A planned panel move (offsets px, + = toward closed; times s). */
+export interface DrawerMove {
+  kind: DrawerMoveKind
+  from: number
+  to: number
+  /** Elapsed time (s). */
+  t: number
+  /** land: travel phase; fall / ease: the whole move. */
+  duration: number
+  /** land travel phase: normalized start / impact speeds and the launch bump. ease: m0 = 1 eases in. */
+  m0: number
+  m1: number
+  c: number
+  /** land landing phase: spring around `to` (rad/s, ratio), start displacement (px) and velocity (px/s). */
+  w: number
+  zeta: number
+  y0: number
+  u0: number
+  /** fall: start velocity and acceleration (px/s, px/s^2, signed). */
+  v0: number
+  accel: number
+}
+
+export interface DrawerMoveInput {
+  from: number
+  to: number
+  /** Current velocity (px/s, + = toward closed): a release carries on from it. */
+  velocity: number
+  /** 'land' (open, snap) or 'fall' (close). */
+  kind: 'land' | 'fall'
+  feel?: Readonly<DrawerMotionFeel>
+  reduced?: boolean
+  /** Most the landing may overshoot past `to` (px), e.g. so a plain panel never lifts off its edge. */
+  overshootLimit?: number
+}
+
+/** Launch skew of the travel phase (higher: more of the speed comes early). */
+const LAUNCH = 2
+/** Moves shorter than this (px) are all landing: a spring from the current state. */
+const SHORT = 24
+
+/** Peak overshoot per unit impact speed (times w) of a damped spring started at its rest point. */
+export function drawerOvershootRatio(zeta: number): number {
+  const z = clamp(zeta, 0.05, 0.98)
+  const r = Math.sqrt(1 - z * z)
+  return Math.exp((-z / r) * Math.atan2(r, z))
+}
+
+/** Plan a panel move (pure). null: already there and still. */
+export function planDrawerMove(i: DrawerMoveInput): DrawerMove | null {
+  const P = DRAWER_PHYSICS
+  const f = i.feel ?? DRAWER_MOTION.playful
+  const d = i.to - i.from
+  const dist = Math.abs(d)
+  const v = Number.isFinite(i.velocity) ? i.velocity : 0
+  if (dist < P.restDistance && Math.abs(v) < P.restSpeed) return null
+  const base: DrawerMove = { kind: 'ease', from: i.from, to: i.to, t: 0, duration: 0, m0: 0, m1: 0, c: 0, w: 0, zeta: 1, y0: 0, u0: 0, v0: 0, accel: 0 }
+  if (i.reduced) return { ...base, duration: P.still, m0: i.kind === 'fall' ? 1 : 0 }
+  const sign = d < 0 ? -1 : 1
+  const along = v * sign
+  const scale = clamp(Math.sqrt(dist / 450), 0.55, 1.25)
+  if (i.kind === 'fall') {
+    const tc = f.close * scale
+    const a = (2 * Math.max(dist, 1)) / (tc * tc)
+    const duration = (-along + Math.sqrt(along * along + 2 * a * dist)) / a
+    return { ...base, kind: 'fall', duration: Math.max(1e-3, duration), v0: v, accel: a * sign }
+  }
+  const zeta = clamp(f.damping, 0.1, 0.95)
+  const wRef = (2 * Math.PI) / Math.max(0.05, f.landing)
+  if (dist < SHORT) return { ...base, kind: 'land', w: wRef, zeta, y0: i.from - i.to, u0: v }
+  let ta = f.travel * scale
+  if (along > 0) ta = Math.min(ta, (1.6 * dist) / along)
+  ta = Math.max(0.08, ta)
+  const ratio = drawerOvershootRatio(zeta)
+  const over = Math.max(0, Math.min(f.overshoot * dist, f.overshootMax, i.overshootLimit ?? Infinity))
+  let w = wRef
+  let vi = 0
+  if (over > 0.5) {
+    // Hit the target at a good share of the mean speed; the landing stiffness is picked so
+    // that speed overshoots by `over` (within sane bounds).
+    vi = f.impact * (dist / ta)
+    w = clamp((vi * ratio) / over, wRef / 1.6, wRef / 0.45)
+    vi = (over * w) / ratio
+  }
+  const m0 = clamp((along * ta) / dist, -1, 2.5)
+  const m1 = clamp((vi * ta) / dist, 0, 1.4)
+  const c = (1 - (m0 + m1) / 2) / (1 / 6 + LAUNCH / 12)
+  return { ...base, kind: 'land', duration: ta, m0, m1, c, w, zeta, u0: (m1 * d) / ta }
+}
+
+/** Position (px) and velocity (px/s) of a move at time t (pure). */
+export function sampleDrawerMove(m: DrawerMove, t: number): { x: number; v: number; done: boolean } {
+  const P = DRAWER_PHYSICS
+  const d = m.to - m.from
+  if (m.kind === 'ease') {
+    const s = clamp(t / Math.max(1e-3, m.duration), 0, 1)
+    const e = m.m0 === 1 ? s * s : 1 - (1 - s) ** 3
+    const de = m.m0 === 1 ? 2 * s : 3 * (1 - s) ** 2
+    return { x: m.from + d * e, v: s >= 1 ? 0 : (d * de) / m.duration, done: s >= 1 }
+  }
+  if (m.kind === 'fall') {
+    const tt = Math.min(t, m.duration)
+    if (t >= m.duration) return { x: m.to, v: m.v0 + m.accel * tt, done: true }
+    return { x: m.from + m.v0 * tt + 0.5 * m.accel * tt * tt, v: m.v0 + m.accel * tt, done: false }
+  }
+  if (t < m.duration) {
+    const s = t / m.duration
+    const b = LAUNCH
+    const s2 = s * s
+    const s3 = s2 * s
+    const p = m.m0 * s + ((m.m1 - m.m0) * s2) / 2 + m.c * (s2 / 2 - s3 / 3 + b * (s2 / 2 - (2 * s3) / 3 + (s2 * s2) / 4))
+    const dp = m.m0 + (m.m1 - m.m0) * s + m.c * s * (1 - s) * (1 + b * (1 - s))
+    return { x: m.from + d * p, v: (d * dp) / m.duration, done: false }
+  }
+  // Landing: an underdamped spring around the target, hit at the travel's end speed.
+  const tau = t - m.duration
+  const z = m.zeta
+  const wd = m.w * Math.sqrt(1 - z * z)
+  const A = m.y0
+  const B = (m.u0 + z * m.w * A) / wd
+  const env = Math.exp(-z * m.w * tau)
+  const cs = Math.cos(wd * tau)
+  const sn = Math.sin(wd * tau)
+  const y = env * (A * cs + B * sn)
+  const v = env * (-z * m.w * (A * cs + B * sn) + wd * (B * cs - A * sn))
+  const done = env * Math.hypot(A, B) < P.restDistance && Math.abs(v) < P.restSpeed
+  return { x: done ? m.to : m.to + y, v: done ? 0 : v, done }
+}
+
+/** Advance a move by dt s and write it into `s` (mutates both). Returns true once it is done. */
+export function stepDrawerMove(m: DrawerMove, s: DrawerSpring, dt: number): boolean {
+  m.t += Math.max(0, dt)
+  const r = sampleDrawerMove(m, m.t)
+  s.x = r.x
+  s.v = r.v
+  return r.done
 }

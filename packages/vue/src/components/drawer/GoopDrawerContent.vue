@@ -2,12 +2,13 @@
 // GoopDrawerContent: shadcn-vue's DrawerContent (a portal with the overlay, the panel with
 // shadcn's classes and `data-vaul-drawer-direction`, the drag handle on bottom drawers) on
 // reka-ui's DialogContent. Core's `createDrawer` drives the panel: drag with rubber band,
-// vaul-like snap / dismiss thresholds, springs, the overlay fade and the background scale.
+// vaul-like snap / dismiss thresholds, the overlay fade and the background scale. Opens and
+// snaps travel fast and land with a small overshoot; closes fall out (accelerate).
 // The panel's background IS the goo (an aria-hidden surface behind the unfiltered content),
-// moved by the same engine in the same frame, so the two never come apart:
+// moved by the same engine in the same frame from the panel's measured motion:
 //   lag      the leading edge trails fast moves;
-//   slosh    it overshoots and wobbles when motion stops (release, snap, landing);
-//   rise     opening lands with a jelly overshoot;
+//   slosh    it overshoots and wobbles when the panel brakes (landing, snap, release);
+//   rise     an opening panel's landing adds a jelly overshoot;
 //   stretch  pulling past full open draws a globby bump toward the finger;
 //   handle   the handle is a goo blob: swells, stretches, trails a droplet;
 //   splash   a fling-dismiss throws a splash of drops off the edge that fall and fade.
