@@ -1,16 +1,18 @@
 <script setup lang="ts">
 // GoopSheetContent: shadcn-vue's SheetContent (reka-ui DialogContent + overlay in a portal,
 // same props/emits, `side` top | right | bottom | left, `class` merge, close button) whose
-// panel oozes in from its edge as thick liquid. Core's `attachSheet` draws the sheet's
-// background as goo on an aria-hidden surface behind the real, unfiltered content: the
-// leading edge is a lobed, rippling goo front that runs out with momentum, overshoots and
-// sloshes when it stops; top sheets grow drips that hang off the front and sway, bottom
-// sheets fling a few drops up that fall back in. Close: a small outward bulge, then the goo
-// is sucked back into the edge. Toggles: `lobes`, `slosh`, `drips`, `suck`, `fade`.
+// panel blooms in from its screen edge. Core's `attachSheet` (the dialog's detached bloom with
+// its origin at the middle of the screen edge) draws the sheet's background as goo on an
+// aria-hidden surface behind the real, unfiltered content: a blob appears at the edge's
+// middle, spreads in lobes to fill the sheet, overshoots the inner edge and wobbles, then
+// throws the big splash off the inner edge and sides (never off-screen); the drops fall and
+// fade and then nothing moves. Close: the goo pulls in and shrinks back into the edge.
+// Toggles match the dialog bloom: `bloomStart`, `wobble`, `fade`, `openSlosh`, `openDrips`
+// (+ drip knobs), `closeSlosh`.
 //
 // The sheet's shadcn background, border and shadow move onto the goo (`--goop-color:
 // var(--background)`, a drop-shadow on the surface). Content opacity follows
-// `--goop-sheet-content`, and goop.css's hold animation keeps reka's Presence mounted while
+// `--goop-emerge-content`, and goop.css's hold animation keeps reka's Presence mounted while
 // the close plays (the overlay fades over the same time). Canvas renderer by default (a big
 // surface). With `:goo="false"` it is exactly shadcn's SheetContent. Reduced motion: plain
 // open/close, no goo motion.
@@ -43,11 +45,16 @@ const props = withDefaults(
     side: 'right',
     showCloseButton: true,
     goo: true,
-    lobes: undefined,
-    slosh: undefined,
-    drips: undefined,
-    suck: undefined,
+    bloomStart: undefined,
+    wobble: undefined,
     fade: undefined,
+    openSlosh: undefined,
+    openDrips: undefined,
+    closeSlosh: undefined,
+    openDripAmount: undefined,
+    openDripSize: undefined,
+    openDripFling: undefined,
+    openDripVariety: undefined,
     speed: undefined,
     preset: undefined,
     renderer: undefined,

@@ -16,7 +16,7 @@
 // so the two modules don't form a runtime cycle.
 
 import { GOOP_PHYSICS, type GoopPreset } from './constants'
-import type { EmergeBody, EmergeBridge, EmergeCircle, EmergePhase, EmergePose, EmergeRect } from './emerge'
+import type { EmergeBody, EmergeBridge, EmergeCircle, EmergePhase, EmergePose, EmergeRect, EmergeSide } from './emerge'
 
 /** Effect toggles: `true` (1) / `false` (0), or a 0..2 strength multiplier. Default true. */
 export interface EmergeMomentumEffects {
@@ -314,6 +314,16 @@ export interface EmergeMomentumContext {
    *  clear of the trigger (`b.anchorRect`); no close slosh here (`closeSlosh` drives the
    *  bloom close pose's inward wobble in `emergePose`). */
   bloom?: boolean
+  /** Bloom splash scales on top of the drip knobs (a feel's `bloomSplash`; a sheet's bigger
+   *  surface throws bigger drops further). Default 1 each. */
+  splash?: EmergeSplashScale
+}
+
+/** Bloom splash scales: drop count, size and fling (x the knobs). */
+export interface EmergeSplashScale {
+  amount?: number
+  size?: number
+  fling?: number
 }
 
 /**
@@ -598,14 +608,36 @@ function boxDist(x: number, y: number, k: Box): number {
 /** Most flight samples checked against the trigger, per candidate launch. */
 const PATH_MAX_SAMPLES = 160
 
+/** Distance (px) from a point to the nearest of `keeps`. */
+function keepsDist(x: number, y: number, keeps: readonly Box[]): number {
+  let d = Infinity
+  for (const k of keeps) d = Math.min(d, boxDist(x, y, k))
+  return d
+}
+
+/** Off-screen region (panel-local) beyond a wall edge of a `w` x `h` panel. */
+const WALL_FAR = 1e4
+function wallBox(side: EmergeSide, w: number, h: number): Box {
+  switch (side) {
+    case 'top':
+      return { x0: -WALL_FAR, y0: -WALL_FAR, x1: w + WALL_FAR, y1: 0 }
+    case 'right':
+      return { x0: w, y0: -WALL_FAR, x1: w + WALL_FAR, y1: h + WALL_FAR }
+    case 'bottom':
+      return { x0: -WALL_FAR, y0: h, x1: w + WALL_FAR, y1: h + WALL_FAR }
+    default:
+      return { x0: -WALL_FAR, y0: -WALL_FAR, x1: 0, y1: h + WALL_FAR }
+  }
+}
+
 /**
  * A splash drop's launch that keeps it (radius `r`, leaving `off` x r out of the edge; all of
- * its swell and flight) out of the
- * keep-out box `keep`: as is; else deflected away from the trigger, then also slowed; else
+ * its swell and flight) out of the keep-out boxes `keeps` (the trigger, off-screen walls; the
+ * first one sets which way to turn): as is; else deflected away, then also slowed; else
  * moved to the mirrored spot on the opposite edge. null: no clear path (the drop is skipped).
  */
 function clearOfTrigger(
-  keep: Box,
+  keeps: readonly Box[],
   edge: Box,
   f: number,
   r: number,
@@ -618,13 +650,14 @@ function clearOfTrigger(
 ): { f: number; rot: number; slow: number } | null {
   const D = EMERGE_MOMENTUM.drips
   const B = EMERGE_MOMENTUM.bloom
+  const keep = keeps[0]!
   const kx = (keep.x0 + keep.x1) / 2
   const ky = (keep.y0 + keep.y1) / 2
   for (const ff of [f, f + 0.5]) {
     const e = perimeterAt(edge, ff, r * 0.8, fan)
     // The swell pokes up to ~0.9r out of the edge at full size before it lets go.
-    if (boxDist(e.x + Math.cos(e.a) * r * 0.9, e.y + Math.sin(e.a) * r * 0.9, keep) < r) continue
-    if (boxDist(e.x, e.y, keep) < r) continue
+    if (keepsDist(e.x + Math.cos(e.a) * r * 0.9, e.y + Math.sin(e.a) * r * 0.9, keeps) < r) continue
+    if (keepsDist(e.x, e.y, keeps) < r) continue
     // Turn away from the trigger's center (a coin flip when it is dead ahead).
     const a0 = e.a + da
     const z = Math.cos(a0) * (ky - e.y) - Math.sin(a0) * (kx - e.x)
@@ -643,7 +676,7 @@ function clearOfTrigger(
           const dist = r * off + speed * slow * ((1 - Math.exp(-D.drag * tau)) / D.drag)
           const x = e.x + ca * dist
           const y = e.y + sa * dist + 0.5 * D.gravity * tau * tau
-          if (boxDist(x, y, keep) < r) ok = false
+          if (keepsDist(x, y, keeps) < r) ok = false
         }
         if (ok) return { f: ff, rot: away * d, slow }
       }
@@ -737,9 +770,10 @@ function bloomSplash(
   const P = EMERGE_MOMENTUM.preset[preset]
   const G = GOOP_PHYSICS
   const seed = ctx.seed ?? 0
-  const amount = emergeDripKnob('openDripAmount', fx.openDripAmount)
-  const size = emergeDripKnob('openDripSize', fx.openDripSize)
-  const fling = emergeDripKnob('openDripFling', fx.openDripFling)
+  const sc = ctx.splash ?? {}
+  const amount = emergeDripKnob('openDripAmount', fx.openDripAmount) * (sc.amount ?? 1)
+  const size = emergeDripKnob('openDripSize', fx.openDripSize) * (sc.size ?? 1)
+  const fling = emergeDripKnob('openDripFling', fx.openDripFling) * (sc.fling ?? 1)
   const v = emergeDripKnob('openDripVariety', fx.openDripVariety)
   const n = emergeBloomDripCount(b.width, b.height, strength, preset, amount)
   if (n === 0) return
@@ -755,10 +789,10 @@ function bloomSplash(
   const rest: Box = { x0: 0, y0: 0, x1: b.width, y1: b.height }
   const spanAt = (t: number): Box => (ctx.bodyAt ? (boxOf(ctx.bodyAt(t)) ?? rest) : (now ?? rest))
   const ar = b.anchorRect
-  const keep: Box | null =
-    ar && ar.width > 0 && ar.height > 0
-      ? { x0: ar.x - B.keepOut, y0: ar.y - B.keepOut, x1: ar.x + ar.width + B.keepOut, y1: ar.y + ar.height + B.keepOut }
-      : null
+  const keeps: Box[] = []
+  if (ar && ar.width > 0 && ar.height > 0)
+    keeps.push({ x0: ar.x - B.keepOut, y0: ar.y - B.keepOut, x1: ar.x + ar.width + B.keepOut, y1: ar.y + ar.height + B.keepOut })
+  for (const w of b.walls ?? []) keeps.push(wallBox(w, b.width, b.height))
   let necks = 0
   for (let i = 0; i < n; i++) {
     const kind = i < leads ? 0 : i < leads + mids ? 1 : 2
@@ -777,8 +811,8 @@ function bloomSplash(
     // (it only depends on the release-time edge), so it doesn't flicker frame to frame.
     let rot = 0
     let slow = 1
-    if (keep) {
-      const fit = clearOfTrigger(keep, spanAt(tr), f, r, neck > 0 ? 0.9 : 0.2, da, speed, lifeT, B.fan, rand(seed, i, 9))
+    if (keeps.length) {
+      const fit = clearOfTrigger(keeps, spanAt(tr), f, r, neck > 0 ? 0.9 : 0.2, da, speed, lifeT, B.fan, rand(seed, i, 9))
       if (!fit) continue
       ;({ f, rot, slow } = fit)
     }

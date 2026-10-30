@@ -23,7 +23,7 @@ export const catalog: CatalogEntry[] = [
   { path: '/slider', goop: 'GoopSlider', shadcn: 'Slider', blurb: 'Jelly goo thumb over a sloshing liquid fill.' },
   { path: '/progress', goop: 'GoopProgress', shadcn: 'Progress', blurb: 'Fills like liquid: wobbling goo front, slosh, drips.' },
   { path: '/dialog', goop: 'GoopDialog', shadcn: 'Dialog', blurb: 'Blooms from its own center with an all-around splash; the overlay pours down. AlertDialog: lighter splash.' },
-  { path: '/sheet', goop: 'GoopSheet', shadcn: 'Sheet', blurb: 'Oozes in from its edge: lobed goo front, slosh, drips; sucked back on close.' },
+  { path: '/sheet', goop: 'GoopSheet', shadcn: 'Sheet', blurb: 'Blooms from the middle of its screen edge, overshoots and splashes; shrinks back into the edge on close.' },
   { path: '/toast', goop: 'GoopToaster', shadcn: 'Sonner', blurb: 'Toasts drop in, merge in the stack, drip away.' },
   { path: '/drawer', goop: 'GoopDrawer', shadcn: 'Drawer', blurb: 'vaul drawer whose edge lags, sloshes and drips as you drag.' },
   { path: '/accordion', goop: 'GoopAccordion', shadcn: 'Accordion', blurb: 'Content pours out of the trigger like thick liquid and gets sucked back up. Collapsible too.' },
