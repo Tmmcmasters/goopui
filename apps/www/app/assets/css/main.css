@@ -70,12 +70,6 @@
   --secondary-foreground: oklch(0.2 0.012 60);
   --destructive: oklch(0.57 0.21 27);
   --destructive-foreground: oklch(0.985 0.005 90);
-  /* shadcn surface tokens the overlay components read (Dialog, Sheet, Select, Toggle...).
-     They follow the card / muted tokens, so .dark needs no copies. */
-  --popover: var(--card);
-  --popover-foreground: var(--foreground);
-  --accent: var(--muted);
-  --accent-foreground: var(--foreground);
   /* Brand: Slime, the logo's drip color. */
   --slime: #1fa64a;
   /* The big hero panel and goo accents are Slime itself; ink on it is ~6:1. */
