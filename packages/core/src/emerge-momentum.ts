@@ -73,9 +73,9 @@ export const EMERGE_MOMENTUM = Object.freeze({
   slosh: Object.freeze({
     /** When the far-edge spring is kicked (s after open starts: about when the panel lands). */
     start: 0.14,
-    /** Peak outward bulge, bulb radii (capped by `maxPx`). */
-    amp: 0.9,
-    maxPx: 22,
+    /** Peak outward bulge, bulb radii (capped by `maxPx`): a low swell, not a knob. */
+    amp: 0.45,
+    maxPx: 11,
     /** Wobble frequency (Hz) and exponential damping (1/s). */
     freq: 4.2,
     damping: 4.6,
@@ -84,8 +84,10 @@ export const EMERGE_MOMENTUM = Object.freeze({
     /** Rebound: fraction of a negative swing that pulls the far edge in, capped in px. */
     inward: 0.45,
     maxInward: 5,
-    /** Bulge circle radius as a fraction of the panel's breadth (the bulge's width). */
-    width: 0.4,
+    /** Bulge half width as a fraction of the side's length (capped at `maxHalf` px): a wide,
+     *  gentle mound (see `emergeMound`). */
+    width: 0.3,
+    maxHalf: 160,
   }),
   close: Object.freeze({
     /** Near-edge slosh against the anchor: peak, bulb radii. */
@@ -180,7 +182,13 @@ export const EMERGE_MOMENTUM = Object.freeze({
  *  also get a neck circle. */
 export const EMERGE_MOMENTUM_DRIPS = 40
 export const EMERGE_MOMENTUM_NECKS = 6
-const BULGE_CIRCLES = 3
+/** Circles per bulge lump: a soft swell is several big overlapping circles, never one knob. */
+export const EMERGE_MOUND_CIRCLES = 7
+/** Circle slots a bloom's side bulges use: one per side, plus up to three second lumps. */
+export const EMERGE_BULGE_SLOTS = 7
+/** Circles the bulges use (EMERGE_BULGE_SLOTS lumps of EMERGE_MOUND_CIRCLES). */
+export const EMERGE_BULGE_CIRCLES = EMERGE_BULGE_SLOTS * EMERGE_MOUND_CIRCLES
+const BULGE_CIRCLES = EMERGE_BULGE_CIRCLES
 /** Two ripple fronts (left/right of the origin), each a bump + a trailing bump. */
 const RIPPLE_CIRCLES = 4
 const RIPPLE_AT = BULGE_CIRCLES
@@ -241,9 +249,6 @@ export interface EmergeBulgeSide {
   lumps: readonly EmergeBulgeLump[]
 }
 
-/** Circle slots a bloom's side bulges use: one per side, plus up to three second lumps. */
-export const EMERGE_BULGE_SLOTS = 7
-
 /**
  * Per-open side bulge profiles (top, right, bottom, left) for the bloom's open slosh,
  * overshoot and close slosh. `variety` 0: every side alike (one centred lump, the fixed
@@ -286,11 +291,48 @@ export function emergeBloomBulges(seed: number, variety = 1): EmergeBulgeSide[] 
 /** Bloom sides in profile order, for matching `b.walls`. */
 export const EMERGE_BLOOM_SIDES = Object.freeze(['top', 'right', 'bottom', 'left'] as const)
 
+/** One circle of a mound: `u` along the edge, `back` how far its center sits behind the
+ *  edge (inward), radius `r`. */
+export interface EmergeMoundCircle {
+  u: number
+  back: number
+  r: number
+}
+
+/**
+ * A low, wide swell out of a straight edge of length `len` and depth `depth` (the panel's
+ * extent behind it): a raised-cosine profile `d * (1 + cos(pi x / hw)) / 2` peaking at `at`
+ * (px along the edge), `lo` / `hi` px wide on either side. It has zero slope at the peak and
+ * where it meets the edge (no kink, no neck), traced by EMERGE_MOUND_CIRCLES big overlapping
+ * circles, each sitting `r - g(x)` behind the edge. Circles stay inside the side's length
+ * and never poke out of the opposite edge. Always EMERGE_MOUND_CIRCLES entries (r 0: unused,
+ * near the flat tails) unless there is no mound at all. Pure.
+ */
+export function emergeMound(at: number, d: number, lo: number, hi: number, len: number, depth: number): EmergeMoundCircle[] {
+  const n = EMERGE_MOUND_CIRCLES
+  const out: EmergeMoundCircle[] = []
+  if (d < 0.3 || lo + hi < 2) return out
+  const hw = Math.max(1, Math.min(lo, hi))
+  const step = (2 * Math.max(lo, hi)) / (n + 1)
+  // Big enough that the scallops between circles stay under ~1px, small enough to follow
+  // the profile's curvature (and never past the opposite edge).
+  const rho = Math.max(1, Math.min((depth + d) / 2, (2 * hw * hw) / (d * Math.PI * Math.PI), Math.max((step * step) / 8, step * 1.5), 240))
+  for (let i = 0; i < n; i++) {
+    const f = -1 + (2 * (i + 1)) / (n + 1)
+    const u = at + (f < 0 ? f * lo : f * hi)
+    const g = (d * (1 + Math.cos(Math.PI * f))) / 2
+    const r = Math.min(rho, u, len - u, depth / 2 + g / 2)
+    out.push(g < 0.15 || r < g + 0.5 ? { u, back: 0, r: 0 } : { u, back: r - g, r })
+  }
+  return out
+}
+
 /**
  * Bloom: side `e` (0 top, 1 right, 2 bottom, 3 left) of `bx` pushed `d` px out as `side`'s
- * lumps, written to `out[base + lump.slot]`; `keep` adjusts each circle (keep it off the
- * trigger). Each lump's circle stays within the side's length so it never swells the
- * neighbouring sides; lumps near a corner come out narrower. Pure.
+ * lumps, each a low, wide mound (`emergeMound`) written to `out[base + lump.slot *
+ * EMERGE_MOUND_CIRCLES + i]`; `keep` adjusts each circle (keep it off the trigger). The mounds
+ * stay within the side's length (clear of its rounded corners), so they never swell the
+ * neighbouring sides; lumps near a corner come out narrower on that side. Pure.
  */
 export function emergeBulgeCircles(
   bx: { x0: number; y0: number; x1: number; y1: number },
@@ -301,27 +343,33 @@ export function emergeBulgeCircles(
   base: number,
   keep: (c: EmergeCircle) => EmergeCircle = (c) => c,
 ): void {
-  if (d < 0.5) return
+  if (d < 0.3) return
   const S = EMERGE_MOMENTUM.slosh
   const horiz = e === 0 || e === 2
   const len = horiz ? bx.x1 - bx.x0 : bx.y1 - bx.y0
   const depth = horiz ? bx.y1 - bx.y0 : bx.x1 - bx.x0
-  const r0 = Math.max(0, Math.min(len * S.width, len / 2.3, depth / 2, 80))
+  const hw0 = Math.min(len * S.width, S.maxHalf)
+  const corner = Math.min(10, len / 6)
   for (const l of side.lumps) {
     const u = clamp(l.at, 0.05, 0.95) * len
-    const r = Math.min(r0 * l.width, Math.min(u, len - u) / 1.1, len / 2.3, depth / 2)
-    const dk = Math.min(d * l.height, r)
-    if (r < 1 || dk < 0.5) continue
-    const back = r - dk
-    const c =
-      e === 0
-        ? { x: bx.x0 + u, y: bx.y0 + back, r }
-        : e === 1
-          ? { x: bx.x1 - back, y: bx.y0 + u, r }
-          : e === 2
-            ? { x: bx.x0 + u, y: bx.y1 - back, r }
-            : { x: bx.x0 + back, y: bx.y0 + u, r }
-    out[base + l.slot] = keep(c)
+    const hw = hw0 * l.width
+    const lo = Math.max(0, Math.min(hw, u - corner))
+    const hi = Math.max(0, Math.min(hw, len - corner - u))
+    const dk = Math.min(d * l.height, depth / 2)
+    const m = emergeMound(u, dk, lo, hi, len, depth)
+    for (let i = 0; i < m.length; i++) {
+      const { u: uc, back, r } = m[i]!
+      if (r <= 0) continue
+      const c =
+        e === 0
+          ? { x: bx.x0 + uc, y: bx.y0 + back, r }
+          : e === 1
+            ? { x: bx.x1 - back, y: bx.y0 + uc, r }
+            : e === 2
+              ? { x: bx.x0 + uc, y: bx.y1 - back, r }
+              : { x: bx.x0 + back, y: bx.y0 + uc, r }
+      out[base + l.slot * EMERGE_MOUND_CIRCLES + i] = keep(c)
+    }
   }
 }
 
@@ -395,36 +443,30 @@ export function emergeCloseSlosh(sec: number, bulb: number, strength: number, pr
   const k = EMERGE_MOMENTUM.preset[preset].slosh * strength
   const end = 1 - smooth((sec - 0.5 * C.duration) / (0.5 * C.duration))
   const w = 2 * Math.PI * C.freq
-  const near = C.amp * bulb * k * Math.exp(-C.damping * sec) * Math.sin(w * sec) * end * 1.6
+  const near = C.amp * bulb * k * Math.exp(-C.damping * sec) * Math.sin(w * sec) * end * 0.8
   const lag = C.lag * bulb * k * Math.sin((Math.PI * sec) / C.duration)
   return { near, lag }
 }
 
-/** A dome of BULGE_CIRCLES circles pushing `d` px out of the edge at `edge` (main), facing
- *  `sign` (+1 away from the anchor, -1 toward it), across the span's cross range. */
+/** A low, wide mound (`emergeMound`) pushing `d` px out of the edge at `edge` (main),
+ *  facing `sign` (+1 away from the anchor, -1 toward it), centred near `crossAt` and kept
+ *  inside the span's cross range (it only pushes out of `edge`, never the panel's sides). */
 function bulge(b: Frame, s: Span, edge: number, sign: 1 | -1, d: number, crossAt: number, out: EmergeCircle[], at: number): void {
-  if (d < 0.5) return
+  if (d < 0.3) return
   const breadth = s.hi - s.lo
   const extent = s.far - s.near
-  const R = Math.max(0, Math.min(breadth * EMERGE_MOMENTUM.slosh.width, breadth / 2, extent / 2, 80))
-  if (R < 1) return
-  const cross = clamp(crossAt, s.lo + R, Math.max(s.lo + R, s.hi - R))
-  const parts = [
-    { dc: 0, k: 1, dd: 1 },
-    { dc: -0.75, k: 0.72, dd: 0.45 },
-    { dc: 0.75, k: 0.72, dd: 0.45 },
-  ]
-  for (let i = 0; i < BULGE_CIRCLES; i++) {
-    const p = parts[i]!
-    const r = R * p.k
-    const dk = Math.min(d * p.dd, r)
-    // Whole circle (plus a little goo margin) inside the cross range: the dome only pushes
-    // out of `edge`. Sitting `r - dk` behind the edge, a flank circle that crossed the
-    // panel's sides would bulge them out as big lobes for the whole slosh (tall panels).
-    const m = r * 1.15
-    const c = clamp(cross + p.dc * R, s.lo + m, Math.max(s.lo + m, s.hi - m))
-    const pt = toLocal(b, edge + sign * (dk - r), c)
-    out[at + i] = { x: pt.x, y: pt.y, r }
+  const S = EMERGE_MOMENTUM.slosh
+  const hw = Math.min(breadth * S.width, S.maxHalf)
+  const corner = Math.min(10, breadth / 6)
+  const u = clamp(crossAt - s.lo, corner, Math.max(corner, breadth - corner))
+  const lo = Math.max(0, Math.min(hw, u - corner))
+  const hi = Math.max(0, Math.min(hw, breadth - corner - u))
+  const m = emergeMound(u, Math.min(d, extent / 2), lo, hi, breadth, extent)
+  for (let i = 0; i < m.length && i < BULGE_CIRCLES; i++) {
+    const c = m[i]!
+    if (c.r <= 0) continue
+    const pt = toLocal(b, edge - sign * c.back, s.lo + c.u)
+    out[at + i] = { x: pt.x, y: pt.y, r: c.r }
   }
 }
 

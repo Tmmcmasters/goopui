@@ -18,7 +18,9 @@
 import type { GoopPreset } from './constants'
 import {
   EMERGE_BLOOM_SIDES,
-  EMERGE_BULGE_SLOTS,
+  EMERGE_BULGE_CIRCLES,
+  EMERGE_MOUND_CIRCLES,
+  emergeMound,
   EMERGE_MOMENTUM_CIRCLES,
   emergeBloomBulges,
   emergeBulgeCircles,
@@ -145,11 +147,15 @@ export const EMERGE_FLOW_NECK = 4
 /** Bloom: lobes around the spreading puddle's edge, then the merge start's seed drops (open)
  *  or the close slosh's side lumps (close). */
 export const EMERGE_BLOOM_LOBES = 7
+/** Circles per rim lobe: each lobe is a low, wide mound (`emergeMound`), not one knob. */
+export const EMERGE_LOBE_CIRCLES = EMERGE_MOUND_CIRCLES
+/** Circles the lobed rim uses; the seed drops / close slosh lumps follow them. */
+export const EMERGE_BLOOM_RIM = EMERGE_BLOOM_LOBES * EMERGE_LOBE_CIRCLES
 export const EMERGE_BLOOM_SEEDS = 5
 export const EMERGE_CIRCLES = Math.max(
   1 + EMERGE_NECK_LUMPS,
   EMERGE_FLOW_ROOT + EMERGE_FLOW_NECK,
-  EMERGE_BLOOM_LOBES + Math.max(EMERGE_BLOOM_SEEDS, EMERGE_BULGE_SLOTS),
+  EMERGE_BLOOM_RIM + Math.max(EMERGE_BLOOM_SEEDS, EMERGE_BULGE_CIRCLES),
 )
 
 /** Bridge geometry in panel-local space, plus the main/cross frame it was built in. */
@@ -644,6 +650,11 @@ const BLOOM = {
   lobeLen: 0.3,
   /** Lobes' angular pull toward the edge midpoints (1: none; smaller: closer to midpoints). */
   lobeMid: 0.6,
+  /** How far a lobe pokes past the rim (x its radius): base + lead (-1..1) share. */
+  lobePoke: 0.15,
+  lobeLead: 0.25,
+  /** Lobe mound half width, x the lobe's radius. */
+  lobeWidth: 1.6,
   /** Gap (px) the open overshoot and lobes keep from the trigger. */
   clear: 1.5,
   /** Merge seed drops sit within this fraction of the panel around its center. */
@@ -725,7 +736,7 @@ function bloomPose(
       const span = emergeBloomDuration(feel, 'open') * (1 - BLOOM.ovAt)
       const u = clamp((t - BLOOM.ovAt) / (1 - BLOOM.ovAt))
       const env = 1 - smooth((u - 0.55) / 0.45)
-      const A = (feel.bloomOvershoot ?? 4) * 1.6
+      const A = (feel.bloomOvershoot ?? 4) * 0.8
       for (let e = 0; e < 4; e++) {
         const ue = Math.max(0, u - (variety * prof[e]!.lag) / span)
         push[e] = A * prof[e]!.amp * Math.exp(-3 * ue) * Math.sin(2 * Math.PI * 1.25 * ue) * env
@@ -752,7 +763,7 @@ function bloomPose(
       const s = (ext * appear * (Math.min(1.02, g * (1 - ps[e]!)) - base)) / 2
       // Outward: shared between the whole side (variety 0) and its lumps (variety 1).
       push[e] = s > 0 ? s * (1 - variety) : s
-      lumpH[e] = s > 0 ? 2 * s * variety : 0
+      lumpH[e] = s > 0 ? s * variety : 0
     }
     irr = smooth((t - 0.15) / 0.3)
     lobeK = smooth((t - 0.2) / 0.3) * (1 - smooth((t - 0.85) / 0.15))
@@ -810,8 +821,27 @@ function bloomPose(
       if (lead > 0) lead *= 1 - 0.85 * soft
       const r = rl * (0.75 + 0.4 * hash(seed, k, 3)) * (1 - 0.4 * soft)
       if (r < 0.5) continue
-      const dist = Math.max(0, reach - r + r * (0.3 + 0.5 * lead) * irr)
-      circles[k] = emergeKeepOff({ x: bcx + Math.cos(th) * dist, y: bcy + Math.sin(th) * dist, r }, b, BLOOM.clear)
+      // How far the lobe pokes past the rim: kept low (a soft swell, not a knob).
+      const poke = r * (BLOOM.lobePoke + BLOOM.lobeLead * lead) * irr
+      const dist = Math.max(0, reach - r + poke)
+      // The lobe swells out of the edge it hits as a low, wide mound (`lobeWidth` x its
+      // radius each side), its shoulders sloping gently into the rim: no knob, no kink.
+      const top = dist + r - reach
+      if (top < 0.3) continue
+      const onSide = Math.abs(Math.cos(th) * reach) >= a - 1e-6
+      const len = onSide ? h : w
+      const u = onSide ? Math.sin(th) * dist + bb : Math.cos(th) * dist + a
+      const inset = Math.min(10, len / 6)
+      const hw = r * BLOOM.lobeWidth
+      const m = emergeMound(u, Math.min(top, (onSide ? w : h) / 4), Math.max(0, Math.min(hw, u - inset)), Math.max(0, Math.min(hw, len - inset - u)), len, onSide ? w : h)
+      const nx = onSide ? Math.sign(Math.cos(th)) : 0
+      const ny = onSide ? 0 : Math.sign(Math.sin(th))
+      for (let i = 0; i < m.length; i++) {
+        const q = m[i]!
+        if (q.r <= 0) continue
+        const c = onSide ? { x: bcx + nx * (a - q.back), y: bcy - bb + q.u, r: q.r } : { x: bcx - a + q.u, y: bcy + ny * (bb - q.back), r: q.r }
+        circles[k * EMERGE_LOBE_CIRCLES + i] = emergeKeepOff(c, b, BLOOM.clear)
+      }
     }
   }
   if (phase === 'close' && body.w > 0) {
@@ -820,7 +850,7 @@ function bloomPose(
     const bx = { x0: bcx - w / 2, y0: bcy - h / 2, x1: bcx + w / 2, y1: bcy + h / 2 }
     for (let e = 0; e < 4; e++) {
       if (b.walls?.includes(EMERGE_BLOOM_SIDES[e]!) || pinned[e]) continue
-      emergeBulgeCircles(bx, e, lumpH[e]!, prof[e]!, circles, EMERGE_BLOOM_LOBES, (c) => emergeKeepOff(c, b, BLOOM.clear))
+      emergeBulgeCircles(bx, e, lumpH[e]!, prof[e]!, circles, EMERGE_BLOOM_RIM, (c) => emergeKeepOff(c, b, BLOOM.clear))
     }
   }
   if (merge && phase === 'open') {
@@ -835,7 +865,7 @@ function bloomPose(
       const fuse = 1 - smooth((t - 0.26) / 0.22)
       const r = rd * (0.75 + 0.5 * hash(seed, k, 7)) * grow * fuse * (1 + 0.4 * smooth((t - 0.08) / 0.15))
       if (r < 0.3) continue
-      circles[EMERGE_BLOOM_LOBES + k] = {
+      circles[EMERGE_BLOOM_RIM + k] = {
         x: o.x + Math.cos(ph) * W * BLOOM.seedSpread * rad * pull,
         y: o.y + Math.sin(ph) * H * BLOOM.seedSpread * rad * pull,
         r,
