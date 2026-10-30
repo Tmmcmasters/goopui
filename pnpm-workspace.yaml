@@ -3,6 +3,7 @@ packages:
   - "apps/*"
 allowBuilds:
   esbuild: true
+  vue-demi: false
 
 # The parent folder (codeProjects/) has its own node_modules. Hoisting everything here
 # keeps Node/Nitro resolution from walking up and picking up stale packages from it.
