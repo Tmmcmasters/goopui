@@ -125,3 +125,32 @@ export {
 export { goopComponents, type GoopComponentName } from './manifest'
 export { seedFrom, useGoop, type UseGoopReturn } from './use-goop'
 export { cn } from 'cn'
+// Static set: Skeleton, Badge, Card, Avatar, Separator, Label.
+export * from './components/skeleton'
+export * from './components/badge'
+export * from './components/card'
+export * from './components/avatar'
+export * from './components/separator'
+export * from './components/label'
+export {
+  SKELETON_PROP_KEYS,
+  BADGE_PROP_KEYS,
+  AVATAR_PROP_KEYS,
+  CARD_PROP_KEYS,
+  goopSkeletonProps,
+  goopBadgeProps,
+  goopAvatarProps,
+  goopCardProps,
+  toSkeletonOptions,
+  toBadgeOptions,
+  toAvatarOptions,
+  toCardOptions,
+  type GoopSkeletonPropsDefinition,
+  type GoopSkeletonPropsInput,
+  type GoopBadgePropsDefinition,
+  type GoopBadgePropsInput,
+  type GoopAvatarPropsDefinition,
+  type GoopAvatarPropsInput,
+  type GoopCardPropsDefinition,
+  type GoopCardPropsInput,
+} from './goop-props'

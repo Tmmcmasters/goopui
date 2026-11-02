@@ -103,6 +103,21 @@ export const goopComponents = [
   'GoopToggleGroup',
   'GoopToggleGroupItem',
   'GoopPageTransition',
+  // Static set
+  'GoopSkeleton',
+  'GoopBadge',
+  'GoopCard',
+  'GoopCardAction',
+  'GoopCardContent',
+  'GoopCardDescription',
+  'GoopCardFooter',
+  'GoopCardHeader',
+  'GoopCardTitle',
+  'GoopAvatar',
+  'GoopAvatarFallback',
+  'GoopAvatarImage',
+  'GoopSeparator',
+  'GoopLabel',
 ] as const
 
 export type GoopComponentName = (typeof goopComponents)[number]

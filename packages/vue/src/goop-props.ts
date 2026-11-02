@@ -1444,3 +1444,100 @@ export function toPageTransitionOptions(props: GoopPageTransitionProps, config: 
   }
   return out
 }
+
+// ---- GoopSkeleton / GoopBadge / GoopAvatar / GoopCard (the static set) ----------------------
+// Cheap, calm effects. Skeleton `shimmer`, Badge `swell` and Avatar `settle` are CSS-only
+// (core's skeletonStyle / badgeStyle / avatarStyle resolve the feel into CSS vars); Card's
+// edge `swell` is core's `attachCard`, off unless `goo` is set. Each effect takes a boolean
+// or a multiplier, plus speed / preset.
+
+/** Every static-set engine prop, per component. */
+export const SKELETON_PROP_KEYS = [...SKELETON_EFFECTS, 'speed', 'preset'] as const
+export const BADGE_PROP_KEYS = [...BADGE_EFFECTS, 'speed', 'preset'] as const
+export const AVATAR_PROP_KEYS = [...AVATAR_EFFECTS, 'speed', 'preset'] as const
+export const CARD_PROP_KEYS = ['goo', ...CARD_EFFECTS, 'speed', 'preset'] as const
+
+type StaticEffectProps<E extends string> = { [K in E]: PropDef<boolean | number> } & {
+  speed: PropDef<number>
+  preset: PropDef<GoopPreset>
+}
+const staticEffectProps = (effects: readonly string[]): Record<string, PropDef<never>> =>
+  Object.freeze({
+    ...Object.fromEntries(effects.map((k) => [k, def([Boolean, Number])])),
+    speed: def(Number),
+    preset: def(String),
+  })
+
+export type GoopSkeletonPropsDefinition = StaticEffectProps<SkeletonEffect>
+export type GoopSkeletonPropsInput = InputOf<GoopSkeletonPropsDefinition>
+export type GoopBadgePropsDefinition = StaticEffectProps<BadgeEffect>
+export type GoopBadgePropsInput = InputOf<GoopBadgePropsDefinition>
+export type GoopAvatarPropsDefinition = StaticEffectProps<AvatarEffect>
+export type GoopAvatarPropsInput = InputOf<GoopAvatarPropsDefinition>
+export type GoopCardPropsDefinition = StaticEffectProps<CardEffect>
+export type GoopCardPropsInput = InputOf<GoopCardPropsDefinition> & { goo?: boolean }
+
+/** Spread into `defineProps({ ...goopSkeletonProps, ... })` (likewise badge / avatar / card). */
+export const goopSkeletonProps = staticEffectProps(SKELETON_EFFECTS) as unknown as GoopSkeletonPropsDefinition
+export const goopBadgeProps = staticEffectProps(BADGE_EFFECTS) as unknown as GoopBadgePropsDefinition
+export const goopAvatarProps = staticEffectProps(AVATAR_EFFECTS) as unknown as GoopAvatarPropsDefinition
+export const goopCardProps = Object.freeze({
+  ...(staticEffectProps(CARD_EFFECTS) as unknown as GoopCardPropsDefinition),
+  /** Master switch for the edge swell. Off by default: a card is static. */
+  goo: { type: Boolean, default: false },
+})
+
+/** Compile-time guards: every option core grows must be a prop (or adapter-owned). */
+type StaticAdapterOwned = 'reducedMotion'
+type SkeletonUnhandled = Exclude<keyof SkeletonOptions, keyof GoopSkeletonPropsDefinition | StaticAdapterOwned>
+const _allSkeletonOptionsHandled: [SkeletonUnhandled] extends [never] ? true : { unhandled: SkeletonUnhandled } = true
+void _allSkeletonOptionsHandled
+type BadgeUnhandled = Exclude<keyof BadgeOptions, keyof GoopBadgePropsDefinition | StaticAdapterOwned>
+const _allBadgeOptionsHandled: [BadgeUnhandled] extends [never] ? true : { unhandled: BadgeUnhandled } = true
+void _allBadgeOptionsHandled
+type AvatarUnhandled = Exclude<keyof AvatarOptions, keyof GoopAvatarPropsDefinition | StaticAdapterOwned>
+const _allAvatarOptionsHandled: [AvatarUnhandled] extends [never] ? true : { unhandled: AvatarUnhandled } = true
+void _allAvatarOptionsHandled
+type CardUnhandled = Exclude<keyof CardOptions, keyof GoopCardPropsDefinition | StaticAdapterOwned>
+const _allCardOptionsHandled: [CardUnhandled] extends [never] ? true : { unhandled: CardUnhandled } = true
+void _allCardOptionsHandled
+
+function toStaticOptions<E extends string>(
+  effects: readonly E[],
+  props: InputOf<StaticEffectProps<E>>,
+  config: GoopOptions,
+): { [K in E]?: boolean | number } & { speed?: number; preset?: GoopPreset; reducedMotion?: boolean | 'auto' } {
+  const out: Record<string, unknown> = { preset: props.preset ?? config.preset, reducedMotion: config.reducedMotion }
+  if (props.speed !== undefined) out.speed = props.speed
+  for (const k of effects) {
+    const v = (props as Record<string, unknown>)[k]
+    if (v !== undefined) out[k] = v
+  }
+  return out as never
+}
+
+/** Skeleton / badge / avatar / card options from props, over app config. */
+export const toSkeletonOptions = (props: GoopSkeletonPropsInput, config: GoopOptions = {}): SkeletonOptions =>
+  toStaticOptions(SKELETON_EFFECTS, props, config)
+export const toBadgeOptions = (props: GoopBadgePropsInput, config: GoopOptions = {}): BadgeOptions =>
+  toStaticOptions(BADGE_EFFECTS, props, config)
+export const toAvatarOptions = (props: GoopAvatarPropsInput, config: GoopOptions = {}): AvatarOptions =>
+  toStaticOptions(AVATAR_EFFECTS, props, config)
+/** Card options, or null when the goo is off (the default). */
+export const toCardOptions = (props: GoopCardPropsInput, config: GoopOptions = {}): CardOptions | null =>
+  props.goo ? toStaticOptions(CARD_EFFECTS, props, config) : null
+
+import {
+  AVATAR_EFFECTS,
+  BADGE_EFFECTS,
+  CARD_EFFECTS,
+  SKELETON_EFFECTS,
+  type AvatarEffect,
+  type AvatarOptions,
+  type BadgeEffect,
+  type BadgeOptions,
+  type CardEffect,
+  type CardOptions,
+  type SkeletonEffect,
+  type SkeletonOptions,
+} from '@goopui/core'
