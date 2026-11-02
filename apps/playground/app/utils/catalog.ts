@@ -33,4 +33,6 @@ export const catalog: CatalogEntry[] = [
   { path: '/command', goop: 'GoopCommand', shadcn: 'Command', blurb: 'Goo highlight glides between items with keys and pointer; the search gets the goo ring; the dialog and Combobox list bloom open.' },
   { path: '/number-field', goop: 'GoopNumberField', shadcn: 'NumberField', blurb: 'Goo focus ring; +/- squish a dollop and nudge toward the pressed side.' },
   { path: '/input-otp', goop: 'GoopInputOTP', shadcn: 'PinInput', blurb: 'Focus goo flows from cell to cell as you type, with a pulse as each digit lands.' },
+  { path: '/hover-card', goop: 'GoopHoverCard', shadcn: 'HoverCard', blurb: 'Card blooms out of the edge facing its link, splashes, shrinks back into it.' },
+  { path: '/context-menu', goop: 'GoopContextMenu', shadcn: 'ContextMenu', blurb: 'Menu blooms out of the right-click point; goo highlight glides; submenus bloom from their item.' },
 ]

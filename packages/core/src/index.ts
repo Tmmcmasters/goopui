@@ -789,3 +789,10 @@ export {
   type OtpPose,
   type OtpPulse,
 } from './otp'
+export {
+  attachContextPoint,
+  contextMenuBloomOrigin,
+  type ContextMenuBloomFrom,
+  type ContextPointHandle,
+  type HoverCardBloomFrom,
+} from './context-menu'
