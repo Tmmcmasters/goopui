@@ -146,11 +146,17 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     if (options.pageTransition) {
       const { timeout = 2000, fade = '#__nuxt', fadeDuration = 200, ...pt } = options.pageTransition === true ? {} : options.pageTransition
       const rm = options.reducedMotion
-      const experimental = nuxt.options.experimental as { viewTransition?: unknown }
+      const experimental = nuxt.options.experimental as { viewTransition?: unknown; navigationRepaint?: unknown }
       if (pt.split !== false && pt.band !== false && experimental.viewTransition) {
         // Two view transitions per navigation would cancel each other: ours does the job.
         useLogger('@goopui/nuxt').warn('`experimental.viewTransition` is turned off: `goop.pageTransition` runs its own view transition (set `split: false` to keep Nuxt\'s).')
         experimental.viewTransition = false
+      }
+      if (pt.split !== false && pt.band !== false) {
+        // Nuxt's navigation repaint holds every navigation (beforeResolve) until a frame paints,
+        // or 100ms. Split, the old page is already held as a view-transition snapshot by then,
+        // so no frame paints and every click paid the full 100ms with the page frozen.
+        experimental.navigationRepaint = false
       }
       addPluginTemplate({
         filename: 'goopui-page-transition.client.mjs',
