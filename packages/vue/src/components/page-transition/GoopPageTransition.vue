@@ -37,6 +37,7 @@ const props = withDefaults(
     lag: undefined,
     zIndex: undefined,
     seed: undefined,
+    split: undefined,
     router: undefined,
     revealOn: undefined,
     fade: undefined,

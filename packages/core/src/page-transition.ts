@@ -29,8 +29,26 @@
 // then relaxes. Holes are clamped inside the band's body. Re-rolled every transition;
 // nothing is left at idle.
 //
-// Reduced motion: no goo, no bubbles; the overlay (a plain full-viewport fill) fades in and
-// out quickly.
+// Split (`split: true`, the default with the band): the band is the seam between the two
+// pages. cover() snapshots the old page and resolves once the DOM may change; reveal() says
+// the new page is ready. The band then sweeps the whole way through in one go: behind its
+// trailing edge is the new page, ahead of its front the old one, and no swap is ever seen.
+// The old page is clipped to the region ahead of the front (a little inside the goo, so the
+// seam is always under it) with a path built from the same edge samples as the goo.
+//   - View Transitions (`document.startViewTransition`): the old page is the
+//     `::view-transition-old(root)` snapshot, clipped every frame (Web Animations with
+//     `pseudoElement`, or a rewritten style rule); the new page is the live
+//     `::view-transition-new(root)`. The band is named (`view-transition-name`) only after
+//     the snapshot is taken, so it's its own live group painted above root. Rendering is
+//     paused while the new page loads, so the sweep starts once it's ready.
+//   - Fallback (no View Transitions): a clone of the page's visible part (canvases copied;
+//     a blank WebGL canvas gets the page background) in a fixed overlay under the band,
+//     clipped the same way. Here the band pours in at once and waits near the top edge,
+//     with nothing new revealed, until the new page is ready.
+//   - If neither works, the swap-behind-the-band run below.
+//
+// Reduced motion: no goo, no bubbles, no split; the overlay (a plain full-viewport fill)
+// fades in and out quickly.
 //
 // Nothing touches `document` until the first cover().
 
@@ -89,6 +107,16 @@ export const PAGE_TRANSITION_ACCENT_VAR = '--goop-page-transition-accent'
 export const PAGE_TRANSITION_HIGHLIGHT_VAR = '--goop-page-transition-highlight'
 /** Attribute on the overlay with the current phase. */
 export const PAGE_TRANSITION_ATTR = 'data-goop-page-transition'
+/** Attribute on the split fallback's old-page clone overlay. */
+export const PAGE_TRANSITION_OLD_ATTR = 'data-goop-page-transition-old'
+/** `view-transition-name` the band gets during a split view transition. */
+export const PAGE_TRANSITION_VT_NAME = 'goop-page-transition'
+/** How far inside the goo (px, behind its front) the old page is cut off. */
+export const PAGE_TRANSITION_SEAM_INSET = 10
+/** A clip path that shows nothing (the old page is gone). */
+export const PAGE_TRANSITION_CLIP_NONE = 'M0 0Z'
+/** The split sweep slows over the middle: speed 1 +- this (0..1). */
+const SWEEP_EASE_K = 0.45
 
 const MOUND_PX_MAX = 70
 const TAIL_PX_MAX = 96
@@ -140,7 +168,15 @@ export interface PageTransitionOptions {
   /** Seed for the first transition's mounds and bubbles (each transition re-rolls).
    *  Default random. */
   seed?: number
+  /** The band is the seam between the pages (`true`, default): the new page behind it, the
+   *  old one ahead of it, never a visible swap (View Transitions, else a clone of the old
+   *  page). `false`: the page swaps while the band is over the middle. Only with the band,
+   *  never under reduced motion. */
+  split?: boolean
 }
+
+/** How a split transition shows the old page: a view transition, a clone, or no split. */
+export type PageTransitionSeam = 'view-transition' | 'clone' | null
 
 export interface PageTransitionHandle {
   /** Pour the goo in. Resolves once the band is over the middle of the screen (the wall:
@@ -154,6 +190,12 @@ export interface PageTransitionHandle {
   readonly reducedMotion: boolean
   /** Live bubbles (holes being drawn) right now. */
   readonly bubbleCount: number
+  /** How the running (else the next) transition splits the pages: 'view-transition',
+   *  'clone', or null (no split: swap behind the band, the wall, or reduced motion). With a
+   *  split, cover() resolves once the old page is held (change the DOM then), reveal() means
+   *  the new page is ready, and nothing should wait for a frame in between: rendering is
+   *  paused during a view transition's update. */
+  readonly seam: PageTransitionSeam
   update(options: PageTransitionOptions): void
   destroy(): void
 }
@@ -585,6 +627,70 @@ export function pageTransitionFrame(f: PageTransitionFrameInput): PageTransition
   return { d: outline(0, 0), accent: rim > 0 ? outline(rim, rim * 0.75) : '' }
 }
 
+/** Viewport point for a travel-frame point. */
+function travelToXY(f: Pick<PageTransitionFrameInput, 'direction' | 'width' | 'height'>, main: number, cross: number): [number, number] {
+  switch (f.direction) {
+    case 'down':
+      return [cross, main]
+    case 'up':
+      return [cross, f.height - main]
+    case 'right':
+      return [main, cross]
+    default:
+      return [f.width - main, cross]
+  }
+}
+
+/**
+ * Where the split seam is (px along main, unclamped) at each of PAGE_TRANSITION_SAMPLES + 1
+ * points across: `inset` px behind the goo's front (inside the goo), mounds and pop notches
+ * included. With `prev` (last frame's seam) it never moves back (the old side only shrinks)
+ * unless the front itself recedes past it: it always stays at least 1px inside the goo. Pure.
+ */
+export function pageTransitionSplitEdge(f: PageTransitionFrameInput, inset = PAGE_TRANSITION_SEAM_INSET, prev?: readonly number[] | null): number[] {
+  const n = PAGE_TRANSITION_SAMPLES
+  const out: number[] = []
+  for (let i = 0; i <= n; i++) {
+    const front = pageTransitionEdge(f, 'front', i / n)
+    let e = front - inset
+    const p = prev?.[i]
+    if (p !== undefined && Number.isFinite(p)) e = Math.min(Math.max(p, e), front - Math.min(1, inset))
+    out.push(e)
+  }
+  return out
+}
+
+/**
+ * The old page's region for one frame (viewport px), as an SVG path for `clip-path:
+ * path()`: everything ahead of `seam` (from pageTransitionSplitEdge), drawn through the same
+ * smooth curve as the goo's front. PAGE_TRANSITION_CLIP_NONE once the seam is past the far
+ * edge everywhere. Pure.
+ */
+export function pageTransitionSplitClip(f: Pick<PageTransitionFrameInput, 'direction' | 'width' | 'height'>, seam: readonly number[]): string {
+  const vertical = f.direction === 'up' || f.direction === 'down'
+  const length = vertical ? f.height : f.width
+  const breadth = vertical ? f.width : f.height
+  const pad = 6
+  const n = seam.length - 1
+  if (n < 1 || Math.min(...seam) >= length) return PAGE_TRANSITION_CLIP_NONE
+  const at = (i: number): number => clamp(seam[i]!, -pad, length + pad)
+  const edge: [number, number][] = [travelToXY(f, at(0), -pad)]
+  for (let i = 0; i <= n; i++) edge.push(travelToXY(f, at(i), (i / n) * breadth))
+  edge.push(travelToXY(f, at(n), breadth + pad))
+  const out: string[] = []
+  smoothPath(edge, out)
+  const [x1, y1] = travelToXY(f, length + pad, breadth + pad)
+  const [x0, y0] = travelToXY(f, length + pad, -pad)
+  out.push(`L${fmt(x1)} ${fmt(y1)}L${fmt(x0)} ${fmt(y0)}Z`)
+  return out.join('')
+}
+
+/** The split sweep's easing: monotonic, quick in and out, slower over the middle. */
+export function pageTransitionSweepEase(p: number): number {
+  const x = clamp(p)
+  return x + (SWEEP_EASE_K * Math.sin(2 * Math.PI * x)) / (2 * Math.PI)
+}
+
 // ---- Controller -----------------------------------------------------------------------------
 
 const strengthOf = (v: boolean | number | undefined): number =>
@@ -644,6 +750,38 @@ const DENT_IN = 0.08
 const DENT_OUT = 0.38
 const MERGE = 0.24
 
+/** The bits of a ViewTransition we use. */
+interface ViewTransitionLike {
+  ready: Promise<void>
+  finished: Promise<void>
+  skipTransition(): void
+}
+type StartViewTransition = (update: () => Promise<void>) => ViewTransitionLike
+
+/** The split sweep: `p` runs 0..1 over `dur` (s); held short of `gate` until ready. */
+interface Sweep {
+  p: number
+  dur: number
+  f0: number
+  f1: number
+  gate: number
+}
+
+/** Elements never copied into the old-page clone. */
+const CLONE_SKIP = new Set(['SCRIPT', 'STYLE', 'LINK', 'TEMPLATE', 'NOSCRIPT'])
+
+/** Rules for a split view transition: no UA cross-fade, the old snapshot opaque and on top of
+ *  the live new page, the band's group untouched, and the live page clickable underneath. */
+const VT_CSS = (name: string): string =>
+  `::view-transition{pointer-events:none}` +
+  `::view-transition-group(root),::view-transition-old(root),::view-transition-new(root),::view-transition-group(${name}),::view-transition-old(${name}),::view-transition-new(${name}){animation:none}` +
+  `::view-transition-old(root),::view-transition-new(root){mix-blend-mode:normal;opacity:1}` +
+  // The new image is painted over the old one by default: lift the (clipped) old page above it.
+  `::view-transition-old(root){z-index:1}` +
+  `::view-transition-image-pair(root){isolation:auto}`
+const VT_PSEUDO = '::view-transition-old(root)'
+const VT_HOLD = `@keyframes goop-pt-hold{from{opacity:1}to{opacity:1}}`
+
 /** Mount a goo page-transition overlay. SSR-safe: inert without a document. */
 export function createPageTransition(initial: PageTransitionOptions = {}): PageTransitionHandle {
   let opts: PageTransitionOptions = { ...initial }
@@ -691,6 +829,23 @@ export function createPageTransition(initial: PageTransitionOptions = {}): PageT
   let aBand = 0
   let prevFront = 0
   let prevTail = 0
+  // Split.
+  let seamMode: PageTransitionSeam = null
+  let sweep: Sweep | null = null
+  /** The new page is ready (the split sweep may pass the gate). */
+  let ready = true
+  /** The band stays hidden (display: none) until a view transition has its old snapshot. */
+  let veiled = false
+  let seamEdge: number[] | null = null
+  let vt: ViewTransitionLike | null = null
+  let finishUpdate: (() => void) | null = null
+  let clipAnim: Animation | null = null
+  let vtStyle: HTMLStyleElement | null = null
+  let oldClone: HTMLElement | null = null
+  /** Bumped per split run, so late promise callbacks from an ended one do nothing. */
+  let runId = 0
+  /** Cleanup still waiting for a finished view transition (run on destroy). */
+  let tidyLater: (() => void) | null = null
 
   const flush = (list: (() => void)[]): void => {
     for (const fn of list) fn()
@@ -814,7 +969,7 @@ export function createPageTransition(initial: PageTransitionOptions = {}): PageT
     phase = p
     if (!svg) return
     svg.setAttribute(PAGE_TRANSITION_ATTR, p)
-    svg.style.display = p === 'idle' ? 'none' : 'block'
+    svg.style.display = p === 'idle' || veiled ? 'none' : 'block'
     // Block clicks while (being) covered, so a double click can't start two navigations;
     // let them through while it flows away.
     svg.style.pointerEvents = p === 'covering' || p === 'covered' ? 'auto' : 'none'
@@ -868,7 +1023,9 @@ export function createPageTransition(initial: PageTransitionOptions = {}): PageT
       return
     }
     svg.style.opacity = '1'
-    const frame = pageTransitionFrame(frameInput())
+    const input = frameInput()
+    const frame = pageTransitionFrame(input)
+    if (sweep && seamMode) applyClip(input)
     wall.setAttribute('d', frame.d)
     lip.setAttribute('d', frame.accent)
     if (highlight && grad) {
@@ -1111,6 +1268,7 @@ export function createPageTransition(initial: PageTransitionOptions = {}): PageT
   const tick: Ticker = (dt) => {
     if (destroyed) return false
     clock += dt
+    if (sweep) return stepSweep(sweep, dt)
     const m = motion
     if (m) {
       m.t += dt
@@ -1197,17 +1355,7 @@ export function createPageTransition(initial: PageTransitionOptions = {}): PageT
   }
 
   const startCover = (): void => {
-    mount()
-    accent = resolveAccent()
-    highlight = resolveHighlight()
-    const color = opts.color || PAGE_TRANSITION_COLOR
-    if (grad && gradStops.length === 3) {
-      gradStops[0]!.style.stopColor = color
-      gradStops[1]!.style.stopColor = highlight ?? color
-      gradStops[2]!.style.stopColor = color
-    }
-    if (wall) wall.style.fill = highlight && grad ? `url(#${grad.id})` : color
-    if (lip) lip.style.fill = accent ?? 'none'
+    prime()
     const L = length()
     const wasIdle = phase === 'idle'
     // Mid-fade (reduced motion), keep fading even if the preference just changed.
@@ -1278,13 +1426,411 @@ export function createPageTransition(initial: PageTransitionOptions = {}): PageT
     run({ kind: 'reveal', t: 0, dur: reveal, reduced: false, f0: frontEnd, f1: frontEnd, t0: tail, t1: tailEnd, o0: 1 })
   }
 
+  // ---- Split ----
+
+  /** Which split the next transition would use (null: none). */
+  const seamFor = (): PageTransitionSeam => {
+    if (!doc?.body || opts.split === false || opts.enabled === false || reduced() || !Number.isFinite(bandPx())) return null
+    if (typeof (doc as Document & { startViewTransition?: unknown }).startViewTransition === 'function') return 'view-transition'
+    return typeof doc.body.cloneNode === 'function' ? 'clone' : null
+  }
+
+  /** The page's background colour (for the clone, and blank WebGL canvases in it). */
+  const pageBackground = (): string => {
+    const win = doc?.defaultView
+    if (!doc || !win?.getComputedStyle) return '#fff'
+    for (const el of [doc.body, doc.documentElement]) {
+      const bg = win.getComputedStyle(el).backgroundColor
+      if (bg && bg !== 'transparent' && !/rgba\([^)]*,\s*0\)$/.test(bg)) return bg
+    }
+    return '#fff'
+  }
+
+  /** Copy a canvas's pixels into its clone; a blank result (WebGL without a kept buffer)
+   *  gets the page background instead. */
+  const copyCanvas = (from: HTMLCanvasElement, to: HTMLCanvasElement, bg: string): void => {
+    try {
+      if (!from.width || !from.height) return
+      to.width = from.width
+      to.height = from.height
+      const ctx = to.getContext('2d')
+      if (!ctx) return
+      ctx.drawImage(from, 0, 0)
+      const probe = doc!.createElement('canvas')
+      probe.width = probe.height = 6
+      const pc = probe.getContext('2d')
+      if (!pc) return
+      pc.drawImage(to, 0, 0, 6, 6)
+      const px = pc.getImageData(0, 0, 6, 6).data
+      let blank = true
+      for (let i = 3; i < px.length; i += 4) if (px[i]) blank = false
+      if (blank) {
+        ctx.fillStyle = bg
+        ctx.fillRect(0, 0, to.width, to.height)
+      }
+    } catch {
+      // Tainted or unsupported: leave the clone's canvas as it is.
+    }
+  }
+
+  /** A fixed, aria-hidden overlay holding a copy of the page as it looks now (the old page),
+   *  scrolled to the same spot, just under the band. */
+  const buildClone = (): HTMLElement => {
+    const d = doc!
+    const body = d.body
+    const win = d.defaultView
+    const bg = pageBackground()
+    const wrap = d.createElement('div')
+    wrap.setAttribute('aria-hidden', 'true')
+    wrap.setAttribute(PAGE_TRANSITION_OLD_ATTR, '')
+    wrap.setAttribute('inert', '')
+    const ws = wrap.style
+    ws.position = 'fixed'
+    ws.inset = '0'
+    ws.top = '0'
+    ws.left = '0'
+    ws.width = '100%'
+    ws.height = '100%'
+    // A scroll container (scrolled from script only), so sticky content sticks as it did.
+    // No containment or transform: fixed content inside stays fixed to the viewport.
+    ws.overflow = 'hidden'
+    ws.pointerEvents = 'none'
+    ws.zIndex = String((opts.zIndex ?? 2147483000) - 1)
+    ws.background = bg
+    const inner = d.createElement('div')
+    inner.className = body.className
+    const bcs = win?.getComputedStyle?.(body)
+    const is = inner.style
+    is.position = 'relative'
+    is.width = `${d.documentElement.clientWidth || win?.innerWidth || 0}px`
+    is.minHeight = `${Math.max(d.documentElement.scrollHeight, body.scrollHeight, win?.innerHeight || 0)}px`
+    if (bcs) {
+      is.color = bcs.color
+      is.fontFamily = bcs.fontFamily
+      is.lineHeight = bcs.lineHeight
+      is.padding = bcs.padding
+    }
+    const pairs: [Element, Element][] = []
+    for (const child of Array.from(body.children)) {
+      if (child === svg || CLONE_SKIP.has(child.tagName) || child.hasAttribute(PAGE_TRANSITION_OLD_ATTR)) continue
+      const copy = child.cloneNode(true) as Element
+      inner.appendChild(copy)
+      pairs.push([child, copy])
+    }
+    if (!pairs.length) throw new Error('nothing to clone')
+    // Fresh copies would replay their entrance animations from the start (blank): freeze them.
+    const freeze = d.createElement('style')
+    const sel = `[${PAGE_TRANSITION_OLD_ATTR}]`
+    freeze.textContent = `${sel} *,${sel} *::before,${sel} *::after{animation:none!important;transition:none!important}`
+    wrap.append(freeze, inner)
+    body.appendChild(wrap)
+    wrap.scrollTop = win?.scrollY ?? 0
+    wrap.scrollLeft = win?.scrollX ?? 0
+    for (const [from, to] of pairs) {
+      const a = Array.from(from.querySelectorAll('*'))
+      const b = Array.from(to.querySelectorAll('*'))
+      if (a.length !== b.length) continue
+      // Read every scroll offset first, then write (one layout).
+      const scrolled: [number, number, number][] = []
+      a.forEach((el, i) => {
+        if (el.scrollTop || el.scrollLeft) scrolled.push([i, el.scrollTop, el.scrollLeft])
+      })
+      for (const [i, top, left] of scrolled) {
+        b[i]!.scrollTop = top
+        b[i]!.scrollLeft = left
+      }
+      a.forEach((el, i) => {
+        if (el.tagName === 'CANVAS') copyCanvas(el as HTMLCanvasElement, b[i] as HTMLCanvasElement, bg)
+      })
+    }
+    return wrap
+  }
+
+  const clipValue = (d: string): string => `path('${d}')`
+
+  /** Clip the old page (snapshot or clone) to the region ahead of the band's front. */
+  const applyClip = (input: PageTransitionFrameInput): void => {
+    seamEdge = pageTransitionSplitEdge(input, PAGE_TRANSITION_SEAM_INSET, seamEdge)
+    const clip = clipValue(pageTransitionSplitClip(input, seamEdge))
+    if (seamMode === 'clone') {
+      if (oldClone) oldClone.style.clipPath = clip
+      return
+    }
+    if (clipAnim) {
+      ;(clipAnim.effect as KeyframeEffect | null)?.setKeyframes([{ clipPath: clip }, { clipPath: clip }])
+    } else if (vtStyle) {
+      // No Web Animations on pseudo-elements: a style rule, kept alive by a no-op animation.
+      vtStyle.textContent = VT_CSS(PAGE_TRANSITION_VT_NAME) + VT_HOLD + `${VT_PSEUDO}{clip-path:${clip};animation:goop-pt-hold 600s linear}`
+    }
+  }
+
+  /** Start clipping the old snapshot (the view transition's pseudo-elements now exist). The
+   *  clip animation also keeps the transition alive until the sweep ends. */
+  const startClip = (): void => {
+    const root = doc!.documentElement
+    const vp = viewport()
+    const full = clipValue(`M-10 -10H${vp.width + 10}V${vp.height + 10}H-10Z`)
+    const canPseudo = typeof KeyframeEffect !== 'undefined' && 'pseudoElement' in KeyframeEffect.prototype && typeof root.animate === 'function'
+    if (canPseudo) {
+      try {
+        clipAnim = root.animate([{ clipPath: full }, { clipPath: full }], { duration: 600000, fill: 'forwards', pseudoElement: VT_PSEUDO })
+        return
+      } catch {
+        clipAnim = null
+      }
+    }
+    if (vtStyle) vtStyle.textContent = VT_CSS(PAGE_TRANSITION_VT_NAME) + VT_HOLD + `${VT_PSEUDO}{clip-path:${full};animation:goop-pt-hold 600s linear}`
+  }
+
+  /** End a split run: hide the band, let the view transition finish, clean up, settle. */
+  const endSplit = (abort: boolean): void => {
+    runId++
+    removeTicker(tick)
+    const t = vt
+    const anim = clipAnim
+    const style = vtStyle
+    vt = null
+    clipAnim = null
+    vtStyle = null
+    const none = clipValue(PAGE_TRANSITION_CLIP_NONE)
+    if (t && !abort) {
+      // Hold the empty clip until the pseudo-elements are gone, so the old page never
+      // flashes back: finish the clip animation (fill forwards) or drop the keep-alive,
+      // then tidy up once the transition has finished.
+      try {
+        ;(anim?.effect as KeyframeEffect | null | undefined)?.setKeyframes([{ clipPath: none }, { clipPath: none }])
+        anim?.finish()
+      } catch {
+        anim?.cancel()
+      }
+      if (style) style.textContent = VT_CSS(PAGE_TRANSITION_VT_NAME) + `${VT_PSEUDO}{clip-path:${none}}`
+      const late = setTimeout(() => t.skipTransition(), 400)
+      const tidy = (): void => {
+        clearTimeout(late)
+        anim?.cancel()
+        style?.remove()
+        if (tidyLater === tidy) tidyLater = null
+      }
+      tidyLater = tidy
+      t.finished.then(tidy, tidy)
+    } else {
+      anim?.cancel()
+      style?.remove()
+      t?.skipTransition()
+    }
+    finishUpdate?.()
+    finishUpdate = null
+    oldClone?.remove()
+    oldClone = null
+    svg?.style.removeProperty('view-transition-name')
+    sweep = null
+    seamEdge = null
+    seamMode = null
+    ready = true
+    veiled = false
+    revealQueued = false
+    front = 0
+    tail = 0
+    clearBubbles()
+    wall?.setAttribute('d', '')
+    lip?.setAttribute('d', '')
+    setPhase('idle')
+    const list = [...coverWaiters, ...revealWaiters]
+    coverWaiters = []
+    revealWaiters = []
+    flush(list)
+  }
+
+  /** Mount the overlay and set its colours for a fresh run (split or swap). */
+  const prime = (): void => {
+    mount()
+    accent = resolveAccent()
+    highlight = resolveHighlight()
+    const color = opts.color || PAGE_TRANSITION_COLOR
+    if (grad && gradStops.length === 3) {
+      gradStops[0]!.style.stopColor = color
+      gradStops[1]!.style.stopColor = highlight ?? color
+      gradStops[2]!.style.stopColor = color
+    }
+    if (wall) wall.style.fill = highlight && grad ? `url(#${grad.id})` : color
+    if (lip) lip.style.fill = accent ?? 'none'
+  }
+
+  /** The new page is ready: let the split sweep through. */
+  const openGate = (): void => {
+    ready = true
+    setPhase('revealing')
+    const f = finishUpdate
+    finishUpdate = null
+    f?.()
+  }
+
+  const wake = (): void => {
+    wakeTicker(tick)
+    // No rAF (SSR-ish / tests without timers): jump to the end.
+    if (typeof requestAnimationFrame !== 'function' && sweep && ready) {
+      sweep.p = 1
+      tick(0)
+    }
+  }
+
+  /** Start a split run. False when it can't start (the caller falls back to the swap). */
+  const startSplit = (kind: Exclude<PageTransitionSeam, null>): boolean => {
+    prime()
+    if (!svg) return false
+    mode = 'goo'
+    thick = bandPx()
+    reroll()
+    clock = 0
+    opacity = 1
+    runPos = 0
+    vBand = 0
+    aBand = 0
+    clearBubbles()
+    specs = pageTransitionBubbles(seed + 5.5, Math.min(PAGE_TRANSITION_MAX_BUBBLES, bubbleTotal()))
+    const L = length()
+    const a = amps()
+    const w = wobble()
+    // The trailing mounds stretch with speed past their nominal height: allow for it.
+    const tailReach = pageTransitionReach(tailMounds, a.tail, w) * 1.3
+    const f0 = -pageTransitionReach(frontMounds, a.front, w) - 8
+    const f1 = L + tailReach + 10 + thick
+    // The gate: the trailing edge's mounds still just behind the entry edge, so nothing of
+    // the new page shows yet. Invert the ease by bisection.
+    const target = clamp((thick - tailReach - 2 - f0) / (f1 - f0))
+    let lo = 0
+    let hi = 1
+    for (let i = 0; i < 30; i++) {
+      const mid = (lo + hi) / 2
+      if (pageTransitionSweepEase(mid) < target) lo = mid
+      else hi = mid
+    }
+    const { cover: c, reveal: r } = durations()
+    const next: Sweep = { p: 0, dur: c + r, f0, f1, gate: lo }
+    front = f0
+    tail = f0 - thick
+    prevFront = front
+    prevTail = tail
+    frontAmp = 0
+    tailAmp = 0
+    seamEdge = null
+    revealQueued = false
+    seamMode = kind
+    const id = ++runId
+    if (kind === 'clone') {
+      try {
+        oldClone = buildClone()
+      } catch {
+        oldClone?.remove()
+        oldClone = null
+        seamMode = null
+        return false
+      }
+      ready = false
+      sweep = next
+      setPhase('covered')
+      draw()
+      const list = coverWaiters
+      coverWaiters = []
+      flush(list)
+      wake()
+      return true
+    }
+    // View transition: the band must not be in the old snapshot.
+    veiled = true
+    setPhase('covering')
+    const style = doc!.createElement('style')
+    style.setAttribute(PAGE_TRANSITION_OLD_ATTR, '')
+    style.textContent = VT_CSS(PAGE_TRANSITION_VT_NAME)
+    ;(doc!.head ?? doc!.documentElement).appendChild(style)
+    vtStyle = style
+    let t: ViewTransitionLike
+    try {
+      const start = (doc as Document & { startViewTransition: StartViewTransition }).startViewTransition
+      t = start.call(
+        doc,
+        () =>
+          new Promise<void>((resolve) => {
+            if (id !== runId) return resolve()
+            finishUpdate = resolve
+            // The old page is captured: show the band (empty for now) as its own live group,
+            // above root, and let the caller change the DOM.
+            veiled = false
+            svg?.style.setProperty('view-transition-name', PAGE_TRANSITION_VT_NAME)
+            wall?.setAttribute('d', '')
+            lip?.setAttribute('d', '')
+            setPhase('covered')
+            const list = coverWaiters
+            coverWaiters = []
+            flush(list)
+            if (revealQueued) {
+              revealQueued = false
+              openGate()
+            }
+          }),
+      )
+    } catch {
+      style.remove()
+      vtStyle = null
+      veiled = false
+      seamMode = null
+      runId++
+      return false
+    }
+    vt = t
+    t.ready.then(
+      () => {
+        if (id !== runId) return
+        startClip()
+        sweep = next
+        draw()
+        wake()
+      },
+      () => {
+        // Skipped (timed out, superseded, hidden tab): the DOM has changed anyway; end now.
+        if (id === runId) endSplit(true)
+      },
+    )
+    return true
+  }
+
+  const stepSweep = (sw: Sweep, dt: number): boolean => {
+    // Held short of the gate (easing into it) until the new page is ready.
+    const rate = ready ? 1 : clamp((sw.gate - sw.p) / 0.05)
+    sw.p = Math.min(1, sw.p + (dt / sw.dur) * rate)
+    front = sw.f0 + (sw.f1 - sw.f0) * pageTransitionSweepEase(sw.p)
+    tail = front - thick
+    runPos = sw.p
+    // Mound heights follow the speed, read slightly in the past (momentum), eased so a hold
+    // at the gate settles them.
+    const a = amps()
+    const held = !ready && sw.p > sw.gate - 0.02
+    const sp = held ? 0 : (1 + SWEEP_EASE_K * Math.cos(2 * Math.PI * clamp(sw.p - 0.08))) / (1 + SWEEP_EASE_K)
+    const settle = 1 - Math.exp(-dt / 0.1)
+    frontAmp += (a.front * (0.35 + 0.65 * sp) * Math.min(1, sw.p * 8) - frontAmp) * settle
+    tailAmp += (a.tail * (0.3 + 0.9 * sp) - tailAmp) * settle
+    goo(dt)
+    if (sw.p >= 1) {
+      endSplit(false)
+      return false
+    }
+    return true
+  }
+
   return {
     cover() {
       if (destroyed || opts.enabled === false || !doc) return Promise.resolve()
       if (phase === 'covered') return Promise.resolve()
       revealQueued = false
+      if (seamMode && phase === 'revealing') endSplit(true)
       const p = new Promise<void>((resolve) => coverWaiters.push(resolve))
       if (phase === 'covering') return p
+      if (phase === 'idle') {
+        const s = seamFor()
+        // View transition, else the clone, else the swap.
+        if (s === 'view-transition' && startSplit(s)) return p
+        if (s && startSplit('clone')) return p
+      }
       if (phase === 'revealing') {
         // A new navigation mid-drain: the drain is superseded.
         const list = revealWaiters
@@ -1299,7 +1845,8 @@ export function createPageTransition(initial: PageTransitionOptions = {}): PageT
       const p = new Promise<void>((resolve) => revealWaiters.push(resolve))
       if (phase === 'covering') revealQueued = true
       else if (phase === 'covered') {
-        startReveal()
+        if (seamMode) openGate()
+        else startReveal()
       }
       return p
     },
@@ -1312,11 +1859,15 @@ export function createPageTransition(initial: PageTransitionOptions = {}): PageT
     get bubbleCount() {
       return bubbles.filter((b) => b.state !== 'merge').length
     },
+    get seam() {
+      return phase === 'idle' ? seamFor() : seamMode
+    },
     update(nextOpts) {
       opts = { ...opts, ...nextOpts }
       if (svg && nextOpts.zIndex !== undefined) svg.style.zIndex = String(nextOpts.zIndex)
       if (opts.enabled === false && phase !== 'idle') {
         // Turned off mid-transition: drop the overlay now.
+        if (seamMode) return endSplit(true)
         removeTicker(tick)
         motion = null
         revealQueued = false
@@ -1333,6 +1884,8 @@ export function createPageTransition(initial: PageTransitionOptions = {}): PageT
     destroy() {
       if (destroyed) return
       destroyed = true
+      if (seamMode) endSplit(true)
+      tidyLater?.()
       removeTicker(tick)
       motion = null
       clearBubbles()

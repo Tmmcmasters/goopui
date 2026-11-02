@@ -10,6 +10,9 @@ export interface UseGoopPageTransitionReturn {
   reveal(): Promise<void>
   /** The live core handle; null on the server and before mount. */
   handle: ShallowRef<PageTransitionHandle | null>
+  /** Does the next (or running) transition split the pages, the band as the seam between
+   *  them? Then cover() holds the old page and reveal() means the new one is ready. */
+  splits(): boolean
 }
 
 /**
@@ -33,6 +36,7 @@ export function useGoopPageTransition(options: MaybeRefOrGetter<GoopPageTransiti
     cover: () => handle.value?.cover() ?? Promise.resolve(),
     reveal: () => handle.value?.reveal() ?? Promise.resolve(),
     handle,
+    splits: () => (handle.value?.seam ?? null) !== null,
   }
 }
 
@@ -46,6 +50,8 @@ export interface GoopTransitionRoute {
 export interface GoopTransitionRouter {
   beforeEach(guard: (to: GoopTransitionRoute, from: GoopTransitionRoute) => unknown): () => void
   afterEach(hook: (to: GoopTransitionRoute, from: GoopTransitionRoute, failure?: unknown) => unknown): () => void
+  /** Used for the split: the old page is held once the route's components have loaded. */
+  beforeResolve?(guard: (to: GoopTransitionRoute, from: GoopTransitionRoute) => unknown): () => void
   onError?(handler: (error: unknown) => unknown): () => void
 }
 
@@ -58,7 +64,8 @@ export interface GoopRouterTransitionOptions {
   when?: (to: GoopTransitionRoute, from: GoopTransitionRoute) => boolean
   /** Fade the new page in as it swaps in behind / around the band: a selector for the
    *  element to fade (default GOOP_PAGE_FADE_TARGET, the app root), or false for none.
-   *  With revealOn 'manual', call `goopPageFadeIn()` yourself when the new page renders. */
+   *  With revealOn 'manual', call `goopPageFadeIn()` yourself when the new page renders.
+   *  Never used when the transition splits (nothing swaps in view). */
   fade?: string | false
   /** Fade length (ms). Default 200. */
   fadeDuration?: number
@@ -86,35 +93,65 @@ const frame = (): Promise<void> =>
   new Promise((resolve) => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame(() => resolve()) : resolve()))
 
 /**
- * Run `transition` on route changes: `beforeEach` waits for the cover, so the old page is
- * hidden before it changes; the reveal runs once the new page has rendered. A failed or
- * cancelled navigation reveals too. Returns a function that removes the hooks.
+ * Run `transition` on route changes: navigation waits for the cover, so the old page is
+ * hidden (or, split, held as a snapshot) before it changes; the reveal runs once the new
+ * page has rendered. A failed or cancelled navigation reveals too. Returns a function that
+ * removes the hooks.
+ *
+ * Split (`transition.splits()`): the old page is held in `beforeResolve` (once the route's
+ * components have loaded, so a view transition's paused rendering is short), the route
+ * commits, and the reveal follows the render directly, with no fade and no frame wait
+ * (rendering is paused until it does).
  */
 export function goopRouterTransition(
   router: GoopTransitionRouter,
-  transition: Pick<UseGoopPageTransitionReturn, 'cover' | 'reveal'>,
+  transition: Pick<UseGoopPageTransitionReturn, 'cover' | 'reveal'> & Partial<Pick<UseGoopPageTransitionReturn, 'splits'>>,
   options: GoopRouterTransitionOptions = {},
 ): () => void {
   const when = options.when ?? ((to, from) => from.matched.length > 0 && to.path !== from.path)
+  const splits = (): boolean => transition.splits?.() ?? false
   let swapping = false
+  let split = false
+  let pendingSplit = false
   const offs = [
     router.beforeEach(async (to, from) => {
+      pendingSplit = false
       if (!when(to, from)) return
+      if (splits() && router.beforeResolve) {
+        pendingSplit = true
+        return
+      }
       swapping = true
+      split = splits()
       await transition.cover()
     }),
     router.afterEach(async (_to, _from, failure) => {
       const swapped = swapping
+      const wasSplit = split
       swapping = false
+      split = false
+      pendingSplit = false
       if (failure) return void transition.reveal()
       if (options.revealOn === 'manual') return
       await nextTick()
+      if (swapped && wasSplit) return void transition.reveal()
       // The new page is in the DOM but not painted yet: fade it in behind the band.
       if (swapped) goopPageFadeIn(options.fade ?? GOOP_PAGE_FADE_TARGET, options.fadeDuration ?? 200)
       await frame()
       void transition.reveal()
     }),
   ]
+  if (router.beforeResolve) {
+    offs.push(
+      router.beforeResolve(async () => {
+        if (!pendingSplit) return
+        pendingSplit = false
+        swapping = true
+        split = true
+        await transition.cover()
+      }),
+    )
+  }
   if (router.onError) offs.push(router.onError(() => void transition.reveal()))
   return () => {
     for (const off of offs) off()

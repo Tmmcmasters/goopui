@@ -152,13 +152,13 @@ describe('createPageTransition', () => {
   })
 
   it('mounts nothing until the first cover', () => {
-    pt = createPageTransition({ reducedMotion: false })
+    pt = createPageTransition({ split: false, reducedMotion: false })
     expect(overlay()).toBeNull()
     expect(pt.phase).toBe('idle')
   })
 
   it('covers, holds, then reveals, in order', async () => {
-    pt = createPageTransition({ reducedMotion: false, accent: '#1fa64a' })
+    pt = createPageTransition({ split: false, reducedMotion: false, accent: '#1fa64a' })
     const log: string[] = []
     const covered = pt.cover().then(() => log.push('covered'))
     const el = overlay()!
@@ -194,7 +194,7 @@ describe('createPageTransition', () => {
   })
 
   it('a reveal called mid-cover waits for the cover to finish', async () => {
-    pt = createPageTransition({ reducedMotion: false })
+    pt = createPageTransition({ split: false, reducedMotion: false })
     const log: string[] = []
     pt.cover().then(() => log.push('covered'))
     vi.advanceTimersByTime(50)
@@ -207,7 +207,7 @@ describe('createPageTransition', () => {
   })
 
   it('a cover mid-reveal re-covers and settles the superseded reveal', async () => {
-    pt = createPageTransition({ reducedMotion: false })
+    pt = createPageTransition({ split: false, reducedMotion: false })
     pt.cover()
     vi.advanceTimersByTime(600)
     const r = pt.reveal()
@@ -222,7 +222,7 @@ describe('createPageTransition', () => {
   })
 
   it('reveal while idle and cover while covered resolve at once', async () => {
-    pt = createPageTransition({ reducedMotion: false })
+    pt = createPageTransition({ split: false, reducedMotion: false })
     await pt.reveal()
     pt.cover()
     vi.advanceTimersByTime(600)
@@ -232,7 +232,7 @@ describe('createPageTransition', () => {
   })
 
   it('destroy removes the overlay, stops the loop and settles pending promises', async () => {
-    pt = createPageTransition({ reducedMotion: false })
+    pt = createPageTransition({ split: false, reducedMotion: false })
     const c = pt.cover()
     vi.advanceTimersByTime(50)
     pt.destroy()
@@ -274,7 +274,7 @@ describe('createPageTransition', () => {
   })
 
   it('duration splits across cover and reveal', async () => {
-    pt = createPageTransition({ reducedMotion: false, duration: 200 })
+    pt = createPageTransition({ split: false, reducedMotion: false, duration: 200 })
     const c = pt.cover()
     vi.advanceTimersByTime(130)
     await c
@@ -402,7 +402,7 @@ describe('createPageTransition bubbles', () => {
   /** Run a full transition (short hold): every frame's wall path and live bubble count. */
   const runOnce = async (opts: Parameters<typeof createPageTransition>[0]): Promise<{ frames: string[]; maxHoles: number; counts: number[] }> => {
     pt?.destroy()
-    pt = createPageTransition({ reducedMotion: false, seed: 9, ...opts })
+    pt = createPageTransition({ split: false, reducedMotion: false, seed: 9, ...opts })
     const frames: string[] = []
     const counts: number[] = []
     const c = pt.cover()
@@ -476,7 +476,7 @@ describe('createPageTransition bubbles', () => {
   })
 
   it('band: false is the full-screen wall (a plain rect once covered)', async () => {
-    pt = createPageTransition({ reducedMotion: false, band: false, bubbles: false })
+    pt = createPageTransition({ split: false, reducedMotion: false, band: false, bubbles: false })
     const c = pt.cover()
     vi.advanceTimersByTime(700)
     await c
