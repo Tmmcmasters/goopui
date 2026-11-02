@@ -3,8 +3,8 @@ export type ThemePref = 'light' | 'dark' | 'system'
 export const THEME_STORAGE_KEY = 'goop-theme'
 
 export function useTheme() {
-  const pref = useState<ThemePref>('theme:pref', () => 'system')
-  const isDark = useState('theme:dark', () => false)
+  const pref = useState<ThemePref>('theme:pref', () => 'dark')
+  const isDark = useState('theme:dark', () => true)
 
   function apply(next: ThemePref) {
     pref.value = next

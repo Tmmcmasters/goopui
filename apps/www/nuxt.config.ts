@@ -5,10 +5,11 @@ import tailwindcss from '@tailwindcss/vite'
 // SQLite can't write on this repo's exFAT drive ("attempt to write a readonly database"),
 // so Nuxt Content's databases live in the OS temp dir. Override with CONTENT_DB_DIR
 // (e.g. on a deploy target that wants them elsewhere).
+// Dark is the default theme (the landing is designed dark); the toggle stores 'light'.
 // Runs before first paint on every page (including error pages): theme class,
 // the site's reduced-motion switch, and the `js` class that lets scroll reveals hide
 // content (no JS = everything visible). Keys match useTheme / useMotionPreference.
-const boot = `(function(){try{var d=document.documentElement;d.classList.add('js');var t=localStorage.getItem('goop-theme');var dark=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);d.classList.toggle('dark',dark);if(localStorage.getItem('goop-reduced-motion')==='true')d.dataset.reducedMotion='true'}catch(e){}})()`
+const boot = `(function(){try{var d=document.documentElement;d.classList.add('js');var t=localStorage.getItem('goop-theme');var dark=t!=='light';d.classList.toggle('dark',dark);if(localStorage.getItem('goop-reduced-motion')==='true')d.dataset.reducedMotion='true'}catch(e){}})()`
 
 const site = 'https://goop.timmcmasters.work'
 const description =
@@ -44,8 +45,7 @@ export default defineNuxtConfig({
         { name: 'twitter:title', content: 'goopUI: components that drip' },
         { name: 'twitter:description', content: description },
         { name: 'twitter:image', content: `${site}/og.png` },
-        { name: 'theme-color', content: '#faf8f3', media: '(prefers-color-scheme: light)' },
-        { name: 'theme-color', content: '#141210', media: '(prefers-color-scheme: dark)' },
+        { name: 'theme-color', content: '#141210' },
       ],
       link: [
         { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
