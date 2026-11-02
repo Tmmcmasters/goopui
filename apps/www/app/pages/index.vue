@@ -6,13 +6,5 @@ useSeoMeta({
 </script>
 
 <template>
-  <div>
-    <LandingHero />
-    <LandingWhatItIs />
-    <LandingComponents />
-    <LandingFrameworks />
-    <LandingTheming />
-    <LandingAccessibility />
-    <LandingInstall />
-  </div>
+  <LandingHero />
 </template>

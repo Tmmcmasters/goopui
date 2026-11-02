@@ -18,12 +18,15 @@ const links = [
   { to: '/docs/core/api', label: 'Core', match: '/docs/core' },
 ]
 const isActive = (match: string) => route.path.startsWith(match)
+// The landing keeps the header quiet: see-through over the lava lamp, just Docs + GitHub + theme.
+const landing = computed(() => route.path === '/')
 </script>
 
 <template>
   <header
     class="site-header fixed inset-x-0 top-0 z-40 h-[var(--header-h)]"
     :data-scrolled="scrolled || undefined"
+    :data-landing="landing || undefined"
   >
     <a
       href="#main"
@@ -35,13 +38,14 @@ const isActive = (match: string) => route.path.startsWith(match)
       class="mx-auto flex h-full items-center gap-2 px-4 sm:px-6"
       :class="props.wide ? 'max-w-[1440px]' : 'max-w-6xl'"
     >
-      <NuxtLink to="/" class="-ml-1 rounded-md px-1 py-1" aria-label="goopUI home">
+      <NuxtLink to="/" class="-ml-1 rounded-md px-1 py-1 [-webkit-user-drag:none]" aria-label="goopUI home" draggable="false">
         <SiteLogo />
       </NuxtLink>
       <span
+        v-if="!landing"
         class="ml-1 hidden rounded-full border border-border px-2 py-0.5 font-mono text-[11px] text-muted-foreground sm:inline"
       >
-        v0.1 in progress
+        alpha
       </span>
 
       <nav class="ml-auto flex items-center gap-0.5" aria-label="Main">
@@ -49,14 +53,16 @@ const isActive = (match: string) => route.path.startsWith(match)
           v-for="l in links"
           :key="l.to"
           :to="l.to"
-          class="nav-link hidden rounded-lg px-3 py-2 text-sm sm:inline-block"
+          class="nav-link hidden rounded-lg px-3 py-2 text-sm"
+          :class="landing ? '' : 'sm:inline-block'"
           :data-active="isActive(l.match) || undefined"
         >
           {{ l.label }}
         </NuxtLink>
         <NuxtLink
           to="/docs/getting-started/introduction"
-          class="nav-link rounded-lg px-3 py-2 text-sm sm:hidden"
+          class="nav-link rounded-lg px-3 py-2 text-sm"
+          :class="landing ? '' : 'sm:hidden'"
           :data-active="route.path.startsWith('/docs') || undefined"
         >
           Docs
@@ -83,6 +89,11 @@ const isActive = (match: string) => route.path.startsWith(match)
   -webkit-backdrop-filter: saturate(1.4) blur(14px);
   box-shadow: 0 1px 0 0 transparent;
   transition: box-shadow 200ms ease;
+}
+.site-header[data-landing]:not([data-scrolled]) {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 .site-header[data-scrolled] {
   box-shadow: 0 1px 0 0 var(--border);

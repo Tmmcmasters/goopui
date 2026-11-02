@@ -9,6 +9,8 @@ export default defineContentConfig({
       schema: z.object({
         /** Shown as a pill in the sidebar and page header. */
         status: z.enum(['soon', 'preview']).optional(),
+        /** `experimental`: a "New · experimental" badge in the page header and the sidebar. */
+        badge: z.enum(['experimental']).optional(),
       }),
     }),
   },

@@ -88,6 +88,30 @@
   [data-goop-emerge][data-state='closed']:not([data-goop-still]) {
     animation: goop-emerge-hold var(--goop-emerge-close, 0ms) linear both;
   }
+  /* An item-aligned select (GoopSelectContent) sits in reka's plain fixed wrapper, and that
+     wrapper (not the panel) is the node reka's Presence watches, so the hold goes on it too.
+     GoopSelectContent mirrors --goop-emerge-close onto the wrapper as the list closes. */
+  :has(> [data-slot='select-content'][data-align-trigger='true'][data-goop-emerge][data-state='closed']:not([data-goop-still])) {
+    animation: goop-emerge-hold var(--goop-emerge-close, 0ms) linear both;
+  }
+
+  /* Dialog overlay (GoopDialogOverlay): core pours an opaque goo sheet; the surface's opacity
+     dims the page (goo can't paint translucent color). Tune with --goop-backdrop-color /
+     --goop-backdrop-opacity. The hold keeps reka's Presence mounted while it drains. */
+  [data-goop-backdrop] {
+    --goop-color: var(--goop-backdrop-color, #000);
+  }
+  [data-goop-backdrop][data-state='closed']:not([data-goop-still]) {
+    animation: goop-emerge-hold var(--goop-backdrop-close, 0ms) linear both;
+  }
+
+  /* Sheets (GoopSheetContent): core blooms the sheet from its screen edge with the emerge
+     engine (content opacity, tint and the close hold come from the [data-goop-emerge] rules
+     above); shadcn's border + shadow-lg become a bigger drop-shadow on the goo. */
+  [data-slot='sheet-content'][data-goop-emerge] {
+    --goop-surface-shadow: drop-shadow(0 0 0.5px color-mix(in oklab, var(--foreground, #000) 35%, transparent))
+      drop-shadow(0 10px 15px rgb(0 0 0 / 0.1));
+  }
 
   /* Menu highlight blob (GoopDropdownMenu): core inserts it behind the items and mirrors the
      item's data-variant. Goo can't paint translucent color, so the destructive tint is mixed
@@ -138,6 +162,29 @@
     transition: none;
   }
 
+  /* Accordion / Collapsible (GoopAccordionItem, GoopCollapsible): core floods the open trigger
+     row with goo (GoopToggle's engine; --goop-accordion-fill, default --primary) and marks the
+     trigger data-goop-flooded once it is half full (its text color is set below, outside the
+     layer). The content's height follows core's springs: --goop-accordion-open with a jelly
+     linear() easing (--goop-accordion-open-ease, overshoot included), and
+     --goop-accordion-close / --goop-accordion-close-ease. Heights come from reka's
+     content-height vars. Core marks the host data-goop-still under reduced motion: plain
+     shadcn height animation (0.2s ease-out). */
+  [data-goop-accordion] [data-goop-accordion-content][data-state='open'] {
+    animation: goop-accordion-down var(--goop-accordion-open, 0.2s) ease-out;
+    animation-timing-function: var(--goop-accordion-open-ease, ease-out);
+  }
+  [data-goop-accordion] [data-goop-accordion-content][data-state='closed'] {
+    animation: goop-accordion-up var(--goop-accordion-close, 0.2s) ease-in both;
+    animation-timing-function: var(--goop-accordion-close-ease, ease-out);
+  }
+  [data-goop-accordion][data-goop-still] [data-goop-accordion-content][data-state='open'] {
+    animation: goop-accordion-down 0.2s ease-out;
+  }
+  [data-goop-accordion][data-goop-still] [data-goop-accordion-content][data-state='closed'] {
+    animation: goop-accordion-up 0.2s ease-out both;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     [data-goop-host] > [data-goop='layer'] {
       transition: none;
@@ -149,6 +196,40 @@
   html[data-reduced-motion='true'] [data-goop-host] > [data-goop='layer'],
   html[data-reduced-motion='true'] [data-goop-mark] {
     transition: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-goop-accordion] [data-goop-accordion-content][data-state='open'] {
+      animation: goop-accordion-down 0.2s ease-out;
+    }
+    [data-goop-accordion] [data-goop-accordion-content][data-state='closed'] {
+      animation: goop-accordion-up 0.2s ease-out both;
+    }
+  }
+}
+
+/* A flooded accordion / collapsible trigger: text (and icons, e.g. the chevron's
+   text-muted-foreground) take the goo's foreground. Unlayered on purpose so it beats Tailwind
+   utilities (a ghost button's hover:text-accent-foreground would be unreadable on the goo).
+   Tune with --goop-accordion-text. */
+[data-goop-accordion-trigger][data-goop-flooded],
+[data-goop-accordion-trigger][data-goop-flooded] svg {
+  color: var(--goop-accordion-text, var(--primary-foreground));
+}
+
+@keyframes goop-accordion-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--reka-accordion-content-height, var(--reka-collapsible-content-height));
+  }
+}
+@keyframes goop-accordion-up {
+  from {
+    height: var(--reka-accordion-content-height, var(--reka-collapsible-content-height));
+  }
+  to {
+    height: 0;
   }
 }
 

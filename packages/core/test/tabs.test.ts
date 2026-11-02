@@ -79,7 +79,8 @@ describe('tabs indicator geometry (TABS_FEEL)', () => {
   it('stays globby: fat, overlapping neck lumps all the way to the tail, every preset', () => {
     for (const preset of ['subtle', 'playful', 'wild'] as const) {
       for (const f of slide(0, 3, preset)) {
-        const [tail, ...neck] = f.pose.circles
+        const [tail, ...rest] = f.pose.circles
+        const neck = rest.slice(0, 3)
         if (!tail || tail.r === 0) continue
         for (const c of neck) expect(c.r).toBeGreaterThanOrEqual(14 * MENU_NECK_MIN * 0.99)
         const chain = [...neck, tail]

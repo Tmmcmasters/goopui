@@ -20,6 +20,10 @@ import {
 import { fieldScale, parseRgb } from '../src/renderers/shared'
 import { gaussianTaps } from '../src/renderers/gl'
 
+/** The goo filter sits on the SVG layer's inner goo box (or on the layer itself). */
+const filterOf = (layer: HTMLElement): string =>
+  (layer.querySelector<HTMLElement>('[data-goop="goo"]') ?? layer).style.filter
+
 const PARAMS = { blur: 4, contrast: 20, threshold: 0.4 }
 const flushMicrotasks = () => new Promise<void>((r) => setTimeout(r, 0))
 
@@ -326,7 +330,7 @@ describe('oil finish', () => {
     a.drip()
     b.drip()
     await flushMicrotasks()
-    expect(b.layer.style.filter).toMatch(/^url\(#goop-oil-/)
+    expect(filterOf(b.layer)).toMatch(/^url\(#goop-oil-/)
   })
 
   it('reduced motion keeps a static sheen: no sheen loop on pointer move', () => {

@@ -1,0 +1,50 @@
+name: Release
+
+# Manual only. Publishes the committed versions of the public @goopui/* packages
+# (core, vue, nuxt). Version bumps happen beforehand with `pnpm changeset version`.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: npm dist-tag
+        required: true
+        default: latest
+        type: string
+      dry_run:
+        description: Dry run (pack and validate, don't publish)
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write # npm provenance
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run build typecheck test --filter=./packages/core --filter=./packages/vue --filter=./packages/nuxt
+      - name: Publish
+        run: >-
+          pnpm publish -r --filter "./packages/*"
+          --access public
+          --tag "$DIST_TAG"
+          --no-git-checks
+          --provenance
+          ${{ inputs.dry_run && '--dry-run' || '' }}
+        env:
+          DIST_TAG: ${{ inputs.tag }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

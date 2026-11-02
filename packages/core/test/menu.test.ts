@@ -3,10 +3,14 @@ import {
   GOOP_PART_ATTR,
   MENU_FEEL,
   MENU_HIGHLIGHT_CIRCLES,
+  MENU_NECK_LUMPS,
   MENU_NECK_MIN,
+  MENU_SWELL_AT,
+  MENU_SWELL_CIRCLES,
   activeTickerCount,
   attachMenuHighlight,
   findMenuHighlight,
+  menuBulgeTarget,
   menuHighlightInit,
   menuHighlightPose,
   menuHighlightSettled,
@@ -56,6 +60,92 @@ describe('menuHighlightPose', () => {
   })
 })
 
+describe('pointer follow', () => {
+  // The swell's peak circle (the middle of the mound).
+  const SWELL = MENU_SWELL_AT + (MENU_SWELL_CIRCLES - 1) / 2
+  const runAt = (s: MenuHighlightState, target: EmergeRect, pointer: number | null, seconds: number, fx = {}) => {
+    const out = []
+    for (let t = 0; t < seconds; t += DT) {
+      menuHighlightStep(s, target, DT, MENU_FEEL.playful, fx, pointer)
+      out.push({ s: structuredClone(s), pose: menuHighlightPose(s, MENU_FEEL.playful, fx) })
+    }
+    return out
+  }
+  const neckXs = (frames: ReturnType<typeof runAt>) =>
+    frames.filter((f) => f.pose.circles[0]!.r > 0).flatMap((f) => f.pose.circles.slice(1, 1 + MENU_NECK_LUMPS).map((c) => c.x))
+
+  it('aims at the pointer, clamped inside the item; centred without one', () => {
+    expect(menuBulgeTarget(row(0), 120)).toBe(120)
+    expect(menuBulgeTarget(row(0), 0)).toBe(4 + 14)
+    expect(menuBulgeTarget(row(0), 999)).toBe(4 + 180 - 14)
+    expect(menuBulgeTarget(row(0), null)).toBe(94)
+  })
+
+  it('the neck rides the pointer down the column; keyboard keeps it centred', () => {
+    const s = menuHighlightInit()
+    menuHighlightSnap(s, row(0), 150)
+    const xs = neckXs(runAt(s, row(3), 150, 1))
+    expect(xs.length).toBeGreaterThan(0)
+    for (const x of xs) expect(x).toBeCloseTo(150, 0)
+
+    const k = menuHighlightInit()
+    menuHighlightSnap(k, row(0))
+    for (const x of neckXs(runAt(k, row(3), null, 1))) expect(x).toBeCloseTo(94, 0)
+
+    const off = menuHighlightInit()
+    menuHighlightSnap(off, row(0), 150)
+    for (const x of neckXs(runAt(off, row(3), 150, 1, { followPointer: false }))) expect(x).toBeCloseTo(94, 0)
+  })
+
+  it('a swell trails the pointer along the item, then settles flush under it', () => {
+    const s = menuHighlightInit()
+    menuHighlightSnap(s, row(1), 30)
+    const frames = runAt(s, row(1), 160, 1.5)
+    const swelling = frames.filter((f) => f.pose.circles[SWELL]!.r > 0)
+    expect(swelling.length).toBeGreaterThan(0)
+    const half = 14
+    for (const f of swelling) {
+      const c = f.pose.circles[SWELL]!
+      expect(c.r).toBeGreaterThan(half)
+      expect(c.r).toBeLessThanOrEqual(half * (1 + MENU_FEEL.playful.swell!) + 1e-6)
+      expect(c.x).toBeGreaterThanOrEqual(4 + half - 1e-6)
+      expect(c.x).toBeLessThanOrEqual(4 + 180 - half + 1e-6)
+    }
+    // A low, wide mound, not a knob: the circles span a good share of the item and rise
+    // gently to the peak (no neighbour much taller than the next).
+    const wide = swelling.filter((f) => Math.abs(f.s.bx.x - 94) < 30)
+    expect(wide.length).toBeGreaterThan(0)
+    for (const f of wide) {
+      const mound = f.pose.circles.slice(MENU_SWELL_AT, MENU_SWELL_AT + MENU_SWELL_CIRCLES).filter((c) => c.r > 0)
+      expect(mound.length).toBeGreaterThanOrEqual(3)
+      const xs = mound.map((c) => c.x)
+      const peak = f.pose.circles[SWELL]!.r - half
+      if (peak > 0.5) expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(180 / 3 * 0.6)
+      for (const c of mound) expect(c.r - half).toBeLessThanOrEqual(peak + 1e-9)
+    }
+    // Springy, not glued: it lags behind the pointer early on.
+    expect(frames[3]!.s.bx.x).toBeLessThan(100)
+    const last = frames.at(-1)!
+    expect(last.s.bx.x).toBeCloseTo(160, 0)
+    expect(last.pose.circles.every((c) => c.r === 0)).toBe(true)
+    expect(menuHighlightSettled(s, row(1))).toBe(true)
+  })
+
+  it('no swell with followPointer off; the item at rest stays flat', () => {
+    const s = menuHighlightInit()
+    menuHighlightSnap(s, row(1), 30)
+    const frames = runAt(s, row(1), 160, 1, { followPointer: false })
+    expect(frames.every((f) => f.pose.circles.every((c) => c.r === 0))).toBe(true)
+  })
+
+  it('appears under the pointer without a swell (grows in place)', () => {
+    const s = menuHighlightInit()
+    const [first] = runAt(s, row(2), 140, DT)
+    expect(first!.s.bx.x).toBe(140)
+    expect(first!.pose.circles[SWELL]!.r).toBe(0)
+  })
+})
+
 describe('menuHighlightStep: travel', () => {
   const travel = (preset: keyof typeof MENU_FEEL = 'playful', fx = {}) => {
     const s = menuHighlightInit()
@@ -88,7 +178,8 @@ describe('menuHighlightStep: travel', () => {
   it('stays globby: neck lumps are fat and overlap all the way to the tail', () => {
     for (const preset of ['subtle', 'playful', 'wild'] as const) {
       for (const f of travel(preset)) {
-        const [tail, ...neck] = f.pose.circles
+        const [tail, ...rest] = f.pose.circles
+        const neck = rest.slice(0, 3)
         if (!tail || tail.r === 0) continue
         for (const c of neck) expect(c.r).toBeGreaterThanOrEqual(14 * MENU_NECK_MIN * 0.99)
         // Consecutive lumps (and the tail) touch: no gaps, no string.

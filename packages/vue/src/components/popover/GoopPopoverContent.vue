@@ -82,6 +82,9 @@ const props = withDefaults(
       openDripFling?: number
       /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
       openDripVariety?: number
+      /** 0..1: how differently each side bulges on open and sloshes on close (off-centre, one or
+       *  two lumps, staggered; re-rolled every open). Default 1; 0: an even, centred bulge. */
+      sloshVariety?: number
       /** Close: the goo lags and the near edge sloshes against the trigger (bloom: the panel pulls in and wobbles before it shrinks to the center). `true`, `false` or 0..2. */
       closeSlosh?: boolean | number
       /** Panel color: 'trigger' (default: the trigger's background and text color, theme
@@ -112,6 +115,7 @@ const props = withDefaults(
     openDripSize: undefined,
     openDripFling: undefined,
     openDripVariety: undefined,
+    sloshVariety: undefined,
     closeSlosh: true,
     surface: 'trigger',
     speed: 1,
@@ -138,6 +142,7 @@ const delegated = computed(() => {
     openDripSize: _openDripSize,
     openDripFling: _openDripFling,
     openDripVariety: _openDripVariety,
+    sloshVariety: _sloshVariety,
     closeSlosh: _closeSlosh,
     surface: _surface,
     speed: _speed,
@@ -177,6 +182,7 @@ const options = computed<EmergeOptions>(() => ({
   openDripSize: props.openDripSize,
   openDripFling: props.openDripFling,
   openDripVariety: props.openDripVariety,
+  sloshVariety: props.sloshVariety,
   closeSlosh: props.closeSlosh,
   surfaceColor: props.surface,
   speed: props.speed,

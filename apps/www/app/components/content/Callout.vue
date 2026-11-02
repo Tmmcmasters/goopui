@@ -7,7 +7,7 @@ withDefaults(defineProps<{ type?: 'note' | 'soon' | 'alpha' | 'tip' }>(), { type
     <span class="mt-[0.55em] size-2 shrink-0 rounded-full" aria-hidden="true" />
     <div class="min-w-0 [&>p]:my-0 [&>p+p]:mt-2">
       <strong v-if="type === 'soon'" class="font-medium">Not released yet. </strong>
-      <strong v-else-if="type === 'alpha'" class="font-medium">Alpha, not yet published. </strong>
+      <strong v-else-if="type === 'alpha'" class="font-medium">Alpha. </strong>
       <slot />
     </div>
   </aside>

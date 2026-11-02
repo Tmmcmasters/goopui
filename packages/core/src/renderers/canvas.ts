@@ -21,6 +21,7 @@
 
 import { acquireGooFilter, type GooFilterLease, type GooFilterParams } from '../filter'
 import { GOOP_PART_ATTR, type GoopBlob, type GoopLayerPadding, type GoopRenderer, type GoopRendererFactory } from '../renderer'
+import { isMovingGooHost, watchPageEdge, type PageEdgeCut } from '../page-edge'
 import { isReducedMotion, watchReducedMotion } from '../reduced-motion'
 import { readFinish, type GoopFinish } from './finish'
 import type { GlOil, GlShape } from './gl'
@@ -135,6 +136,7 @@ function createCanvasRendererImpl(
       bmp.setAttribute(GOOP_PART_ATTR, 'canvas-gpu')
       bmp.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;'
       layer.append(bmp)
+      if (cut.right !== null || cut.bottom !== null) placeLayer()
       try {
         bctx = (bmp.getContext('bitmaprenderer') as ImageBitmapRenderingContext | null) ?? null
       } catch {
@@ -422,10 +424,43 @@ function createCanvasRendererImpl(
         hostW = host.offsetWidth
         hostH = host.offsetHeight
         readRadii()
+        if (cut.right !== null || cut.bottom !== null) placeLayer()
         invalidate()
       })
     : undefined
   ro?.observe(host)
+
+  // ---- page edge -----------------------------------------------------------------
+  // Near the page's right/bottom edge the layer box is cut back to it and clips, so goo never
+  // grows the page (page-edge.ts). The canvases keep their full size; only the box shrinks.
+  // Nothing is drawn outside the canvas, so the visible reach is just the padding.
+  let cut: PageEdgeCut = { right: null, bottom: null }
+  const placeLayer = (): void => {
+    const clipped = cut.right !== null || cut.bottom !== null
+    layer.style.top = `${-pad.side}px`
+    layer.style.left = `${-pad.side}px`
+    layer.style.right = `${-(cut.right ?? pad.side)}px`
+    layer.style.bottom = `${-(cut.bottom ?? pad.bottom)}px`
+    layer.style.overflowX = cut.right === null ? '' : 'clip'
+    layer.style.overflowY = cut.bottom === null ? '' : 'clip'
+    const w = clipped ? `${hostW + pad.side * 2}px` : '100%'
+    const h = clipped ? `${hostH + pad.side + pad.bottom}px` : '100%'
+    for (const c of bmp ? [canvas, bmp] : [canvas]) {
+      c.style.width = w
+      c.style.height = h
+    }
+  }
+  const edge = watchPageEdge({
+    host,
+    margin: 0,
+    reach: () => ({ right: pad.side, bottom: pad.bottom }),
+    apply(next) {
+      cut = next
+      placeLayer()
+    },
+  })
+  let lastSpawn = 0
+  const moving = isMovingGooHost(host)
   // Color: repaint on things that commonly change --goop-color while the sim is idle
   // (hover/focus styles, class/style changes, color transitions).
   let raf = 0
@@ -531,11 +566,10 @@ function createCanvasRendererImpl(
       invalidate()
     },
     setPadding(p) {
+      const grew = p.side > pad.side || p.bottom > pad.bottom
       pad = { side: p.side, bottom: p.bottom }
-      layer.style.top = `${-p.side}px`
-      layer.style.left = `${-p.side}px`
-      layer.style.right = `${-p.side}px`
-      layer.style.bottom = `${-p.bottom}px`
+      placeLayer()
+      edge.refresh(grew)
       invalidate()
     },
     setBodyScale(sx, sy) {
@@ -558,6 +592,12 @@ function createCanvasRendererImpl(
       inst.dirty = true
     },
     createBlob(): GoopBlob {
+      // Goo is spawning: the host may have moved since the last cut.
+      const t = Date.now()
+      if (t - lastSpawn > 250) {
+        lastSpawn = t
+        edge.refresh()
+      }
       const b: BlobState = { x: 0, y: 0, r: 0, o: 1, sx: 1, sy: 1 }
       blobs.add(b)
       return {
@@ -576,11 +616,13 @@ function createCanvasRendererImpl(
       }
     },
     flush() {
+      if (moving) edge.track()
       if (inst.dirty) invalidate()
     },
     destroy() {
       if (destroyed) return
       destroyed = true
+      edge.release()
       ro?.disconnect()
       mo?.disconnect()
       for (const [t, l] of hostEvents) host.removeEventListener(t, l)

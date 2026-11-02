@@ -5,6 +5,7 @@
 // y grows down), regardless of how the renderer pads its own drawing surface.
 
 import { acquireGooFilter, createOilFilter, type GooFilterLease, type GooFilterParams, type OilFilter } from './filter'
+import { isMovingGooHost, watchPageEdge, type PageEdgeCut } from './page-edge'
 import { readFinish, type GoopFinish, type GoopFinishRenderer } from './renderers/finish'
 
 export interface GoopLayerPadding {
@@ -72,9 +73,13 @@ const BASE_R = 10
 
 const fmt = (n: number): string => (Math.round(n * 100) / 100).toString()
 
+/** How far past its box the goo filter draws, as a fraction of the box (GOO_FILTER_REGION). */
+const FILTER_REACH = 0.2
+
 /**
  * SVG-filter renderer: plain <span>s (valid inside <button>) styled as a rounded body and
- * circles, inside a layer with `filter: url(#goo)`. Only transform/opacity change per frame.
+ * circles, inside a goo box with `filter: url(#goo)` inside the layer. Only transform/opacity
+ * change per frame.
  */
 /** Oil film band size (px per color cycle) at --goop-oil-scale: 1. */
 const OIL_BAND_PX = 34
@@ -102,37 +107,87 @@ export function createSvgFilterRenderer(
       'border-radius:inherit;box-sizing:border-box;margin:0;padding:0;border:0;',
   )
   layer.setAttribute('aria-hidden', 'true')
+  // The filtered box. It is never the element that clips: Chromium cuts a filtered element's
+  // output at its own border box when it has overflow:clip (overflow-clip-margin ignored), so
+  // the page-edge clip sits on the unfiltered layer around it instead.
+  const gooBox = span('goo', 'position:absolute;display:block;border-radius:inherit;')
   const body = span(
     'body',
     `position:absolute;display:block;border-radius:inherit;transform-origin:50% 50%;${fill}`,
   )
   // Zero-size origin pinned to the host's top-left; blobs are positioned relative to it.
   const origin = span('drips', 'position:absolute;display:block;width:0;height:0;')
-  layer.append(body, origin)
-  layer.style.filter = `url(#${lease.id})`
+  gooBox.append(body, origin)
+  layer.append(gooBox)
+  gooBox.style.filter = `url(#${lease.id})`
   host.append(layer)
 
-  const setPadding = ({ side, bottom }: GoopLayerPadding): void => {
-    const s = `${-side}px`
-    layer.style.top = s
-    layer.style.left = s
-    layer.style.right = s
-    layer.style.bottom = `${-bottom}px`
+  let oil: OilFilter | null = null
+  // Goo box: always `pad` past the host on each side. Near the page edge (page-edge.ts) the
+  // layer around it is cut: its far side ends `cut` px past the host (at the page edge) and
+  // it clips, so no goo grows the page. Overflow clips both sides of an axis, so its near
+  // sides move out by the filter's reach: only goo past the page edge is ever cut.
+  let pad: GoopLayerPadding = { side: 0, bottom: 0 }
+  let cut: PageEdgeCut = { right: null, bottom: null }
+  const placeLayer = (pending = false): void => {
+    const { side, bottom } = pad
+    const clipped = cut.right !== null || cut.bottom !== null
+    // The filter region reaches FILTER_REACH of the goo box past it (GOO_FILTER_REGION).
+    const mx = cut.right === null ? 0 : Math.ceil(FILTER_REACH * boxW()) + 2
+    const my = cut.bottom === null ? 0 : Math.ceil(FILTER_REACH * boxH()) + 2
+    const right = cut.right ?? side
+    const below = cut.bottom ?? bottom
+    layer.style.top = `${-side - my}px`
+    layer.style.left = `${-side - mx}px`
+    layer.style.right = `${-right}px`
+    layer.style.bottom = `${-below}px`
+    gooBox.style.top = `${my}px`
+    gooBox.style.left = `${mx}px`
+    gooBox.style.right = `${right - side}px`
+    gooBox.style.bottom = `${below - bottom}px`
     body.style.top = `${side}px`
     body.style.left = `${side}px`
     body.style.right = `${side}px`
     body.style.bottom = `${bottom}px`
     origin.style.left = `${side}px`
     origin.style.top = `${side}px`
+    layer.style.overflowX = cut.right === null ? '' : 'clip'
+    layer.style.overflowY = cut.bottom === null ? '' : 'clip'
+    if (!pending && clipped) {
+      // overflow clips to the rounded box: square the layer and give the goo box the host's
+      // corners directly (it normally inherits them through the layer).
+      layer.style.borderRadius = '0'
+      gooBox.style.borderRadius = doc.defaultView?.getComputedStyle(host).borderRadius ?? ''
+    } else {
+      layer.style.borderRadius = 'inherit'
+      gooBox.style.borderRadius = 'inherit'
+    }
+  }
+  const boxW = (): number => host.offsetWidth + pad.side * 2
+  const boxH = (): number => host.offsetHeight + pad.side + pad.bottom
+  const edge = watchPageEdge({
+    host,
+    reach: () => ({ right: pad.side + FILTER_REACH * boxW(), bottom: pad.bottom + FILTER_REACH * boxH() }),
+    apply(next, pending) {
+      cut = next
+      placeLayer(pending)
+    },
+  })
+  const setPadding = (p: GoopLayerPadding): void => {
+    const grew = p.side > pad.side || p.bottom > pad.bottom
+    pad = { side: p.side, bottom: p.bottom }
+    placeLayer()
+    edge.refresh(grew)
   }
   setPadding({ side: 0, bottom: 0 })
+  let lastSpawn = 0
+  const moving = isMovingGooHost(host)
 
   let bodyTransform = ''
 
   // ---- oil finish ----
   let goo = params
   let finish: GoopFinish = readFinish(host, { finish: 'solid' })
-  let oil: OilFilter | null = null
   const isDark = (): boolean => {
     const c = doc.defaultView?.getComputedStyle(body).backgroundColor ?? ''
     const m = c.match(/[\d.]+/g)
@@ -144,12 +199,12 @@ export function createSvgFilterRenderer(
   const syncFilter = (): void => {
     if (finish.finish === 'oil') {
       if (!oil) oil = createOilFilter(doc, goo, oilParams())
-      oil.setBox(layer.offsetWidth, layer.offsetHeight)
-      layer.style.filter = `url(#${oil.id})`
+      oil.setBox(gooBox.offsetWidth, gooBox.offsetHeight)
+      gooBox.style.filter = `url(#${oil.id})`
     } else {
       oil?.release()
       oil = null
-      layer.style.filter = `url(#${lease.id})`
+      gooBox.style.filter = `url(#${lease.id})`
     }
   }
 
@@ -169,7 +224,7 @@ export function createSvgFilterRenderer(
     },
     setPadding(p) {
       setPadding(p)
-      if (oil) oil.setBox(layer.offsetWidth, layer.offsetHeight)
+      if (oil) oil.setBox(gooBox.offsetWidth, gooBox.offsetHeight)
     },
     setFinish(overrides) {
       // JS overrides < host --goop-finish / --goop-oil-* vars < defaults (renderers/finish.ts).
@@ -198,6 +253,12 @@ export function createSvgFilterRenderer(
       body.style.transform = t
     },
     createBlob() {
+      // Goo is spawning: the host may have moved since the last cut.
+      const now = Date.now()
+      if (now - lastSpawn > 250) {
+        lastSpawn = now
+        edge.refresh()
+      }
       const el = span(
         'blob',
         `position:absolute;display:block;left:${-BASE_R}px;top:${-BASE_R}px;width:${BASE_R * 2}px;` +
@@ -225,8 +286,11 @@ export function createSvgFilterRenderer(
         },
       }
     },
-    flush() {},
+    flush() {
+      if (moving) edge.track()
+    },
     destroy() {
+      edge.release()
       layer.remove()
       lease.release()
       oil?.release()

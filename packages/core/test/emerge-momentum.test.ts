@@ -6,7 +6,12 @@ import {
   EMERGE_MOMENTUM_DRIPS,
   EMERGE_MOMENTUM_NECKS,
   EMERGE_DRIP_KNOBS,
+  EMERGE_BULGE_SLOTS,
+  EMERGE_BULGE_CIRCLES,
+  EMERGE_MOUND_CIRCLES,
+  emergeBloomBulges,
   emergeBridge,
+  emergeDetachedBridge,
   emergeDripCount,
   emergeDripKnob,
   emergeCloseSlosh,
@@ -72,7 +77,9 @@ describe('emergeMomentum', () => {
     const d = times(end + 0.2, 400).map((s) => emergeSloshOffset(s, 15, 1))
     const first = d.findIndex((v) => Math.abs(v) > 0.5)
     expect(d[first]).toBeGreaterThan(0) // outward first
-    expect(Math.max(...d)).toBeGreaterThan(8)
+    // A low swell: about half a bulb radius at its peak.
+    expect(Math.max(...d)).toBeGreaterThan(5)
+    expect(Math.max(...d)).toBeLessThanOrEqual(EMERGE_MOMENTUM.slosh.amp * 15 * 1.02)
     expect(Math.min(...d)).toBeLessThan(-1) // rebound
     let flips = 0
     for (let i = 1; i < d.length; i++) if (Math.sign(d[i]!) * Math.sign(d[i - 1]!) < 0) flips++
@@ -92,7 +99,7 @@ describe('emergeMomentum', () => {
       const vertical = side === 'top' || side === 'bottom'
       return vertical ? { ...p, width: 182, height: 172 } : { ...p, width: 172, height: 182 }
     }
-    const BULGE = 3
+    const BULGE = EMERGE_BULGE_CIRCLES
     for (const side of SIDES) {
       const b = emergeBridge(trigger, tall(side), side, feel)
       const vertical = side === 'top' || side === 'bottom'
@@ -250,5 +257,109 @@ describe('emergeMomentum', () => {
     expect(peak(0)).toBe(0)
     expect(peak(1, 'subtle')).toBeLessThan(peak(1, 'playful'))
     expect(peak(1, 'wild')).toBeGreaterThan(peak(1, 'playful'))
+  })
+})
+
+describe('bloom slosh variety', () => {
+  const panel: EmergeRect = { x: 300, y: 200, width: 420, height: 260 }
+  const b = emergeDetachedBridge(panel, feel)
+  const rest = emergeRestPose(b)
+  const slosh = (sec: number, seed: number, fx: EmergeDripOptions = {}) =>
+    emergeMomentum(rest, b, 'open', sec, { openDrips: false, ...fx }, { bloom: true, seed }).circles.slice(EMERGE_CIRCLES, EMERGE_CIRCLES + EMERGE_BULGE_CIRCLES)
+
+  it('profiles are fixed per seed, vary between seeds, and average the preset strength', () => {
+    expect(emergeBloomBulges(7)).toEqual(emergeBloomBulges(7))
+    expect(emergeBloomBulges(7)).not.toEqual(emergeBloomBulges(8))
+    let doubles = 0
+    let barely = 0
+    for (let seed = 1; seed <= 200; seed++) {
+      const p = emergeBloomBulges(seed)
+      const peaks = p.map((s) => s.amp * Math.max(...s.lumps.map((l) => l.height)))
+      expect(peaks.reduce((a, x) => a + x, 0) / 4).toBeCloseTo(1, 6)
+      const slots = p.flatMap((s) => s.lumps.map((l) => l.slot))
+      expect(new Set(slots).size).toBe(slots.length)
+      expect(Math.max(...slots)).toBeLessThan(EMERGE_BULGE_SLOTS)
+      for (const s of p) {
+        expect(s.lag).toBeGreaterThanOrEqual(0)
+        expect(s.lag).toBeLessThanOrEqual(0.07)
+        for (const l of s.lumps) {
+          expect(l.at).toBeGreaterThanOrEqual(0.2 - 1e-9)
+          expect(l.at).toBeLessThanOrEqual(0.8 + 1e-9)
+        }
+        if (s.lumps.length === 2) doubles++
+        if (s.amp < 0.4) barely++
+      }
+      // The sides don't peak together.
+      expect(new Set(p.map((s) => s.lag)).size).toBe(4)
+    }
+    expect(doubles).toBeGreaterThan(80)
+    expect(barely).toBeGreaterThan(40)
+  })
+
+  it('variety 0: one centred lump per side, the fixed stagger, even strength', () => {
+    for (const s of emergeBloomBulges(9, 0)) {
+      expect(s.amp).toBeCloseTo(1, 9)
+      expect(s.lumps).toHaveLength(1)
+      expect(s.lumps[0]).toMatchObject({ at: 0.5, width: 1, height: 1 })
+    }
+    expect(emergeBloomBulges(9, 0).map((s) => s.lag)).toEqual([...EMERGE_MOMENTUM.bloom.lag])
+    // The top bulge sits on the top edge's middle.
+    const top = times(0.6, 60).map((s) => slosh(s, 9, { sloshVariety: 0 })[(EMERGE_MOUND_CIRCLES - 1) / 2]!).filter((c) => c.r > 0)
+    expect(top.length).toBeGreaterThan(0)
+    for (const c of top) expect(c.x).toBeCloseTo(b.width / 2, 6)
+  })
+
+  it('every bulge is a low, wide, gentle mound: no knob, no kink where it meets the edge', () => {
+    // Height of the circles' outline above the top edge (y = 0) at x.
+    const outline = (cs: { x: number; y: number; r: number }[], x: number) =>
+      Math.max(0, ...cs.filter((c) => c.r > 0 && Math.abs(x - c.x) < c.r).map((c) => Math.sqrt(c.r * c.r - (x - c.x) ** 2) - c.y))
+    let checked = 0
+    for (const sec of times(0.6, 120)) {
+      const top = slosh(sec, 9, { sloshVariety: 0 }).slice(0, EMERGE_MOUND_CIRCLES)
+      const xs = Array.from({ length: 421 }, (_, i) => i)
+      const h = xs.map((x) => outline(top, x))
+      const peak = Math.max(...h)
+      if (peak < 3) continue
+      checked++
+      // Low: at most maxPx (11); wide: its base spans well over a third of the side.
+      expect(peak).toBeLessThanOrEqual(EMERGE_MOMENTUM.slosh.maxPx + 0.5)
+      const base = h.filter((v) => v > 0.25).length
+      expect(base).toBeGreaterThan(b.width * 0.4)
+      expect(base / peak).toBeGreaterThan(20)
+      // Gentle: never steeper than ~20 degrees; one swell (rises, then falls, no dips).
+      for (let i = 1; i < h.length; i++) expect(Math.abs(h[i]! - h[i - 1]!)).toBeLessThan(0.36)
+      const top0 = h.indexOf(peak)
+      for (let i = 1; i <= top0; i++) expect(h[i]! - h[i - 1]!).toBeGreaterThan(-0.3)
+      for (let i = top0 + 1; i < h.length; i++) expect(h[i]! - h[i - 1]!).toBeLessThan(0.3)
+    }
+    expect(checked).toBeGreaterThan(3)
+  })
+
+  it('varied: the bulges sit off-centre and differ per open, inside each side', () => {
+    const spots = new Set<number>()
+    for (let seed = 1; seed <= 8; seed++) {
+      for (const sec of times(0.6, 40)) {
+        for (const c of slosh(sec, seed)) {
+          if (c.r <= 0) continue
+          spots.add(Math.round(c.x / 10) * 100 + Math.round(c.y / 10))
+          // Never past a corner: a lump only pokes out of its own side.
+          const outX = c.x - c.r < -0.5 || c.x + c.r > b.width + 0.5
+          const outY = c.y - c.r < -0.5 || c.y + c.r > b.height + 0.5
+          expect(outX && outY).toBe(false)
+        }
+      }
+    }
+    expect(spots.size).toBeGreaterThan(12)
+  })
+
+  it('strength per preset is kept: the biggest push is about the centred bulge', () => {
+    const reach = (fx: EmergeDripOptions, seed: number) =>
+      Math.max(...times(0.6, 80).flatMap((s) => slosh(s, seed, fx).filter((c) => c.r > 0).map((c) => Math.max(-(c.y - c.r), c.y + c.r - b.height, -(c.x - c.r), c.x + c.r - b.width))), 0)
+    const even = reach({ sloshVariety: 0 }, 1)
+    let sum = 0
+    for (let seed = 1; seed <= 12; seed++) sum += reach({}, seed)
+    expect(even).toBeGreaterThan(3)
+    expect(sum / 12).toBeGreaterThan(even * 0.8)
+    expect(sum / 12).toBeLessThan(even * 1.6)
   })
 })

@@ -16,10 +16,14 @@
 // change at all: they come from GOOP_DEFAULTS and show up as props automatically.
 
 import {
+  ACCORDION_EFFECTS,
+  type AccordionEffect,
+  type AccordionOptions,
   GOOP_DEFAULTS,
   GOOP_PRESETS,
   GOOP_VAR_META,
   MENU_EFFECTS,
+  SELECT_EFFECTS,
   PROGRESS_EFFECTS,
   SLIDER_EFFECTS,
   SWITCH_EFFECTS,
@@ -28,15 +32,32 @@ import {
   TOOLTIP_BLOOM_SPLASH,
   TOOLTIP_FEEL,
   TOOLTIP_MOMENTUM,
+  ALERT_DIALOG_MOMENTUM,
+  ALERT_DIALOG_SPLASH,
+  DIALOG_FEEL,
+  type BackdropOptions,
   type TabsEffect,
   type TabsIndicatorOptions,
   CHECKBOX_EFFECTS,
   RADIO_EFFECTS,
+  INPUT_EFFECTS,
+  type InputEffect,
+  type InputOptions,
+  TOGGLE_EFFECTS,
+  TOGGLE_GROUP_EFFECTS,
+  type ToggleEffect,
+  type ToggleGroupEffect,
+  type ToggleGroupOptions,
+  type ToggleOptions,
   type CheckboxEffect,
   type CheckboxOptions,
   type RadioEffect,
   type RadioGroupOptions,
   TOASTER_EFFECTS,
+  type SheetOptions,
+  DRAWER_EFFECTS,
+  type DrawerEffect,
+  type DrawerOptions,
   type ToasterEffect,
   type ToasterOptions,
   type EmergeOptions,
@@ -45,6 +66,9 @@ import {
   type EmergeSurfaceColor,
   type MenuEffect,
   type MenuHighlightOptions,
+  type SelectBloomFrom,
+  type SelectEffect,
+  type SelectPlopOptions,
   type ProgressEffect,
   type ProgressOptions,
   type SliderEffect,
@@ -370,6 +394,27 @@ export function toCheckboxOptions(props: GoopCheckboxPropsInput, config: GoopOpt
   return toEffectOptions(CHECKBOX_EFFECTS, props, config)
 }
 
+// ---- GoopInput / GoopTextarea ---------------------------------------------------------------
+// Core `attachInput`: INPUT_EFFECTS (flow, close, ripple, wobble, drain, drip, drips) plus speed /
+// preset / renderer. `invalid` follows the field's aria-invalid (core watches it).
+
+type InputAdapterOwned = 'invalid' | 'reducedMotion'
+export type GoopInputEngineKey = InputEffect | 'speed' | 'preset' | 'renderer'
+type InputUnhandled = Exclude<keyof InputOptions, GoopInputEngineKey | InputAdapterOwned>
+const _allInputOptionsHandled: [InputUnhandled] extends [never] ? true : { unhandled: InputUnhandled } = true
+void _allInputOptionsHandled
+
+export type GoopInputPropsDefinition = EffectPropsDefinition<InputEffect>
+export type GoopInputPropsInput = InputOf<GoopInputPropsDefinition>
+
+/** Spread into `defineProps({ ...goopInputProps, ... })`. */
+export const goopInputProps = effectEngineProps(INPUT_EFFECTS) as unknown as GoopInputPropsDefinition
+
+/** Input / textarea options from props, over app config. */
+export function toInputOptions(props: GoopInputPropsInput, config: GoopOptions = {}): InputOptions {
+  return toEffectOptions(INPUT_EFFECTS, props, config)
+}
+
 // ---- GoopRadioGroup ------------------------------------------------------------------------
 // Core `attachRadioGroup`: RADIO_EFFECTS (bridge, splat, droplets) plus speed / preset / renderer.
 
@@ -392,6 +437,42 @@ export const goopRadioProps = effectEngineProps(RADIO_EFFECTS) as unknown as Goo
 /** Radio group options from props, over app config. */
 export function toRadioOptions(props: GoopRadioPropsInput, config: GoopOptions = {}): RadioGroupOptions {
   return toEffectOptions(RADIO_EFFECTS, props, config)
+}
+
+// ---- GoopToggle / GoopToggleGroup -----------------------------------------------------------
+// Core `attachToggle`: TOGGLE_EFFECTS (flood, wobble, droplets) plus speed / preset / renderer.
+// Core `attachToggleGroup` adds flow and merge (TOGGLE_GROUP_EFFECTS).
+
+type ToggleAdapterOwned = 'pressed' | 'reducedMotion'
+export type GoopToggleEngineKey = ToggleEffect | 'speed' | 'preset' | 'renderer'
+type ToggleUnhandled = Exclude<keyof ToggleOptions, GoopToggleEngineKey | ToggleAdapterOwned>
+const _allToggleOptionsHandled: [ToggleUnhandled] extends [never] ? true : { unhandled: ToggleUnhandled } = true
+void _allToggleOptionsHandled
+
+type ToggleGroupAdapterOwned = 'value' | 'item' | 'reducedMotion'
+export type GoopToggleGroupEngineKey = ToggleGroupEffect | 'speed' | 'preset' | 'renderer'
+type ToggleGroupUnhandled = Exclude<keyof ToggleGroupOptions, GoopToggleGroupEngineKey | ToggleGroupAdapterOwned>
+const _allToggleGroupOptionsHandled: [ToggleGroupUnhandled] extends [never] ? true : { unhandled: ToggleGroupUnhandled } = true
+void _allToggleGroupOptionsHandled
+
+export type GoopTogglePropsDefinition = EffectPropsDefinition<ToggleEffect>
+export type GoopTogglePropsInput = InputOf<GoopTogglePropsDefinition>
+export type GoopToggleGroupPropsDefinition = EffectPropsDefinition<ToggleGroupEffect>
+export type GoopToggleGroupPropsInput = InputOf<GoopToggleGroupPropsDefinition>
+
+/** Spread into `defineProps({ ...goopToggleProps, ... })`. */
+export const goopToggleProps = effectEngineProps(TOGGLE_EFFECTS) as unknown as GoopTogglePropsDefinition
+/** Spread into `defineProps({ ...goopToggleGroupProps, ... })`. */
+export const goopToggleGroupProps = effectEngineProps(TOGGLE_GROUP_EFFECTS) as unknown as GoopToggleGroupPropsDefinition
+
+/** Toggle options from props, over app config. */
+export function toToggleOptions(props: GoopTogglePropsInput, config: GoopOptions = {}): ToggleOptions {
+  return toEffectOptions(TOGGLE_EFFECTS, props, config)
+}
+
+/** Toggle group options from props, over app config. */
+export function toToggleGroupOptions(props: GoopToggleGroupPropsInput, config: GoopOptions = {}): ToggleGroupOptions {
+  return toEffectOptions(TOGGLE_GROUP_EFFECTS, props, config)
 }
 
 // ---- GoopSlider ----------------------------------------------------------------------------
@@ -451,7 +532,7 @@ export function toProgressOptions(props: GoopProgressPropsInput, config: GoopOpt
 /** Emerge toggles shared with GoopPopoverContent. */
 export const EMERGE_EFFECT_KEYS = ['bridge', 'wobble', 'momentum', 'fade', 'openSlosh', 'openDrips', 'closeSlosh'] as const
 /** Numeric open-burst knobs (core EMERGE_DRIP_KNOBS), shared with GoopPopoverContent. */
-export const EMERGE_DRIP_KEYS = ['openDripAmount', 'openDripSize', 'openDripFling', 'openDripVariety'] as const
+export const EMERGE_DRIP_KEYS = ['openDripAmount', 'openDripSize', 'openDripFling', 'openDripVariety', 'sloshVariety'] as const
 /** Every GoopDropdownMenuContent / SubContent engine prop. */
 export const MENU_PROP_KEYS = [
   'goo',
@@ -461,6 +542,7 @@ export const MENU_PROP_KEYS = [
   ...EMERGE_EFFECT_KEYS,
   ...EMERGE_DRIP_KEYS,
   ...MENU_EFFECTS,
+  'followPointer',
   'surface',
   'speed',
   'preset',
@@ -509,6 +591,9 @@ export interface GoopMenuProps {
   openDripFling?: number
   /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
   openDripVariety?: number
+  /** 0..1: how differently each side bulges on open and sloshes on close (off-centre, one or
+   *  two lumps, staggered; re-rolled every open). Default 1; 0: an even, centred bulge. */
+  sloshVariety?: number
   /** On close, the goo lags and the near edge sloshes against the trigger (bloom: the
    *  panel pulls in and wobbles before it shrinks to the center). */
   closeSlosh?: boolean
@@ -516,6 +601,9 @@ export interface GoopMenuProps {
   highlight?: boolean
   /** Jelly squish of the highlight when an item is selected, before the menu closes. */
   pop?: boolean
+  /** The highlight's swell (its neck while it slides, and a soft bulge as the pointer moves
+   *  along an item) follows the pointer with a little lag (false, or keyboard: centred). */
+  followPointer?: boolean
   /** Submenus emerge from their row (false: plain shadcn submenus). */
   submenus?: boolean
   /** Panel color: 'trigger' (default: the trigger's background and text color, falling back
@@ -532,7 +620,7 @@ export interface GoopMenuProps {
 
 /** Compile-time guards: every emerge / highlight option core grows must be handled here. */
 // `surface` (the element) is the adapter's; `surfaceColor` comes from the `surface` prop.
-type MenuAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'surfaceColor' | 'find' | 'feel' | 'reducedMotion'
+type MenuAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'surfaceColor' | 'find' | 'feel' | 'reducedMotion' | 'detached' | 'bloomOrigin'
 type MenuUnhandled = Exclude<
   keyof EmergeOptions | keyof MenuHighlightOptions | MenuEffect,
   keyof GoopMenuProps | MenuAdapterOwned
@@ -551,7 +639,7 @@ export interface ResolvedMenuProps
   renderer?: GoopRendererOption
 }
 
-const MENU_TOGGLES = ['goo', 'flow', ...EMERGE_EFFECT_KEYS, ...MENU_EFFECTS] as const
+const MENU_TOGGLES = ['goo', 'flow', ...EMERGE_EFFECT_KEYS, ...MENU_EFFECTS, 'followPointer'] as const
 
 /** Resolve menu props over a parent menu's resolved settings (submenus) or the defaults. */
 export function resolveMenuProps(props: GoopMenuProps, parent?: ResolvedMenuProps | null): ResolvedMenuProps {
@@ -597,9 +685,101 @@ export function toMenuOptions(
       openDripSize: menu.openDripSize,
       openDripFling: menu.openDripFling,
       openDripVariety: menu.openDripVariety,
+      sloshVariety: menu.sloshVariety,
       surfaceColor: menu.surface,
     },
-    highlight: menu.goo && menu.highlight ? { ...common, wobble: menu.wobble, momentum: menu.momentum, pop: menu.pop } : null,
+    highlight: menu.goo && menu.highlight ? { ...common, wobble: menu.wobble, momentum: menu.momentum, pop: menu.pop, followPointer: menu.followPointer } : null,
+  }
+}
+
+// ---- GoopSelect -----------------------------------------------------------------------------
+// The listbox reuses the dropdown's goo (emerge panel with the bloom open, menu highlight blob
+// and select pop) and adds core's SELECT_EFFECTS `plop` (the check mark drops in when an item
+// is chosen) and `bloomFrom` (an item-aligned list blooms out of the selected item).
+
+/** Every GoopSelectContent engine prop. */
+export const SELECT_PROP_KEYS = [
+  'goo',
+  'flow',
+  'flowStyle',
+  'bloomStart',
+  'bloomFrom',
+  ...EMERGE_EFFECT_KEYS,
+  ...EMERGE_DRIP_KEYS,
+  ...SELECT_EFFECTS,
+  'followPointer',
+  'surface',
+  'speed',
+  'preset',
+  'renderer',
+] as const
+
+/** Engine props of GoopSelectContent. Same meaning as GoopDropdownMenuContent's, except as
+ *  noted. Every toggle defaults on. */
+export interface GoopSelectProps extends Omit<GoopMenuProps, 'submenus' | 'surface'> {
+  /** Where the bloom starts: 'auto' (default: the selected item when `position` is
+   *  'item-aligned', so the list grows out of the value you clicked; the list's own center
+   *  for 'popper'), 'selected' or 'center'. Close shrinks back to the same spot. */
+  bloomFrom?: SelectBloomFrom
+  /** The chosen item's check mark plops in: falls in small, squashes flat as it lands and
+   *  jiggles back to round (`wobble` off: one plain rebound). */
+  plop?: boolean
+  /** Panel color: 'popover' (default: shadcn's popover tokens; a select trigger is an
+   *  outlined field, so its color is not the list's), 'trigger', or any CSS color. */
+  surface?: EmergeSurfaceColor
+}
+
+/** Compile-time guards: every emerge / highlight / plop option and select effect core grows
+ *  must be handled here. `bloomOrigin` is set by the adapter from `bloomFrom`. */
+type SelectAdapterOwned = MenuAdapterOwned
+type SelectUnhandled = Exclude<
+  keyof EmergeOptions | keyof MenuHighlightOptions | keyof SelectPlopOptions | SelectEffect,
+  keyof GoopSelectProps | SelectAdapterOwned
+>
+const _allSelectOptionsHandled: [SelectUnhandled] extends [never] ? true : { unhandled: SelectUnhandled } = true
+void _allSelectOptionsHandled
+type SelectPropsListed = Exclude<keyof GoopSelectProps, (typeof SELECT_PROP_KEYS)[number]>
+const _allSelectPropsListed: [SelectPropsListed] extends [never] ? true : { unlisted: SelectPropsListed } = true
+void _allSelectPropsListed
+
+/** Fully resolved select settings (no undefined toggles). */
+export interface ResolvedSelectProps
+  extends Required<Omit<GoopSelectProps, 'preset' | 'renderer' | (typeof EMERGE_DRIP_KEYS)[number]>>,
+    Pick<GoopSelectProps, (typeof EMERGE_DRIP_KEYS)[number]> {
+  preset?: GoopPreset
+  renderer?: GoopRendererOption
+}
+
+const SELECT_TOGGLES = ['goo', 'flow', ...EMERGE_EFFECT_KEYS, ...SELECT_EFFECTS, 'followPointer'] as const
+
+/** Resolve select props over the defaults. */
+export function resolveSelectProps(props: GoopSelectProps): ResolvedSelectProps {
+  const out = { speed: props.speed ?? 1 } as ResolvedSelectProps
+  for (const k of SELECT_TOGGLES) out[k] = props[k] ?? true
+  for (const k of EMERGE_DRIP_KEYS) if (props[k] !== undefined) out[k] = props[k]
+  out.flowStyle = props.flowStyle ?? 'bloom'
+  out.bloomStart = props.bloomStart ?? 'single'
+  out.bloomFrom = props.bloomFrom ?? 'auto'
+  out.surface = props.surface ?? 'popover'
+  out.preset = props.preset
+  out.renderer = props.renderer
+  return out
+}
+
+/** Core options for the listbox (emerge), the highlight blob and the check plop, over app
+ *  config. `highlight` / `plop` are null when off. */
+export function toSelectOptions(
+  select: ResolvedSelectProps,
+  config: GoopOptions = {},
+): { emerge: EmergeOptions; highlight: MenuHighlightOptions | null; plop: SelectPlopOptions | null } {
+  const { emerge, highlight } = toMenuOptions({ ...select, submenus: false }, config)
+  return {
+    emerge,
+    highlight,
+    plop:
+      select.goo && select.plop
+        ? { speed: select.speed, preset: select.preset ?? config.preset, wobble: select.wobble, reducedMotion: config.reducedMotion }
+        : null,
   }
 }
 
@@ -708,6 +888,9 @@ export interface GoopTooltipProps {
   openDripFling?: number
   /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
   openDripVariety?: number
+  /** 0..1: how differently each side bulges on open and sloshes on close (off-centre, one or
+   *  two lumps, staggered; re-rolled every open). Default 1; 0: an even, centred bulge. */
+  sloshVariety?: number
   /** Close: the near edge sloshes against the trigger (bloom: the inward pull-and-wobble
    *  before it shrinks to the center). `true` (light, 0.5), `false` or 0..2. */
   closeSlosh?: boolean | number
@@ -724,7 +907,7 @@ export interface GoopTooltipProps {
 }
 
 // `surface` (the element) is the adapter's; `surfaceColor` comes from the `surface` prop.
-type TooltipAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'surfaceColor' | 'feel' | 'reducedMotion'
+type TooltipAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'surfaceColor' | 'feel' | 'reducedMotion' | 'detached' | 'bloomOrigin'
 type TooltipUnhandled = Exclude<keyof EmergeOptions, keyof GoopTooltipProps | TooltipAdapterOwned>
 const _allTooltipOptionsHandled: [TooltipUnhandled] extends [never] ? true : { unhandled: TooltipUnhandled } = true
 void _allTooltipOptionsHandled
@@ -761,10 +944,248 @@ export function toTooltipOptions(props: GoopTooltipProps, config: GoopOptions = 
     openDripSize: props.openDripSize ?? S?.openDripSize,
     openDripFling: props.openDripFling ?? S?.openDripFling,
     openDripVariety: props.openDripVariety,
+    sloshVariety: props.sloshVariety,
     surfaceColor: props.surface ?? 'popover',
     speed: props.speed ?? 1,
     preset: props.preset ?? config.preset,
     renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+}
+
+// ---- GoopDialog / GoopAlertDialog ------------------------------------------------------------
+// The panel blooms with core's emerge engine in `detached` mode (no trigger: it pools from its
+// own center, the overshoot and big all-around splash reach every side, close shrinks it back
+// to the center), fed DIALOG_FEEL. The alert dialog is the serious one: a lighter splash and
+// slosh (core ALERT_DIALOG_SPLASH / ALERT_DIALOG_MOMENTUM). The overlay pours down as a goo
+// sheet with a drippy edge and drains off the bottom on close (core `attachBackdrop`).
+
+/** Every GoopDialogContent / GoopAlertDialogContent engine prop. */
+export const DIALOG_PROP_KEYS = [
+  'goo',
+  'bloomStart',
+  'wobble',
+  'fade',
+  'openSlosh',
+  'openDrips',
+  'closeSlosh',
+  ...EMERGE_DRIP_KEYS,
+  'overlay',
+  'overlayDrips',
+  'surface',
+  'speed',
+  'preset',
+  'renderer',
+] as const
+
+/** Engine props of GoopDialogContent / GoopAlertDialogContent. */
+export interface GoopDialogProps {
+  /** Master switch. `false` renders plain shadcn content and overlay. */
+  goo?: boolean
+  /** Bloom start: 'single' (default: one droplet swells) or 'merge' (a few drops fuse). */
+  bloomStart?: EmergeBloomStart
+  /** The open overshoot past every side and its jelly settle. */
+  wobble?: boolean
+  /** Content fades in once the goo has mostly spread (and out first on close). */
+  fade?: boolean
+  /** Open: every edge bulges past rest, rebounds and wobbles. `true`, `false` or a 0..2
+   *  strength (alert dialog: `true` is a light 0.6). */
+  openSlosh?: boolean | number
+  /** Open: the big all-around splash (globs, drops and specks fling off every side, fall and
+   *  fade). `true`, `false` or 0..2 (alert dialog: a light splash by default). */
+  openDrips?: boolean | number
+  /** Splash drop count scale (0..3; default 1, alert dialog 0.35). */
+  openDripAmount?: number
+  /** Splash drop size scale (0.3..2.5; default 1, alert dialog 0.75). */
+  openDripSize?: number
+  /** How far splash drops are flung (0..3; default 1, alert dialog 0.6). */
+  openDripFling?: number
+  /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
+  openDripVariety?: number
+  /** 0..1: how differently each side bulges on open and sloshes on close (off-centre, one or
+   *  two lumps, staggered; re-rolled every open). Default 1; 0: an even, centred bulge. */
+  sloshVariety?: number
+  /** Close: the panel pulls in and wobbles before it shrinks to the center. `true`, `false`
+   *  or 0..2 (alert dialog: `true` is a light 0.7). */
+  closeSlosh?: boolean | number
+  /** Goo overlay (opt-in): the dimmed backdrop pours down over the page and drains off the bottom on
+   *  close. Default `false`: shadcn's fading overlay. */
+  overlay?: boolean
+  /** The overlay's leading edge runs ahead in drips: `true`, `false` (a straight edge) or a
+   *  0..2 strength. */
+  overlayDrips?: boolean | number
+  /** Panel color: 'popover' (default: the content's own shadcn background), 'trigger' (the
+   *  trigger's background and text color), or any CSS color. */
+  surface?: EmergeSurfaceColor
+  /** Animation speed multiplier (panel and overlay). */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory (panel and overlay). */
+  renderer?: GoopRendererOption
+}
+
+// `detached` forces the bloom, so `flow` / `flowStyle` / `bridge` / `momentum` don't apply.
+type DialogAdapterOwned =
+  | 'anchor'
+  | 'side'
+  | 'ready'
+  | 'surface'
+  | 'surfaceColor'
+  | 'feel'
+  | 'reducedMotion'
+  | 'detached'
+  | 'bloomOrigin'
+  | 'flow'
+  | 'flowStyle'
+  | 'bridge'
+  | 'momentum'
+type DialogUnhandled = Exclude<keyof EmergeOptions, keyof GoopDialogProps | DialogAdapterOwned>
+const _allDialogOptionsHandled: [DialogUnhandled] extends [never] ? true : { unhandled: DialogUnhandled } = true
+void _allDialogOptionsHandled
+// Backdrop: `drips` comes from `overlayDrips`; speed / preset / renderer are shared.
+type BackdropUnhandled = Exclude<keyof BackdropOptions, keyof GoopDialogProps | 'drips' | 'surface' | 'seed' | 'reducedMotion'>
+const _allBackdropOptionsHandled: [BackdropUnhandled] extends [never] ? true : { unhandled: BackdropUnhandled } = true
+void _allBackdropOptionsHandled
+type DialogPropsListed = Exclude<keyof GoopDialogProps, (typeof DIALOG_PROP_KEYS)[number]>
+const _allDialogPropsListed: [DialogPropsListed] extends [never] ? true : { unlisted: DialogPropsListed } = true
+void _allDialogPropsListed
+
+/** 'dialog' (the big splash) or 'alert' (the lighter one). */
+export type GoopDialogKind = 'dialog' | 'alert'
+
+/** Emerge options for a dialog panel over app config. */
+export function toDialogOptions(props: GoopDialogProps, config: GoopOptions = {}, kind: GoopDialogKind = 'dialog'): EmergeOptions {
+  const alert = kind === 'alert'
+  const S = alert ? ALERT_DIALOG_SPLASH : null
+  const M = alert ? ALERT_DIALOG_MOMENTUM : null
+  // `true` / absent: the kind's default strength (alert: light).
+  const strength = (v: boolean | number | undefined, def: boolean | number | undefined): boolean | number =>
+    v === undefined || v === true ? (def ?? true) : v
+  return {
+    feel: DIALOG_FEEL,
+    detached: true,
+    bloomStart: props.bloomStart ?? 'single',
+    wobble: props.wobble !== false,
+    fade: props.fade !== false,
+    openSlosh: strength(props.openSlosh, M?.openSlosh),
+    openDrips: props.openDrips ?? S?.openDrips ?? true,
+    closeSlosh: strength(props.closeSlosh, M?.closeSlosh),
+    openDripAmount: props.openDripAmount ?? S?.openDripAmount,
+    openDripSize: props.openDripSize ?? S?.openDripSize,
+    openDripFling: props.openDripFling ?? S?.openDripFling,
+    openDripVariety: props.openDripVariety,
+    sloshVariety: props.sloshVariety,
+    surfaceColor: props.surface ?? 'popover',
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+}
+
+/** Backdrop options for the goo overlay over app config, or null when it is off. */
+export function toBackdropOptions(
+  props: Pick<GoopDialogProps, 'goo' | 'overlay' | 'overlayDrips' | 'speed' | 'preset' | 'renderer'>,
+  config: GoopOptions = {},
+): BackdropOptions | null {
+  if (props.goo === false || props.overlay === false) return null
+  return {
+    drips: props.overlayDrips ?? true,
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+}
+
+// ---- GoopSheet ------------------------------------------------------------------------------
+// The sheet blooms from the middle of its screen edge with core's emerge engine (`attachSheet`
+// = detached bloom + edge origin + SHEET_FEEL): it spreads in lobes to fill the sheet,
+// overshoots the inner edge and wobbles, splashes off the inner edge and sides (never
+// off-screen), and on close shrinks back into the edge. Same toggles as the dialog's bloom. A
+// sheet is a big surface, so it draws with the canvas renderer unless a prop or the app config
+// says otherwise. `goo: false` is a plain shadcn Sheet.
+
+/** Every GoopSheetContent engine prop. */
+export const SHEET_PROP_KEYS = [
+  'goo',
+  'bloomStart',
+  'wobble',
+  'fade',
+  'openSlosh',
+  'openDrips',
+  'closeSlosh',
+  ...EMERGE_DRIP_KEYS,
+  'speed',
+  'preset',
+  'renderer',
+] as const
+
+/** Engine props of GoopSheetContent. */
+export interface GoopSheetProps {
+  /** Master switch. `false` renders a plain shadcn SheetContent (slide in / out). */
+  goo?: boolean
+  /** Bloom start: 'single' (default: one droplet swells at the edge) or 'merge' (a few drops
+   *  fuse). */
+  bloomStart?: EmergeBloomStart
+  /** The open overshoot past the inner edge and its jelly settle. */
+  wobble?: boolean
+  /** Content fades in once the goo has mostly spread (and out first on close). */
+  fade?: boolean
+  /** Open: the edges bulge past rest, rebound and wobble. `true`, `false` or a 0..2 strength. */
+  openSlosh?: boolean | number
+  /** Open: the big splash (globs, drops and specks fling off the inner edge and sides, fall
+   *  and fade; none off-screen). `true`, `false` or 0..2. */
+  openDrips?: boolean | number
+  /** Splash drop count scale (0..3; default 1). */
+  openDripAmount?: number
+  /** Splash drop size scale (0.3..2.5; default 1). */
+  openDripSize?: number
+  /** How far splash drops are flung (0..3; default 1). */
+  openDripFling?: number
+  /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
+  openDripVariety?: number
+  /** 0..1: how differently each side bulges on open and sloshes on close (off-centre, one or
+   *  two lumps, staggered; re-rolled every open). Default 1; 0: an even, centred bulge. */
+  sloshVariety?: number
+  /** Close: the goo pulls in and wobbles before it shrinks back into the edge. `true`,
+   *  `false` or 0..2. */
+  closeSlosh?: boolean | number
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'canvas' (default for the sheet) | 'svg' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+/** Compile-time guards: every sheet option core grows must be a prop (or adapter-owned). */
+type SheetAdapterOwned = 'side' | 'surface' | 'feel' | 'reducedMotion'
+type SheetUnhandled = Exclude<keyof SheetOptions, keyof GoopSheetProps | SheetAdapterOwned>
+const _allSheetOptionsHandled: [SheetUnhandled] extends [never] ? true : { unhandled: SheetUnhandled } = true
+void _allSheetOptionsHandled
+type SheetPropsListed = Exclude<keyof GoopSheetProps, (typeof SHEET_PROP_KEYS)[number]>
+const _allSheetPropsListed: [SheetPropsListed] extends [never] ? true : { unlisted: SheetPropsListed } = true
+void _allSheetPropsListed
+
+/** Sheet options over app config (renderer: prop, then config, then canvas). */
+export function toSheetOptions(props: GoopSheetProps, config: GoopOptions = {}): SheetOptions {
+  return {
+    bloomStart: props.bloomStart ?? 'single',
+    wobble: props.wobble !== false,
+    fade: props.fade !== false,
+    openSlosh: props.openSlosh ?? true,
+    openDrips: props.openDrips ?? true,
+    closeSlosh: props.closeSlosh ?? true,
+    openDripAmount: props.openDripAmount,
+    openDripSize: props.openDripSize,
+    openDripFling: props.openDripFling,
+    openDripVariety: props.openDripVariety,
+    sloshVariety: props.sloshVariety,
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer ?? 'canvas',
     reducedMotion: config.reducedMotion,
   }
 }
@@ -807,5 +1228,128 @@ export function toToasterOptions(props: GoopToasterProps, config: GoopOptions = 
   const out: ToasterOptions = { preset: props.preset ?? config.preset, reducedMotion: config.reducedMotion }
   if (props.speed !== undefined) out.speed = props.speed
   for (const k of TOASTER_EFFECTS) if (props[k] !== undefined) out[k] = props[k]
+  return out
+}
+
+// ---- GoopDrawerContent ----------------------------------------------------------------------
+// Core's `createDrawer` drives the whole drawer (drag, snap points, springs) and its goo:
+// DRAWER_EFFECTS (lag, slosh, rise, stretch, handle, splash), each `true` (default), `false`,
+// or a 0..2 strength, plus goo / speed / preset / renderer. `goo: false` is a plain shadcn
+// DrawerContent look. The drawer's behaviour options (direction, snap points, dismissible...)
+// are GoopDrawer root props (vaul's API), passed through by the adapter.
+
+/** Every GoopDrawerContent engine prop. */
+export const DRAWER_PROP_KEYS = ['goo', ...DRAWER_EFFECTS, 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopDrawerContent. */
+export interface GoopDrawerProps {
+  /** Master switch. `false` renders a plain shadcn DrawerContent. */
+  goo?: boolean
+  /** The leading edge trails behind fast motion: a fast pull in stretches it out behind the panel. `true`, `false` or 0..2. */
+  lag?: boolean | number
+  /** The edge overshoots and wobbles when motion stops (release, snap points, landing). `true`, `false` or 0..2. */
+  slosh?: boolean | number
+  /** Opening lands with an extra jelly overshoot of the edge. `true`, `false` or 0..2. */
+  rise?: boolean | number
+  /** Dragging past full open pulls a globby bump toward the finger. `true`, `false` or 0..2. */
+  stretch?: boolean | number
+  /** The drag handle is a goo blob: swells, stretches along the drag, trails a droplet. `true`, `false` or 0..2. */
+  handle?: boolean | number
+  /** Fling-dismiss: a splash of drops tears off the leading edge, flies, falls and fades. `true`, `false` or 0..2. */
+  splash?: boolean | number
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'canvas' (default for this big surface) | 'svg' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+/** Compile-time guards: every drawer option core grows must be a prop (or adapter-owned). */
+type DrawerAdapterOwned =
+  | 'reducedMotion'
+  | 'grip'
+  | 'surface'
+  | 'overlay'
+  | 'wrapper'
+  // GoopDrawer root props (vaul's API), passed through by GoopDrawerContent:
+  | 'direction'
+  | 'snapPoints'
+  | 'activeSnapPoint'
+  | 'fadeFromIndex'
+  | 'dismissible'
+  | 'closeThreshold'
+  | 'handleOnly'
+  | 'scaleBackground'
+  | 'setBackgroundColorOnScale'
+type DrawerUnhandled = Exclude<keyof DrawerOptions | DrawerEffect, keyof GoopDrawerProps | DrawerAdapterOwned>
+const _allDrawerOptionsHandled: [DrawerUnhandled] extends [never] ? true : { unhandled: DrawerUnhandled } = true
+void _allDrawerOptionsHandled
+type DrawerPropsListed = Exclude<keyof GoopDrawerProps, (typeof DRAWER_PROP_KEYS)[number]>
+const _allDrawerPropsListed: [DrawerPropsListed] extends [never] ? true : { unlisted: DrawerPropsListed } = true
+void _allDrawerPropsListed
+
+/** Drawer options from props, over app config (`preset`, `renderer`, `reducedMotion`). */
+export function toDrawerOptions(props: GoopDrawerProps, config: GoopOptions = {}): DrawerOptions {
+  const out: DrawerOptions = {
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer ?? 'canvas',
+    reducedMotion: config.reducedMotion,
+  }
+  if (props.goo !== undefined) out.goo = props.goo
+  if (props.speed !== undefined) out.speed = props.speed
+  for (const k of DRAWER_EFFECTS) if (props[k] !== undefined) out[k] = props[k]
+  return out
+}
+
+// ---- GoopAccordion / GoopCollapsible ----------------------------------------------------------
+// Core `attachAccordion` on each item (and on the collapsible root): ACCORDION_EFFECTS (flood,
+// wobble, droplets: GoopToggle's fill on the trigger row; jelly: the content's spring), each
+// `true` (default), `false`, or a 0..2 strength, plus speed / preset / renderer. Set them on
+// GoopAccordion (every item follows) or GoopCollapsible. `goo: false` is plain shadcn.
+
+/** Every GoopAccordion / GoopCollapsible engine prop. */
+export const ACCORDION_PROP_KEYS = ['goo', ...ACCORDION_EFFECTS, 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopAccordion and GoopCollapsible. */
+export interface GoopAccordionProps {
+  /** Master switch. `false` renders a plain shadcn Accordion / Collapsible. */
+  goo?: boolean
+  /** The trigger row floods with goo from the click point on open and drains back into it on
+   *  close (off: the fill snaps). `true`, `false` or 0..2. */
+  flood?: boolean | number
+  /** Crest of the flood front and a jelly wobble of the row once full. `true`, `false` or 0..2. */
+  wobble?: boolean | number
+  /** A few droplets splash off the row's top edge as it floods. `true`, `false` or 0..2. */
+  droplets?: boolean | number
+  /** The content opens on a jelly spring (overshoot + settle). `true`, `false` or 0..2. */
+  jelly?: boolean | number
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+/** Compile-time guards: every accordion option core grows must be a prop (or adapter-owned). */
+type AccordionAdapterOwned = 'reducedMotion'
+type AccordionUnhandled = Exclude<keyof AccordionOptions | AccordionEffect, keyof GoopAccordionProps | AccordionAdapterOwned>
+const _allAccordionOptionsHandled: [AccordionUnhandled] extends [never] ? true : { unhandled: AccordionUnhandled } = true
+void _allAccordionOptionsHandled
+type AccordionPropsListed = Exclude<keyof GoopAccordionProps, (typeof ACCORDION_PROP_KEYS)[number]>
+const _allAccordionPropsListed: [AccordionPropsListed] extends [never] ? true : { unlisted: AccordionPropsListed } = true
+void _allAccordionPropsListed
+
+/** Accordion options from props, over app config, or null when the goo is off. */
+export function toAccordionOptions(props: GoopAccordionProps, config: GoopOptions = {}): AccordionOptions | null {
+  if (props.goo === false) return null
+  const out: AccordionOptions = {
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+  if (props.speed !== undefined) out.speed = props.speed
+  for (const k of ACCORDION_EFFECTS) if (props[k] !== undefined) out[k] = props[k]
   return out
 }
