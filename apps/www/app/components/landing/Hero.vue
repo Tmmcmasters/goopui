@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// Launch hero: the live puddle logo, the line, two CTAs. The showcase right under it is
-// the real demo, so the hero stays short and quiet (dark ink; green only on the logo).
+// The landing is (nearly) just this: one screen. Left, the live puddle logo, the line, two
+// CTAs and a one-line meta. Right, one live card to poke (LandingLiveCard). Dark ink
+// everywhere; green only on the logo and the status dot.
 const repo = 'https://github.com/Tmmcmasters/goopui'
 // GitHub's mark (Octicons "mark-github", 16px grid).
 const githubMark =
@@ -8,55 +9,79 @@ const githubMark =
 </script>
 
 <template>
-  <section class="hero mx-auto flex max-w-6xl flex-col items-center px-4 pb-12 pt-[calc(var(--header-h)+56px)] text-center sm:px-6 sm:pb-16 sm:pt-[calc(var(--header-h)+80px)]">
-    <!-- A NuxtLink to "/": on the landing a click stays put, so the goo's click squish plays. -->
-    <NuxtLink to="/" class="intro logo-link" aria-label="goopUI home" draggable="false">
-      <SiteLogo size="xl" />
-    </NuxtLink>
-
-    <a :href="repo" target="_blank" rel="noopener" class="intro intro-1 wip mt-10">
-      <span class="wip-dot" aria-hidden="true" />
-      <span>Work in progress</span>
-      <span class="wip-sep" aria-hidden="true">·</span>
-      <span class="font-mono text-[11px] tracking-wide">alpha</span>
-    </a>
-
-    <h1 class="type-display intro intro-2 mt-5 text-[clamp(2.75rem,8.4vw,6rem)] leading-[0.95] text-balance">
-      Components that drip.
-    </h1>
-    <p class="intro intro-3 mt-6 max-w-[46ch] text-[1.0625rem] leading-relaxed text-muted-foreground text-pretty sm:text-lg">
-      goopUI is the shadcn catalog made gooey. Same components, same API, built on reka-ui, with a tiny physics engine
-      that makes them swell, squish, and drip.
-    </p>
-
-    <div class="intro intro-4 mt-9 flex flex-wrap items-center justify-center gap-3">
-      <GoopButton as-child size="lg" class="h-11 px-5 text-[15px]" :resting-drips="1">
-        <NuxtLink to="/docs/getting-started/installation">
-          Get started
-          <SiteIcon name="arrowRight" :size="16" data-icon="inline-end" />
+  <section class="hero relative isolate">
+    <div class="hero-dots" aria-hidden="true" />
+    <div
+      class="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-[calc(var(--header-h)+40px)] sm:px-6 sm:pt-[calc(var(--header-h)+64px)] lg:min-h-[min(100svh,960px)] lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-14 lg:pb-20 lg:pt-[calc(var(--header-h)+32px)]"
+    >
+      <div class="min-w-0">
+        <!-- A NuxtLink to "/": on the landing a click stays put, so the goo's click squish plays. -->
+        <NuxtLink to="/" class="intro logo-link" aria-label="goopUI home" draggable="false">
+          <SiteLogo size="xl" />
         </NuxtLink>
-      </GoopButton>
-      <GoopButton as-child size="lg" variant="outline" class="h-11 px-5 text-[15px]">
-        <a :href="repo" target="_blank" rel="noopener">
-          <svg data-icon="inline-start" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-            <path :d="githubMark" />
-          </svg>
-          Star on GitHub
+
+        <a :href="repo" target="_blank" rel="noopener" class="intro intro-1 wip mt-9">
+          <span class="wip-dot" aria-hidden="true" />
+          <span>Work in progress</span>
+          <span class="wip-sep" aria-hidden="true">·</span>
+          <span class="font-mono text-[11px] tracking-wide">alpha</span>
         </a>
-      </GoopButton>
+
+        <h1 class="type-display intro intro-2 mt-5 text-[clamp(2.75rem,11vw,5.25rem)] leading-[0.95] text-balance">
+          Components that drip.
+        </h1>
+        <p class="intro intro-3 mt-5 max-w-[40ch] text-[1.0625rem] leading-relaxed text-muted-foreground text-pretty">
+          The shadcn catalog, made gooey. Same components and API on reka-ui, with a tiny physics engine underneath.
+        </p>
+
+        <div class="intro intro-4 cta-row mt-8">
+          <GoopButton as-child size="lg" class="h-12 px-6 text-[15px]">
+            <NuxtLink to="/docs/getting-started/installation">
+              Get started
+              <SiteIcon name="arrowRight" :size="16" data-icon="inline-end" />
+            </NuxtLink>
+          </GoopButton>
+          <GoopButton as-child size="lg" variant="outline" class="h-12 px-6 text-[15px]">
+            <a :href="repo" target="_blank" rel="noopener">
+              <svg data-icon="inline-start" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path :d="githubMark" />
+              </svg>
+              Star on GitHub
+            </a>
+          </GoopButton>
+        </div>
+
+        <p class="intro intro-4 mt-6 font-mono text-[11px] uppercase tracking-[0.12em] text-subtle">
+          Vue + Nuxt <span aria-hidden="true">·</span> MIT <span aria-hidden="true">·</span> Reduced-motion aware
+        </p>
+      </div>
+
+      <LandingLiveCard class="intro intro-3 min-w-0" />
     </div>
   </section>
 </template>
 
 <style scoped>
+/* A faint ink dot grid that fades out toward the edges: texture, not decoration. */
+.hero-dots {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: radial-gradient(circle at 1px 1px, color-mix(in oklch, var(--foreground) 14%, transparent) 1px, transparent 0);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 30%, transparent 75%);
+  pointer-events: none;
+}
 .logo-link {
-  display: block;
+  display: inline-block;
   border-radius: 0.75rem;
   outline-offset: 8px;
   -webkit-user-drag: none;
 }
 .wip {
-  display: inline-flex;
+  display: flex;
+  width: fit-content;
   align-items: center;
   gap: 0.5rem;
   height: 1.875rem;
@@ -84,8 +109,20 @@ const githubMark =
 .wip-sep {
   color: var(--subtle);
 }
+/* Phones: full-width stacked CTAs (easy thumbs). From sm: side by side. */
+.cta-row {
+  display: grid;
+  gap: 0.75rem;
+}
+@media (min-width: 640px) {
+  .cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+}
 
-/* Load-in: one short staggered rise for the hero. */
+/* Load-in: one short staggered rise. */
 .intro {
   animation: intro-rise 900ms var(--ease-out-strong) both;
 }
