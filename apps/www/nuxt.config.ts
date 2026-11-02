@@ -19,7 +19,7 @@ const dbDir = process.env.CONTENT_DB_DIR || join(tmpdir(), 'goopui-www-content')
 
 export default defineNuxtConfig({
   modules: ['@nuxt/content', '@goopui/nuxt'],
-  // Goo wipe between pages (colours: --goop-page-transition / -accent in main.css).
+  // A Slime band with bubbles sweeps between pages (colours: --goop-page-transition* in main.css).
   goop: { pageTransition: { direction: 'down' } },
   compatibilityDate: '2026-10-25',
   devtools: { enabled: false },

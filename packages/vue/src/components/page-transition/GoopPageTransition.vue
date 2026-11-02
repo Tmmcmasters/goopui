@@ -15,6 +15,8 @@ const props = withDefaults(
       router?: GoopTransitionRouter
       /** Reveal timing with `router`: 'afterEach' (default) or 'manual'. */
       revealOn?: GoopRouterTransitionOptions['revealOn']
+      /** With `router`: element (selector) to fade in as the new page swaps in, or false. */
+      fade?: GoopRouterTransitionOptions['fade']
     }
   >(),
   {
@@ -22,11 +24,14 @@ const props = withDefaults(
     direction: undefined,
     color: undefined,
     accent: undefined,
+    highlight: undefined,
     duration: undefined,
     coverDuration: undefined,
     revealDuration: undefined,
     speed: undefined,
     preset: undefined,
+    band: undefined,
+    bubbles: undefined,
     bulge: undefined,
     wobble: undefined,
     lag: undefined,
@@ -34,20 +39,21 @@ const props = withDefaults(
     seed: undefined,
     router: undefined,
     revealOn: undefined,
+    fade: undefined,
   },
 )
 
 const transition = useGoopPageTransition(() => {
-  const { router: _router, revealOn: _revealOn, ...rest } = props
+  const { router: _router, revealOn: _revealOn, fade: _fade, ...rest } = props
   return rest
 })
 
 let off: (() => void) | null = null
 watch(
-  () => [props.router, props.revealOn] as const,
-  ([router, revealOn]) => {
+  () => [props.router, props.revealOn, props.fade] as const,
+  ([router, revealOn, fade]) => {
     off?.()
-    off = router ? goopRouterTransition(router, transition, { revealOn }) : null
+    off = router ? goopRouterTransition(router, transition, { revealOn, fade }) : null
   },
   { immediate: true },
 )

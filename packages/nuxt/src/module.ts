@@ -24,21 +24,34 @@ export interface GoopModulePageTransition {
   direction?: PageTransitionDirection
   /** Wall fill (any CSS colour or `var()`). Default `--goop-page-transition`, then `--primary`. */
   color?: string
-  /** Lip colour on the moving edges, or false. Default `--goop-page-transition-accent` if set. */
+  /** Lip colour on the moving edges and bubble rims, or false. Default
+   *  `--goop-page-transition-accent` if set. */
   accent?: string | false
-  /** Total cover + reveal time (ms). Default ~600. */
+  /** Soft glow through the band, or false. Default `--goop-page-transition-highlight` if set. */
+  highlight?: string | false
+  /** Total cover + reveal time (ms). Default ~1150. */
   duration?: number
   coverDuration?: number
   revealDuration?: number
   speed?: number
   /** Feel for the transition only (default: the module's `preset`). */
   preset?: GoopPreset
+  /** A band that sweeps through (default), `false` for the full-screen wall, or the band's
+   *  thickness as a fraction of the travel length. */
+  band?: boolean | number
+  /** See-through bubbles rising through the goo: `true` (default), `false` or 0..2. */
+  bubbles?: boolean | number
   bulge?: boolean | number
   wobble?: boolean | number
   lag?: boolean | number
   zIndex?: number
   /** Give up waiting for `page:finish` after this many ms and reveal anyway. Default 2000. */
   timeout?: number
+  /** Fade the new page in as it renders behind the band: an element selector (default
+   *  '#__nuxt'), or false. */
+  fade?: string | false
+  /** Fade length (ms). Default 200. */
+  fadeDuration?: number
 }
 
 export interface ModuleOptions extends GoopModuleDefaults {
@@ -127,7 +140,7 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     }
 
     if (options.pageTransition) {
-      const { timeout = 2000, ...pt } = options.pageTransition === true ? {} : options.pageTransition
+      const { timeout = 2000, fade = '#__nuxt', fadeDuration = 200, ...pt } = options.pageTransition === true ? {} : options.pageTransition
       const rm = options.reducedMotion
       addPluginTemplate({
         filename: 'goopui-page-transition.client.mjs',
@@ -135,7 +148,7 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
         getContents: () =>
           [
             `import { createPageTransition } from '@goopui/core'`,
-            `import { goopRouterTransition, toPageTransitionOptions } from '@goopui/vue'`,
+            `import { goopPageFadeIn, goopRouterTransition, toPageTransitionOptions } from '@goopui/vue'`,
             `import { defineNuxtPlugin } from '#app/nuxt'`,
             `export default defineNuxtPlugin({`,
             `  name: 'goopui:page-transition',`,
@@ -143,14 +156,16 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
             `    const options = toPageTransitionOptions(${JSON.stringify(pt)}, ${JSON.stringify({ preset: options.preset, ...(rm === undefined ? {} : { reducedMotion: rm }) })})`,
             `    const transition = createPageTransition(options)`,
             `    let timer = 0`,
+            `    let swapped = false`,
             `    const reveal = () => { clearTimeout(timer); void transition.reveal() }`,
             `    goopRouterTransition(nuxtApp.$router, {`,
             `      cover: () => transition.cover(),`,
             `      reveal,`,
             `    }, { revealOn: 'manual' })`,
             `    // Reveal once the new page has rendered; never leave the screen covered.`,
-            `    nuxtApp.$router.afterEach(() => { clearTimeout(timer); if (transition.phase !== 'idle') timer = setTimeout(reveal, ${Number(timeout) || 2000}) })`,
-            `    nuxtApp.hook('page:finish', () => requestAnimationFrame(reveal))`,
+            `    nuxtApp.$router.afterEach(() => { clearTimeout(timer); swapped = transition.phase !== 'idle'; if (swapped) timer = setTimeout(reveal, ${Number(timeout) || 2000}) })`,
+            `    // The new page is in the DOM, not painted yet: fade it in behind the band so the swap never pops.`,
+            `    nuxtApp.hook('page:finish', () => { if (swapped && !transition.reducedMotion) goopPageFadeIn(${JSON.stringify(fade)}, ${Number(fadeDuration) || 0}); swapped = false; requestAnimationFrame(reveal) })`,
             `    nuxtApp.hook('app:error', reveal)`,
             `    return { provide: { goopPageTransition: transition } }`,
             `  },`,
