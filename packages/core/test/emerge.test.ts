@@ -505,7 +505,7 @@ describe('emerge bloom flow style', () => {
       expect(emergePose(t, b, 'close', EMERGE_FEEL.playful, { ...bloom, wobble: false }).body).toEqual(on)
     }
     expect(differs).toBe(true)
-  })
+  }, 120_000) // ~6s locally; the CI runner is ~5x slower than that
 
   it('tooltip bloom: same pose at tooltip speed, a light splash of a few small drops', () => {
     const tip: EmergeRect = { x: trigger.x, y: trigger.y + trigger.height + 4, width: 110, height: 28 }
