@@ -14,7 +14,8 @@ export default defineNuxtPlugin(() => {
   try {
     stored = localStorage.getItem(THEME_STORAGE_KEY)
   } catch {}
-  pref.value = stored === 'light' || stored === 'dark' ? stored : 'system'
+  // Dark unless the visitor picked light (see the boot script in nuxt.config.ts).
+  pref.value = stored === 'light' ? 'light' : 'dark'
   isDark.value = root.classList.contains('dark')
 
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
