@@ -1381,6 +1381,7 @@ export const PAGE_TRANSITION_PROP_KEYS = [
   'lag',
   'zIndex',
   'seed',
+  'split',
 ] as const
 
 /** Engine props of GoopPageTransition / useGoopPageTransition. */
@@ -1420,6 +1421,10 @@ export interface GoopPageTransitionProps {
   zIndex?: number
   /** Seed for the first transition's mounds (each one re-rolls). */
   seed?: number
+  /** The band is the seam between the pages (`true`, default with the band): the new page
+   *  behind it, the old one ahead of it, never a visible swap (View Transitions, else a
+   *  clone of the old page). `false`: the page swaps while the band is over the middle. */
+  split?: boolean
 }
 
 /** Compile-time guards: every page-transition option core grows must be a prop (or adapter-owned). */

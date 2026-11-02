@@ -36,7 +36,7 @@ describe('GoopPageTransition', () => {
     vi.advanceTimersByTime(600)
     await covered
     const revealed = vm.reveal()
-    vi.advanceTimersByTime(900)
+    vi.advanceTimersByTime(2000)
     await revealed
     expect(overlay()?.getAttribute(PAGE_TRANSITION_ATTR)).toBe('idle')
     w.unmount()
@@ -112,6 +112,66 @@ describe('GoopPageTransition', () => {
     delete document.documentElement.dataset.reducedMotion
     expect(animate).toHaveBeenCalledTimes(1)
     root.remove()
+  })
+
+  it('split: holds the old page in beforeResolve, reveals right after the render, never fades', async () => {
+    type Guard = (to: { path: string; matched: unknown[] }, from: { path: string; matched: unknown[] }, failure?: unknown) => unknown
+    const before: Guard[] = []
+    const resolve: Guard[] = []
+    const after: Guard[] = []
+    const router = {
+      beforeEach: (g: Guard) => (before.push(g), () => before.splice(before.indexOf(g), 1)),
+      beforeResolve: (g: Guard) => (resolve.push(g), () => resolve.splice(resolve.indexOf(g), 1)),
+      afterEach: (g: Guard) => (after.push(g), () => after.splice(after.indexOf(g), 1)),
+    }
+    const root = document.createElement('div')
+    root.id = 'app'
+    document.body.appendChild(root)
+    const animate = vi.fn()
+    ;(root as unknown as { animate: unknown }).animate = animate
+    const raf = vi.spyOn(globalThis, 'requestAnimationFrame')
+    const calls: string[] = []
+    const off = goopRouterTransition(router, {
+      cover: async () => void calls.push('cover'),
+      reveal: async () => void calls.push('reveal'),
+      splits: () => true,
+    })
+    const a = { path: '/', matched: [{}] }
+    const b = { path: '/docs', matched: [{}] }
+    await before[0]!(b, a)
+    // Not yet: the route's components load first.
+    expect(calls).toEqual([])
+    await resolve[0]!(b, a)
+    expect(calls).toEqual(['cover'])
+    await after[0]!(b, a)
+    expect(calls).toEqual(['cover', 'reveal'])
+    expect(animate).not.toHaveBeenCalled()
+    // No frame wait (a view transition pauses frames until the reveal).
+    expect(raf).not.toHaveBeenCalled()
+    // A skipped navigation never covers.
+    await before[0]!(a, a)
+    await resolve[0]!(a, a)
+    expect(calls).toEqual(['cover', 'reveal'])
+    off()
+    expect(resolve).toHaveLength(0)
+    root.remove()
+  })
+
+  it('GoopPageTransition runs the split by default and passes split: false through', async () => {
+    vi.useFakeTimers()
+    document.body.innerHTML = '<main><h1>Old page</h1></main>'
+    const w = mount(GoopPageTransition, { props: { accent: false }, attachTo: document.body })
+    const vm = w.vm as unknown as { cover(): Promise<void>; reveal(): Promise<void>; handle: { seam: string | null } }
+    expect(vm.handle.seam).toBe('clone')
+    await vm.cover()
+    expect(document.querySelector('[data-goop-page-transition-old]')?.textContent).toContain('Old page')
+    const revealed = vm.reveal()
+    vi.advanceTimersByTime(2000)
+    await revealed
+    expect(document.querySelector('[data-goop-page-transition-old]')).toBeNull()
+    await w.setProps({ split: false })
+    expect(vm.handle.seam).toBeNull()
+    w.unmount()
   })
 
   it('useGoopPageTransition creates on mount and destroys on unmount', async () => {
