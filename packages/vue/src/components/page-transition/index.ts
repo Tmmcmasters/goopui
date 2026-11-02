@@ -1,5 +1,7 @@
 export { default as GoopPageTransition } from './GoopPageTransition.vue'
 export {
+  GOOP_PAGE_FADE_TARGET,
+  goopPageFadeIn,
   goopRouterTransition,
   useGoopPageTransition,
   type GoopRouterTransitionOptions,

@@ -82,9 +82,11 @@
   /* Crude-oil ink for the oil-finish button. */
   --oil: oklch(0.17 0.01 60);
   --oil-foreground: oklch(0.97 0.005 90);
-  /* Page transition: an ink wall with a Slime lip on its moving edges. */
-  --goop-page-transition: oklch(0.2 0.012 60);
-  --goop-page-transition-accent: var(--slime);
+  /* Page transition: a Slime band (like the landing's lava-lamp blobs) with a deep green
+     rim on its edges and bubbles and a soft lighter glow through its middle. */
+  --goop-page-transition: var(--slime);
+  --goop-page-transition-accent: oklch(0.43 0.12 150);
+  --goop-page-transition-highlight: oklch(0.73 0.18 146);
   --header-h: 60px;
   --radius: 0.625rem;
   color-scheme: light;
@@ -119,9 +121,10 @@
   --input: oklch(1 0 0 / 0.15);
   --oil: oklch(0.17 0.01 60);
   --oil-foreground: oklch(0.97 0.005 90);
-  /* Ink a step deeper than the page, so the wall reads as goo over it. */
-  --goop-page-transition: oklch(0.11 0.008 60);
-  --goop-page-transition-accent: var(--slime);
+  /* Same Slime band; never darker than the page, so there's no black flash. */
+  --goop-page-transition: var(--slime);
+  --goop-page-transition-accent: oklch(0.37 0.1 150);
+  --goop-page-transition-highlight: oklch(0.7 0.18 146);
   color-scheme: dark;
 }
 

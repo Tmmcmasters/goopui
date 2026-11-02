@@ -1358,8 +1358,8 @@ export function toAccordionOptions(props: GoopAccordionProps, config: GoopOption
 
 // ---- GoopPageTransition ---------------------------------------------------------------------
 // Core's `createPageTransition`: a fixed, aria-hidden goo wall that pours in from one edge,
-// holds, and drains out the other. bulge / wobble / lag are `true` (default), `false` or a
-// 0..2 strength; the rest are core's options as they are. `goo: false` turns it off:
+// holds, and drains out the other. band is `true` (default), `false` (the wall) or a
+// thickness; bubbles / bulge / wobble / lag are `true` (default), `false` or a 0..2 strength; the rest are core's options as they are. `goo: false` turns it off:
 // cover() / reveal() resolve at once.
 
 /** Every GoopPageTransition engine prop. */
@@ -1368,11 +1368,14 @@ export const PAGE_TRANSITION_PROP_KEYS = [
   'direction',
   'color',
   'accent',
+  'highlight',
   'duration',
   'coverDuration',
   'revealDuration',
   'speed',
   'preset',
+  'band',
+  'bubbles',
   'bulge',
   'wobble',
   'lag',
@@ -1388,9 +1391,12 @@ export interface GoopPageTransitionProps {
   direction?: PageTransitionDirection
   /** Wall fill, any CSS colour or `var()`. Default `--goop-page-transition`, then `--primary`. */
   color?: string
-  /** Lip colour on the moving edges, or false. Default `--goop-page-transition-accent` if set. */
+  /** Lip colour on the moving edges and bubble rims, or false. Default
+   *  `--goop-page-transition-accent` if set. */
   accent?: string | false
-  /** Total cover + reveal time (ms) at speed 1. Default from the preset (~600). */
+  /** A soft lighter glow through the band, or false. Default `--goop-page-transition-highlight` if set. */
+  highlight?: string | false
+  /** Total cover + reveal time (ms) at speed 1. Default from the preset (~1150). */
   duration?: number
   /** Cover / reveal time (ms); override `duration`. */
   coverDuration?: number
@@ -1399,6 +1405,11 @@ export interface GoopPageTransitionProps {
   speed?: number
   /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
   preset?: GoopPreset
+  /** A band that sweeps through (`true`), the full-screen wall (`false`), or the band's
+   *  thickness as a fraction of the travel length (0.2..1). */
+  band?: boolean | number
+  /** See-through bubbles rising through the goo. `true`, `false` or 0..2 (how many). */
+  bubbles?: boolean | number
   /** Low, wide mounds on the leading front. `true`, `false` or 0..2. */
   bulge?: boolean | number
   /** The mounds wobble and drift while moving. `true`, `false` or 0..2. */

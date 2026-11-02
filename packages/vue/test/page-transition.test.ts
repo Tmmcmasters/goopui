@@ -2,7 +2,7 @@ import { PAGE_TRANSITION_ATTR } from '@goopui/core'
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick } from 'vue'
-import { GoopPageTransition, goopRouterTransition, toPageTransitionOptions, useGoopPageTransition } from '../src'
+import { GoopPageTransition, goopPageFadeIn, goopRouterTransition, toPageTransitionOptions, useGoopPageTransition } from '../src'
 
 const overlay = () => document.querySelector(`svg[${PAGE_TRANSITION_ATTR}]`)
 
@@ -36,7 +36,7 @@ describe('GoopPageTransition', () => {
     vi.advanceTimersByTime(600)
     await covered
     const revealed = vm.reveal()
-    vi.advanceTimersByTime(600)
+    vi.advanceTimersByTime(900)
     await revealed
     expect(overlay()?.getAttribute(PAGE_TRANSITION_ATTR)).toBe('idle')
     w.unmount()
@@ -75,6 +75,43 @@ describe('GoopPageTransition', () => {
     off()
     expect(before).toHaveLength(0)
     expect(after).toHaveLength(0)
+  })
+
+  it('passes band, bubbles and highlight through to core', () => {
+    expect(toPageTransitionOptions({ band: 0.4, bubbles: false, highlight: '#7f7' })).toMatchObject({ band: 0.4, bubbles: false, highlight: '#7f7' })
+  })
+
+  it('fades the new page in after a transitioned route change (and only then)', async () => {
+    type Guard = (to: { path: string; matched: unknown[] }, from: { path: string; matched: unknown[] }, failure?: unknown) => unknown
+    const before: Guard[] = []
+    const after: Guard[] = []
+    const router = {
+      beforeEach: (g: Guard) => (before.push(g), () => {}),
+      afterEach: (g: Guard) => (after.push(g), () => {}),
+    }
+    const root = document.createElement('div')
+    root.id = 'app'
+    document.body.appendChild(root)
+    const animate = vi.fn()
+    ;(root as unknown as { animate: unknown }).animate = animate
+    goopRouterTransition(router, { cover: async () => {}, reveal: async () => {} })
+    const a = { path: '/', matched: [{}] }
+    const b = { path: '/docs', matched: [{}] }
+    await before[0]!(a, a)
+    await after[0]!(a, a)
+    expect(animate).not.toHaveBeenCalled()
+    await before[0]!(b, a)
+    await after[0]!(b, a)
+    expect(animate).toHaveBeenCalledTimes(1)
+    expect(animate.mock.calls[0]![0]).toEqual([{ opacity: 0 }, { opacity: 1 }])
+    expect(animate.mock.calls[0]![1]).toMatchObject({ duration: 200 })
+    // fade: false turns it off; reduced motion skips it.
+    goopPageFadeIn(false)
+    document.documentElement.dataset.reducedMotion = 'true'
+    goopPageFadeIn('#app')
+    delete document.documentElement.dataset.reducedMotion
+    expect(animate).toHaveBeenCalledTimes(1)
+    root.remove()
   })
 
   it('useGoopPageTransition creates on mount and destroys on unmount', async () => {
