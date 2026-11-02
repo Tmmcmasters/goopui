@@ -25,6 +25,8 @@ export * from './components/textarea'
 export * from './components/toggle'
 export * from './components/toggle-group'
 export * from './components/page-transition'
+export * from './components/hover-card'
+export * from './components/context-menu'
 export { GOOP_CONFIG_KEY, GoopPlugin, provideGoopConfig, useGoopConfig, type GoopConfig } from './config'
 export {
   CSS_VAR_KEYS,
@@ -125,3 +127,13 @@ export {
 export { goopComponents, type GoopComponentName } from './manifest'
 export { seedFrom, useGoop, type UseGoopReturn } from './use-goop'
 export { cn } from 'cn'
+export {
+  HOVER_CARD_PROP_KEYS,
+  toHoverCardOptions,
+  type GoopHoverCardProps,
+  CONTEXT_MENU_PROP_KEYS,
+  resolveContextMenuProps,
+  toContextMenuOptions,
+  type GoopContextMenuProps,
+  type ResolvedContextMenuProps,
+} from './goop-props'

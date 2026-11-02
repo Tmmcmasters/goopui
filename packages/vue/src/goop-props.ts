@@ -84,6 +84,7 @@ import {
   type GoopVarMeta,
 } from '@goopui/core'
 import type { PropType } from 'vue'
+import type { ContextMenuBloomFrom, HoverCardBloomFrom } from '@goopui/core'
 
 // ---- keys --------------------------------------------------------------------------------
 
@@ -1461,4 +1462,180 @@ export function toPageTransitionOptions(props: GoopPageTransitionProps, config: 
     if (props[k] !== undefined) (out as Record<string, unknown>)[k] = props[k]
   }
   return out
+}
+
+// ---- GoopHoverCard --------------------------------------------------------------------------
+// The card is an emerge surface like GoopPopoverContent (same engine, feel and toggles) that
+// blooms from the side facing its trigger (`bloomFrom: 'trigger'`: core clamps the trigger's
+// center onto the card's near edge) and shrinks back into it. Surface defaults to 'popover':
+// a hover card's trigger is usually a link with no background of its own.
+
+/** Every GoopHoverCardContent engine prop. */
+export const HOVER_CARD_PROP_KEYS = [
+  'goo',
+  'flow',
+  'flowStyle',
+  'bloomStart',
+  'bloomFrom',
+  ...EMERGE_EFFECT_KEYS,
+  ...EMERGE_DRIP_KEYS,
+  'surface',
+  'speed',
+  'preset',
+  'renderer',
+] as const
+
+/** Engine props of GoopHoverCardContent. Every toggle defaults on. */
+export interface GoopHoverCardProps {
+  /** Master switch. `false` renders a plain shadcn HoverCardContent. */
+  goo?: boolean
+  /** Flow open (default true) in `flowStyle`. `false`: the card inflates from a bulb at the
+   *  trigger edge (`bridge` / `momentum` apply). */
+  flow?: boolean
+  /** 'bloom' (default: pools from `bloomFrom`, spreads with a lobed edge, overshoots and
+   *  splashes, shrinks back on close) or 'neck' (out of the trigger through a thick neck). */
+  flowStyle?: EmergeFlowStyle
+  /** Bloom start: 'single' (default: one droplet swells) or 'merge' (a few drops fuse). */
+  bloomStart?: EmergeBloomStart
+  /** Where the bloom starts: 'trigger' (default: the card's edge facing the trigger) or
+   *  'center' (the card's own center, like GoopPopoverContent). */
+  bloomFrom?: HoverCardBloomFrom
+  /** Bulb + lumpy neck between trigger and card (not used by bloom). */
+  bridge?: boolean
+  /** Jelly overshoot and wobble (bloom: the open overshoot and settle). */
+  wobble?: boolean
+  /** Momentum launch away from the trigger (not used by bloom). */
+  momentum?: boolean
+  /** Content fades in once the goo settles. */
+  fade?: boolean
+  /** Open: every edge bulges past rest, rebounds and wobbles. `true`, `false` or 0..2. */
+  openSlosh?: boolean | number
+  /** Open: the all-around splash (drops kept off the trigger). `true`, `false` or 0..2. */
+  openDrips?: boolean | number
+  /** Burst drop count scale (0..3, default 1). */
+  openDripAmount?: number
+  /** Burst drop size scale (0.3..2.5, default 1). */
+  openDripSize?: number
+  /** How far burst drops are flung (0..3, default 1). */
+  openDripFling?: number
+  /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
+  openDripVariety?: number
+  /** 0..1: how differently each side bulges (re-rolled every open). Default 1. */
+  sloshVariety?: number
+  /** Close: the card pulls in and wobbles before it shrinks back. `true`, `false` or 0..2. */
+  closeSlosh?: boolean | number
+  /** Card color: 'popover' (default: shadcn's popover tokens), 'trigger' or a CSS color. */
+  surface?: EmergeSurfaceColor
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+/** Compile-time guards: every emerge option core grows must be a hover-card prop (or adapter-owned). */
+type HoverCardAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'surfaceColor' | 'feel' | 'reducedMotion' | 'detached' | 'bloomOrigin'
+type HoverCardUnhandled = Exclude<keyof EmergeOptions, keyof GoopHoverCardProps | HoverCardAdapterOwned>
+const _allHoverCardOptionsHandled: [HoverCardUnhandled] extends [never] ? true : { unhandled: HoverCardUnhandled } = true
+void _allHoverCardOptionsHandled
+type HoverCardPropsListed = Exclude<keyof GoopHoverCardProps, (typeof HOVER_CARD_PROP_KEYS)[number]>
+const _allHoverCardPropsListed: [HoverCardPropsListed] extends [never] ? true : { unlisted: HoverCardPropsListed } = true
+void _allHoverCardPropsListed
+
+/** Emerge options for a hover card over app config (`bloomOrigin` comes from the adapter). */
+export function toHoverCardOptions(props: GoopHoverCardProps, config: GoopOptions = {}): EmergeOptions {
+  return {
+    flow: props.flow !== false,
+    flowStyle: props.flowStyle ?? 'bloom',
+    bloomStart: props.bloomStart ?? 'single',
+    bridge: props.bridge !== false,
+    wobble: props.wobble !== false,
+    momentum: props.momentum !== false,
+    fade: props.fade !== false,
+    openSlosh: props.openSlosh ?? true,
+    openDrips: props.openDrips ?? true,
+    closeSlosh: props.closeSlosh ?? true,
+    openDripAmount: props.openDripAmount,
+    openDripSize: props.openDripSize,
+    openDripFling: props.openDripFling,
+    openDripVariety: props.openDripVariety,
+    sloshVariety: props.sloshVariety,
+    surfaceColor: props.surface ?? 'popover',
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+}
+
+// ---- GoopContextMenu ------------------------------------------------------------------------
+// The dropdown menu's goo (emerge panel + highlight blob + select pop + goo submenus) with no
+// trigger box: the root panel blooms detached from the right-click point (`bloomFrom:
+// 'pointer'`, core `attachContextPoint`), so `flow` / `flowStyle` / `bridge` don't apply
+// (always the bloom). Submenus bloom out of their parent item. Surface defaults to 'popover'
+// (the trigger is an area, not a button). `undefined` toggles inherit from the parent menu.
+
+/** Every GoopContextMenuContent / SubContent engine prop. */
+export const CONTEXT_MENU_PROP_KEYS = [
+  'goo',
+  'bloomStart',
+  'bloomFrom',
+  'wobble',
+  'momentum',
+  'fade',
+  'openSlosh',
+  'openDrips',
+  'closeSlosh',
+  ...EMERGE_DRIP_KEYS,
+  ...MENU_EFFECTS,
+  'followPointer',
+  'surface',
+  'speed',
+  'preset',
+  'renderer',
+] as const
+
+/** Engine props of GoopContextMenuContent / GoopContextMenuSubContent. Same meaning as
+ *  GoopDropdownMenuContent's, except as noted. */
+export interface GoopContextMenuProps extends Omit<GoopMenuProps, 'flow' | 'flowStyle' | 'bridge'> {
+  /** Where the bloom starts: 'pointer' (default: the right-click / long-press point; a
+   *  submenu: its parent item) or 'center' (the panel's own center). */
+  bloomFrom?: ContextMenuBloomFrom
+  /** Panel color: 'popover' (default: shadcn's popover tokens), 'trigger' (the trigger
+   *  area's colors) or any CSS color. Submenus that leave it unset reuse their parent's. */
+  surface?: EmergeSurfaceColor
+}
+
+/** Compile-time guards. `flow` / `flowStyle` / `bridge` are fixed by the adapter (always
+ *  bloom), `detached` / `bloomOrigin` come from `bloomFrom`. */
+type ContextMenuAdapterOwned = MenuAdapterOwned | 'flow' | 'flowStyle' | 'bridge'
+type ContextMenuUnhandled = Exclude<
+  keyof EmergeOptions | keyof MenuHighlightOptions | MenuEffect,
+  keyof GoopContextMenuProps | ContextMenuAdapterOwned
+>
+const _allContextMenuOptionsHandled: [ContextMenuUnhandled] extends [never] ? true : { unhandled: ContextMenuUnhandled } = true
+void _allContextMenuOptionsHandled
+type ContextMenuPropsListed = Exclude<keyof GoopContextMenuProps, (typeof CONTEXT_MENU_PROP_KEYS)[number]>
+const _allContextMenuPropsListed: [ContextMenuPropsListed] extends [never] ? true : { unlisted: ContextMenuPropsListed } = true
+void _allContextMenuPropsListed
+
+/** Fully resolved context-menu settings. */
+export interface ResolvedContextMenuProps extends ResolvedMenuProps {
+  bloomFrom: ContextMenuBloomFrom
+}
+
+/** Resolve context-menu props over a parent menu's (submenus) or the defaults. */
+export function resolveContextMenuProps(props: GoopContextMenuProps, parent?: ResolvedContextMenuProps | null): ResolvedContextMenuProps {
+  const surface = props.surface ?? parent?.surface ?? 'popover'
+  const m = resolveMenuProps({ ...props, flow: true, flowStyle: 'bloom', bridge: true, surface }, parent)
+  return { ...m, bloomFrom: props.bloomFrom ?? parent?.bloomFrom ?? 'pointer' }
+}
+
+/** Core options for a context-menu panel (emerge) and its highlight, over app config. */
+export function toContextMenuOptions(
+  menu: ResolvedContextMenuProps,
+  config: GoopOptions = {},
+): { emerge: EmergeOptions; highlight: MenuHighlightOptions | null } {
+  return toMenuOptions(menu, config)
 }

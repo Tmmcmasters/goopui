@@ -733,3 +733,10 @@ export {
   type PageTransitionPhase,
   type PageTransitionSeam,
 } from './page-transition'
+export {
+  attachContextPoint,
+  contextMenuBloomOrigin,
+  type ContextMenuBloomFrom,
+  type ContextPointHandle,
+  type HoverCardBloomFrom,
+} from './context-menu'
