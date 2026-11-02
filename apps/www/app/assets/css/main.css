@@ -82,6 +82,9 @@
   /* Crude-oil ink for the oil-finish button. */
   --oil: oklch(0.17 0.01 60);
   --oil-foreground: oklch(0.97 0.005 90);
+  /* Page transition: an ink wall with a Slime lip on its moving edges. */
+  --goop-page-transition: oklch(0.2 0.012 60);
+  --goop-page-transition-accent: var(--slime);
   --header-h: 60px;
   --radius: 0.625rem;
   color-scheme: light;
@@ -116,6 +119,9 @@
   --input: oklch(1 0 0 / 0.15);
   --oil: oklch(0.17 0.01 60);
   --oil-foreground: oklch(0.97 0.005 90);
+  /* Ink a step deeper than the page, so the wall reads as goo over it. */
+  --goop-page-transition: oklch(0.11 0.008 60);
+  --goop-page-transition-accent: var(--slime);
   color-scheme: dark;
 }
 

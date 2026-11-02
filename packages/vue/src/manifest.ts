@@ -102,6 +102,7 @@ export const goopComponents = [
   'GoopToggle',
   'GoopToggleGroup',
   'GoopToggleGroupItem',
+  'GoopPageTransition',
 ] as const
 
 export type GoopComponentName = (typeof goopComponents)[number]

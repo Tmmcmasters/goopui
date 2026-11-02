@@ -1,4 +1,4 @@
-import type { GoopFinishName, GoopPreset, GoopRendererName, GoopSplashMode } from '@goopui/core'
+import type { GoopFinishName, GoopPreset, GoopRendererName, GoopSplashMode, PageTransitionDirection } from '@goopui/core'
 import { addComponent, addPluginTemplate, addVitePlugin, createResolver, defineNuxtModule } from '@nuxt/kit'
 import { componentBaseName, goopComponents } from '@goopui/vue/manifest'
 import type { NuxtModule } from '@nuxt/schema'
@@ -18,6 +18,29 @@ export interface GoopModuleDefaults {
   reducedMotion?: boolean | 'auto'
 }
 
+/** Goo page transition options (serializable subset of `GoopPageTransitionProps`). */
+export interface GoopModulePageTransition {
+  /** Travel direction. Default 'down' (pours from the top, drains out the bottom). */
+  direction?: PageTransitionDirection
+  /** Wall fill (any CSS colour or `var()`). Default `--goop-page-transition`, then `--primary`. */
+  color?: string
+  /** Lip colour on the moving edges, or false. Default `--goop-page-transition-accent` if set. */
+  accent?: string | false
+  /** Total cover + reveal time (ms). Default ~600. */
+  duration?: number
+  coverDuration?: number
+  revealDuration?: number
+  speed?: number
+  /** Feel for the transition only (default: the module's `preset`). */
+  preset?: GoopPreset
+  bulge?: boolean | number
+  wobble?: boolean | number
+  lag?: boolean | number
+  zIndex?: number
+  /** Give up waiting for `page:finish` after this many ms and reveal anyway. Default 2000. */
+  timeout?: number
+}
+
 export interface ModuleOptions extends GoopModuleDefaults {
   /**
    * Prefix for auto-imported components. `@goopui/vue` exports `GoopButton`; the module
@@ -35,6 +58,14 @@ export interface ModuleOptions extends GoopModuleDefaults {
    * "@goopui/vue/goop.css"` from your Tailwind entry yourself.
    */
   tailwindSource: boolean
+  /**
+   * Goo page transition on route changes (experimental). Off by default. `true` or options:
+   * before each route change the goo pours over the viewport (navigation waits for it),
+   * and drains once the new page has rendered (`page:finish`). Same-path changes (hash,
+   * query) and the first load don't transition. Reduced motion: a quick fade. The live
+   * handle is `useNuxtApp().$goopPageTransition` (null on the server).
+   */
+  pageTransition?: boolean | GoopModulePageTransition
 }
 
 const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
@@ -93,6 +124,39 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
         },
         { prepend: true },
       )
+    }
+
+    if (options.pageTransition) {
+      const { timeout = 2000, ...pt } = options.pageTransition === true ? {} : options.pageTransition
+      const rm = options.reducedMotion
+      addPluginTemplate({
+        filename: 'goopui-page-transition.client.mjs',
+        mode: 'client',
+        getContents: () =>
+          [
+            `import { createPageTransition } from '@goopui/core'`,
+            `import { goopRouterTransition, toPageTransitionOptions } from '@goopui/vue'`,
+            `import { defineNuxtPlugin } from '#app/nuxt'`,
+            `export default defineNuxtPlugin({`,
+            `  name: 'goopui:page-transition',`,
+            `  setup(nuxtApp) {`,
+            `    const options = toPageTransitionOptions(${JSON.stringify(pt)}, ${JSON.stringify({ preset: options.preset, ...(rm === undefined ? {} : { reducedMotion: rm }) })})`,
+            `    const transition = createPageTransition(options)`,
+            `    let timer = 0`,
+            `    const reveal = () => { clearTimeout(timer); void transition.reveal() }`,
+            `    goopRouterTransition(nuxtApp.$router, {`,
+            `      cover: () => transition.cover(),`,
+            `      reveal,`,
+            `    }, { revealOn: 'manual' })`,
+            `    // Reveal once the new page has rendered; never leave the screen covered.`,
+            `    nuxtApp.$router.afterEach(() => { clearTimeout(timer); if (transition.phase !== 'idle') timer = setTimeout(reveal, ${Number(timeout) || 2000}) })`,
+            `    nuxtApp.hook('page:finish', () => requestAnimationFrame(reveal))`,
+            `    nuxtApp.hook('app:error', reveal)`,
+            `    return { provide: { goopPageTransition: transition } }`,
+            `  },`,
+            `})`,
+          ].join('\n'),
+      })
     }
 
     const defaults: GoopModuleDefaults = {}

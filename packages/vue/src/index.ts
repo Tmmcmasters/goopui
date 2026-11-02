@@ -24,6 +24,7 @@ export * from './components/input'
 export * from './components/textarea'
 export * from './components/toggle'
 export * from './components/toggle-group'
+export * from './components/page-transition'
 export { GOOP_CONFIG_KEY, GoopPlugin, provideGoopConfig, useGoopConfig, type GoopConfig } from './config'
 export {
   CSS_VAR_KEYS,
@@ -78,6 +79,9 @@ export {
   TOASTER_PROP_KEYS,
   ACCORDION_PROP_KEYS,
   toAccordionOptions,
+  PAGE_TRANSITION_PROP_KEYS,
+  toPageTransitionOptions,
+  type GoopPageTransitionProps,
   type GoopAccordionProps,
   toToasterOptions,
   SHEET_PROP_KEYS,
