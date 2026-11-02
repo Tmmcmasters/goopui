@@ -82,6 +82,12 @@ import {
   type GoopPreset,
   type GoopTuning,
   type GoopVarMeta,
+  NUMBER_FIELD_EFFECTS,
+  type NumberFieldEffect,
+  type NumberFieldOptions,
+  OTP_EFFECTS,
+  type OtpEffect,
+  type InputOTPOptions,
 } from '@goopui/core'
 import type { PropType } from 'vue'
 
@@ -1623,4 +1629,43 @@ export function toComboboxOptions(
   config: GoopOptions = {},
 ): { emerge: EmergeOptions; highlight: MenuHighlightOptions | null; plop: SelectPlopOptions | null } {
   return toSelectOptions(combobox, config)
+}
+
+// ---- GoopNumberField -----------------------------------------------------------------------
+// Core `attachNumberField`: the Input's ring (INPUT_EFFECTS) plus the steppers' squish and
+// nudge (NUMBER_FIELD_EFFECTS), and speed / preset / renderer.
+
+type NumberFieldAdapterOwned = 'invalid' | 'reducedMotion'
+export type GoopNumberFieldEngineKey = NumberFieldEffect | 'speed' | 'preset' | 'renderer'
+type NumberFieldUnhandled = Exclude<keyof NumberFieldOptions, GoopNumberFieldEngineKey | NumberFieldAdapterOwned>
+const _allNumberFieldOptionsHandled: [NumberFieldUnhandled] extends [never] ? true : { unhandled: NumberFieldUnhandled } = true
+void _allNumberFieldOptionsHandled
+
+export type GoopNumberFieldPropsDefinition = EffectPropsDefinition<NumberFieldEffect>
+export type GoopNumberFieldPropsInput = InputOf<GoopNumberFieldPropsDefinition>
+/** Spread into `defineProps({ ...goopNumberFieldProps, ... })`. */
+export const goopNumberFieldProps = effectEngineProps(NUMBER_FIELD_EFFECTS) as unknown as GoopNumberFieldPropsDefinition
+
+/** Number field options from props, over app config. */
+export function toNumberFieldOptions(props: GoopNumberFieldPropsInput, config: GoopOptions = {}): NumberFieldOptions {
+  return toEffectOptions(NUMBER_FIELD_EFFECTS, props, config)
+}
+
+// ---- GoopInputOTP --------------------------------------------------------------------------
+// Core `attachInputOTP`: OTP_EFFECTS (flood, flow, wobble, pulse) plus speed / preset / renderer.
+
+type InputOTPAdapterOwned = 'reducedMotion'
+export type GoopInputOTPEngineKey = OtpEffect | 'speed' | 'preset' | 'renderer'
+type InputOTPUnhandled = Exclude<keyof InputOTPOptions, GoopInputOTPEngineKey | InputOTPAdapterOwned>
+const _allInputOTPOptionsHandled: [InputOTPUnhandled] extends [never] ? true : { unhandled: InputOTPUnhandled } = true
+void _allInputOTPOptionsHandled
+
+export type GoopInputOTPPropsDefinition = EffectPropsDefinition<OtpEffect>
+export type GoopInputOTPPropsInput = InputOf<GoopInputOTPPropsDefinition>
+/** Spread into `defineProps({ ...goopInputOTPProps, ... })`. */
+export const goopInputOTPProps = effectEngineProps(OTP_EFFECTS) as unknown as GoopInputOTPPropsDefinition
+
+/** Input OTP options from props, over app config. */
+export function toInputOTPOptions(props: GoopInputOTPPropsInput, config: GoopOptions = {}): InputOTPOptions {
+  return toEffectOptions(OTP_EFFECTS, props, config)
 }

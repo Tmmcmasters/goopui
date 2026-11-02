@@ -140,3 +140,19 @@ export {
   type GoopCommandProps,
   type ResolvedCommandProps,
 } from './goop-props'
+export * from './components/number-field'
+export {
+  goopNumberFieldProps,
+  toNumberFieldOptions,
+  type GoopNumberFieldEngineKey,
+  type GoopNumberFieldPropsDefinition,
+  type GoopNumberFieldPropsInput,
+} from './goop-props'
+export * from './components/input-otp'
+export {
+  goopInputOTPProps,
+  toInputOTPOptions,
+  type GoopInputOTPEngineKey,
+  type GoopInputOTPPropsDefinition,
+  type GoopInputOTPPropsInput,
+} from './goop-props'

@@ -31,4 +31,6 @@ export const catalog: CatalogEntry[] = [
   { path: '/toggle', goop: 'GoopToggle', shadcn: 'Toggle', blurb: 'Pressing floods it with goo; groups flow and merge.' },
   { path: '/blob', goop: 'GoopBlob', shadcn: null, blurb: 'Background blobs. Perf stress test.' },
   { path: '/command', goop: 'GoopCommand', shadcn: 'Command', blurb: 'Goo highlight glides between items with keys and pointer; the search gets the goo ring; the dialog and Combobox list bloom open.' },
+  { path: '/number-field', goop: 'GoopNumberField', shadcn: 'NumberField', blurb: 'Goo focus ring; +/- squish a dollop and nudge toward the pressed side.' },
+  { path: '/input-otp', goop: 'GoopInputOTP', shadcn: 'PinInput', blurb: 'Focus goo flows from cell to cell as you type, with a pulse as each digit lands.' },
 ]

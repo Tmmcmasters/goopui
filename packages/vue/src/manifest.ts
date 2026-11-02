@@ -123,6 +123,15 @@ export const goopComponents = [
   'GoopComboboxList',
   'GoopComboboxSeparator',
   'GoopComboboxTrigger',
+  'GoopNumberField',
+  'GoopNumberFieldContent',
+  'GoopNumberFieldDecrement',
+  'GoopNumberFieldIncrement',
+  'GoopNumberFieldInput',
+  'GoopInputOTP',
+  'GoopInputOTPGroup',
+  'GoopInputOTPSeparator',
+  'GoopInputOTPSlot',
 ] as const
 
 export type GoopComponentName = (typeof goopComponents)[number]
