@@ -6,8 +6,10 @@
 //          half full the trigger is marked `data-goop-flooded` (goop.css switches its text to
 //          a contrasting color). The content opens at the same time with a jelly spring
 //          height: an under-damped spring (overshoot, then settle), as a CSS `linear()` easing.
-//   close: the row drains back into the click point; the content closes on a short, critically
-//          damped spring.
+//   close: the row's goo peels off the label and drains into the far end of the row (a blob
+//          receding into the click point or the row's centre sat on the label after its text had
+//          flipped back to the normal color); the content closes on a short, critically damped
+//          spring.
 //   single accordion: each item has its own trigger fill, so the old row drains while the new
 //          one floods.
 // The open row stays filled. At rest nothing animates (the fill engine only ticks while a
@@ -138,7 +140,8 @@ export interface AccordionOptions {
   preset?: GoopPreset
   /** 'svg' (default), 'canvas', or a custom renderer factory. */
   renderer?: GoopRendererOption
-  /** The trigger row floods from the click point on open and drains back into it on close.
+  /** The trigger row floods from the click point on open and drains away from its label into
+   *  the far end of the row on close.
    *  Off: the fill snaps. Default true. */
   flood?: boolean | number
   /** Crest of the flood front and a jelly wobble of the row once full. Default true. */
@@ -247,6 +250,7 @@ export function attachAccordion(host: HTMLElement, options: AccordionOptions = {
           bleed: ACCORDION_BLEED,
           fullAttr: ACCORDION_FLOODED_ATTR,
           labelAt,
+          drainAway: true,
         })
       : null
   }

@@ -97,6 +97,10 @@ export interface ToggleAnim {
   from: number
   /** Splash droplets when it fills (floods only). */
   splash: boolean
+  /** A drain that peels away from a label: `origin` is the far end of the row, the front
+   *  recedes at once (tight) and fastest at the start, so the label is uncovered in a frame or
+   *  two instead of a blob shrinking over it. */
+  away?: boolean
 }
 
 /** A blob of goo flowing from one item to another. */
@@ -158,7 +162,7 @@ const farthest = (o: TogglePoint, rect: ToggleRect): number =>
 function frontAt(anim: ToggleAnim, p: number, o: TogglePoint, rect: ToggleRect, r: number, tight: boolean): number {
   const band = r * 1.4
   const D = farthest(o, rect) + band
-  if (anim.on || !tight || !(anim.from > 0)) return p * D
+  if (anim.on || !(tight || anim.away) || !(anim.from > 0)) return p * D
   let far = 0
   for (const c of toggleGrid(rect, r)) far = Math.max(far, Math.hypot(c.x - o.x, c.y - o.y))
   return Math.min(anim.from * D, far + band) * (p / anim.from)
@@ -188,6 +192,8 @@ export function toggleLevel(anim: ToggleAnim, now: number, feel: ToggleFeel, eff
     const p = anim.from + (1 - anim.from) * (1 - (1 - u) * (1 - u))
     return { p, full: u >= 1 ? a - d : -1 }
   }
+  // Peeling away from a label: off it at once, then easing into the far end.
+  if (anim.away) return { p: anim.from * (1 - u) * (1 - u), full: -1 }
   // Slow to let go, then sucked away.
   return { p: anim.from * (1 - u * u), full: -1 }
 }
@@ -521,6 +527,10 @@ export interface ToggleFillConfig {
    *  set while the goo covers that point instead of by fill level, so the text color flips
    *  as the front actually crosses the label. */
   labelAt?: (host: HTMLElement) => TogglePoint | null
+  /** With `labelAt`: drains peel away from the label into the far end of the row (see
+   *  `ToggleAnim.away`) instead of receding into the press point, which could leave the last
+   *  of the goo sitting on the label after its text color had flipped back. */
+  drainAway?: boolean
 }
 
 const effectsOf = (o: ToggleGroupOptions): ToggleEffects => ({
@@ -724,8 +734,13 @@ function attachEngine(
       const from = levelOf(prev)
       // Mid-flight the front keeps its origin, so the goo never jumps.
       const keep = from > 0.02 && from < 0.98 && now >= prev.start
+      // A drain from (nearly) full peels away from the label into the row's far end.
+      const lp = label
+      const away = !on && !keep && cfg.drainAway === true && lp !== null
+      const rect = rects[i]!
+      const exit = away ? { x: lp.x < rect.x + rect.w / 2 ? rect.x + rect.w : rect.x, y: lp.y } : origin
       // Reduced motion: the change is already over (nothing replays if motion comes back).
-      anims.set(el, { on, origin: keep ? prev.origin : origin, start: reduced ? now - 1e3 : now + delay, from, splash: on })
+      anims.set(el, { on, origin: keep ? prev.origin : exit, start: reduced ? now - 1e3 : now + delay, from, splash: on, ...(away ? { away } : {}) })
     }
     const flow = Math.max(0, effects.flow)
     if (!reduced && flow > 0 && turnedOn.length === 1 && turnedOff.length === 1) {
