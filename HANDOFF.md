@@ -1,8 +1,35 @@
-# goopUI handoff (updated 2026-10-29, end of session 6)
+# goopUI handoff (updated 2026-11-02, session 7 in progress)
 
-Repo: **public** `github.com/Tmmcmasters/goopui` (MIT, open-source files + CI added this session). `main` is at the open-source setup + GitHub-link merges (PRs #23–#32). **Session 6's components, fixes and the real site are NOT on `main` yet**: they're on `integrate-s6` (PR #33, CI green, unmerged) and `site-v1` (built on top of it, not yet a PR). The user wanted to review the site locally before anything was published. `CLAUDE.md` covers layout, tooling and gotchas; this note covers state, decisions and what's next.
+Repo: **public** `github.com/Tmmcmasters/goopui`. `CLAUDE.md` covers layout, tooling and gotchas; this note covers state, decisions and what's next.
 
-## Pick up here
+## Session 7 state (read this first; the session 6 notes below are history)
+
+**Live:** goop.timmcmasters.work now serves the real site (`apps/www`). PR #38 merged `site-v1` → `main`; Railway service `coming-soon` builds `apps/www/Dockerfile` from `main` (watch patterns for apps/www + packages); Cloudflare was purged. `apps/soon` is retired but still in the repo. PR #33 is superseded by #38: the user can close it (auto mode blocked me).
+
+**Preview / staging:** Railway service `www` (production env) tracks branch **`site-v1`** at **https://www-production-7a37.up.railway.app**. The user works remotely and reviews on their phone. Flow: an agent's branch → PR into `site-v1` → the user says "merge it" → it's on the preview in ~2 min. **Railway PR environments are enabled but do not create previews for PRs into `site-v1`** (untested for PRs into `main`). When checking that a deploy is live, look for a marker unique to the new build (e.g. a string in a `/_nuxt/*.js` chunk); earlier I falsely reported "live" by matching text the old page also had.
+
+**Merged into `site-v1` this session (on the preview, NOT on `main`/live yet):** #39 goo page transition (core `page-transition.ts`, `GoopPageTransition`, Nuxt `goop.pageTransition`), #40 bubbles + slower Slime band (~1150ms) + 200ms page fade. Everything before that (#34 input focus ring, #35–#37 landing, shader precision fix) is also on `main`.
+
+**Landing:** dark, minimal, vue-bits-inspired. A full-bleed WebGL lava-lamp (`apps/www/app/components/landing/LavaLamp.vue`), the alpha pill, "Components that drip.", two CTAs, a meta line. No demo/inputs section (the user explicitly dislikes busy homepages). Dark is the site default. **Phone GPUs honour `mediump`**: shaders must use highp with a fallback and small units (the user's Android showed broken blobs until fixed).
+
+**Launch clip:** `apps/promo/src/launch/` (`LaunchClip`, branch `promo-launch`, pushed, not merged). `pnpm --filter promo render:launch` uses `apps/promo/scripts/render.mjs` (Remotion Node API; the CLI times out on this machine) and now re-renders corrupt frames that Chrome occasionally returns at 3x scale. The X-ready encode was sent to the user. ffmpeg isn't installed: use Remotion's bundled one under `node_modules/.pnpm/@remotion+compositor-darwin-arm64@*/.../ffmpeg` with DYLD_LIBRARY_PATH set to its folder.
+
+**npm:** blocked on the user: `! npm login`, and create the npm org **goopui** (no `@goopui/*` packages exist yet). Then follow `RELEASING.md` (dry run first, ask before the real publish).
+
+**In flight (agents, each on its own branch from `site-v1`, pushed, no PR):**
+- `transition-split`: the band becomes the seam (new page above the goo, old page below) via the View Transitions API with a DOM-clone fallback; `split` option. The user said the current version shows the page swap mid-band.
+- `fix-select-highlight-knob`: a sharp knob on the Select/Dropdown highlight when moving up the list.
+- `fix-accordion-drain-blob` (done, 1945469): a closing row drains away from its label (`drainAway`).
+- `fix-flood-text-colour` (from the drain branch): label text colour follows the goo edge via a clipped aria-hidden copy (`textFollow`).
+- `docs-v2`: vue-bits-style docs: Customize panel (sliders/switches) generated from prop metadata, Preview/Code tabs, replay, props table, `/docs/components` index (the landing CTA goes there), sidebar categories + filter, component count derived from the manifest.
+- New components: `goop-command` (Command + Combobox), `goop-hovercard-contextmenu`, `goop-numberfield-otp`, `goop-static-set` (Skeleton goo shimmer, Badge, Card, Avatar, Separator, Label), `goop-sidebar` (shadcn dashboard Sidebar).
+Merge plan: PR each into `site-v1` once it's verified; the component branches all append to `index.ts` / `goop-props.ts` / `manifest.ts` / `goop.css` / docs nav, so check brace balance + typecheck after each merge (see Gotchas). Then the user reviews on the preview; ship `site-v1` → `main` only with their OK.
+
+**User feedback this session:** wants previews on their phone for everything; dislikes busy pages; the transition must not be jarring (slower, no black flash, lighter band, no visible swap); the user approves merges explicitly ("merge it"), and auto mode blocks merges, production config changes and deletions without that.
+
+**Housekeeping done:** 29 merged agent worktrees removed (the user approved).
+
+## Pick up here (session 6 list; items 1–3 are done)
 
 1. **Verify and merge the edge-clip fix.** Regression: on narrow screens, goo within ~50–80px of the right page edge gets cut off on screen (www landing: "Star on GitHub", full-width form buttons, the open Accordion row). Cause: the session-6 scroll fix (`packages/core/src/page-edge.ts`, `placeLayer` in `renderer.ts`, plus the canvas equivalent) put `overflow: clip` on the *filtered* goo layer, and Chromium cuts a filtered element's output at its own box. **Fix committed, unverified:** branch `fix-edge-clip` (from `site-v1`), commit `f07930c`. The filter moves to an inner box that keeps its full size, the unfiltered outer layer clips exactly at the page edge, and the clip margin is gone. It adds `scripts/check-edge-clip.mjs` (`pnpm check:edge-clip`, 390px). The agent was stopped before finishing its checks, so run core/vue typecheck + tests, `pnpm check:edge-clip` and `pnpm check:overflow` (~15 min; both must pass), screenshot the landing at 390px, then merge into `site-v1`. Its worktree is `.claude/worktrees/agent-a2ab288cd7c128a1c`.
 2. **The user reviews the site locally**: `pnpm --filter www dev` (or `cd apps/www && NUXT_IGNORE_LOCK=1 pnpm exec nuxt dev --port 3001`) on `site-v1`, after building the packages. Iterate on their feedback.
