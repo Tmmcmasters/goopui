@@ -6,15 +6,17 @@ const directions = ['bottom', 'top', 'left', 'right'] as const
 const snapPoints = [0.35, 0.65, 1]
 const snap = ref<number | string | null>(snapPoints[0]!)
 const goal = ref(350)
+// Customize choices from the page's playground (empty outside it).
+const pg = usePlayground()
 const bump = (d: number) => (goal.value = Math.min(400, Math.max(200, goal.value + d)))
 </script>
 
 <template>
-  <GoopDrawer v-if="set === 'basic'">
+  <GoopDrawer v-if="set === 'basic'" v-bind="pg.part('root')">
     <GoopDrawerTrigger as-child>
       <GoopButton variant="outline">Open drawer</GoopButton>
     </GoopDrawerTrigger>
-    <GoopDrawerContent>
+    <GoopDrawerContent v-bind="pg.part('content')">
       <div class="mx-auto w-full max-w-sm">
         <GoopDrawerHeader>
           <GoopDrawerTitle>Move goal</GoopDrawerTitle>

@@ -5,6 +5,8 @@ withDefaults(defineProps<{ set?: 'basic' | 'checks' | 'sub' | 'plain' }>(), { se
 const statusBar = ref(true)
 const panel = ref(false)
 const position = ref('bottom')
+// Customize choices from the page's playground (empty outside it).
+const pg = usePlayground()
 </script>
 
 <template>
@@ -13,7 +15,7 @@ const position = ref('bottom')
     <GoopDropdownMenuTrigger as-child>
       <GoopButton variant="outline">Open menu</GoopButton>
     </GoopDropdownMenuTrigger>
-    <GoopDropdownMenuContent class="w-48">
+    <GoopDropdownMenuContent class="w-48" v-bind="pg.part('content')">
       <GoopDropdownMenuLabel>My account</GoopDropdownMenuLabel>
       <GoopDropdownMenuGroup>
         <GoopDropdownMenuItem>Profile <GoopDropdownMenuShortcut>⇧⌘P</GoopDropdownMenuShortcut></GoopDropdownMenuItem>

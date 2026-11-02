@@ -7,11 +7,13 @@ const tabs = [
   { value: 'password', label: 'Password', text: 'Change your password here.' },
   { value: 'billing', label: 'Billing', text: 'Manage your plan and invoices.' },
 ] as const
+// Customize choices from the page's playground (empty outside it).
+const pg = usePlayground()
 </script>
 
 <template>
   <GoopTabs v-if="set === 'basic'" default-value="account" class="w-full max-w-sm flex-col">
-    <GoopTabsList>
+    <GoopTabsList v-bind="pg.part('list')">
       <GoopTabsTrigger v-for="t in tabs" :key="t.value" :value="t.value">{{ t.label }}</GoopTabsTrigger>
     </GoopTabsList>
     <GoopTabsContent v-for="t in tabs" :key="t.value" :value="t.value" class="text-muted-foreground">
