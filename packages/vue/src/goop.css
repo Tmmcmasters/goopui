@@ -250,3 +250,103 @@
     visibility: visible;
   }
 }
+
+/* ---- Static set: Skeleton shimmer, Badge swell, Avatar settle (CSS only) ---- */
+@layer components {
+  /* GoopSkeleton: a soft, low mound of lighter goo (one radial gradient, rising from the
+     bottom edge) drifts across. Transform-only, so many skeletons stay cheap. The vars come
+     from core's skeletonStyle; --goop-shimmer-base is the theme's crest opacity. */
+  [data-goop-shimmer] {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  [data-goop-shimmer]::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    opacity: calc(var(--goop-shimmer-base, 0.1) * var(--goop-shimmer-lift, 1));
+    /* The mound is one gradient tile, low and wide (never narrower than 72px nor taller
+       than 44px, so small shapes still get a gentle dome), sitting on the bottom edge. */
+    background: radial-gradient(
+        50% 100% at 50% 100%,
+        #fff 0%,
+        rgb(255 255 255 / 0.72) 32%,
+        rgb(255 255 255 / 0.28) 64%,
+        rgb(255 255 255 / 0) 100%
+      )
+      50% 100% / max(var(--goop-shimmer-width, 60%), 72px) min(135%, 44px) no-repeat;
+    transform: translateX(-130%);
+    animation: goop-shimmer var(--goop-shimmer-period, 2.4s) cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  }
+  :root[data-reduced-motion='true'] [data-goop-shimmer]::after,
+  [data-goop-shimmer][data-goop-still]::after {
+    animation: none;
+    opacity: 0;
+  }
+
+  /* GoopBadge: the hover swell size (core's badgeStyle); zero under reduced motion. */
+  [data-goop-swell] {
+    --goop-badge-swell: var(--goop-badge-swell-size, 1px);
+  }
+  :root[data-reduced-motion='true'] [data-goop-swell],
+  [data-goop-swell][data-goop-still] {
+    --goop-badge-swell: 0px;
+  }
+
+  /* GoopAvatar: the image / fallback plops in with a gooey settle when it appears. */
+  [data-goop-settle] > :is([data-slot='avatar-image'], [data-slot='avatar-fallback']) {
+    animation: goop-settle var(--goop-settle-duration, 0.52s) both;
+  }
+  :root[data-reduced-motion='true'] [data-goop-settle] > *,
+  [data-goop-settle][data-goop-still] > * {
+    animation: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-goop-shimmer]::after {
+      animation: none;
+      opacity: 0;
+    }
+    [data-goop-swell] {
+      --goop-badge-swell: 0px;
+    }
+    [data-goop-settle] > * {
+      animation: none;
+    }
+  }
+}
+
+@keyframes goop-shimmer {
+  from {
+    transform: translateX(-130%);
+  }
+  to {
+    transform: translateX(130%);
+  }
+}
+
+@keyframes goop-settle {
+  0% {
+    opacity: 0;
+    transform: scale(var(--goop-settle-from, 0.8));
+    animation-timing-function: cubic-bezier(0.25, 0.75, 0.4, 1);
+  }
+  20% {
+    opacity: 1;
+  }
+  46% {
+    transform: scale(var(--goop-settle-over, 1.06), var(--goop-settle-squash, 1.03));
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  74% {
+    transform: scale(var(--goop-settle-under, 0.98));
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

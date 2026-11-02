@@ -796,3 +796,32 @@ export {
   type ContextPointHandle,
   type HoverCardBloomFrom,
 } from './context-menu'
+// Static set: Skeleton shimmer, Badge swell, Avatar settle, Card goo edge.
+export {
+  SKELETON_EFFECTS,
+  SKELETON_FEEL,
+  effectStrength,
+  skeletonShimmerOn,
+  skeletonStyle,
+  type SkeletonEffect,
+  type SkeletonFeel,
+  type SkeletonOptions,
+} from './skeleton'
+export { BADGE_EFFECTS, BADGE_FEEL, badgeStyle, badgeSwellOn, type BadgeEffect, type BadgeFeel, type BadgeOptions } from './badge'
+export { AVATAR_EFFECTS, AVATAR_FEEL, avatarSettleOn, avatarStyle, type AvatarEffect, type AvatarFeel, type AvatarOptions } from './avatar'
+export {
+  CARD_EDGES,
+  CARD_EFFECTS,
+  CARD_FEEL,
+  attachCard,
+  cardPath,
+  cardPull,
+  cardSpread,
+  type CardEdge,
+  type CardEffect,
+  type CardFeel,
+  type CardHandle,
+  type CardMound,
+  type CardOptions,
+  type CardShape,
+} from './card'
