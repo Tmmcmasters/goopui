@@ -1,0 +1,192 @@
+import { PAGE_TRANSITION_ATTR } from '@goopui/core'
+import { mount } from '@vue/test-utils'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { defineComponent, h, nextTick } from 'vue'
+import { GoopPageTransition, goopPageFadeIn, goopRouterTransition, toPageTransitionOptions, useGoopPageTransition } from '../src'
+
+const overlay = () => document.querySelector(`svg[${PAGE_TRANSITION_ATTR}]`)
+
+describe('toPageTransitionOptions', () => {
+  it('maps props and app config onto core options', () => {
+    expect(toPageTransitionOptions({ direction: 'up', bulge: false, duration: 500 }, { preset: 'wild', reducedMotion: true })).toEqual({
+      enabled: true,
+      preset: 'wild',
+      reducedMotion: true,
+      direction: 'up',
+      bulge: false,
+      duration: 500,
+    })
+    expect(toPageTransitionOptions({ goo: false }).enabled).toBe(false)
+  })
+})
+
+describe('GoopPageTransition', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+    document.body.innerHTML = ''
+  })
+
+  it('renders nothing, covers and reveals through the exposed API, and cleans up', async () => {
+    vi.useFakeTimers()
+    const w = mount(GoopPageTransition, { props: { accent: false }, attachTo: document.body })
+    expect(overlay()).toBeNull()
+    const vm = w.vm as unknown as { cover(): Promise<void>; reveal(): Promise<void> }
+    const covered = vm.cover()
+    expect(overlay()?.getAttribute('aria-hidden')).toBe('true')
+    vi.advanceTimersByTime(600)
+    await covered
+    const revealed = vm.reveal()
+    vi.advanceTimersByTime(2000)
+    await revealed
+    expect(overlay()?.getAttribute(PAGE_TRANSITION_ATTR)).toBe('idle')
+    w.unmount()
+    expect(overlay()).toBeNull()
+  })
+
+  it('goo off: resolves at once with no overlay', async () => {
+    const w = mount(GoopPageTransition, { props: { goo: false } })
+    await (w.vm as unknown as { cover(): Promise<void> }).cover()
+    expect(overlay()).toBeNull()
+    w.unmount()
+  })
+
+  it('hooks a router: cover before a path change, reveal after', async () => {
+    type Guard = (to: { path: string; matched: unknown[] }, from: { path: string; matched: unknown[] }, failure?: unknown) => unknown
+    const before: Guard[] = []
+    const after: Guard[] = []
+    const router = {
+      beforeEach: (g: Guard) => (before.push(g), () => before.splice(before.indexOf(g), 1)),
+      afterEach: (g: Guard) => (after.push(g), () => after.splice(after.indexOf(g), 1)),
+    }
+    const calls: string[] = []
+    const off = goopRouterTransition(router, {
+      cover: async () => void calls.push('cover'),
+      reveal: async () => void calls.push('reveal'),
+    })
+    const a = { path: '/', matched: [{}] }
+    const b = { path: '/docs', matched: [{}] }
+    // First navigation (nothing matched yet) and same-path changes skip the cover.
+    await before[0]!(a, { path: '/', matched: [] })
+    await before[0]!(a, a)
+    expect(calls).toEqual([])
+    await before[0]!(b, a)
+    await after[0]!(b, a)
+    expect(calls).toEqual(['cover', 'reveal'])
+    off()
+    expect(before).toHaveLength(0)
+    expect(after).toHaveLength(0)
+  })
+
+  it('passes band, bubbles and highlight through to core', () => {
+    expect(toPageTransitionOptions({ band: 0.4, bubbles: false, highlight: '#7f7' })).toMatchObject({ band: 0.4, bubbles: false, highlight: '#7f7' })
+  })
+
+  it('fades the new page in after a transitioned route change (and only then)', async () => {
+    type Guard = (to: { path: string; matched: unknown[] }, from: { path: string; matched: unknown[] }, failure?: unknown) => unknown
+    const before: Guard[] = []
+    const after: Guard[] = []
+    const router = {
+      beforeEach: (g: Guard) => (before.push(g), () => {}),
+      afterEach: (g: Guard) => (after.push(g), () => {}),
+    }
+    const root = document.createElement('div')
+    root.id = 'app'
+    document.body.appendChild(root)
+    const animate = vi.fn()
+    ;(root as unknown as { animate: unknown }).animate = animate
+    goopRouterTransition(router, { cover: async () => {}, reveal: async () => {} })
+    const a = { path: '/', matched: [{}] }
+    const b = { path: '/docs', matched: [{}] }
+    await before[0]!(a, a)
+    await after[0]!(a, a)
+    expect(animate).not.toHaveBeenCalled()
+    await before[0]!(b, a)
+    await after[0]!(b, a)
+    expect(animate).toHaveBeenCalledTimes(1)
+    expect(animate.mock.calls[0]![0]).toEqual([{ opacity: 0 }, { opacity: 1 }])
+    expect(animate.mock.calls[0]![1]).toMatchObject({ duration: 200 })
+    // fade: false turns it off; reduced motion skips it.
+    goopPageFadeIn(false)
+    document.documentElement.dataset.reducedMotion = 'true'
+    goopPageFadeIn('#app')
+    delete document.documentElement.dataset.reducedMotion
+    expect(animate).toHaveBeenCalledTimes(1)
+    root.remove()
+  })
+
+  it('split: holds the old page in beforeResolve, reveals right after the render, never fades', async () => {
+    type Guard = (to: { path: string; matched: unknown[] }, from: { path: string; matched: unknown[] }, failure?: unknown) => unknown
+    const before: Guard[] = []
+    const resolve: Guard[] = []
+    const after: Guard[] = []
+    const router = {
+      beforeEach: (g: Guard) => (before.push(g), () => before.splice(before.indexOf(g), 1)),
+      beforeResolve: (g: Guard) => (resolve.push(g), () => resolve.splice(resolve.indexOf(g), 1)),
+      afterEach: (g: Guard) => (after.push(g), () => after.splice(after.indexOf(g), 1)),
+    }
+    const root = document.createElement('div')
+    root.id = 'app'
+    document.body.appendChild(root)
+    const animate = vi.fn()
+    ;(root as unknown as { animate: unknown }).animate = animate
+    const raf = vi.spyOn(globalThis, 'requestAnimationFrame')
+    const calls: string[] = []
+    const off = goopRouterTransition(router, {
+      cover: async () => void calls.push('cover'),
+      reveal: async () => void calls.push('reveal'),
+      splits: () => true,
+    })
+    const a = { path: '/', matched: [{}] }
+    const b = { path: '/docs', matched: [{}] }
+    await before[0]!(b, a)
+    // Not yet: the route's components load first.
+    expect(calls).toEqual([])
+    await resolve[0]!(b, a)
+    expect(calls).toEqual(['cover'])
+    await after[0]!(b, a)
+    expect(calls).toEqual(['cover', 'reveal'])
+    expect(animate).not.toHaveBeenCalled()
+    // No frame wait (a view transition pauses frames until the reveal).
+    expect(raf).not.toHaveBeenCalled()
+    // A skipped navigation never covers.
+    await before[0]!(a, a)
+    await resolve[0]!(a, a)
+    expect(calls).toEqual(['cover', 'reveal'])
+    off()
+    expect(resolve).toHaveLength(0)
+    root.remove()
+  })
+
+  it('GoopPageTransition runs the split by default and passes split: false through', async () => {
+    vi.useFakeTimers()
+    document.body.innerHTML = '<main><h1>Old page</h1></main>'
+    const w = mount(GoopPageTransition, { props: { accent: false }, attachTo: document.body })
+    const vm = w.vm as unknown as { cover(): Promise<void>; reveal(): Promise<void>; handle: { seam: string | null } }
+    expect(vm.handle.seam).toBe('clone')
+    await vm.cover()
+    expect(document.querySelector('[data-goop-page-transition-old]')?.textContent).toContain('Old page')
+    const revealed = vm.reveal()
+    vi.advanceTimersByTime(2000)
+    await revealed
+    expect(document.querySelector('[data-goop-page-transition-old]')).toBeNull()
+    await w.setProps({ split: false })
+    expect(vm.handle.seam).toBeNull()
+    w.unmount()
+  })
+
+  it('useGoopPageTransition creates on mount and destroys on unmount', async () => {
+    let api: ReturnType<typeof useGoopPageTransition> | null = null
+    const C = defineComponent({
+      setup() {
+        api = useGoopPageTransition()
+        return () => h('div')
+      },
+    })
+    const w = mount(C)
+    await nextTick()
+    expect(api!.handle.value).not.toBeNull()
+    w.unmount()
+    expect(api!.handle.value).toBeNull()
+    await api!.cover()
+  })
+})

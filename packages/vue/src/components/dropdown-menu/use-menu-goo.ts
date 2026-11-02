@@ -7,6 +7,7 @@ import {
   attachMenuHighlight,
   type EmergeHandle,
   type EmergeOptions,
+  type EmergePoint,
   type MenuHighlightHandle,
   type MenuHighlightOptions,
 } from '@goopui/core'
@@ -25,7 +26,7 @@ export interface MenuGooInput {
   /** The panel is in place (default: reka's popper wrapper has left its parking spot). */
   ready?: (host: HTMLElement) => boolean
   /** Where a bloom starts (core `bloomOrigin`); null / absent: the panel's center. */
-  origin?: () => Element | null | undefined
+  origin?: () => Element | EmergePoint | null | undefined
 }
 
 /** reka parks the floating wrapper at translate(0, -200%) until floating-ui has placed it. */

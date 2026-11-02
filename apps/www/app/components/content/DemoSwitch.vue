@@ -3,12 +3,14 @@
 withDefaults(defineProps<{ set?: 'default' | 'sizes' | 'features' | 'states' }>(), { set: 'default' })
 const airplane = ref(true)
 const wifi = ref(false)
+// Customize choices from the page's playground (empty outside it).
+const pg = usePlayground()
 </script>
 
 <template>
   <template v-if="set === 'default'">
-    <label class="flex items-center gap-2 text-sm"><GoopSwitch v-model="airplane" /> Airplane mode</label>
-    <label class="flex items-center gap-2 text-sm"><GoopSwitch v-model="wifi" /> Wi-Fi</label>
+    <label class="flex items-center gap-2 text-sm"><GoopSwitch v-model="airplane" v-bind="pg.props" /> Airplane mode</label>
+    <label class="flex items-center gap-2 text-sm"><GoopSwitch v-model="wifi" v-bind="pg.props" /> Wi-Fi</label>
   </template>
   <template v-else-if="set === 'sizes'">
     <label class="flex items-center gap-2 text-sm"><GoopSwitch size="sm" default-value /> Small</label>

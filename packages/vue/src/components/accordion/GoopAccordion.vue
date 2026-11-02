@@ -18,6 +18,7 @@ const props = withDefaults(defineProps<AccordionRootProps & GoopAccordionProps>(
   wobble: undefined,
   droplets: undefined,
   jelly: undefined,
+  textFollow: undefined,
   speed: undefined,
   preset: undefined,
   renderer: undefined,

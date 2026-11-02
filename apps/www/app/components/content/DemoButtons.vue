@@ -4,15 +4,18 @@
 // splash, drip()). Keep each set in sync with the code sample beside it in the docs.
 withDefaults(
   defineProps<{
-    set?: 'variants' | 'sizes' | 'resting' | 'disabled' | 'oil' | 'features' | 'link'
+    set?: 'playground' | 'variants' | 'sizes' | 'resting' | 'disabled' | 'oil' | 'features' | 'link'
   }>(),
   { set: 'variants' },
 )
 const stage = useGoopStage()
+// Customize choices from the page's playground (empty outside it).
+const pg = usePlayground()
 </script>
 
 <template>
-  <template v-if="set === 'variants'">
+  <GoopButton v-if="set === 'playground'" :ref="stage.register" v-bind="{ ...stage.props, ...pg.props }" size="lg">Save changes</GoopButton>
+  <template v-else-if="set === 'variants'">
     <GoopButton :ref="stage.register" v-bind="stage.props">Default</GoopButton>
     <GoopButton :ref="stage.register" v-bind="stage.props" variant="secondary">Secondary</GoopButton>
     <GoopButton :ref="stage.register" v-bind="stage.props" variant="destructive">Destructive</GoopButton>

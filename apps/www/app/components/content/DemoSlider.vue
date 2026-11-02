@@ -7,11 +7,13 @@ const single = ref([50])
 const range = ref([25, 75])
 const vertical = ref([40])
 const steps = ref([30])
+// Customize choices from the page's playground (empty outside it).
+const pg = usePlayground()
 </script>
 
 <template>
   <div v-if="set === 'basic'" class="grid w-full max-w-sm gap-3">
-    <GoopSlider v-model="single" :max="100" :step="1" aria-label="Volume" />
+    <GoopSlider v-model="single" :max="100" :step="1" aria-label="Volume" v-bind="pg.props" />
     <span class="font-mono text-xs text-muted-foreground">{{ single[0] }}</span>
   </div>
   <div v-else-if="set === 'range'" class="grid w-full max-w-sm gap-3">

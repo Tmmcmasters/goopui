@@ -30,7 +30,7 @@ const common = {
   serveUrl,
   composition,
   inputProps,
-  scale: 2.25,
+  scale: Number(process.env.SCALE ?? 2.25),
   chromiumOptions: { gl: 'angle' },
   chromeMode,
   timeoutInMilliseconds: 120_000,

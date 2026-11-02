@@ -1,12 +1,16 @@
 <script setup lang="ts">
 // Live spinner demos for the Spinner docs page. `set` picks the group; keep each set in
 // sync with the code sample beside it in the docs.
-withDefaults(defineProps<{ set?: 'default' | 'variants' | 'sizes' | 'button' | 'options' }>(), { set: 'default' })
+withDefaults(defineProps<{ set?: 'playground' | 'default' | 'variants' | 'sizes' | 'button' | 'options' }>(), { set: 'default' })
 const variants = ['orbit', 'comet', 'ring', 'dots', 'pulse'] as const
+
+// Customize choices from the page's playground (empty outside it).
+const pg = usePlayground()
 </script>
 
 <template>
-  <template v-if="set === 'default'">
+  <GoopSpinner v-if="set === 'playground'" class="size-12" v-bind="pg.props" />
+  <template v-else-if="set === 'default'">
     <GoopSpinner class="size-10" />
   </template>
   <template v-else-if="set === 'variants'">

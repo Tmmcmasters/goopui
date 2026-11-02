@@ -2,6 +2,8 @@
 // Live alert dialog demos for the AlertDialog docs page: real <GoopAlertDialog>s. `set` picks
 // the group. Keep each set in sync with the code sample beside it in the docs.
 withDefaults(defineProps<{ set?: 'basic' | 'louder' }>(), { set: 'basic' })
+// Customize choices from the page's playground (empty outside it).
+const pg = usePlayground()
 </script>
 
 <template>
@@ -9,7 +11,7 @@ withDefaults(defineProps<{ set?: 'basic' | 'louder' }>(), { set: 'basic' })
     <GoopAlertDialogTrigger as-child>
       <GoopButton variant="outline">Delete account</GoopButton>
     </GoopAlertDialogTrigger>
-    <GoopAlertDialogContent>
+    <GoopAlertDialogContent v-bind="pg.part('content')">
       <GoopAlertDialogHeader>
         <GoopAlertDialogTitle>Are you absolutely sure?</GoopAlertDialogTitle>
         <GoopAlertDialogDescription>

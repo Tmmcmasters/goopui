@@ -4,6 +4,8 @@
 const props = withDefaults(defineProps<{ set?: 'basic' | 'auto' | 'tall' | 'indeterminate' }>(), { set: 'basic' })
 
 const value = ref(35)
+// Customize choices from the page's playground (empty outside it).
+const pg = usePlayground()
 const step = (d: number) => {
   value.value = Math.max(0, Math.min(100, value.value + d))
 }
@@ -30,7 +32,7 @@ onBeforeUnmount(() => clearTimeout(timer))
 
 <template>
   <div v-if="set === 'basic'" class="grid w-full max-w-sm gap-4">
-    <GoopProgress :model-value="value" aria-label="Upload" />
+    <GoopProgress :model-value="value" aria-label="Upload" v-bind="pg.props" />
     <div class="flex flex-wrap items-center gap-2">
       <GoopButton size="sm" variant="outline" @click="step(-25)">-25</GoopButton>
       <GoopButton size="sm" variant="outline" @click="step(-5)">-5</GoopButton>

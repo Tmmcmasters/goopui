@@ -13,6 +13,8 @@ const showPromise = () =>
     success: (data: { name: string }) => `${data.name} has been added`,
     error: 'Error',
   })
+// Customize choices from the page's playground (empty outside it).
+const pg = usePlayground()
 const showFive = () => [showDefault, showSuccess, showError, showAction, showPromise].forEach((fire, i) => setTimeout(fire, i * 180))
 </script>
 
@@ -25,7 +27,7 @@ const showFive = () => [showDefault, showSuccess, showError, showAction, showPro
     <GoopButton variant="outline" @click="showPromise">Promise</GoopButton>
     <GoopButton @click="showFive">Show five</GoopButton>
     <ClientOnly>
-      <GoopToaster />
+      <GoopToaster v-bind="pg.props" />
     </ClientOnly>
   </div>
 </template>

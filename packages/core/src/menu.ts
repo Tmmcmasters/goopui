@@ -4,15 +4,18 @@
 //
 // The blob is a head (the highlight bar, a damped spring on the highlighted item's center and
 // size) and a tail (a softer spring that chases the head). While travelling, the body
-// elongates toward the tail and a few fat lumps join them: globby, never a thin string (the
-// tail is held on a short rope so the lumps always overlap). Everything that shapes the goo is
-// pure: `menuHighlightStep` (physics) and `menuHighlightPose` (geometry).
+// elongates toward the tail. Down a column (menus) the lag the stretch doesn't absorb shows as
+// a low, wide mound out of the trailing edge (never a round knob off the long flat edge, in
+// either direction). Across a row (tabs) a few fat lumps join the body's round end to a tail
+// blob: globby, never a thin string (the tail is held on a short rope so the lumps always
+// overlap). Everything that shapes the goo is pure: `menuHighlightStep` (physics) and
+// `menuHighlightPose` (geometry).
 //
 // `attachMenuHighlight(container)` follows the item carrying `data-highlighted` (reka-ui and
 // Radix set it for pointer hover AND keyboard focus) inside `container`, which is the menu's
 // item list. Nothing here touches `document`/`window` until it runs.
 //
-// Follow the pointer: the swell of the goo (the neck and tail while travelling, and a soft
+// Follow the pointer: the swell of the goo (the trailing mound while travelling, and a soft
 // bulge while the pointer slides along an item) sits under the cursor's position along the
 // item, on a spring of its own so it trails the cursor a little. Keyboard navigation (no
 // pointer since the last key) keeps it centred.
@@ -124,8 +127,17 @@ export const MENU_SWELL_CIRCLES = 9
 export const MENU_SWELL_AT = 1 + MENU_NECK_LUMPS
 /** The swell's base width, as a fraction of the item's width. */
 export const MENU_SWELL_WIDTH = 1 / 3
-/** Circles a pose returns: tail + neck lumps + the pointer swell. */
-export const MENU_HIGHLIGHT_CIRCLES = MENU_SWELL_AT + MENU_SWELL_CIRCLES
+/** Circles tracing the trailing mound down a column (vertical travel). */
+export const MENU_TRAIL_CIRCLES = 9
+/** Index of the first trailing-mound circle in a pose. */
+export const MENU_TRAIL_AT = MENU_SWELL_AT + MENU_SWELL_CIRCLES
+/** Tallest the trailing mound gets, as a fraction of the item's half height per unit of the
+ *  feel's `stretch` (playful: ~3px on a 28px item). */
+export const MENU_TRAIL_MAX = 0.4
+/** Trailing mound height per px the tail lags past what the stretch absorbs. */
+const MENU_TRAIL_GAIN = 0.25
+/** Circles a pose returns: tail + neck lumps + the pointer swell + the trailing mound. */
+export const MENU_HIGHLIGHT_CIRCLES = MENU_TRAIL_AT + MENU_TRAIL_CIRCLES
 /** Pointer speed (px/s along the item) at which the swell is full. */
 export const MENU_SWELL_SPEED = 700
 /** Smallest neck lump radius, as a fraction of the item's half height: never a string. */
@@ -155,8 +167,8 @@ export interface MenuHighlightState {
 
 export interface MenuHighlightPose {
   body: EmergeBody
-  /** Tail, neck lumps, then the pointer swell (MENU_HIGHLIGHT_CIRCLES), zero-radius when
-   *  unused. */
+  /** Tail + neck lumps (across a row), the pointer swell, then the trailing mound (down a
+   *  column): MENU_HIGHLIGHT_CIRCLES in all, zero-radius when unused. */
   circles: EmergeCircle[]
 }
 
@@ -373,7 +385,6 @@ export function menuHighlightPose(
   const ux = dx / dist
   const uy = dy / dist
   const vertical = Math.abs(uy) >= Math.abs(ux)
-  const thick = vertical ? h : w
   const reach = feel.stretch * h0
   const e = Math.min(dist * 0.6, reach)
   const k = reach > 0 ? e / reach : 0
@@ -381,25 +392,38 @@ export function menuHighlightPose(
     h += e
     cy += (uy * e) / 2
     w *= 1 - 0.12 * k
-  } else {
-    w += e
-    cx += (ux * e) / 2
-    h *= 1 - 0.12 * k
+    // Down a column the trailing goo leaves the bar's long flat edge, so it is a low, wide
+    // mound under the pointer (the swell's raised cosine, never a round tail knob): as tall
+    // as the lag the stretch doesn't absorb (zero as the tail catches up), capped low.
+    const d = Math.min(half * MENU_TRAIL_MAX * feel.stretch, Math.max(0, dist - e) * MENU_TRAIL_GAIN)
+    const tlo = Math.min(hw, bulge - (cx - w / 2 + half))
+    const thi = Math.min(hw, cx + w / 2 - half - bulge)
+    if (d > 0.05 && tlo + thi > 4) {
+      const edgeY = cy + (uy * h) / 2
+      for (let i = 0; i < MENU_TRAIL_CIRCLES; i++) {
+        const f = -1 + (2 * (i + 1)) / (MENU_TRAIL_CIRCLES + 1)
+        const g = (d * (1 + Math.cos(Math.PI * f))) / 2
+        if (g < 0.05) continue
+        circles[MENU_TRAIL_AT + i] = { x: bulge + f * (f < 0 ? tlo : thi), y: edgeY - uy * (half - g), r: half }
+      }
+    }
+    return { body: { cx, cy, w, h }, circles }
   }
-  // Tail blob and fat neck lumps from the body's trailing edge to it.
+  w += e
+  cx += (ux * e) / 2
+  h *= 1 - 0.12 * k
+  // Across a row (tabs) the goo leaves the bar's round end: a tail blob and fat neck lumps
+  // from the body's trailing edge to it.
   const lagged = clamp(dist / Math.max(1e-6, feel.lag * h0))
   const tailR = half * lerp(0.95, 0.72, lagged)
-  // Down a column the neck and tail ride the swell's x (under the pointer), not the center.
-  const off = vertical ? bulge - s.x.x : 0
-  circles[0] = { x: s.tx.x + off, y: s.ty.x, r: tailR }
-  const edge = vertical ? h / 2 : w / 2
-  const ex = vertical ? bulge : cx + ux * edge
-  const ey = vertical ? cy + uy * edge : s.y.x
+  circles[0] = { x: s.tx.x, y: s.ty.x, r: tailR }
+  const ex = cx + (ux * w) / 2
+  const ey = s.y.x
   const neckR = half * Math.max(MENU_NECK_MIN, 0.88 - 0.24 * lagged)
   for (let i = 0; i < MENU_NECK_LUMPS; i++) {
     const f = (i + 1) / (MENU_NECK_LUMPS + 1)
     const wob = i === 1 ? 1.08 : 1
-    circles[1 + i] = { x: lerp(ex, s.tx.x + off, f), y: lerp(ey, s.ty.x, f), r: Math.min(neckR * wob, thick) }
+    circles[1 + i] = { x: lerp(ex, s.tx.x, f), y: lerp(ey, s.ty.x, f), r: neckR * wob }
   }
   return { body: { cx, cy, w, h }, circles }
 }

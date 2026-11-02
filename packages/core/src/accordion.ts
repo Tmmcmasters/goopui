@@ -4,10 +4,13 @@
 //          opens): GoopToggle's own engine (`attachToggleFill`), so the same crest against the
 //          walls, jelly wobble once full and a few droplets off the top edge. Once the row is
 //          half full the trigger is marked `data-goop-flooded` (goop.css switches its text to
-//          a contrasting color). The content opens at the same time with a jelly spring
+//          a contrasting color); with `textFollow` (default) an on-goo copy of the label, clipped
+//          to the goo, colors the text exactly where the goo is instead (text-follow.ts). The content opens at the same time with a jelly spring
 //          height: an under-damped spring (overshoot, then settle), as a CSS `linear()` easing.
-//   close: the row drains back into the click point; the content closes on a short, critically
-//          damped spring.
+//   close: the row's goo peels off the label and drains into the far end of the row (a blob
+//          receding into the click point or the row's centre sat on the label after its text had
+//          flipped back to the normal color); the content closes on a short, critically damped
+//          spring.
 //   single accordion: each item has its own trigger fill, so the old row drains while the new
 //          one floods.
 // The open row stays filled. At rest nothing animates (the fill engine only ticks while a
@@ -138,7 +141,8 @@ export interface AccordionOptions {
   preset?: GoopPreset
   /** 'svg' (default), 'canvas', or a custom renderer factory. */
   renderer?: GoopRendererOption
-  /** The trigger row floods from the click point on open and drains back into it on close.
+  /** The trigger row floods from the click point on open and drains away from its label into
+   *  the far end of the row on close.
    *  Off: the fill snaps. Default true. */
   flood?: boolean | number
   /** Crest of the flood front and a jelly wobble of the row once full. Default true. */
@@ -147,6 +151,10 @@ export interface AccordionOptions {
   droplets?: boolean | number
   /** The content opens on a jelly spring (overshoot + settle). Off: no overshoot. Default true. */
   jelly?: boolean | number
+  /** The trigger's text color follows the goo's edge (an aria-hidden on-goo copy of the label,
+   *  clipped to the goo) instead of flipping all at once (`data-goop-flooded`). Falls back to
+   *  the flip without `clip-path: path()` support and under reduced motion. Default true. */
+  textFollow?: boolean
   /** true / false force it; 'auto' (default) follows prefers-reduced-motion, live. */
   reducedMotion?: boolean | 'auto'
 }
@@ -226,6 +234,7 @@ export function attachAccordion(host: HTMLElement, options: AccordionOptions = {
     flood: opts.flood,
     wobble: opts.wobble,
     droplets: opts.droplets,
+    textFollow: opts.textFollow,
     reducedMotion: opts.reducedMotion,
   })
 
@@ -246,7 +255,9 @@ export function attachAccordion(host: HTMLElement, options: AccordionOptions = {
           attrs: ['data-state'],
           bleed: ACCORDION_BLEED,
           fullAttr: ACCORDION_FLOODED_ATTR,
+          textColor: `var(${ACCORDION_TEXT_VAR}, var(--primary-foreground, currentColor))`,
           labelAt,
+          drainAway: true,
         })
       : null
   }

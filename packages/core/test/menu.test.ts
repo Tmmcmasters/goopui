@@ -7,6 +7,9 @@ import {
   MENU_NECK_MIN,
   MENU_SWELL_AT,
   MENU_SWELL_CIRCLES,
+  MENU_TRAIL_AT,
+  MENU_TRAIL_CIRCLES,
+  MENU_TRAIL_MAX,
   activeTickerCount,
   attachMenuHighlight,
   findMenuHighlight,
@@ -71,8 +74,10 @@ describe('pointer follow', () => {
     }
     return out
   }
-  const neckXs = (frames: ReturnType<typeof runAt>) =>
-    frames.filter((f) => f.pose.circles[0]!.r > 0).flatMap((f) => f.pose.circles.slice(1, 1 + MENU_NECK_LUMPS).map((c) => c.x))
+  // Peak x of the trailing mound (its middle circle) on frames that have one.
+  const TRAIL = MENU_TRAIL_AT + (MENU_TRAIL_CIRCLES - 1) / 2
+  const trailXs = (frames: ReturnType<typeof runAt>) =>
+    frames.filter((f) => f.pose.circles[TRAIL]!.r > 0).map((f) => f.pose.circles[TRAIL]!.x)
 
   it('aims at the pointer, clamped inside the item; centred without one', () => {
     expect(menuBulgeTarget(row(0), 120)).toBe(120)
@@ -81,20 +86,20 @@ describe('pointer follow', () => {
     expect(menuBulgeTarget(row(0), null)).toBe(94)
   })
 
-  it('the neck rides the pointer down the column; keyboard keeps it centred', () => {
+  it('the trailing mound rides the pointer down the column; keyboard keeps it centred', () => {
     const s = menuHighlightInit()
     menuHighlightSnap(s, row(0), 150)
-    const xs = neckXs(runAt(s, row(3), 150, 1))
+    const xs = trailXs(runAt(s, row(3), 150, 1))
     expect(xs.length).toBeGreaterThan(0)
     for (const x of xs) expect(x).toBeCloseTo(150, 0)
 
     const k = menuHighlightInit()
     menuHighlightSnap(k, row(0))
-    for (const x of neckXs(runAt(k, row(3), null, 1))) expect(x).toBeCloseTo(94, 0)
+    for (const x of trailXs(runAt(k, row(3), null, 1))) expect(x).toBeCloseTo(94, 0)
 
     const off = menuHighlightInit()
     menuHighlightSnap(off, row(0), 150)
-    for (const x of neckXs(runAt(off, row(3), 150, 1, { followPointer: false }))) expect(x).toBeCloseTo(94, 0)
+    for (const x of trailXs(runAt(off, row(3), 150, 1, { followPointer: false }))) expect(x).toBeCloseTo(94, 0)
   })
 
   it('a swell trails the pointer along the item, then settles flush under it', () => {
@@ -163,24 +168,31 @@ describe('menuHighlightStep: travel', () => {
     expect(last.pose.circles.every((c) => c.r < 0.5 || Math.hypot(c.x - 94, c.y - target) < 1)).toBe(true)
   })
 
-  it('stretches along the travel and necks to a tail behind it', () => {
+  it('stretches along the travel with a low trailing mound behind it, no tail knob', () => {
     const frames = travel()
     const stretched = frames.find((f) => f.pose.body.h > 30)
     expect(stretched).toBeDefined()
     const { body, circles } = stretched!.pose
-    // The tail trails above the head (it came from row 0).
-    expect(circles[0]!.r).toBeGreaterThan(0)
-    expect(circles[0]!.y).toBeLessThan(body.cy)
+    // The mound trails above the head (it came from row 0); no round tail or neck lumps.
+    const trail = circles.slice(MENU_TRAIL_AT, MENU_TRAIL_AT + MENU_TRAIL_CIRCLES).filter((c) => c.r > 0)
+    expect(trail.length).toBeGreaterThan(0)
+    for (const c of trail) expect(c.y).toBeLessThan(body.cy)
+    for (const f of frames) expect(f.pose.circles.slice(0, MENU_SWELL_AT).every((c) => c.r === 0)).toBe(true)
     // Never more than `stretch` item heights longer.
     for (const f of frames) expect(f.pose.body.h).toBeLessThanOrEqual(28 * (1 + MENU_FEEL.playful.stretch) * 1.25)
   })
 
-  it('stays globby: neck lumps are fat and overlap all the way to the tail', () => {
+  it('across a row (tabs) it stays globby: neck lumps are fat and overlap all the way to the tail', () => {
+    const col = (i: number): EmergeRect => ({ x: 4 + i * 90, y: 4, width: 80, height: 28 })
     for (const preset of ['subtle', 'playful', 'wild'] as const) {
-      for (const f of travel(preset)) {
+      const s = menuHighlightInit()
+      menuHighlightSnap(s, col(0))
+      let necked = 0
+      for (const f of run(s, col(3), 1.5, preset)) {
         const [tail, ...rest] = f.pose.circles
         const neck = rest.slice(0, 3)
         if (!tail || tail.r === 0) continue
+        necked++
         for (const c of neck) expect(c.r).toBeGreaterThanOrEqual(14 * MENU_NECK_MIN * 0.99)
         // Consecutive lumps (and the tail) touch: no gaps, no string.
         const chain = [...neck, tail]
@@ -188,6 +200,93 @@ describe('menuHighlightStep: travel', () => {
           const a = chain[i - 1]!
           const b = chain[i]!
           expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeLessThan(a.r + b.r)
+        }
+      }
+      expect(necked).toBeGreaterThan(0)
+    }
+  })
+
+  // What pokes out of the body's long top / bottom edges, per run of columns: the peak height
+  // and the run's width. Columns near the round ends are skipped (the body's corners); dips
+  // under 3px wide between circles count as one run (the goo blur fills them).
+  const bumps = (pose: ReturnType<typeof menuHighlightPose>) => {
+    const { body, circles } = pose
+    const top = body.cy - body.h / 2
+    const bottom = body.cy + body.h / 2
+    const runs: { side: 'top' | 'bottom'; peak: number; width: number }[] = []
+    for (const side of ['top', 'bottom'] as const) {
+      let cur: { peak: number; x0: number; x1: number } | null = null
+      const end = () => {
+        if (cur) runs.push({ side, peak: cur.peak, width: cur.x1 - cur.x0 })
+        cur = null
+      }
+      for (let x = body.cx - body.w / 2 + 14; x <= body.cx + body.w / 2 - 14; x += 0.25) {
+        let p = 0
+        for (const c of circles) {
+          if (c.r <= 0 || Math.abs(x - c.x) >= c.r) continue
+          const k = Math.sqrt(c.r * c.r - (x - c.x) ** 2)
+          p = Math.max(p, side === 'top' ? top - (c.y - k) : c.y + k - bottom)
+        }
+        if (p > 0.05) {
+          cur ??= { peak: 0, x0: x, x1: x }
+          cur.peak = Math.max(cur.peak, p)
+          cur.x1 = x
+        } else if (cur && x - cur.x1 > 3) end()
+      }
+      end()
+    }
+    return runs
+  }
+
+  it('sweeping the pointer up or down the list: only low, wide mounds, mirror-symmetric', () => {
+    const N = 6
+    for (const preset of ['subtle', 'playful', 'wild'] as const) {
+      const feel = MENU_FEEL[preset]
+      // Swell + trailing mound caps (px, half height 14).
+      const cap = 14 * ((feel.swell ?? 0) + MENU_TRAIL_MAX * feel.stretch) + 0.05
+      const sweep = (dir: 1 | -1) => {
+        const s = menuHighlightInit()
+        const from = dir > 0 ? 0 : N - 1
+        // Pointer travel from the first item's center (px down / up the list) and x.
+        let moved = 0
+        let px = 130
+        menuHighlightSnap(s, row(from), px)
+        const out = []
+        for (let f = 0; f < 120; f++) {
+          if (f < 30) {
+            moved += (28 * (N - 1)) / 30
+            px -= 0.6
+          }
+          const k = Math.min(N - 1, Math.floor((moved + 14) / 28))
+          const i = dir > 0 ? k : N - 1 - k
+          menuHighlightStep(s, row(i), DT, feel, {}, px)
+          out.push(bumps(menuHighlightPose(s, feel)))
+        }
+        return out
+      }
+      const down = sweep(1)
+      const up = sweep(-1)
+      let seen = 0
+      for (const frame of [...down, ...up]) {
+        for (const b of frame) {
+          seen++
+          expect(b.peak).toBeLessThanOrEqual(cap)
+          // A mound, not a knob: many times wider than it is tall.
+          if (b.peak > 0.3) expect(b.width).toBeGreaterThanOrEqual(8 * b.peak)
+        }
+      }
+      expect(seen).toBeGreaterThan(0)
+      // Up is the mirror of down: same bumps, top and bottom swapped.
+      const flip = (side: 'top' | 'bottom') => (side === 'top' ? 'bottom' : 'top')
+      const order = (x: { side: string; peak: number }, y: { side: string; peak: number }) =>
+        x.side.localeCompare(y.side) || x.peak - y.peak
+      for (let f = 0; f < down.length; f++) {
+        const a = [...down[f]!].sort(order)
+        const b = up[f]!.map((u) => ({ ...u, side: flip(u.side) })).sort(order)
+        expect(b.map((u) => u.side)).toEqual(a.map((u) => u.side))
+        for (let i = 0; i < a.length; i++) {
+          expect(b[i]!.peak).toBeCloseTo(a[i]!.peak, 2)
+          expect(Math.abs(b[i]!.width - a[i]!.width)).toBeLessThanOrEqual(1)
         }
       }
     }

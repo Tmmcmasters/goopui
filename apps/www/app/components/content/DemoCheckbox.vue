@@ -5,12 +5,14 @@ withDefaults(defineProps<{ set?: 'default' | 'indeterminate' | 'features' | 'sta
 const terms = ref<CheckboxState>(false)
 const marketing = ref<CheckboxState>(true)
 const all = ref<CheckboxState>('indeterminate')
+// Customize choices from the page's playground (empty outside it).
+const pg = usePlayground()
 </script>
 
 <template>
   <template v-if="set === 'default'">
-    <label class="flex items-center gap-2 text-sm"><GoopCheckbox v-model="terms" /> Accept terms and conditions</label>
-    <label class="flex items-center gap-2 text-sm"><GoopCheckbox v-model="marketing" /> Send me product news</label>
+    <label class="flex items-center gap-2 text-sm"><GoopCheckbox v-model="terms" v-bind="pg.props" /> Accept terms and conditions</label>
+    <label class="flex items-center gap-2 text-sm"><GoopCheckbox v-model="marketing" v-bind="pg.props" /> Send me product news</label>
   </template>
   <template v-else-if="set === 'indeterminate'">
     <label class="flex items-center gap-2 text-sm"><GoopCheckbox v-model="all" /> Select all ({{ String(all) }})</label>
