@@ -60,6 +60,8 @@ import {
   type DrawerOptions,
   type ToasterEffect,
   type ToasterOptions,
+  type PageTransitionDirection,
+  type PageTransitionOptions,
   type EmergeOptions,
   type EmergeBloomStart,
   type EmergeFlowStyle,
@@ -1351,5 +1353,83 @@ export function toAccordionOptions(props: GoopAccordionProps, config: GoopOption
   }
   if (props.speed !== undefined) out.speed = props.speed
   for (const k of ACCORDION_EFFECTS) if (props[k] !== undefined) out[k] = props[k]
+  return out
+}
+
+// ---- GoopPageTransition ---------------------------------------------------------------------
+// Core's `createPageTransition`: a fixed, aria-hidden goo wall that pours in from one edge,
+// holds, and drains out the other. bulge / wobble / lag are `true` (default), `false` or a
+// 0..2 strength; the rest are core's options as they are. `goo: false` turns it off:
+// cover() / reveal() resolve at once.
+
+/** Every GoopPageTransition engine prop. */
+export const PAGE_TRANSITION_PROP_KEYS = [
+  'goo',
+  'direction',
+  'color',
+  'accent',
+  'duration',
+  'coverDuration',
+  'revealDuration',
+  'speed',
+  'preset',
+  'bulge',
+  'wobble',
+  'lag',
+  'zIndex',
+  'seed',
+] as const
+
+/** Engine props of GoopPageTransition / useGoopPageTransition. */
+export interface GoopPageTransitionProps {
+  /** Master switch. `false`: no overlay; cover() / reveal() resolve at once. */
+  goo?: boolean
+  /** Travel direction: 'down' (default) pours from the top and drains out the bottom. */
+  direction?: PageTransitionDirection
+  /** Wall fill, any CSS colour or `var()`. Default `--goop-page-transition`, then `--primary`. */
+  color?: string
+  /** Lip colour on the moving edges, or false. Default `--goop-page-transition-accent` if set. */
+  accent?: string | false
+  /** Total cover + reveal time (ms) at speed 1. Default from the preset (~600). */
+  duration?: number
+  /** Cover / reveal time (ms); override `duration`. */
+  coverDuration?: number
+  revealDuration?: number
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** Low, wide mounds on the leading front. `true`, `false` or 0..2. */
+  bulge?: boolean | number
+  /** The mounds wobble and drift while moving. `true`, `false` or 0..2. */
+  wobble?: boolean | number
+  /** The trailing edge stretches back as it drains. `true`, `false` or 0..2. */
+  lag?: boolean | number
+  /** Overlay z-index. Default 2147483000. */
+  zIndex?: number
+  /** Seed for the first transition's mounds (each one re-rolls). */
+  seed?: number
+}
+
+/** Compile-time guards: every page-transition option core grows must be a prop (or adapter-owned). */
+type PageTransitionAdapterOwned = 'enabled' | 'reducedMotion'
+type PageTransitionUnhandled = Exclude<keyof PageTransitionOptions, keyof GoopPageTransitionProps | PageTransitionAdapterOwned>
+const _allPageTransitionOptionsHandled: [PageTransitionUnhandled] extends [never] ? true : { unhandled: PageTransitionUnhandled } = true
+void _allPageTransitionOptionsHandled
+type PageTransitionPropsListed = Exclude<keyof GoopPageTransitionProps, (typeof PAGE_TRANSITION_PROP_KEYS)[number]>
+const _allPageTransitionPropsListed: [PageTransitionPropsListed] extends [never] ? true : { unlisted: PageTransitionPropsListed } = true
+void _allPageTransitionPropsListed
+
+/** Page-transition options from props, over app config (`preset`, `reducedMotion`). */
+export function toPageTransitionOptions(props: GoopPageTransitionProps, config: GoopOptions = {}): PageTransitionOptions {
+  const out: PageTransitionOptions = {
+    enabled: props.goo !== false,
+    preset: props.preset ?? config.preset,
+    reducedMotion: config.reducedMotion,
+  }
+  for (const k of PAGE_TRANSITION_PROP_KEYS) {
+    if (k === 'goo' || k === 'preset') continue
+    if (props[k] !== undefined) (out as Record<string, unknown>)[k] = props[k]
+  }
   return out
 }

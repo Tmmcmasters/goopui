@@ -26,6 +26,7 @@ export default defineNuxtConfig({
     prefix: 'Goop',      // component prefix: <GoopButton>
     preset: 'playful',   // 'subtle' | 'playful' | 'wild'
     renderer: 'svg',     // 'svg' | 'canvas'
+    pageTransition: true, // goo wipe between routes (experimental, off by default)
   },
 })
 ```
