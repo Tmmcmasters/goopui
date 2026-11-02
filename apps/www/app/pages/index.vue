@@ -11,12 +11,6 @@ useSeoMeta({
 <template>
   <div>
     <LandingHero />
-    <LandingShowcase />
-    <LandingWhatItIs />
-    <LandingComponents />
-    <LandingFrameworks />
-    <LandingTheming />
-    <LandingAccessibility />
-    <LandingInstall />
+    <LandingInside />
   </div>
 </template>
