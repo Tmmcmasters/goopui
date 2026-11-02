@@ -446,35 +446,44 @@ export function toRadioOptions(props: GoopRadioPropsInput, config: GoopOptions =
 // Core `attachToggleGroup` adds flow and merge (TOGGLE_GROUP_EFFECTS).
 
 type ToggleAdapterOwned = 'pressed' | 'reducedMotion'
-export type GoopToggleEngineKey = ToggleEffect | 'speed' | 'preset' | 'renderer'
+export type GoopToggleEngineKey = ToggleEffect | 'textFollow' | 'speed' | 'preset' | 'renderer'
 type ToggleUnhandled = Exclude<keyof ToggleOptions, GoopToggleEngineKey | ToggleAdapterOwned>
 const _allToggleOptionsHandled: [ToggleUnhandled] extends [never] ? true : { unhandled: ToggleUnhandled } = true
 void _allToggleOptionsHandled
 
 type ToggleGroupAdapterOwned = 'value' | 'item' | 'reducedMotion'
-export type GoopToggleGroupEngineKey = ToggleGroupEffect | 'speed' | 'preset' | 'renderer'
+export type GoopToggleGroupEngineKey = ToggleGroupEffect | 'textFollow' | 'speed' | 'preset' | 'renderer'
 type ToggleGroupUnhandled = Exclude<keyof ToggleGroupOptions, GoopToggleGroupEngineKey | ToggleGroupAdapterOwned>
 const _allToggleGroupOptionsHandled: [ToggleGroupUnhandled] extends [never] ? true : { unhandled: ToggleGroupUnhandled } = true
 void _allToggleGroupOptionsHandled
 
-export type GoopTogglePropsDefinition = EffectPropsDefinition<ToggleEffect>
+/** `textFollow`: the label's color follows the goo's edge (default on; `false` = the old
+ *  all-at-once color flip). */
+type TextFollowPropDefinition = { textFollow: PropDef<boolean> }
+export type GoopTogglePropsDefinition = EffectPropsDefinition<ToggleEffect> & TextFollowPropDefinition
 export type GoopTogglePropsInput = InputOf<GoopTogglePropsDefinition>
-export type GoopToggleGroupPropsDefinition = EffectPropsDefinition<ToggleGroupEffect>
+export type GoopToggleGroupPropsDefinition = EffectPropsDefinition<ToggleGroupEffect> & TextFollowPropDefinition
 export type GoopToggleGroupPropsInput = InputOf<GoopToggleGroupPropsDefinition>
 
+const textFollowProp = { textFollow: def(Boolean) }
+
 /** Spread into `defineProps({ ...goopToggleProps, ... })`. */
-export const goopToggleProps = effectEngineProps(TOGGLE_EFFECTS) as unknown as GoopTogglePropsDefinition
+export const goopToggleProps = Object.freeze({ ...effectEngineProps(TOGGLE_EFFECTS), ...textFollowProp }) as unknown as GoopTogglePropsDefinition
 /** Spread into `defineProps({ ...goopToggleGroupProps, ... })`. */
-export const goopToggleGroupProps = effectEngineProps(TOGGLE_GROUP_EFFECTS) as unknown as GoopToggleGroupPropsDefinition
+export const goopToggleGroupProps = Object.freeze({ ...effectEngineProps(TOGGLE_GROUP_EFFECTS), ...textFollowProp }) as unknown as GoopToggleGroupPropsDefinition
 
 /** Toggle options from props, over app config. */
 export function toToggleOptions(props: GoopTogglePropsInput, config: GoopOptions = {}): ToggleOptions {
-  return toEffectOptions(TOGGLE_EFFECTS, props, config)
+  const out: ToggleOptions = toEffectOptions(TOGGLE_EFFECTS, props, config)
+  if (props.textFollow !== undefined) out.textFollow = props.textFollow
+  return out
 }
 
 /** Toggle group options from props, over app config. */
 export function toToggleGroupOptions(props: GoopToggleGroupPropsInput, config: GoopOptions = {}): ToggleGroupOptions {
-  return toEffectOptions(TOGGLE_GROUP_EFFECTS, props, config)
+  const out: ToggleGroupOptions = toEffectOptions(TOGGLE_GROUP_EFFECTS, props, config)
+  if (props.textFollow !== undefined) out.textFollow = props.textFollow
+  return out
 }
 
 // ---- GoopSlider ----------------------------------------------------------------------------
@@ -1311,7 +1320,7 @@ export function toDrawerOptions(props: GoopDrawerProps, config: GoopOptions = {}
 // GoopAccordion (every item follows) or GoopCollapsible. `goo: false` is plain shadcn.
 
 /** Every GoopAccordion / GoopCollapsible engine prop. */
-export const ACCORDION_PROP_KEYS = ['goo', ...ACCORDION_EFFECTS, 'speed', 'preset', 'renderer'] as const
+export const ACCORDION_PROP_KEYS = ['goo', ...ACCORDION_EFFECTS, 'textFollow', 'speed', 'preset', 'renderer'] as const
 
 /** Engine props of GoopAccordion and GoopCollapsible. */
 export interface GoopAccordionProps {
@@ -1326,6 +1335,9 @@ export interface GoopAccordionProps {
   droplets?: boolean | number
   /** The content opens on a jelly spring (overshoot + settle). `true`, `false` or 0..2. */
   jelly?: boolean | number
+  /** The trigger's text color follows the goo's edge (default true). `false`: it flips all at
+   *  once when the goo crosses the label. */
+  textFollow?: boolean
   /** Animation speed multiplier. */
   speed?: number
   /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
@@ -1352,6 +1364,7 @@ export function toAccordionOptions(props: GoopAccordionProps, config: GoopOption
     reducedMotion: config.reducedMotion,
   }
   if (props.speed !== undefined) out.speed = props.speed
+  if (props.textFollow !== undefined) out.textFollow = props.textFollow
   for (const k of ACCORDION_EFFECTS) if (props[k] !== undefined) out[k] = props[k]
   return out
 }

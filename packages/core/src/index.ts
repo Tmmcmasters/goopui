@@ -653,6 +653,7 @@ export {
   TOGGLE_FLIGHT_CIRCLES,
   TOGGLE_GROUP_EFFECTS,
   TOGGLE_ITEM_EXTRA,
+  TOGGLE_TEXT_VAR,
   attachToggle,
   attachToggleFill,
   attachToggleGroup,
@@ -683,6 +684,15 @@ export {
   type TogglePose,
   type ToggleRect,
 } from './toggle'
+export {
+  TEXT_COPY_PART,
+  TEXT_FOLLOW_ATTR,
+  createTextCopy,
+  gooClipPath,
+  textFollowSupported,
+  type TextBox,
+  type TextCopy,
+} from './text-follow'
 export {
   PAGE_TRANSITION_ACCENT_VAR,
   PAGE_TRANSITION_ATTR,

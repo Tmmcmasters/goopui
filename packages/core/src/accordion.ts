@@ -4,7 +4,8 @@
 //          opens): GoopToggle's own engine (`attachToggleFill`), so the same crest against the
 //          walls, jelly wobble once full and a few droplets off the top edge. Once the row is
 //          half full the trigger is marked `data-goop-flooded` (goop.css switches its text to
-//          a contrasting color). The content opens at the same time with a jelly spring
+//          a contrasting color); with `textFollow` (default) an on-goo copy of the label, clipped
+//          to the goo, colors the text exactly where the goo is instead (text-follow.ts). The content opens at the same time with a jelly spring
 //          height: an under-damped spring (overshoot, then settle), as a CSS `linear()` easing.
 //   close: the row's goo peels off the label and drains into the far end of the row (a blob
 //          receding into the click point or the row's centre sat on the label after its text had
@@ -150,6 +151,10 @@ export interface AccordionOptions {
   droplets?: boolean | number
   /** The content opens on a jelly spring (overshoot + settle). Off: no overshoot. Default true. */
   jelly?: boolean | number
+  /** The trigger's text color follows the goo's edge (an aria-hidden on-goo copy of the label,
+   *  clipped to the goo) instead of flipping all at once (`data-goop-flooded`). Falls back to
+   *  the flip without `clip-path: path()` support and under reduced motion. Default true. */
+  textFollow?: boolean
   /** true / false force it; 'auto' (default) follows prefers-reduced-motion, live. */
   reducedMotion?: boolean | 'auto'
 }
@@ -229,6 +234,7 @@ export function attachAccordion(host: HTMLElement, options: AccordionOptions = {
     flood: opts.flood,
     wobble: opts.wobble,
     droplets: opts.droplets,
+    textFollow: opts.textFollow,
     reducedMotion: opts.reducedMotion,
   })
 
@@ -249,6 +255,7 @@ export function attachAccordion(host: HTMLElement, options: AccordionOptions = {
           attrs: ['data-state'],
           bleed: ACCORDION_BLEED,
           fullAttr: ACCORDION_FLOODED_ATTR,
+          textColor: `var(${ACCORDION_TEXT_VAR}, var(--primary-foreground, currentColor))`,
           labelAt,
           drainAway: true,
         })
