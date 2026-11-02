@@ -1942,3 +1942,92 @@ import {
   type SkeletonEffect,
   type SkeletonOptions,
 } from '@goopui/core'
+
+// ---- GoopSidebar ----------------------------------------------------------------------------
+// Core's SIDEBAR_EFFECTS, each a GoopSidebar prop: `highlight` (the menu's goo blob glides
+// between items under the cursor: core `attachSidebarHighlight`), `pill` (the active item's
+// soft filled pill), `slosh` (the inner edge sloshes as the sidebar collapses / expands: core
+// `attachSidebarEdge`; `true`, `false` or 0..2), `submenus` (GoopCollapsible sub-menus flood
+// and spring open), `tooltips` (icon-mode tooltips are GoopTooltips), `bloom` (the mobile
+// sheet blooms like GoopSheet). `goo: false` is a plain shadcn Sidebar.
+
+/** Every GoopSidebar engine prop. */
+export const SIDEBAR_PROP_KEYS = ['goo', ...SIDEBAR_EFFECTS, 'followPointer', 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopSidebar. */
+export interface GoopSidebarProps {
+  /** Master switch. `false` renders a plain shadcn Sidebar (every effect off). */
+  goo?: boolean
+  /** Hover / focus highlight is a goo blob that glides between items (false: shadcn's flat hover bg). */
+  highlight?: boolean
+  /** The active item gets a soft filled pill (false: shadcn's flat active bg). */
+  pill?: boolean
+  /** The inner edge sloshes in low, wide mounds as the sidebar collapses or expands. `true`, `false` or 0..2. */
+  slosh?: boolean | number
+  /** GoopCollapsible sub-menus inside flood their row and spring open (false: plain collapsibles). */
+  submenus?: boolean
+  /** Icon-mode tooltips bloom as goo (false: shadcn tooltips). */
+  tooltips?: boolean
+  /** The mobile sheet blooms from its screen edge like GoopSheet (false: shadcn's slide). */
+  bloom?: boolean
+  /** The highlight's soft swell follows the cursor along the item (false: centred). */
+  followPointer?: boolean
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+/** Compile-time guards: every sidebar option core grows must be a prop (or adapter-owned). */
+type SidebarAdapterOwned = 'side' | 'reducedMotion' | 'feel' | 'seed' | 'wobble' | 'momentum' | 'pop'
+type SidebarUnhandled = Exclude<
+  keyof SidebarEdgeOptions | keyof SidebarHighlightOptions | SidebarEffect,
+  keyof GoopSidebarProps | SidebarAdapterOwned
+>
+const _allSidebarOptionsHandled: [SidebarUnhandled] extends [never] ? true : { unhandled: SidebarUnhandled } = true
+void _allSidebarOptionsHandled
+type SidebarPropsListed = Exclude<keyof GoopSidebarProps, (typeof SIDEBAR_PROP_KEYS)[number]>
+const _allSidebarPropsListed: [SidebarPropsListed] extends [never] ? true : { unlisted: SidebarPropsListed } = true
+void _allSidebarPropsListed
+
+/** Resolved sidebar goo: what each part of the sidebar should do. */
+export interface ResolvedSidebarGoo {
+  /** Highlight blob options, or null (shadcn's flat hover bg). */
+  highlight: SidebarHighlightOptions | null
+  /** Edge slosh options, or null (off). */
+  edge: SidebarEdgeOptions | null
+  pill: boolean
+  submenus: boolean
+  tooltips: boolean
+  bloom: boolean
+  speed?: number
+  preset?: GoopPreset
+  renderer?: GoopRendererOption
+}
+
+/** Sidebar goo from props, over app config (`preset`, `renderer`, `reducedMotion`). */
+export function toSidebarOptions(props: GoopSidebarProps, config: GoopOptions = {}): ResolvedSidebarGoo {
+  const on = props.goo !== false
+  const common = {
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+  const slosh = props.slosh ?? true
+  return {
+    highlight: on && props.highlight !== false ? { ...common, followPointer: props.followPointer !== false } : null,
+    edge: on && slosh !== false && slosh !== 0 ? { ...common, slosh } : null,
+    pill: on && props.pill !== false,
+    submenus: on && props.submenus !== false,
+    tooltips: on && props.tooltips !== false,
+    bloom: on && props.bloom !== false,
+    speed: common.speed,
+    preset: common.preset,
+    renderer: common.renderer,
+  }
+}
+
+import { SIDEBAR_EFFECTS, type SidebarEdgeOptions, type SidebarEffect, type SidebarHighlightOptions } from '@goopui/core'

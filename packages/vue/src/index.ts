@@ -197,3 +197,5 @@ export {
   type GoopCardPropsDefinition,
   type GoopCardPropsInput,
 } from './goop-props'
+export * from './components/sidebar'
+export { SIDEBAR_PROP_KEYS, toSidebarOptions, type GoopSidebarProps, type ResolvedSidebarGoo } from './goop-props'

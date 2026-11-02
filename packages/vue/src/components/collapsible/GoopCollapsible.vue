@@ -8,7 +8,7 @@ import { CollapsibleRoot, useForwardPropsEmits } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
 import { useGoopConfig } from '../../config'
 import { ACCORDION_PROP_KEYS, toAccordionOptions, type GoopAccordionProps } from '../../goop-props'
-import { provideGoopAccordion } from '../accordion/context'
+import { injectGoopCollapsibleDefaults, provideGoopAccordion } from '../accordion/context'
 import { useAccordionGoo, useElementRef } from '../accordion/use-accordion-goo'
 
 const props = withDefaults(defineProps<CollapsibleRootProps & GoopAccordionProps & { class?: HTMLAttributes['class'] }>(), {
@@ -35,7 +35,8 @@ const delegated = computed(
 const forwarded = useForwardPropsEmits(delegated, emits)
 
 const config = useGoopConfig()
-const options = computed(() => toAccordionOptions(props, config))
+const defaults = injectGoopCollapsibleDefaults()
+const options = computed(() => toAccordionOptions({ ...props, goo: props.goo ?? defaults?.value.goo }, config))
 provideGoopAccordion(options)
 const [el, setEl] = useElementRef()
 const handle = useAccordionGoo(el, options)

@@ -29,6 +29,9 @@ const COMPONENTS = [
 const OPENERS = new Set(['popover', 'dropdown', 'select', 'dialog', 'sheet', 'drawer'])
 
 const ALL = [...COMPONENTS.map((c) => `edge:${c}`), ...COMPONENTS]
+/** Pages with their own exercise (no edge case): the sidebar collapses / expands and is hovered. */
+const PAGE_ONLY = ['sidebar']
+ALL.push(...PAGE_ONLY)
 const only = process.argv.slice(2)
 const pick = (c) => only.includes(c) || (c.startsWith('edge:') ? only.includes('edge') : only.includes('pages'))
 const cases = only.length ? ALL.filter(pick) : ALL
@@ -201,6 +204,21 @@ async function runCase(name) {
       }
       await sleep(5500) // let them time out and drip away
     }
+  } else if (comp === 'sidebar') {
+    // Hover down the menu, collapse / expand a few times (the edge sloshes), open a sub-menu.
+    const buttons = await page.$$('[data-sidebar="menu-button"]')
+    for (const b of buttons.slice(0, 6)) {
+      const box = await b.boundingBox()
+      if (box) await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 4 })
+      await sleep(80)
+    }
+    for (let i = 0; i < 4; i++) {
+      await page.keyboard.press('Control+b')
+      await sleep(i % 2 ? 900 : 250)
+    }
+    const docs = await page.$('[data-testid="docs"] [data-sidebar="menu-button"]')
+    if (docs) await docs.click()
+    await sleep(900)
   } else {
     // Every goo host in the page's goop column (first 8).
     const hosts = await page.$$('main [data-goop-host], main [data-goop-tabs], main [data-goop-accordion] button, main button:has([data-goop="layer"])')
