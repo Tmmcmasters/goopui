@@ -15,6 +15,13 @@ import {
   accordionSpring,
   activeTickerCount,
   attachAccordion,
+  GOO_SPLASH_MAX,
+  TOGGLE_ALL_EFFECTS,
+  TOGGLE_FEEL,
+  toggleAnimDuration,
+  toggleFillCircles,
+  type ToggleAnim,
+  type ToggleRect,
 } from '../src'
 
 const feel = ACCORDION_FEEL.playful
@@ -174,6 +181,85 @@ describe('attachAccordion', () => {
     const h = attachAccordion(host)
     expect(h.fill).toBeNull()
     expect(host.style.getPropertyValue(ACCORDION_TIMING_VARS.open)).not.toBe('')
+    h.destroy()
+  })
+})
+
+describe('drain away from the label', () => {
+  // A wide trigger row (bleed included) with its label on the left, as in the playground.
+  const rect: ToggleRect = { x: -10, y: 3, w: 800, h: 46 }
+  const label = { x: 10, y: 18, w: 130, h: 16 }
+  const labelPts = Array.from({ length: 27 }, (_, i) => ({
+    x: label.x + (label.w * (i % 9)) / 8,
+    y: label.y + (label.h * Math.floor(i / 9)) / 2,
+  }))
+  const tfeel = TOGGLE_FEEL.playful
+  const covers = (anim: ToggleAnim, t: number): boolean =>
+    toggleFillCircles({ rect, anim }, t, tfeel, TOGGLE_ALL_EFFECTS).some(
+      (c) => c.r > 0 && labelPts.some((p) => Math.hypot(c.x - p.x, c.y - p.y) < c.r),
+    )
+  const area = (anim: ToggleAnim, t: number): number =>
+    toggleFillCircles({ rect, anim }, t, tfeel, TOGGLE_ALL_EFFECTS).reduce((s, c) => s + c.r * c.r, 0)
+  const sample = (anim: ToggleAnim): number[] => {
+    const d = toggleAnimDuration(anim, tfeel)
+    return Array.from({ length: 121 }, (_, i) => (d * i) / 120)
+  }
+
+  it('a drain into the row centre keeps a blob on the label for most of the drain (the old bug)', () => {
+    const anim: ToggleAnim = { on: false, origin: { x: 390, y: 26 }, start: 0, from: 1, splash: false }
+    const d = toggleAnimDuration(anim, tfeel)
+    const last = sample(anim).filter((t) => covers(anim, t)).pop()!
+    expect(last / d).toBeGreaterThan(0.5)
+  })
+
+  it('peels off the label within the first frames and only shrinks into the far end', () => {
+    const anim: ToggleAnim = { on: false, origin: { x: rect.x + rect.w, y: 26 }, start: 0, from: 1, splash: false, away: true }
+    const d = toggleAnimDuration(anim, tfeel)
+    const ts = sample(anim)
+    const hit = ts.map((t) => covers(anim, t))
+    const firstClear = hit.indexOf(false)
+    // Off the label in under a fifth of the drain (~60ms at playful, speed 1) ...
+    expect(firstClear).toBeGreaterThan(-1)
+    expect(ts[firstClear]! / d).toBeLessThan(0.2)
+    // ... and never back over it: no second blob, no re-expanding front.
+    expect(hit.slice(firstClear).every((h) => !h)).toBe(true)
+    // The goo only shrinks.
+    for (let i = 1; i < ts.length; i++) expect(area(anim, ts[i]!)).toBeLessThanOrEqual(area(anim, ts[i - 1]!) + 1e-6)
+    expect(area(anim, d)).toBe(0)
+    // Every circle left is on the far side of the label.
+    const mid = toggleFillCircles({ rect, anim }, d * 0.3, tfeel, TOGGLE_ALL_EFFECTS).filter((c) => c.r > 0)
+    expect(mid.length).toBeGreaterThan(0)
+    for (const c of mid) expect(c.x - c.r).toBeGreaterThan(label.x + label.w)
+  })
+
+  it('attachAccordion drains a closing row into the end away from its label', async () => {
+    const host = document.createElement('div')
+    host.setAttribute('data-goop-accordion', '')
+    host.setAttribute('data-state', 'open')
+    const trigger = document.createElement('button')
+    trigger.setAttribute(ACCORDION_TRIGGER_ATTR, '')
+    trigger.setAttribute('data-state', 'open')
+    const span = document.createElement('span')
+    span.textContent = 'Product Information'
+    trigger.append(span)
+    host.append(trigger)
+    document.body.append(host)
+    const box = (x: number, y: number, w: number, h: number) => ({ x, y, left: x, top: y, width: w, height: h, right: x + w, bottom: y + h, toJSON: () => ({}) }) as DOMRect
+    trigger.getBoundingClientRect = () => box(0, 0, 780, 52)
+    span.getBoundingClientRect = () => box(0, 18, 130, 16)
+    Object.defineProperty(trigger, 'offsetWidth', { value: 780 })
+    Object.defineProperty(trigger, 'offsetHeight', { value: 52 })
+    const h = attachAccordion(host)
+    // Opened at mount (no click): its row is full. Another row is clicked, this one closes.
+    host.setAttribute('data-state', 'closed')
+    trigger.setAttribute('data-state', 'closed')
+    await tick()
+    expect(h.running).toBe(true)
+    // The seed circle sits at the drain's origin: the right end of the row, label height.
+    const cs = h.fill!.pose!.circles
+    const seed = cs[cs.length - 1 - GOO_SPLASH_MAX]!
+    expect(seed.x).toBeGreaterThan(700)
+    expect(seed.y).toBeCloseTo(26, 0)
     h.destroy()
   })
 })
