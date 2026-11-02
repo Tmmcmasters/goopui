@@ -22,6 +22,12 @@ export default defineNuxtConfig({
   // A Slime band with bubbles sweeps between pages (colours: --goop-page-transition* in main.css).
   goop: { pageTransition: { direction: 'down' } },
   compatibilityDate: '2026-10-25',
+  experimental: {
+    // Prefetch a link's page chunk + payload when it scrolls into view (on idle) AND as soon as
+    // it's hovered, focused or touched: idle can come late on a busy page (the landing's lava
+    // lamp), and the page transition holds the old page frozen until the new one is ready.
+    defaults: { nuxtLink: { prefetchOn: { visibility: true, interaction: true } } },
+  },
   devtools: { enabled: false },
   css: ['~/assets/css/main.css', 'vue-sonner/style.css'],
   vite: {
