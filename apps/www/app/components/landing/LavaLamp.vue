@@ -35,7 +35,14 @@ const PHONE: Blob[] = [
 const MAX = 7
 
 const VERT = `attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}`
-const FRAG = `precision mediump float;
+// Phone GPUs honour mediump (fp16, max ~65504): pixel-space distances squared overflow it, so
+// blobs stop merging and the lighting turns to noise. Ask for highp, and measure distances in
+// screen heights (S) so the numbers stay small even where highp is missing.
+const FRAG = `#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
 uniform vec3 uB[${MAX}];
 uniform int uN;
 uniform vec2 uRes;
@@ -46,16 +53,18 @@ float field(vec2 q){
   float f=0.;
   for(int i=0;i<${MAX};i++){
     if(i>=uN)break;
-    vec2 d=q-uB[i].xy;
-    float r2=uB[i].z*uB[i].z;
+    float S=1./uRes.y;
+    vec2 d=(q-uB[i].xy)*S;
+    float r=uB[i].z*S;
+    float r2=r*r;
     // Softened 1/d^2: no spike at the centre, so each lobe is a smooth dome.
     f+=r2/(dot(d,d)+.3*r2);
   }
   return f;
 }
 float total(vec2 q){
-  vec2 dp=q-uP.xy;
-  return field(q)+uP.z*exp(-dot(dp,dp)/(uW*uW));
+  vec2 dp=(q-uP.xy)/uW;
+  return field(q)+uP.z*exp(-dot(dp,dp));
 }
 // Height of the goo surface: 0 at the edge, rising toward each blob's middle.
 float height(float f){return clamp(1.-1./max(f,.001),0.,1.);}
