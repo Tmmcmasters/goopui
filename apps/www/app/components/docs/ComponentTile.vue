@@ -25,6 +25,63 @@ defineProps<{ slug: string; title: string }>()
     <GoopInput v-else-if="slug === 'input'" class="h-8 w-36 text-xs" placeholder="you@example.com" aria-label="Email" />
     <GoopSlider v-else-if="slug === 'slider'" :default-value="[62]" class="w-32" aria-label="Volume" />
     <GoopProgress v-else-if="slug === 'progress'" :model-value="64" class="w-32" aria-label="Progress" />
+    <GoopNumberField v-else-if="slug === 'number-field'" :default-value="3" class="w-28" aria-label="Quantity">
+      <GoopNumberFieldContent class="[&_input]:h-8 [&_input]:text-xs">
+        <GoopNumberFieldDecrement />
+        <GoopNumberFieldInput />
+        <GoopNumberFieldIncrement />
+      </GoopNumberFieldContent>
+    </GoopNumberField>
+    <GoopInputOTP v-else-if="slug === 'input-otp'" :default-value="['4', '2']" aria-label="Code">
+      <GoopInputOTPGroup class="[&>*]:size-8 [&>*]:text-xs">
+        <GoopInputOTPSlot v-for="i in 4" :key="i" :index="i - 1" />
+      </GoopInputOTPGroup>
+    </GoopInputOTP>
+    <div v-else-if="slug === 'skeleton'" class="flex w-32 items-center gap-2.5">
+      <GoopSkeleton class="size-8 shrink-0 rounded-full" />
+      <div class="grid flex-1 gap-1.5">
+        <GoopSkeleton class="h-2.5 w-full" />
+        <GoopSkeleton class="h-2.5 w-3/4" />
+      </div>
+    </div>
+    <div v-else-if="slug === 'badge'" class="flex items-center gap-1.5">
+      <GoopBadge>New</GoopBadge>
+      <GoopBadge variant="secondary">Beta</GoopBadge>
+      <GoopBadge variant="outline">v1</GoopBadge>
+    </div>
+    <GoopCard v-else-if="slug === 'card'" class="sk-card w-36 gap-1.5 border-0 py-2.5">
+      <GoopCardHeader class="gap-0.5 px-3">
+        <GoopCardTitle class="text-xs">Project Apollo</GoopCardTitle>
+        <GoopCardDescription class="text-[10px]">Three tasks due</GoopCardDescription>
+      </GoopCardHeader>
+      <GoopCardContent class="flex gap-1 px-3 pt-1">
+        <span class="sk-pill h-2.5 w-8 goo-fill" />
+        <span class="sk-pill h-2.5 w-6" />
+      </GoopCardContent>
+    </GoopCard>
+    <div v-else-if="slug === 'avatar'" class="flex -space-x-2">
+      <GoopAvatar class="size-9 ring-2 ring-card">
+        <GoopAvatarFallback class="bg-[color-mix(in_oklch,var(--foreground)_14%,transparent)] text-[11px]">TM</GoopAvatarFallback>
+      </GoopAvatar>
+      <GoopAvatar class="size-9 ring-2 ring-card">
+        <GoopAvatarFallback class="bg-[var(--goo)] text-[11px] text-[var(--goo-foreground)]">GU</GoopAvatarFallback>
+      </GoopAvatar>
+    </div>
+    <div v-else-if="slug === 'separator'" class="w-32 text-[11px]">
+      <span class="font-medium">goopUI</span>
+      <GoopSeparator class="my-2" />
+      <div class="flex h-3 items-center gap-2 text-muted-foreground">
+        <span>Blog</span>
+        <GoopSeparator orientation="vertical" />
+        <span>Docs</span>
+        <GoopSeparator orientation="vertical" />
+        <span>Source</span>
+      </div>
+    </div>
+    <div v-else-if="slug === 'label'" class="grid w-36 gap-1.5">
+      <GoopLabel class="text-xs">Email</GoopLabel>
+      <GoopInput class="h-8 text-xs" placeholder="you@example.com" aria-label="Email" />
+    </div>
 
     <!-- Sketches: overlays and the rest. Ink, with the goo colour as the accent. -->
     <div v-else-if="slug === 'select'" class="sk-card flex h-8 w-32 items-center justify-between px-2.5 text-[11px] text-muted-foreground">
@@ -80,6 +137,56 @@ defineProps<{ slug: string; title: string }>()
     </div>
     <div v-else-if="slug === 'page-transition'" class="sk-screen overflow-hidden">
       <span class="absolute inset-x-0 top-0 h-3/5 rounded-b-[40%] bg-[var(--goo)] opacity-85" />
+    </div>
+    <!-- Command: a still palette (a live list only highlights under a pointer). -->
+    <div v-else-if="slug === 'command'" class="sk-card flex w-32 flex-col gap-1 p-1.5 text-[10px]">
+      <span class="flex items-center gap-1.5 border-b border-border px-1 pb-1.5 text-subtle">
+        <SiteIcon name="search" :size="10" /> Search...
+      </span>
+      <span class="rounded px-1.5 py-0.5 text-muted-foreground">Calendar</span>
+      <span class="rounded bg-[color-mix(in_oklch,var(--goo)_80%,transparent)] px-1.5 py-0.5 text-[var(--goo-foreground)]">Calculator</span>
+      <span class="rounded px-1.5 py-0.5 text-muted-foreground">Settings</span>
+    </div>
+    <div v-else-if="slug === 'combobox'" class="flex flex-col items-center gap-1">
+      <span class="sk-card flex h-6 w-28 items-center justify-between px-2 text-[10px] text-muted-foreground">
+        Nuxt <SiteIcon name="chevronDown" :size="10" />
+      </span>
+      <span class="sk-card flex w-28 flex-col gap-1.5 p-2">
+        <span class="flex items-center justify-between"><span class="sk-line w-1/2 goo" /><span class="size-1.5 rounded-full bg-[var(--goo)]" /></span>
+        <span class="sk-line w-3/4" />
+        <span class="sk-line w-2/3" />
+      </span>
+    </div>
+    <div v-else-if="slug === 'hover-card'" class="flex flex-col items-center gap-1.5">
+      <span class="sk-card flex w-28 items-center gap-2 p-2">
+        <span class="size-5 shrink-0 rounded-full bg-[color-mix(in_oklch,var(--goo)_80%,transparent)]" />
+        <span class="flex flex-1 flex-col gap-1.5">
+          <span class="sk-line w-3/4" />
+          <span class="sk-line w-full" />
+        </span>
+      </span>
+      <span class="text-[11px] font-medium underline decoration-[var(--goo)] underline-offset-2">@goopui</span>
+    </div>
+    <div v-else-if="slug === 'context-menu'" class="sk-screen">
+      <span class="sk-card absolute left-[42%] top-[22%] flex w-16 flex-col gap-1.5 p-1.5">
+        <span class="sk-line w-full goo" />
+        <span class="sk-line w-3/4" />
+        <span class="h-px bg-[var(--border)]" />
+        <span class="sk-line w-2/3" />
+      </span>
+      <span class="absolute left-[38%] top-[17%] size-1.5 rounded-full bg-[var(--foreground)] opacity-60" />
+    </div>
+    <div v-else-if="slug === 'sidebar'" class="sk-screen flex overflow-hidden">
+      <span class="flex w-2/5 flex-col gap-1.5 sk-panel p-2">
+        <span class="sk-line w-3/4 goo" />
+        <span class="sk-line w-full" />
+        <span class="sk-line w-2/3" />
+        <span class="sk-line w-4/5" />
+      </span>
+      <span class="flex flex-1 flex-col gap-1.5 p-2">
+        <span class="sk-line w-1/2" />
+        <span class="sk-line w-full opacity-60" />
+      </span>
     </div>
     <span v-else class="monogram">{{ title.charAt(0) }}</span>
   </div>
