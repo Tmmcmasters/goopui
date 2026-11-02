@@ -1,26 +1,19 @@
 <script setup lang="ts">
 // The GoopButton props reference. Two parts:
-//   - the component's own props (variant, size, asChild, ...): listed here, since they live
-//     in the component, not the engine;
+//   - the component's own props (variant, size, asChild, ...), from its docs entry
+//     (app/component-docs/entries/button.ts);
 //   - every engine prop, generated from GOOP_VAR_META (core) and the prop lists exported by
 //     @goopui/vue (ENGINE_OPTION_KEYS, FEATURE_KEYS), so a new core option appears here
 //     without touching this file.
 //   :goop-button-props            -> both tables
 //   :goop-button-props{part="own"} / {part="engine"}
 import { ENGINE_OPTION_KEYS, isGoopFeature } from '@goopui/vue'
+import buttonDoc from '~/component-docs/entries/button'
 
 const props = withDefaults(defineProps<{ part?: 'own' | 'engine' | 'all' }>(), { part: 'all' })
 
-const own = [
-  { prop: 'variant', type: `'default' | 'secondary' | 'destructive' | 'outline' | 'ghost' | 'link'`, def: `'default'`, note: 'Same as shadcn. The goo takes the variant\'s color: tinted for destructive, a goo stroke for outline, hover-only for ghost. Link has no goo.' },
-  { prop: 'size', type: `'default' | 'xs' | 'sm' | 'lg' | 'icon' | 'icon-xs' | 'icon-sm' | 'icon-lg'`, def: `'default'`, note: 'Same as shadcn.' },
-  { prop: 'asChild', type: 'boolean', def: 'false', note: 'Render your own child (a NuxtLink, an <a>) with the button\'s classes and goo, via reka-ui Primitive.' },
-  { prop: 'as', type: 'string | Component', def: `'button'`, note: 'The element to render.' },
-  { prop: 'class', type: 'string | array | object', def: '', note: 'Merged onto the root, like shadcn. Utilities such as bg-*, rounded-*, and [--goop-color:...] win over the variant.' },
-  { prop: 'disabled', type: 'boolean', def: 'false', note: 'Disables the button. Drips already running finish; nothing new starts.' },
-  { prop: 'goo', type: 'boolean', def: 'true (false for link)', note: 'Master switch. false renders a plain shadcn Button.' },
-  { prop: 'goop', type: 'GoopOptions', def: '', note: 'Escape hatch: any engine option as an object. The explicit props below win over it.' },
-]
+// The component's own props live in its docs entry (also used by ::component-props).
+const own = buttonDoc.tables!.main!.rows
 
 // Props that core gives no var metadata for (not CSS-tunable), so describe them here.
 const extra: Record<string, { type: string; def: string; note: string }> = {

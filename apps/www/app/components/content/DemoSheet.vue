@@ -3,6 +3,8 @@
 // Keep each set in sync with the code sample beside it in the docs.
 withDefaults(defineProps<{ set?: 'basic' | 'sides' | 'splash' }>(), { set: 'basic' })
 const sides = ['top', 'right', 'bottom', 'left'] as const
+// Customize choices from the page's playground (empty outside it).
+const pg = usePlayground()
 </script>
 
 <template>
@@ -10,13 +12,13 @@ const sides = ['top', 'right', 'bottom', 'left'] as const
     <GoopSheetTrigger as-child>
       <GoopButton variant="outline">Open sheet</GoopButton>
     </GoopSheetTrigger>
-    <GoopSheetContent>
+    <GoopSheetContent v-bind="pg.part('content')">
       <GoopSheetHeader>
         <GoopSheetTitle>Edit profile</GoopSheetTitle>
         <GoopSheetDescription>Make changes to your profile here. Click save when you're done.</GoopSheetDescription>
       </GoopSheetHeader>
       <div class="grid gap-3 px-4 text-sm">
-        <p class="text-muted-foreground">The panel blooms in from the right edge and splashes off its inner edge.</p>
+        <p class="text-muted-foreground">The panel blooms in from its edge and splashes off its inner edge.</p>
       </div>
       <GoopSheetFooter>
         <GoopSheetClose as-child>

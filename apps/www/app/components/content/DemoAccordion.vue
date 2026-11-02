@@ -8,10 +8,12 @@ const items = [
   { value: 'off', title: 'Can I turn the goo off?', body: 'Every effect has its own prop, and :goo="false" renders plain shadcn.' },
 ]
 const open = ref(false)
+// Customize choices from the page's playground (empty outside it).
+const pg = usePlayground()
 </script>
 
 <template>
-  <GoopAccordion v-if="set === 'basic'" type="single" collapsible default-value="what" class="w-full max-w-md">
+  <GoopAccordion v-if="set === 'basic'" type="single" collapsible default-value="what" class="w-full max-w-md" v-bind="pg.props">
     <GoopAccordionItem v-for="i in items" :key="i.value" :value="i.value" class="border-border">
       <GoopAccordionTrigger>{{ i.title }}</GoopAccordionTrigger>
       <GoopAccordionContent>{{ i.body }}</GoopAccordionContent>

@@ -3,6 +3,8 @@
 // Keep each set in sync with the code sample beside it in the docs.
 withDefaults(defineProps<{ set?: 'basic' | 'sides' | 'surface' }>(), { set: 'basic' })
 const sides = ['top', 'right', 'bottom', 'left'] as const
+// Customize choices from the page's playground (empty outside it).
+const pg = usePlayground()
 </script>
 
 <template>
@@ -11,7 +13,7 @@ const sides = ['top', 'right', 'bottom', 'left'] as const
       <GoopTooltipTrigger as-child>
         <GoopButton variant="outline">Hover me</GoopButton>
       </GoopTooltipTrigger>
-      <GoopTooltipContent>Add to library</GoopTooltipContent>
+      <GoopTooltipContent v-bind="pg.part('content')">Add to library</GoopTooltipContent>
     </GoopTooltip>
 
     <template v-else-if="set === 'sides'">

@@ -6,6 +6,8 @@ const overlays = [
   { label: 'Goo overlay', drips: true },
   { label: 'Straight edge', drips: false },
 ] as const
+// Customize choices from the page's playground (empty outside it).
+const pg = usePlayground()
 const surfaces = [
   { label: 'popover (default)', value: 'popover', variant: 'outline' },
   { label: 'trigger', value: 'trigger', variant: 'default' },
@@ -18,7 +20,7 @@ const surfaces = [
     <GoopDialogTrigger as-child>
       <GoopButton variant="outline">Edit profile</GoopButton>
     </GoopDialogTrigger>
-    <GoopDialogContent class="sm:max-w-md">
+    <GoopDialogContent class="sm:max-w-md" v-bind="pg.part('content')">
       <GoopDialogHeader>
         <GoopDialogTitle>Edit profile</GoopDialogTitle>
         <GoopDialogDescription>Make changes to your profile here. Click save when you're done.</GoopDialogDescription>

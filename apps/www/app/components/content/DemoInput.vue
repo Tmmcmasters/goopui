@@ -5,12 +5,14 @@ withDefaults(defineProps<{ set?: 'basic' | 'invalid' | 'effects' | 'states' | 't
 const email = ref('')
 const invalidEmail = ref('not-an-email')
 const bio = ref('')
+// Customize choices from the page's playground (empty outside it).
+const pg = usePlayground()
 </script>
 
 <template>
   <div v-if="set === 'basic'" class="grid w-full max-w-sm gap-2">
     <label for="demo-input-email" class="text-sm font-medium">Email</label>
-    <GoopInput id="demo-input-email" v-model="email" type="email" placeholder="you@example.com" />
+    <GoopInput id="demo-input-email" v-model="email" type="email" placeholder="you@example.com" v-bind="pg.props" />
   </div>
 
   <div v-else-if="set === 'invalid'" class="grid w-full max-w-sm gap-2">
