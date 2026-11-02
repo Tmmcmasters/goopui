@@ -1462,3 +1462,165 @@ export function toPageTransitionOptions(props: GoopPageTransitionProps, config: 
   }
   return out
 }
+
+// ---- GoopCommand / GoopCombobox -------------------------------------------------------------
+// Command: the active item is the menu highlight blob (core `attachMenuHighlight`, found with
+// `findCommandHighlight` so filtered-out items are skipped) gliding between items with the
+// keyboard and pointer; choosing squishes it (`pop`); the input gets GoopInput's goo focus
+// ring (`ring`). GoopCommandDialog adds the dialog's bloom. Combobox: the list is a popper
+// that blooms like GoopSelectContent's (same props, minus `bloomFrom`: it always blooms from
+// its own center), with the same highlight, pop and check plop.
+import {
+  COMBOBOX_EFFECTS as _COMBOBOX_EFFECTS,
+  COMMAND_EFFECTS as _COMMAND_EFFECTS,
+  type ComboboxEffect as _ComboboxEffect,
+  type CommandEffect as _CommandEffect,
+  type InputOptions as _InputOptions,
+} from '@goopui/core'
+
+/** Every GoopCommand engine prop. */
+export const COMMAND_PROP_KEYS = [
+  'goo',
+  ..._COMMAND_EFFECTS,
+  'wobble',
+  'momentum',
+  'followPointer',
+  'speed',
+  'preset',
+  'renderer',
+] as const
+
+/** Engine props of GoopCommand (its input and items read them). Every toggle defaults on. */
+export interface GoopCommandProps {
+  /** Master switch. `false` renders plain shadcn Command parts. */
+  goo?: boolean
+  /** The active item is a goo blob that glides between items, following the arrow keys and
+   *  the pointer (false: shadcn's flat highlight). */
+  highlight?: boolean
+  /** Jelly squish of the highlight when an item is chosen. */
+  pop?: boolean
+  /** The search input gets GoopInput's goo focus ring (a GoopCommandInput's own `goo` prop
+   *  overrides it). */
+  ring?: boolean
+  /** Jelly overshoot: the highlight's overshoot and grow-in, and the ring's idle wobble. */
+  wobble?: boolean
+  /** The highlight stretches and necks toward where it came from as it travels. */
+  momentum?: boolean
+  /** The highlight's swell follows the pointer with a little lag (keyboard: centred). */
+  followPointer?: boolean
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+// `find` is the adapter's (findCommandHighlight); the ring's own effects are GoopCommandInput props.
+type CommandAdapterOwned = 'find' | 'feel' | 'reducedMotion'
+type CommandUnhandled = Exclude<keyof MenuHighlightOptions | _CommandEffect, keyof GoopCommandProps | CommandAdapterOwned>
+const _allCommandOptionsHandled: [CommandUnhandled] extends [never] ? true : { unhandled: CommandUnhandled } = true
+void _allCommandOptionsHandled
+type CommandPropsListed = Exclude<keyof GoopCommandProps, (typeof COMMAND_PROP_KEYS)[number]>
+const _allCommandPropsListed: [CommandPropsListed] extends [never] ? true : { unlisted: CommandPropsListed } = true
+void _allCommandPropsListed
+
+/** Fully resolved command settings (no undefined toggles). */
+export interface ResolvedCommandProps extends Required<Omit<GoopCommandProps, 'preset' | 'renderer'>> {
+  preset?: GoopPreset
+  renderer?: GoopRendererOption
+}
+
+const COMMAND_TOGGLES = ['goo', ..._COMMAND_EFFECTS, 'wobble', 'momentum', 'followPointer'] as const
+
+/** Resolve command props over the defaults (every toggle on). */
+export function resolveCommandProps(props: GoopCommandProps): ResolvedCommandProps {
+  const out = { speed: props.speed ?? 1 } as ResolvedCommandProps
+  for (const k of COMMAND_TOGGLES) out[k] = props[k] ?? true
+  out.preset = props.preset
+  out.renderer = props.renderer
+  return out
+}
+
+/** Core options for the highlight blob and the input ring, over app config (null when off). */
+export function toCommandOptions(
+  cmd: ResolvedCommandProps,
+  config: GoopOptions = {},
+): { highlight: MenuHighlightOptions | null; ring: _InputOptions | null } {
+  const common = {
+    speed: cmd.speed,
+    preset: cmd.preset ?? config.preset,
+    renderer: cmd.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+  return {
+    highlight:
+      cmd.goo && cmd.highlight
+        ? { ...common, wobble: cmd.wobble, momentum: cmd.momentum, pop: cmd.pop, followPointer: cmd.followPointer }
+        : null,
+    ring: cmd.goo && cmd.ring ? { ...common, ...(cmd.wobble ? {} : { wobble: false }) } : null,
+  }
+}
+
+/** Every GoopCommandDialog engine prop: the dialog's bloom (DIALOG_PROP_KEYS) plus the
+ *  command's own toggles. */
+export const COMMAND_DIALOG_PROP_KEYS = [
+  ...DIALOG_PROP_KEYS,
+  ..._COMMAND_EFFECTS,
+  'momentum',
+  'followPointer',
+] as const
+
+/** Engine props of GoopCommandDialog: GoopDialogContent's (the panel blooms open) plus
+ *  GoopCommand's highlight / pop / ring / momentum / followPointer. `goo`, `wobble`, `speed`,
+ *  `preset` and `renderer` drive both. */
+export interface GoopCommandDialogProps extends GoopDialogProps {
+  /** The command's goo highlight blob (see GoopCommand). */
+  highlight?: boolean
+  /** Jelly squish of the highlight when an item is chosen. */
+  pop?: boolean
+  /** The search input's goo focus ring. */
+  ring?: boolean
+  /** The highlight stretches and necks as it travels. */
+  momentum?: boolean
+  /** The highlight's swell follows the pointer. */
+  followPointer?: boolean
+}
+type CommandDialogOwn = Exclude<keyof GoopCommandDialogProps, keyof GoopDialogProps>
+const _commandDialogMatches: [Exclude<CommandDialogOwn, keyof GoopCommandProps>] extends [never] ? true : false = true
+void _commandDialogMatches
+
+type CommandDialogPropsListed = Exclude<keyof GoopCommandDialogProps, (typeof COMMAND_DIALOG_PROP_KEYS)[number]>
+const _allCommandDialogPropsListed: [CommandDialogPropsListed] extends [never] ? true : { unlisted: CommandDialogPropsListed } = true
+void _allCommandDialogPropsListed
+
+/** Every GoopComboboxList engine prop (GoopSelectContent's, minus `bloomFrom`). */
+export const COMBOBOX_PROP_KEYS = SELECT_PROP_KEYS.filter((k) => k !== 'bloomFrom') as Exclude<
+  (typeof SELECT_PROP_KEYS)[number],
+  'bloomFrom'
+>[]
+
+/** Engine props of GoopComboboxList: the same as GoopSelectContent's (bloom open, highlight
+ *  blob, select pop, check plop), except the list always blooms from its own center. */
+export type GoopComboboxProps = Omit<GoopSelectProps, 'bloomFrom'>
+
+type ComboboxUnhandled = Exclude<
+  keyof EmergeOptions | keyof MenuHighlightOptions | keyof SelectPlopOptions | _ComboboxEffect,
+  keyof GoopComboboxProps | MenuAdapterOwned
+>
+const _allComboboxOptionsHandled: [ComboboxUnhandled] extends [never] ? true : { unhandled: ComboboxUnhandled } = true
+void _allComboboxOptionsHandled
+void _COMBOBOX_EFFECTS
+
+/** Resolve combobox list props over the defaults. */
+export function resolveComboboxProps(props: GoopComboboxProps): ResolvedSelectProps {
+  return resolveSelectProps({ ...props, bloomFrom: 'center' })
+}
+
+/** Core options for the combobox list (emerge), highlight and plop, over app config. */
+export function toComboboxOptions(
+  combobox: ResolvedSelectProps,
+  config: GoopOptions = {},
+): { emerge: EmergeOptions; highlight: MenuHighlightOptions | null; plop: SelectPlopOptions | null } {
+  return toSelectOptions(combobox, config)
+}

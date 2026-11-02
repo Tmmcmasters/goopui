@@ -125,3 +125,18 @@ export {
 export { goopComponents, type GoopComponentName } from './manifest'
 export { seedFrom, useGoop, type UseGoopReturn } from './use-goop'
 export { cn } from 'cn'
+export * from './components/command'
+export * from './components/combobox'
+export {
+  COMBOBOX_PROP_KEYS,
+  COMMAND_DIALOG_PROP_KEYS,
+  COMMAND_PROP_KEYS,
+  resolveComboboxProps,
+  resolveCommandProps,
+  toComboboxOptions,
+  toCommandOptions,
+  type GoopComboboxProps,
+  type GoopCommandDialogProps,
+  type GoopCommandProps,
+  type ResolvedCommandProps,
+} from './goop-props'

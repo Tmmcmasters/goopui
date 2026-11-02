@@ -733,3 +733,11 @@ export {
   type PageTransitionPhase,
   type PageTransitionSeam,
 } from './page-transition'
+export {
+  COMBOBOX_EFFECTS,
+  COMMAND_EFFECTS,
+  findCommandHighlight,
+  isRenderedItem,
+  type ComboboxEffect,
+  type CommandEffect,
+} from './command'
