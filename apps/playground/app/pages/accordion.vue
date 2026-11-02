@@ -11,7 +11,7 @@ const faq = [
 /** Accordion / Collapsible props from the panel, applied to every goop instance on the page. */
 const speed = ref(1)
 /** Effect toggles (core ACCORDION_EFFECTS). */
-const fx = reactive({ flood: true, wobble: true, droplets: true, jelly: true })
+const fx = reactive({ flood: true, wobble: true, droplets: true, jelly: true, textFollow: true })
 const preset = ref<GoopPreset | ''>('')
 const renderer = ref<GoopRendererName | ''>('')
 const engine = computed(() => ({

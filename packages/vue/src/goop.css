@@ -216,6 +216,17 @@
   color: var(--goop-accordion-text, var(--primary-foreground));
 }
 
+/* Text that follows the goo (core's textFollow, on by default): while goo is on an item core
+   stacks an aria-hidden copy of its label in the on-goo color (--goop-accordion-text /
+   --goop-toggle-text, default --accent-foreground), clipped to the goo, over the real label, and
+   marks every item data-goop-text-follow while it does; the accordion trigger then never gets data-goop-flooded.
+   A pressed toggle's real label keeps its un-pressed color meanwhile (shadcn's
+   data-[state=on]:text-accent-foreground would color it everywhere at once). */
+[data-goop-host='toggle'][data-goop-text-follow],
+[data-goop-host='toggle-group'] [data-goop-text-follow] {
+  color: inherit;
+}
+
 @keyframes goop-accordion-down {
   from {
     height: 0;

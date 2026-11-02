@@ -20,17 +20,20 @@
 // padding box. No DOM access until `attachToggle` / `attachToggleGroup` is called (SSR-safe).
 
 import type { GoopPreset } from './constants'
-import type { GooFilterParams } from './filter'
+import { gooVanishRadius, type GooFilterParams } from './filter'
 import { decayWobble, noCircle, smooth01, type GooCircle } from './liquid'
 import { removeTicker, wakeTicker, type Ticker } from './loop'
 import { isReducedMotion, watchReducedMotion } from './reduced-motion'
 import type { GoopBlob, GoopRenderer } from './renderer'
 import { resolveRenderer, type GoopRendererOption } from './renderers/resolve'
 import { GOO_BRIDGE_NECKS, GOO_SPLASH_MAX, gooBridge, gooEffectValue, splashDrops } from './splat'
+import { TEXT_FOLLOW_ATTR, createTextCopy, gooClipPath, textFollowSupported, type TextBox, type TextCopy } from './text-follow'
 import { readPreset } from './tuning'
 
 /** CSS var the goo paints with (shadcn's pressed toggle background, `--accent`, by default). */
 export const TOGGLE_COLOR_VAR = '--goop-toggle-fill'
+/** CSS var of a toggle's text where the goo covers it (default `--accent-foreground`). */
+export const TOGGLE_TEXT_VAR = '--goop-toggle-text'
 
 export interface ToggleFeel {
   /** Seconds for the flood front to cross a whole item. */
@@ -479,6 +482,11 @@ export interface ToggleOptions {
   wobble?: boolean | number
   /** A few droplets splash off the top edge as it floods. Default true. */
   droplets?: boolean | number
+  /** The label's color follows the goo's edge: an aria-hidden copy of the label in the on-goo
+   *  color, clipped to the goo, sits over it while goo is on it, so the text is the on-goo
+   *  color exactly where the goo is. Off (or without `clip-path: path()` support, or under
+   *  reduced motion): the color flips all at once. Default true. */
+  textFollow?: boolean
   reducedMotion?: boolean | 'auto'
 }
 
@@ -521,8 +529,14 @@ export interface ToggleFillConfig {
    *  shrinks it). Default 0. */
   bleed?: { x: number; y: number }
   /** Attribute set on the host while its fill is at least half full (e.g. to switch the text
-   *  to a contrasting color as the goo arrives, and back as it drains). */
+   *  to a contrasting color as the goo arrives, and back as it drains). Not set while the text
+   *  follows the goo (`textColor`): the copy shows the contrasting color instead. */
   fullAttr?: string
+  /** Color of the text where the goo covers it. With it (and the `textFollow` option, default
+   *  on) an item with goo on it gets an aria-hidden copy of its label in this color, clipped to
+   *  the goo (see text-follow.ts), and `TEXT_FOLLOW_ATTR` while the copy is up. Default
+   *  `var(--goop-toggle-text, var(--accent-foreground))`; null turns text following off. */
+  textColor?: string | null
   /** Where the label sits (host padding box), measured with the layout: with it, `fullAttr` is
    *  set while the goo covers that point instead of by fill level, so the text color flips
    *  as the front actually crosses the label. */
@@ -558,6 +572,10 @@ function attachEngine(
   const isOn = cfg.isOn ?? isPressed
   const bleed = cfg.bleed ?? { x: 0, y: 0 }
   const doc = host.ownerDocument
+  const textColor = cfg.textColor === undefined ? `var(${TOGGLE_TEXT_VAR}, var(--accent-foreground, currentColor))` : cfg.textColor
+  const canFollow = textColor !== null && textFollowSupported(doc)
+  let copies = new Map<HTMLElement, TextCopy>()
+  let boxes: TextBox[] = []
   const win = doc.defaultView
   let opts: ToggleGroupOptions = { ...options }
   let feel = TOGGLE_FEEL[readPreset(host, opts.preset)]
@@ -595,10 +613,18 @@ function attachEngine(
     return { x: p.x, y: p.y, w: er.width, h: er.height }
   }
   const center = (r: ToggleRect): TogglePoint => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 })
+  // An item's own border box (no bleed): where its text copy sits.
+  const boxOf = (el: HTMLElement): TextBox => {
+    if (el !== host) return rectOf(el)
+    const w = host.offsetWidth || host.getBoundingClientRect().width
+    const h = host.offsetHeight || host.getBoundingClientRect().height
+    return { x: -host.clientLeft, y: -host.clientTop, w: Math.max(1, w), h: Math.max(1, h) }
+  }
   let label: TogglePoint | null = null
   const measure = (): void => {
     els = getItems()
     rects = els.map(rectOf)
+    boxes = canFollow ? els.map(boxOf) : []
     label = cfg.labelAt ? cfg.labelAt(host) : null
   }
   const short = (): number => {
@@ -622,6 +648,19 @@ function attachEngine(
     return end
   }
 
+  const dropCopy = (el: HTMLElement): void => {
+    copies.get(el)?.destroy()
+    copies.delete(el)
+  }
+  // Items marked TEXT_FOLLOW_ATTR (their real label keeps its normal color: a pressed item
+  // whose goo is still on its way must not take the on-goo color early).
+  let marked = new Set<HTMLElement>()
+  const clearCopies = (): void => {
+    for (const el of [...copies.keys()]) dropCopy(el)
+    for (const el of marked) el.removeAttribute(TEXT_FOLLOW_ATTR)
+    marked = new Set()
+  }
+
   const draw = (): void => {
     if (!layer) return
     const items = els.map((el, i) => ({ rect: rects[i]!, anim: animOf(el, i) }))
@@ -640,12 +679,40 @@ function attachEngine(
         if (filled !== el.hasAttribute(TOGGLE_FILLED_ATTR)) el.toggleAttribute(TOGGLE_FILLED_ATTR, filled)
       })
     }
+    // Text follows the goo: every item the goo reaches gets its clipped on-goo copy (one clip
+    // update per drawn frame; nothing at rest), and the all-at-once flip below stays off.
+    const follow = canFollow && opts.textFollow !== false && !reduced
+    if (follow) {
+      const vanish = params ? gooVanishRadius(params) : 0
+      els.forEach((el, i) => {
+        const box = boxes[i]
+        const path = box ? gooClipPath(last!.circles, box, vanish) : ''
+        let copy = copies.get(el)
+        if (path && box) {
+          if (!copy) {
+            copy = createTextCopy(el, host, textColor!)
+            copies.set(el, copy)
+          }
+          copy.place(box)
+          copy.clip(path)
+        } else if (copy) dropCopy(el)
+      })
+      for (const el of [...copies.keys()]) if (!els.includes(el)) dropCopy(el)
+      for (const el of marked) if (!els.includes(el)) {
+        el.removeAttribute(TEXT_FOLLOW_ATTR)
+        marked.delete(el)
+      }
+      for (const el of els) if (!marked.has(el)) {
+        el.setAttribute(TEXT_FOLLOW_ATTR, '')
+        marked.add(el)
+      }
+    } else clearCopies()
     if (cfg.fullAttr) {
       const attr = cfg.fullAttr
       const lp = label
       els.forEach((el, i) => {
         const level = last!.levels[i] ?? 0
-        const full = lp && level > 0 && level < 1 ? last!.circles.some((c) => c.r > 0 && Math.hypot(c.x - lp.x, c.y - lp.y) < c.r) : level >= 0.5
+        const full = follow ? false : lp && level > 0 && level < 1 ? last!.circles.some((c) => c.r > 0 && Math.hypot(c.x - lp.x, c.y - lp.y) < c.r) : level >= 0.5
         if (full !== el.hasAttribute(attr)) el.toggleAttribute(attr, full)
       })
     }
@@ -835,6 +902,8 @@ function attachEngine(
       unwatch()
       host.removeEventListener('pointerdown', onPointerDown, true)
       teardown()
+      clearCopies()
+      copies = new Map()
       for (const el of anims.keys()) {
         if (markFill) el.removeAttribute(TOGGLE_FILLED_ATTR)
         if (cfg.fullAttr) el.removeAttribute(cfg.fullAttr)

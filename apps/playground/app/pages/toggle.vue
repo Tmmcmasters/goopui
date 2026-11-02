@@ -29,7 +29,7 @@ const weekdays = ['mon', 'tue', 'wed', 'thu', 'fri']
 /** Toggle props from the panel, applied to every Goop toggle on the page. */
 const speed = ref(1)
 /** Effect toggles (core TOGGLE_GROUP_EFFECTS; a single toggle ignores flow / merge). */
-const fx = reactive({ flood: true, wobble: true, droplets: true, flow: true, merge: true })
+const fx = reactive({ flood: true, wobble: true, droplets: true, flow: true, merge: true, textFollow: true })
 const preset = ref<GoopPreset | ''>('')
 const renderer = ref<GoopRendererName | ''>('')
 /** shadcn fills pressed toggles with --accent (very pale); `primary` shows the goo clearly. */
@@ -45,7 +45,7 @@ const toggleEngine = computed(() => {
   return rest
 })
 /** Goo color (on the host) and the pressed label color (on each toggle / item). */
-const tintRoot = computed(() => (tint.value === 'primary' ? '[--goop-toggle-fill:var(--primary)]' : ''))
+const tintRoot = computed(() => (tint.value === 'primary' ? '[--goop-toggle-fill:var(--primary)] [--goop-toggle-text:var(--primary-foreground)]' : ''))
 const tintItem = computed(() => (tint.value === 'primary' ? 'data-[state=on]:text-primary-foreground' : ''))
 /** The same tint for the shadcn originals (a real background). */
 const tintShadcn = computed(() => (tint.value === 'primary' ? 'data-[state=on]:bg-primary data-[state=on]:text-primary-foreground' : ''))

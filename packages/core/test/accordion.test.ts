@@ -112,7 +112,7 @@ describe('attachAccordion', () => {
 
   it('an open item at mount is a full, flooded row with nothing running', () => {
     const it0 = item(true)
-    const h = attachAccordion(it0.host)
+    const h = attachAccordion(it0.host, { textFollow: false })
     expect(h.fill!.pose!.levels).toEqual([1])
     expect(it0.trigger.hasAttribute(ACCORDION_FLOODED_ATTR)).toBe(true)
     expect(h.running).toBe(false)
