@@ -8,6 +8,8 @@ const surfaces = [
   { label: 'popover', value: 'popover' },
   { label: 'a CSS color', value: 'oklch(0.62 0.19 150)' },
 ] as const
+// Customize choices from the page's playground (empty outside it).
+const pg = usePlayground()
 </script>
 
 <template>
@@ -15,7 +17,7 @@ const surfaces = [
     <GoopPopoverTrigger as-child>
       <GoopButton variant="outline">Open popover</GoopButton>
     </GoopPopoverTrigger>
-    <GoopPopoverContent>
+    <GoopPopoverContent v-bind="pg.part('content')">
       <GoopPopoverHeader>
         <GoopPopoverTitle>Dimensions</GoopPopoverTitle>
         <GoopPopoverDescription>Set the dimensions for the layer.</GoopPopoverDescription>

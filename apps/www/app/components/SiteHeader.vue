@@ -14,7 +14,7 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll))
 
 const links = [
   { to: '/docs/getting-started/introduction', label: 'Docs', match: '/docs/getting-started' },
-  { to: '/docs/components/button', label: 'Components', match: '/docs/components' },
+  { to: '/docs/components', label: 'Components', match: '/docs/components' },
   { to: '/docs/core/api', label: 'Core', match: '/docs/core' },
 ]
 const isActive = (match: string) => route.path.startsWith(match)

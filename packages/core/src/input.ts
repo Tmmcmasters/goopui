@@ -186,6 +186,9 @@ export interface InputRipple {
   /** Seconds since it started. */
   age: number
   amp: number
+  /** Strength override (times the preset's ripple strength). Set by `rippleAt` callers that
+   *  own their own toggle (GoopNumberField's step nudge), so they show even with `ripple` off. */
+  fx?: number
 }
 
 /** Everything a frame depends on. */
@@ -289,9 +292,10 @@ export function stepInputGoo(
 }
 
 /** Start a typing ripple at arc `s`. */
-export function addInputRipple(st: InputGooState, s: number, amp = 1): void {
-  if (!(st.cover > 0) || st.drain > 0) return
-  st.ripples.push({ s, age: 0, amp })
+export function addInputRipple(st: InputGooState, s: number, amp = 1, fx?: number): void {
+  // While the ring is still flowing in (shown, cover 0 for a frame) the ripple waits on it.
+  if (!(st.cover > 0 || st.shown) || st.drain > 0) return
+  st.ripples.push(fx === undefined ? { s, age: 0, amp } : { s, age: 0, amp, fx })
   if (st.ripples.length > MAX_RIPPLES) st.ripples.shift()
 }
 
@@ -358,14 +362,16 @@ export function inputRingPose(
       grow += wobFx * 0.1 * w * a
       push += wobFx * 0.22 * r0 * w * a
     }
-    if (ripFx > 0) {
+    if (!reduced) {
       for (const rp of st.ripples) {
+        const rf = rp.fx === undefined ? ripFx : Math.max(0, rp.fx) * feel.ripple
+        if (!(rf > 0)) continue
         let rd = Math.abs(s - rp.s) % P
         rd = Math.min(rd, P - rd)
         const life = 1 - rp.age / RIPPLE_LIFE
         const b = rp.amp * life * life * gauss((rd - rp.age * RIPPLE_SPEED) / (r0 * 2.2))
-        grow += ripFx * 0.75 * b
-        push += ripFx * 0.5 * r0 * b
+        grow += rf * 0.75 * b
+        push += rf * 0.5 * r0 * b
       }
     }
     let x = p.x + p.nx * push
@@ -488,6 +494,10 @@ export interface InputHandle {
   resize(): void
   /** Send a typing ripple from the caret (what an edit does). */
   ripple(): void
+  /** Send a ripple from the ring point nearest (x, y) in host coordinates. `fx` overrides the
+   *  `ripple` toggle's strength (so a caller with its own toggle can ripple with it off). No-op
+   *  while the ring is hidden or under reduced motion. */
+  rippleAt(x: number, y: number, amp?: number, fx?: number): void
   readonly state: Readonly<InputGooState>
   readonly running: boolean
   readonly reducedMotion: boolean
@@ -691,7 +701,9 @@ export function attachInput(
   if (win?.getComputedStyle(host).position === 'static') host.style.position = 'relative'
   host.style.isolation = 'isolate'
 
-  field.addEventListener('pointerdown', onPointerDown)
+  // On the host (capture), so a press on a control inside it (GoopNumberField's +/- buttons,
+  // which focus the field themselves) starts the flow from that control.
+  host.addEventListener('pointerdown', onPointerDown, true)
   field.addEventListener('focus', onFocus)
   field.addEventListener('blur', onBlur)
   field.addEventListener('input', onInput)
@@ -747,6 +759,12 @@ export function attachInput(
     },
     resize: relayout,
     ripple: () => ripple(1),
+    rippleAt(x, y, amp = 1, fx) {
+      if (destroyed || reduced) return
+      if (fx === undefined ? effects.ripple <= 0 : !(fx > 0)) return
+      addInputRipple(st, ringArcAt(geom, feel.offset, x, y), amp, fx)
+      kick()
+    },
     get state() {
       return st
     },
@@ -766,7 +784,7 @@ export function attachInput(
       ro?.disconnect()
       mo?.disconnect()
       unwatch()
-      field.removeEventListener('pointerdown', onPointerDown)
+      host.removeEventListener('pointerdown', onPointerDown, true)
       field.removeEventListener('focus', onFocus)
       field.removeEventListener('blur', onBlur)
       field.removeEventListener('input', onInput)

@@ -6,6 +6,8 @@ const fruits = ['Apple', 'Banana', 'Blueberry', 'Grapes', 'Pineapple']
 const fruit = ref('Blueberry')
 const placed = ref('Blueberry')
 const popper = ref('Blueberry')
+// Customize choices from the page's playground (empty outside it).
+const pg = usePlayground()
 const surfaces = [
   { label: 'popover (default)', value: 'popover' },
   { label: 'trigger', value: 'trigger' },
@@ -18,7 +20,7 @@ const surfaces = [
     <GoopSelectTrigger class="w-44">
       <GoopSelectValue placeholder="Pick a fruit" />
     </GoopSelectTrigger>
-    <GoopSelectContent>
+    <GoopSelectContent v-bind="pg.part('content')">
       <GoopSelectGroup>
         <GoopSelectLabel>Fruits</GoopSelectLabel>
         <GoopSelectItem v-for="f in fruits" :key="f" :value="f">{{ f }}</GoopSelectItem>

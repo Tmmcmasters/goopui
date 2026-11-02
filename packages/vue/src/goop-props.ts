@@ -14,7 +14,6 @@
 // When core adds an option, the `Unhandled` check below fails typecheck until the option is
 // listed here (as an engine option, a feature, or adapter-owned). New tuning knobs need no
 // change at all: they come from GOOP_DEFAULTS and show up as props automatically.
-
 import {
   ACCORDION_EFFECTS,
   type AccordionEffect,
@@ -82,8 +81,15 @@ import {
   type GoopPreset,
   type GoopTuning,
   type GoopVarMeta,
+  NUMBER_FIELD_EFFECTS,
+  type NumberFieldEffect,
+  type NumberFieldOptions,
+  OTP_EFFECTS,
+  type OtpEffect,
+  type InputOTPOptions,
 } from '@goopui/core'
 import type { PropType } from 'vue'
+import type { ContextMenuBloomFrom, HoverCardBloomFrom } from '@goopui/core'
 
 // ---- keys --------------------------------------------------------------------------------
 
@@ -1462,3 +1468,566 @@ export function toPageTransitionOptions(props: GoopPageTransitionProps, config: 
   }
   return out
 }
+
+// ---- GoopCommand / GoopCombobox -------------------------------------------------------------
+// Command: the active item is the menu highlight blob (core `attachMenuHighlight`, found with
+// `findCommandHighlight` so filtered-out items are skipped) gliding between items with the
+// keyboard and pointer; choosing squishes it (`pop`); the input gets GoopInput's goo focus
+// ring (`ring`). GoopCommandDialog adds the dialog's bloom. Combobox: the list is a popper
+// that blooms like GoopSelectContent's (same props, minus `bloomFrom`: it always blooms from
+// its own center), with the same highlight, pop and check plop.
+import {
+  COMBOBOX_EFFECTS as _COMBOBOX_EFFECTS,
+  COMMAND_EFFECTS as _COMMAND_EFFECTS,
+  type ComboboxEffect as _ComboboxEffect,
+  type CommandEffect as _CommandEffect,
+  type InputOptions as _InputOptions,
+} from '@goopui/core'
+
+/** Every GoopCommand engine prop. */
+export const COMMAND_PROP_KEYS = [
+  'goo',
+  ..._COMMAND_EFFECTS,
+  'wobble',
+  'momentum',
+  'followPointer',
+  'speed',
+  'preset',
+  'renderer',
+] as const
+
+/** Engine props of GoopCommand (its input and items read them). Every toggle defaults on. */
+export interface GoopCommandProps {
+  /** Master switch. `false` renders plain shadcn Command parts. */
+  goo?: boolean
+  /** The active item is a goo blob that glides between items, following the arrow keys and
+   *  the pointer (false: shadcn's flat highlight). */
+  highlight?: boolean
+  /** Jelly squish of the highlight when an item is chosen. */
+  pop?: boolean
+  /** The search input gets GoopInput's goo focus ring (a GoopCommandInput's own `goo` prop
+   *  overrides it). */
+  ring?: boolean
+  /** Jelly overshoot: the highlight's overshoot and grow-in, and the ring's idle wobble. */
+  wobble?: boolean
+  /** The highlight stretches and necks toward where it came from as it travels. */
+  momentum?: boolean
+  /** The highlight's swell follows the pointer with a little lag (keyboard: centred). */
+  followPointer?: boolean
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+// `find` is the adapter's (findCommandHighlight); the ring's own effects are GoopCommandInput props.
+type CommandAdapterOwned = 'find' | 'feel' | 'reducedMotion'
+type CommandUnhandled = Exclude<keyof MenuHighlightOptions | _CommandEffect, keyof GoopCommandProps | CommandAdapterOwned>
+const _allCommandOptionsHandled: [CommandUnhandled] extends [never] ? true : { unhandled: CommandUnhandled } = true
+void _allCommandOptionsHandled
+type CommandPropsListed = Exclude<keyof GoopCommandProps, (typeof COMMAND_PROP_KEYS)[number]>
+const _allCommandPropsListed: [CommandPropsListed] extends [never] ? true : { unlisted: CommandPropsListed } = true
+void _allCommandPropsListed
+
+/** Fully resolved command settings (no undefined toggles). */
+export interface ResolvedCommandProps extends Required<Omit<GoopCommandProps, 'preset' | 'renderer'>> {
+  preset?: GoopPreset
+  renderer?: GoopRendererOption
+}
+
+const COMMAND_TOGGLES = ['goo', ..._COMMAND_EFFECTS, 'wobble', 'momentum', 'followPointer'] as const
+
+/** Resolve command props over the defaults (every toggle on). */
+export function resolveCommandProps(props: GoopCommandProps): ResolvedCommandProps {
+  const out = { speed: props.speed ?? 1 } as ResolvedCommandProps
+  for (const k of COMMAND_TOGGLES) out[k] = props[k] ?? true
+  out.preset = props.preset
+  out.renderer = props.renderer
+  return out
+}
+
+/** Core options for the highlight blob and the input ring, over app config (null when off). */
+export function toCommandOptions(
+  cmd: ResolvedCommandProps,
+  config: GoopOptions = {},
+): { highlight: MenuHighlightOptions | null; ring: _InputOptions | null } {
+  const common = {
+    speed: cmd.speed,
+    preset: cmd.preset ?? config.preset,
+    renderer: cmd.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+  return {
+    highlight:
+      cmd.goo && cmd.highlight
+        ? { ...common, wobble: cmd.wobble, momentum: cmd.momentum, pop: cmd.pop, followPointer: cmd.followPointer }
+        : null,
+    ring: cmd.goo && cmd.ring ? { ...common, ...(cmd.wobble ? {} : { wobble: false }) } : null,
+  }
+}
+
+/** Every GoopCommandDialog engine prop: the dialog's bloom (DIALOG_PROP_KEYS) plus the
+ *  command's own toggles. */
+export const COMMAND_DIALOG_PROP_KEYS = [
+  ...DIALOG_PROP_KEYS,
+  ..._COMMAND_EFFECTS,
+  'momentum',
+  'followPointer',
+] as const
+
+/** Engine props of GoopCommandDialog: GoopDialogContent's (the panel blooms open) plus
+ *  GoopCommand's highlight / pop / ring / momentum / followPointer. `goo`, `wobble`, `speed`,
+ *  `preset` and `renderer` drive both. */
+export interface GoopCommandDialogProps extends GoopDialogProps {
+  /** The command's goo highlight blob (see GoopCommand). */
+  highlight?: boolean
+  /** Jelly squish of the highlight when an item is chosen. */
+  pop?: boolean
+  /** The search input's goo focus ring. */
+  ring?: boolean
+  /** The highlight stretches and necks as it travels. */
+  momentum?: boolean
+  /** The highlight's swell follows the pointer. */
+  followPointer?: boolean
+}
+type CommandDialogOwn = Exclude<keyof GoopCommandDialogProps, keyof GoopDialogProps>
+const _commandDialogMatches: [Exclude<CommandDialogOwn, keyof GoopCommandProps>] extends [never] ? true : false = true
+void _commandDialogMatches
+
+type CommandDialogPropsListed = Exclude<keyof GoopCommandDialogProps, (typeof COMMAND_DIALOG_PROP_KEYS)[number]>
+const _allCommandDialogPropsListed: [CommandDialogPropsListed] extends [never] ? true : { unlisted: CommandDialogPropsListed } = true
+void _allCommandDialogPropsListed
+
+/** Every GoopComboboxList engine prop (GoopSelectContent's, minus `bloomFrom`). */
+export const COMBOBOX_PROP_KEYS = SELECT_PROP_KEYS.filter((k) => k !== 'bloomFrom') as Exclude<
+  (typeof SELECT_PROP_KEYS)[number],
+  'bloomFrom'
+>[]
+
+/** Engine props of GoopComboboxList: the same as GoopSelectContent's (bloom open, highlight
+ *  blob, select pop, check plop), except the list always blooms from its own center. */
+export type GoopComboboxProps = Omit<GoopSelectProps, 'bloomFrom'>
+
+type ComboboxUnhandled = Exclude<
+  keyof EmergeOptions | keyof MenuHighlightOptions | keyof SelectPlopOptions | _ComboboxEffect,
+  keyof GoopComboboxProps | MenuAdapterOwned
+>
+const _allComboboxOptionsHandled: [ComboboxUnhandled] extends [never] ? true : { unhandled: ComboboxUnhandled } = true
+void _allComboboxOptionsHandled
+void _COMBOBOX_EFFECTS
+
+/** Resolve combobox list props over the defaults. */
+export function resolveComboboxProps(props: GoopComboboxProps): ResolvedSelectProps {
+  return resolveSelectProps({ ...props, bloomFrom: 'center' })
+}
+
+/** Core options for the combobox list (emerge), highlight and plop, over app config. */
+export function toComboboxOptions(
+  combobox: ResolvedSelectProps,
+  config: GoopOptions = {},
+): { emerge: EmergeOptions; highlight: MenuHighlightOptions | null; plop: SelectPlopOptions | null } {
+  return toSelectOptions(combobox, config)
+}
+
+// ---- GoopNumberField -----------------------------------------------------------------------
+// Core `attachNumberField`: the Input's ring (INPUT_EFFECTS) plus the steppers' squish and
+// nudge (NUMBER_FIELD_EFFECTS), and speed / preset / renderer.
+
+type NumberFieldAdapterOwned = 'invalid' | 'reducedMotion'
+export type GoopNumberFieldEngineKey = NumberFieldEffect | 'speed' | 'preset' | 'renderer'
+type NumberFieldUnhandled = Exclude<keyof NumberFieldOptions, GoopNumberFieldEngineKey | NumberFieldAdapterOwned>
+const _allNumberFieldOptionsHandled: [NumberFieldUnhandled] extends [never] ? true : { unhandled: NumberFieldUnhandled } = true
+void _allNumberFieldOptionsHandled
+
+export type GoopNumberFieldPropsDefinition = EffectPropsDefinition<NumberFieldEffect>
+export type GoopNumberFieldPropsInput = InputOf<GoopNumberFieldPropsDefinition>
+/** Spread into `defineProps({ ...goopNumberFieldProps, ... })`. */
+export const goopNumberFieldProps = effectEngineProps(NUMBER_FIELD_EFFECTS) as unknown as GoopNumberFieldPropsDefinition
+
+/** Number field options from props, over app config. */
+export function toNumberFieldOptions(props: GoopNumberFieldPropsInput, config: GoopOptions = {}): NumberFieldOptions {
+  return toEffectOptions(NUMBER_FIELD_EFFECTS, props, config)
+}
+
+// ---- GoopInputOTP --------------------------------------------------------------------------
+// Core `attachInputOTP`: OTP_EFFECTS (flood, flow, wobble, pulse) plus speed / preset / renderer.
+
+type InputOTPAdapterOwned = 'reducedMotion'
+export type GoopInputOTPEngineKey = OtpEffect | 'speed' | 'preset' | 'renderer'
+type InputOTPUnhandled = Exclude<keyof InputOTPOptions, GoopInputOTPEngineKey | InputOTPAdapterOwned>
+const _allInputOTPOptionsHandled: [InputOTPUnhandled] extends [never] ? true : { unhandled: InputOTPUnhandled } = true
+void _allInputOTPOptionsHandled
+
+export type GoopInputOTPPropsDefinition = EffectPropsDefinition<OtpEffect>
+export type GoopInputOTPPropsInput = InputOf<GoopInputOTPPropsDefinition>
+/** Spread into `defineProps({ ...goopInputOTPProps, ... })`. */
+export const goopInputOTPProps = effectEngineProps(OTP_EFFECTS) as unknown as GoopInputOTPPropsDefinition
+
+/** Input OTP options from props, over app config. */
+export function toInputOTPOptions(props: GoopInputOTPPropsInput, config: GoopOptions = {}): InputOTPOptions {
+  return toEffectOptions(OTP_EFFECTS, props, config)
+}
+
+// ---- GoopHoverCard --------------------------------------------------------------------------
+// The card is an emerge surface like GoopPopoverContent (same engine, feel and toggles) that
+// blooms from the side facing its trigger (`bloomFrom: 'trigger'`: core clamps the trigger's
+// center onto the card's near edge) and shrinks back into it. Surface defaults to 'popover':
+// a hover card's trigger is usually a link with no background of its own.
+
+/** Every GoopHoverCardContent engine prop. */
+export const HOVER_CARD_PROP_KEYS = [
+  'goo',
+  'flow',
+  'flowStyle',
+  'bloomStart',
+  'bloomFrom',
+  ...EMERGE_EFFECT_KEYS,
+  ...EMERGE_DRIP_KEYS,
+  'surface',
+  'speed',
+  'preset',
+  'renderer',
+] as const
+
+/** Engine props of GoopHoverCardContent. Every toggle defaults on. */
+export interface GoopHoverCardProps {
+  /** Master switch. `false` renders a plain shadcn HoverCardContent. */
+  goo?: boolean
+  /** Flow open (default true) in `flowStyle`. `false`: the card inflates from a bulb at the
+   *  trigger edge (`bridge` / `momentum` apply). */
+  flow?: boolean
+  /** 'bloom' (default: pools from `bloomFrom`, spreads with a lobed edge, overshoots and
+   *  splashes, shrinks back on close) or 'neck' (out of the trigger through a thick neck). */
+  flowStyle?: EmergeFlowStyle
+  /** Bloom start: 'single' (default: one droplet swells) or 'merge' (a few drops fuse). */
+  bloomStart?: EmergeBloomStart
+  /** Where the bloom starts: 'trigger' (default: the card's edge facing the trigger) or
+   *  'center' (the card's own center, like GoopPopoverContent). */
+  bloomFrom?: HoverCardBloomFrom
+  /** Bulb + lumpy neck between trigger and card (not used by bloom). */
+  bridge?: boolean
+  /** Jelly overshoot and wobble (bloom: the open overshoot and settle). */
+  wobble?: boolean
+  /** Momentum launch away from the trigger (not used by bloom). */
+  momentum?: boolean
+  /** Content fades in once the goo settles. */
+  fade?: boolean
+  /** Open: every edge bulges past rest, rebounds and wobbles. `true`, `false` or 0..2. */
+  openSlosh?: boolean | number
+  /** Open: the all-around splash (drops kept off the trigger). `true`, `false` or 0..2. */
+  openDrips?: boolean | number
+  /** Burst drop count scale (0..3, default 1). */
+  openDripAmount?: number
+  /** Burst drop size scale (0.3..2.5, default 1). */
+  openDripSize?: number
+  /** How far burst drops are flung (0..3, default 1). */
+  openDripFling?: number
+  /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
+  openDripVariety?: number
+  /** 0..1: how differently each side bulges (re-rolled every open). Default 1. */
+  sloshVariety?: number
+  /** Close: the card pulls in and wobbles before it shrinks back. `true`, `false` or 0..2. */
+  closeSlosh?: boolean | number
+  /** Card color: 'popover' (default: shadcn's popover tokens), 'trigger' or a CSS color. */
+  surface?: EmergeSurfaceColor
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+/** Compile-time guards: every emerge option core grows must be a hover-card prop (or adapter-owned). */
+type HoverCardAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'surfaceColor' | 'feel' | 'reducedMotion' | 'detached' | 'bloomOrigin'
+type HoverCardUnhandled = Exclude<keyof EmergeOptions, keyof GoopHoverCardProps | HoverCardAdapterOwned>
+const _allHoverCardOptionsHandled: [HoverCardUnhandled] extends [never] ? true : { unhandled: HoverCardUnhandled } = true
+void _allHoverCardOptionsHandled
+type HoverCardPropsListed = Exclude<keyof GoopHoverCardProps, (typeof HOVER_CARD_PROP_KEYS)[number]>
+const _allHoverCardPropsListed: [HoverCardPropsListed] extends [never] ? true : { unlisted: HoverCardPropsListed } = true
+void _allHoverCardPropsListed
+
+/** Emerge options for a hover card over app config (`bloomOrigin` comes from the adapter). */
+export function toHoverCardOptions(props: GoopHoverCardProps, config: GoopOptions = {}): EmergeOptions {
+  return {
+    flow: props.flow !== false,
+    flowStyle: props.flowStyle ?? 'bloom',
+    bloomStart: props.bloomStart ?? 'single',
+    bridge: props.bridge !== false,
+    wobble: props.wobble !== false,
+    momentum: props.momentum !== false,
+    fade: props.fade !== false,
+    openSlosh: props.openSlosh ?? true,
+    openDrips: props.openDrips ?? true,
+    closeSlosh: props.closeSlosh ?? true,
+    openDripAmount: props.openDripAmount,
+    openDripSize: props.openDripSize,
+    openDripFling: props.openDripFling,
+    openDripVariety: props.openDripVariety,
+    sloshVariety: props.sloshVariety,
+    surfaceColor: props.surface ?? 'popover',
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+}
+
+// ---- GoopContextMenu ------------------------------------------------------------------------
+// The dropdown menu's goo (emerge panel + highlight blob + select pop + goo submenus) with no
+// trigger box: the root panel blooms detached from the right-click point (`bloomFrom:
+// 'pointer'`, core `attachContextPoint`), so `flow` / `flowStyle` / `bridge` don't apply
+// (always the bloom). Submenus bloom out of their parent item. Surface defaults to 'popover'
+// (the trigger is an area, not a button). `undefined` toggles inherit from the parent menu.
+
+/** Every GoopContextMenuContent / SubContent engine prop. */
+export const CONTEXT_MENU_PROP_KEYS = [
+  'goo',
+  'bloomStart',
+  'bloomFrom',
+  'wobble',
+  'momentum',
+  'fade',
+  'openSlosh',
+  'openDrips',
+  'closeSlosh',
+  ...EMERGE_DRIP_KEYS,
+  ...MENU_EFFECTS,
+  'followPointer',
+  'surface',
+  'speed',
+  'preset',
+  'renderer',
+] as const
+
+/** Engine props of GoopContextMenuContent / GoopContextMenuSubContent. Same meaning as
+ *  GoopDropdownMenuContent's, except as noted. */
+export interface GoopContextMenuProps extends Omit<GoopMenuProps, 'flow' | 'flowStyle' | 'bridge'> {
+  /** Where the bloom starts: 'pointer' (default: the right-click / long-press point; a
+   *  submenu: its parent item) or 'center' (the panel's own center). */
+  bloomFrom?: ContextMenuBloomFrom
+  /** Panel color: 'popover' (default: shadcn's popover tokens), 'trigger' (the trigger
+   *  area's colors) or any CSS color. Submenus that leave it unset reuse their parent's. */
+  surface?: EmergeSurfaceColor
+}
+
+/** Compile-time guards. `flow` / `flowStyle` / `bridge` are fixed by the adapter (always
+ *  bloom), `detached` / `bloomOrigin` come from `bloomFrom`. */
+type ContextMenuAdapterOwned = MenuAdapterOwned | 'flow' | 'flowStyle' | 'bridge'
+type ContextMenuUnhandled = Exclude<
+  keyof EmergeOptions | keyof MenuHighlightOptions | MenuEffect,
+  keyof GoopContextMenuProps | ContextMenuAdapterOwned
+>
+const _allContextMenuOptionsHandled: [ContextMenuUnhandled] extends [never] ? true : { unhandled: ContextMenuUnhandled } = true
+void _allContextMenuOptionsHandled
+type ContextMenuPropsListed = Exclude<keyof GoopContextMenuProps, (typeof CONTEXT_MENU_PROP_KEYS)[number]>
+const _allContextMenuPropsListed: [ContextMenuPropsListed] extends [never] ? true : { unlisted: ContextMenuPropsListed } = true
+void _allContextMenuPropsListed
+
+/** Fully resolved context-menu settings. */
+export interface ResolvedContextMenuProps extends ResolvedMenuProps {
+  bloomFrom: ContextMenuBloomFrom
+}
+
+/** Resolve context-menu props over a parent menu's (submenus) or the defaults. */
+export function resolveContextMenuProps(props: GoopContextMenuProps, parent?: ResolvedContextMenuProps | null): ResolvedContextMenuProps {
+  const surface = props.surface ?? parent?.surface ?? 'popover'
+  const m = resolveMenuProps({ ...props, flow: true, flowStyle: 'bloom', bridge: true, surface }, parent)
+  return { ...m, bloomFrom: props.bloomFrom ?? parent?.bloomFrom ?? 'pointer' }
+}
+
+/** Core options for a context-menu panel (emerge) and its highlight, over app config. */
+export function toContextMenuOptions(
+  menu: ResolvedContextMenuProps,
+  config: GoopOptions = {},
+): { emerge: EmergeOptions; highlight: MenuHighlightOptions | null } {
+  return toMenuOptions(menu, config)
+}
+
+// ---- GoopSkeleton / GoopBadge / GoopAvatar / GoopCard (the static set) ----------------------
+// Cheap, calm effects. Skeleton `shimmer`, Badge `swell` and Avatar `settle` are CSS-only
+// (core's skeletonStyle / badgeStyle / avatarStyle resolve the feel into CSS vars); Card's
+// edge `swell` is core's `attachCard`, off unless `goo` is set. Each effect takes a boolean
+// or a multiplier, plus speed / preset.
+
+/** Every static-set engine prop, per component. */
+export const SKELETON_PROP_KEYS = [...SKELETON_EFFECTS, 'speed', 'preset'] as const
+export const BADGE_PROP_KEYS = [...BADGE_EFFECTS, 'speed', 'preset'] as const
+export const AVATAR_PROP_KEYS = [...AVATAR_EFFECTS, 'speed', 'preset'] as const
+export const CARD_PROP_KEYS = ['goo', ...CARD_EFFECTS, 'speed', 'preset'] as const
+
+type StaticEffectProps<E extends string> = { [K in E]: PropDef<boolean | number> } & {
+  speed: PropDef<number>
+  preset: PropDef<GoopPreset>
+}
+const staticEffectProps = (effects: readonly string[]): Record<string, PropDef<never>> =>
+  Object.freeze({
+    ...Object.fromEntries(effects.map((k) => [k, def([Boolean, Number])])),
+    speed: def(Number),
+    preset: def(String),
+  })
+
+export type GoopSkeletonPropsDefinition = StaticEffectProps<SkeletonEffect>
+export type GoopSkeletonPropsInput = InputOf<GoopSkeletonPropsDefinition>
+export type GoopBadgePropsDefinition = StaticEffectProps<BadgeEffect>
+export type GoopBadgePropsInput = InputOf<GoopBadgePropsDefinition>
+export type GoopAvatarPropsDefinition = StaticEffectProps<AvatarEffect>
+export type GoopAvatarPropsInput = InputOf<GoopAvatarPropsDefinition>
+export type GoopCardPropsDefinition = StaticEffectProps<CardEffect>
+export type GoopCardPropsInput = InputOf<GoopCardPropsDefinition> & { goo?: boolean }
+
+/** Spread into `defineProps({ ...goopSkeletonProps, ... })` (likewise badge / avatar / card). */
+export const goopSkeletonProps = staticEffectProps(SKELETON_EFFECTS) as unknown as GoopSkeletonPropsDefinition
+export const goopBadgeProps = staticEffectProps(BADGE_EFFECTS) as unknown as GoopBadgePropsDefinition
+export const goopAvatarProps = staticEffectProps(AVATAR_EFFECTS) as unknown as GoopAvatarPropsDefinition
+export const goopCardProps = Object.freeze({
+  ...(staticEffectProps(CARD_EFFECTS) as unknown as GoopCardPropsDefinition),
+  /** Master switch for the edge swell. Off by default: a card is static. */
+  goo: { type: Boolean, default: false },
+})
+
+/** Compile-time guards: every option core grows must be a prop (or adapter-owned). */
+type StaticAdapterOwned = 'reducedMotion'
+type SkeletonUnhandled = Exclude<keyof SkeletonOptions, keyof GoopSkeletonPropsDefinition | StaticAdapterOwned>
+const _allSkeletonOptionsHandled: [SkeletonUnhandled] extends [never] ? true : { unhandled: SkeletonUnhandled } = true
+void _allSkeletonOptionsHandled
+type BadgeUnhandled = Exclude<keyof BadgeOptions, keyof GoopBadgePropsDefinition | StaticAdapterOwned>
+const _allBadgeOptionsHandled: [BadgeUnhandled] extends [never] ? true : { unhandled: BadgeUnhandled } = true
+void _allBadgeOptionsHandled
+type AvatarUnhandled = Exclude<keyof AvatarOptions, keyof GoopAvatarPropsDefinition | StaticAdapterOwned>
+const _allAvatarOptionsHandled: [AvatarUnhandled] extends [never] ? true : { unhandled: AvatarUnhandled } = true
+void _allAvatarOptionsHandled
+type CardUnhandled = Exclude<keyof CardOptions, keyof GoopCardPropsDefinition | StaticAdapterOwned>
+const _allCardOptionsHandled: [CardUnhandled] extends [never] ? true : { unhandled: CardUnhandled } = true
+void _allCardOptionsHandled
+
+function toStaticOptions<E extends string>(
+  effects: readonly E[],
+  props: InputOf<StaticEffectProps<E>>,
+  config: GoopOptions,
+): { [K in E]?: boolean | number } & { speed?: number; preset?: GoopPreset; reducedMotion?: boolean | 'auto' } {
+  const out: Record<string, unknown> = { preset: props.preset ?? config.preset, reducedMotion: config.reducedMotion }
+  if (props.speed !== undefined) out.speed = props.speed
+  for (const k of effects) {
+    const v = (props as Record<string, unknown>)[k]
+    if (v !== undefined) out[k] = v
+  }
+  return out as never
+}
+
+/** Skeleton / badge / avatar / card options from props, over app config. */
+export const toSkeletonOptions = (props: GoopSkeletonPropsInput, config: GoopOptions = {}): SkeletonOptions =>
+  toStaticOptions(SKELETON_EFFECTS, props, config)
+export const toBadgeOptions = (props: GoopBadgePropsInput, config: GoopOptions = {}): BadgeOptions =>
+  toStaticOptions(BADGE_EFFECTS, props, config)
+export const toAvatarOptions = (props: GoopAvatarPropsInput, config: GoopOptions = {}): AvatarOptions =>
+  toStaticOptions(AVATAR_EFFECTS, props, config)
+/** Card options, or null when the goo is off (the default). */
+export const toCardOptions = (props: GoopCardPropsInput, config: GoopOptions = {}): CardOptions | null =>
+  props.goo ? toStaticOptions(CARD_EFFECTS, props, config) : null
+
+import {
+  AVATAR_EFFECTS,
+  BADGE_EFFECTS,
+  CARD_EFFECTS,
+  SKELETON_EFFECTS,
+  type AvatarEffect,
+  type AvatarOptions,
+  type BadgeEffect,
+  type BadgeOptions,
+  type CardEffect,
+  type CardOptions,
+  type SkeletonEffect,
+  type SkeletonOptions,
+} from '@goopui/core'
+
+// ---- GoopSidebar ----------------------------------------------------------------------------
+// Core's SIDEBAR_EFFECTS, each a GoopSidebar prop: `highlight` (the menu's goo blob glides
+// between items under the cursor: core `attachSidebarHighlight`), `pill` (the active item's
+// soft filled pill), `slosh` (the inner edge sloshes as the sidebar collapses / expands: core
+// `attachSidebarEdge`; `true`, `false` or 0..2), `submenus` (GoopCollapsible sub-menus flood
+// and spring open), `tooltips` (icon-mode tooltips are GoopTooltips), `bloom` (the mobile
+// sheet blooms like GoopSheet). `goo: false` is a plain shadcn Sidebar.
+
+/** Every GoopSidebar engine prop. */
+export const SIDEBAR_PROP_KEYS = ['goo', ...SIDEBAR_EFFECTS, 'followPointer', 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopSidebar. */
+export interface GoopSidebarProps {
+  /** Master switch. `false` renders a plain shadcn Sidebar (every effect off). */
+  goo?: boolean
+  /** Hover / focus highlight is a goo blob that glides between items (false: shadcn's flat hover bg). */
+  highlight?: boolean
+  /** The active item gets a soft filled pill (false: shadcn's flat active bg). */
+  pill?: boolean
+  /** The inner edge sloshes in low, wide mounds as the sidebar collapses or expands. `true`, `false` or 0..2. */
+  slosh?: boolean | number
+  /** GoopCollapsible sub-menus inside flood their row and spring open (false: plain collapsibles). */
+  submenus?: boolean
+  /** Icon-mode tooltips bloom as goo (false: shadcn tooltips). */
+  tooltips?: boolean
+  /** The mobile sheet blooms from its screen edge like GoopSheet (false: shadcn's slide). */
+  bloom?: boolean
+  /** The highlight's soft swell follows the cursor along the item (false: centred). */
+  followPointer?: boolean
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+/** Compile-time guards: every sidebar option core grows must be a prop (or adapter-owned). */
+type SidebarAdapterOwned = 'side' | 'reducedMotion' | 'feel' | 'seed' | 'wobble' | 'momentum' | 'pop'
+type SidebarUnhandled = Exclude<
+  keyof SidebarEdgeOptions | keyof SidebarHighlightOptions | SidebarEffect,
+  keyof GoopSidebarProps | SidebarAdapterOwned
+>
+const _allSidebarOptionsHandled: [SidebarUnhandled] extends [never] ? true : { unhandled: SidebarUnhandled } = true
+void _allSidebarOptionsHandled
+type SidebarPropsListed = Exclude<keyof GoopSidebarProps, (typeof SIDEBAR_PROP_KEYS)[number]>
+const _allSidebarPropsListed: [SidebarPropsListed] extends [never] ? true : { unlisted: SidebarPropsListed } = true
+void _allSidebarPropsListed
+
+/** Resolved sidebar goo: what each part of the sidebar should do. */
+export interface ResolvedSidebarGoo {
+  /** Highlight blob options, or null (shadcn's flat hover bg). */
+  highlight: SidebarHighlightOptions | null
+  /** Edge slosh options, or null (off). */
+  edge: SidebarEdgeOptions | null
+  pill: boolean
+  submenus: boolean
+  tooltips: boolean
+  bloom: boolean
+  speed?: number
+  preset?: GoopPreset
+  renderer?: GoopRendererOption
+}
+
+/** Sidebar goo from props, over app config (`preset`, `renderer`, `reducedMotion`). */
+export function toSidebarOptions(props: GoopSidebarProps, config: GoopOptions = {}): ResolvedSidebarGoo {
+  const on = props.goo !== false
+  const common = {
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+  const slosh = props.slosh ?? true
+  return {
+    highlight: on && props.highlight !== false ? { ...common, followPointer: props.followPointer !== false } : null,
+    edge: on && slosh !== false && slosh !== 0 ? { ...common, slosh } : null,
+    pill: on && props.pill !== false,
+    submenus: on && props.submenus !== false,
+    tooltips: on && props.tooltips !== false,
+    bloom: on && props.bloom !== false,
+    speed: common.speed,
+    preset: common.preset,
+    renderer: common.renderer,
+  }
+}
+
+import { SIDEBAR_EFFECTS, type SidebarEdgeOptions, type SidebarEffect, type SidebarHighlightOptions } from '@goopui/core'

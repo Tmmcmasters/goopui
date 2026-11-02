@@ -5,11 +5,14 @@ const plan = ref('pro')
 const size = ref('m')
 const plans = ['free', 'pro', 'team']
 const sizes = ['s', 'm', 'l', 'xl']
+
+// Customize choices from the page's playground (empty outside it).
+const pg = usePlayground()
 </script>
 
 <template>
   <template v-if="set === 'default'">
-    <GoopRadioGroup v-model="plan" class="w-40">
+    <GoopRadioGroup v-model="plan" class="w-40" v-bind="pg.props">
       <label v-for="p in plans" :key="p" class="flex items-center gap-2 text-sm capitalize">
         <GoopRadioGroupItem :id="`plan-${p}`" :value="p" /> {{ p }}
       </label>

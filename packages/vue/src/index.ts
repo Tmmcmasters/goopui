@@ -25,6 +25,8 @@ export * from './components/textarea'
 export * from './components/toggle'
 export * from './components/toggle-group'
 export * from './components/page-transition'
+export * from './components/hover-card'
+export * from './components/context-menu'
 export { GOOP_CONFIG_KEY, GoopPlugin, provideGoopConfig, useGoopConfig, type GoopConfig } from './config'
 export {
   CSS_VAR_KEYS,
@@ -125,3 +127,75 @@ export {
 export { goopComponents, type GoopComponentName } from './manifest'
 export { seedFrom, useGoop, type UseGoopReturn } from './use-goop'
 export { cn } from 'cn'
+export * from './components/command'
+export * from './components/combobox'
+export {
+  COMBOBOX_PROP_KEYS,
+  COMMAND_DIALOG_PROP_KEYS,
+  COMMAND_PROP_KEYS,
+  resolveComboboxProps,
+  resolveCommandProps,
+  toComboboxOptions,
+  toCommandOptions,
+  type GoopComboboxProps,
+  type GoopCommandDialogProps,
+  type GoopCommandProps,
+  type ResolvedCommandProps,
+} from './goop-props'
+export * from './components/number-field'
+export {
+  goopNumberFieldProps,
+  toNumberFieldOptions,
+  type GoopNumberFieldEngineKey,
+  type GoopNumberFieldPropsDefinition,
+  type GoopNumberFieldPropsInput,
+} from './goop-props'
+export * from './components/input-otp'
+export {
+  goopInputOTPProps,
+  toInputOTPOptions,
+  type GoopInputOTPEngineKey,
+  type GoopInputOTPPropsDefinition,
+  type GoopInputOTPPropsInput,
+} from './goop-props'
+export {
+  HOVER_CARD_PROP_KEYS,
+  toHoverCardOptions,
+  type GoopHoverCardProps,
+  CONTEXT_MENU_PROP_KEYS,
+  resolveContextMenuProps,
+  toContextMenuOptions,
+  type GoopContextMenuProps,
+  type ResolvedContextMenuProps,
+} from './goop-props'
+// Static set: Skeleton, Badge, Card, Avatar, Separator, Label.
+export * from './components/skeleton'
+export * from './components/badge'
+export * from './components/card'
+export * from './components/avatar'
+export * from './components/separator'
+export * from './components/label'
+export {
+  SKELETON_PROP_KEYS,
+  BADGE_PROP_KEYS,
+  AVATAR_PROP_KEYS,
+  CARD_PROP_KEYS,
+  goopSkeletonProps,
+  goopBadgeProps,
+  goopAvatarProps,
+  goopCardProps,
+  toSkeletonOptions,
+  toBadgeOptions,
+  toAvatarOptions,
+  toCardOptions,
+  type GoopSkeletonPropsDefinition,
+  type GoopSkeletonPropsInput,
+  type GoopBadgePropsDefinition,
+  type GoopBadgePropsInput,
+  type GoopAvatarPropsDefinition,
+  type GoopAvatarPropsInput,
+  type GoopCardPropsDefinition,
+  type GoopCardPropsInput,
+} from './goop-props'
+export * from './components/sidebar'
+export { SIDEBAR_PROP_KEYS, toSidebarOptions, type GoopSidebarProps, type ResolvedSidebarGoo } from './goop-props'
