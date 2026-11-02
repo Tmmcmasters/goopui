@@ -42,8 +42,9 @@ describe('GoopInput / GoopTextarea', () => {
     expect(input.classes()).toContain('max-w-sm')
     expect(input.classes()).toContain('rounded-lg')
     expect(input.classes()).toContain('aria-invalid:border-destructive')
-    // The goo ring replaces shadcn's box-shadow ring.
+    // The goo ring replaces shadcn's box-shadow ring and any app :focus-visible outline.
     expect(input.classes()).toContain('focus-visible:ring-0')
+    expect(input.classes()).toContain('focus-visible:outline-none!')
     const wrap = w.get('[data-slot="input-goo"]')
     expect(wrap.attributes()).toHaveProperty('data-goop-active')
     expect(wrap.attributes('placeholder')).toBeUndefined()
@@ -84,6 +85,9 @@ describe('GoopInput / GoopTextarea', () => {
     await w.setProps({ goo: false })
     await flushPromises()
     expect(w.find('[data-slot="textarea-goo"]').exists()).toBe(false)
+    // Without goo, shadcn's ring and the app's outline are the focus indicator again.
+    expect(w.get('textarea').classes()).toContain('focus-visible:ring-3')
+    expect(w.get('textarea').classes()).not.toContain('focus-visible:outline-none!')
     expect(layers(w.element.parentElement ?? document.body)).toHaveLength(0)
     expect(handle()).toBe(null)
     w.unmount()
