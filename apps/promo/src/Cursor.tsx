@@ -11,6 +11,11 @@ export interface CursorProps {
   /** Ring color for click feedback. */
   ring: string
   opacity?: number
+  /** Composition size (viewBox), default 480 x 480. */
+  w?: number
+  h?: number
+  /** Motion-blur ghosts on very fast moves (default true). */
+  trail?: boolean
 }
 
 /** Arrow outline, tip at (0, 0); about 13 x 20 units. */
@@ -37,19 +42,19 @@ function Arrow({ x, y, scale, opacity }: { x: number; y: number; scale: number; 
   )
 }
 
-export const Cursor: React.FC<CursorProps> = ({ path, clicks, t, ring, opacity = 1 }) => {
+export const Cursor: React.FC<CursorProps> = ({ path, clicks, t, ring, opacity = 1, w = 480, h = 480, trail: showTrail = true }) => {
   const p = path.at(t)
   if (!p) return null
   const press = pressAmount(clicks, t)
   const speed = speedAt(path, t)
   // Motion trail only on really fast moves (the punch): reads as motion blur.
-  const trail = Math.min(1, Math.max(0, (speed - 1100) / 1800))
+  const trail = showTrail ? Math.min(1, Math.max(0, (speed - 1100) / 1800)) : 0
   const ghosts = trail > 0 ? [5, 4, 3, 2, 1] : []
   return (
     <svg
       width="100%"
       height="100%"
-      viewBox="0 0 480 480"
+      viewBox={`0 0 ${w} ${h}`}
       style={{ position: 'absolute', inset: 0, overflow: 'visible', opacity }}
     >
       <defs>
