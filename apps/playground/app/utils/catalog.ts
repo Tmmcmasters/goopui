@@ -30,4 +30,6 @@ export const catalog: CatalogEntry[] = [
   { path: '/input', goop: 'GoopInput', shadcn: 'Input', blurb: 'Goo focus ring that flows in from the click, ripples as you type.' },
   { path: '/toggle', goop: 'GoopToggle', shadcn: 'Toggle', blurb: 'Pressing floods it with goo; groups flow and merge.' },
   { path: '/blob', goop: 'GoopBlob', shadcn: null, blurb: 'Background blobs. Perf stress test.' },
+  { path: '/number-field', goop: 'GoopNumberField', shadcn: 'NumberField', blurb: 'Goo focus ring; +/- squish a dollop and nudge toward the pressed side.' },
+  { path: '/input-otp', goop: 'GoopInputOTP', shadcn: 'PinInput', blurb: 'Focus goo flows from cell to cell as you type, with a pulse as each digit lands.' },
 ]

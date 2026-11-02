@@ -103,6 +103,15 @@ export const goopComponents = [
   'GoopToggleGroup',
   'GoopToggleGroupItem',
   'GoopPageTransition',
+  'GoopNumberField',
+  'GoopNumberFieldContent',
+  'GoopNumberFieldDecrement',
+  'GoopNumberFieldIncrement',
+  'GoopNumberFieldInput',
+  'GoopInputOTP',
+  'GoopInputOTPGroup',
+  'GoopInputOTPSeparator',
+  'GoopInputOTPSlot',
 ] as const
 
 export type GoopComponentName = (typeof goopComponents)[number]
