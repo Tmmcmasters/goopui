@@ -16,14 +16,30 @@ Repo: **public** `github.com/Tmmcmasters/goopui`. `CLAUDE.md` covers layout, too
 
 **npm:** blocked on the user: `! npm login`, and create the npm org **goopui** (no `@goopui/*` packages exist yet). Then follow `RELEASING.md` (dry run first, ask before the real publish).
 
-**In flight (agents, each on its own branch from `site-v1`, pushed, no PR):**
-- `transition-split`: the band becomes the seam (new page above the goo, old page below) via the View Transitions API with a DOM-clone fallback; `split` option. The user said the current version shows the page swap mid-band.
-- `fix-select-highlight-knob`: a sharp knob on the Select/Dropdown highlight when moving up the list.
-- `fix-accordion-drain-blob` (done, 1945469): a closing row drains away from its label (`drainAway`).
-- `fix-flood-text-colour` (from the drain branch): label text colour follows the goo edge via a clipped aria-hidden copy (`textFollow`).
-- `docs-v2`: vue-bits-style docs: Customize panel (sliders/switches) generated from prop metadata, Preview/Code tabs, replay, props table, `/docs/components` index (the landing CTA goes there), sidebar categories + filter, component count derived from the manifest.
-- New components: `goop-command` (Command + Combobox), `goop-hovercard-contextmenu`, `goop-numberfield-otp`, `goop-static-set` (Skeleton goo shimmer, Badge, Card, Avatar, Separator, Label), `goop-sidebar` (shadcn dashboard Sidebar).
-Merge plan: PR each into `site-v1` once it's verified; the component branches all append to `index.ts` / `goop-props.ts` / `manifest.ts` / `goop.css` / docs nav, so check brace balance + typecheck after each merge (see Gotchas). Then the user reviews on the preview; ship `site-v1` → `main` only with their OK.
+### Agents in flight (started 2026-11-02 ~14:15; the session may end before they report)
+
+Each agent works in its own worktree under `.claude/worktrees/` on its own branch from `origin/site-v1` (6cb4ca9 or 43de10a), and is told to commit and push its branch, with no PR. **If the session ended, an agent may have been cut off mid-task.** To recover:
+1. `git fetch origin`; if `origin/<branch>` exists, the agent finished and pushed. Review its screenshots (scratchpad paths below are session-temporary and may be gone; re-take them).
+2. If it isn't on origin: `git -C .claude/worktrees/<folder> status` / `log`. Uncommitted or unpushed work may be there. Commit it to the branch, run the checks, then push.
+3. If there's nothing useful, re-spawn a fresh agent from `origin/site-v1` with the brief below (each one also says: read CLAUDE.md + HANDOFF.md, reuse existing machinery, every effect toggleable via `goop-props.ts`, reduced motion = static, add core + vue tests, playground page, docs page badged "New · experimental", keep shared-file additions as appended blocks, verify with core/vue typecheck + tests + vue/nuxt build + `pnpm --filter www generate` + Playwright screenshots it actually looks at, then commit and push).
+
+| Branch | Worktree folder | Pushed? | Brief |
+|---|---|---|---|
+| `fix-accordion-drain-blob` | agent-a63a52704f0f69182 | ✅ 1945469 | **Done.** A closing Accordion/Collapsible row drains away from its label (`drainAway` in `toggle.ts`); core 494 / vue 206 tests. Ready for a PR into `site-v1`. |
+| `transition-split` | agent-a543973c53db94cf5 | not yet | The page-transition band is the seam: **new page above the goo, old page below**, never a visible swap. View Transitions API: snapshot the old page, clip `::view-transition-old(root)` per frame to the old side of the band, with the goo overlay as a live group on top. DOM-clone fallback; `split` option (default on with `band`); drop the whole-app fade in this mode so the header doesn't dim. |
+| `fix-select-highlight-knob` | agent-a569f3556fb939fe1 | not yet | The Select/DropdownMenu hover highlight shows a sharp knob when the cursor moves **up** the list. Make the swell symmetric: wide, ~1px on playful. Add a test that sweeps up. |
+| `fix-flood-text-colour` | agent-aecf82ce92c7ae4e6 | not yet | Branched from `fix-accordion-drain-blob`. Flood components (Toggle, ToggleGroup, Accordion, Collapsible) flip label colour all at once at the label centre. Instead, the colour should follow the goo edge, using an aria-hidden label copy in the on-goo colour clipped by the goo shape. `textFollow` option; falls back to the flip under reduced motion or without clip-path. |
+| `docs-v2` | agent-a125eff75840b92f6 | not yet | vue-bits-style component docs: a Customize panel (sliders, switches, segmented controls, Reset) **generated from prop metadata** (from `goop-props.ts` + `manifest.ts`), Preview/Code tabs with live code and copy, a replay button, a props table, a `/docs/components` index grid (the landing "Browse components" button goes there), sidebar categories + filter, and the landing count derived from the manifest. Calm, not busy. |
+| `goop-command` | agent-a1840301ba59eef17 | not yet | Command (full shadcn-vue set incl. CommandDialog) + Combobox. The highlight glides between items via keyboard and pointer (reuse Select/Dropdown); the dialog and popover bloom; the input gets the goo focus ring. |
+| `goop-hovercard-contextmenu` | agent-a86b872a93e277f1e | not yet | HoverCard (blooms from the side nearest the trigger) + ContextMenu (the full set; **blooms from the right-click point**, gliding highlight, submenus bloom from their parent item). |
+| `goop-numberfield-otp` | agent-a2c6ebf7336276650 | not yet | NumberField (+/- squish, goo focus ring, a directional nudge on change) + InputOTP (focus goo flows cell to cell as you type and back on delete, a pulse when a digit lands). |
+| `goop-static-set` | agent-aa31ce9e0bff95103 | not yet | Skeleton (a slow, cheap goo shimmer instead of a pulse), Badge (tiny hover swell when interactive), Card (optional edge swell toward the pointer, off by default), Avatar (gooey settle on load), Separator, Label (plain ports). |
+| `goop-sidebar` | agent-a0d4b147d27fc08e2 | not yet | The shadcn-vue **dashboard Sidebar**, full set (Provider, variants, collapsible offcanvas/icon, rail, inset, groups, menus, subs, `useSidebar`, cookie state, Cmd/Ctrl+B, mobile Sheet). Goo: gliding item highlight, an inner-edge slosh driven by collapse velocity, the mobile Sheet bloom, Collapsible flood for sub-menus, GoopTooltip in icon mode. Playground dashboard page. Run `check:overflow`. |
+| `promo-launch` | (worktree removed) | ✅ bd40ffa | The launch clip source (done). Optional: a PR into `site-v1` so the source lands. |
+
+**Merge plan:** open a PR into `site-v1` for each finished branch, and the user says "merge it". Merge fixes first, then `docs-v2`, then the components one at a time. The component branches all append to `packages/*/src/index.ts`, `goop-props.ts`, `manifest.ts`, `goop.css` and the docs nav, so after each merge check brace balance and run core + vue typecheck + tests (see Gotchas). Add the new components' Customize metadata once `docs-v2` is in. Then the user reviews on the preview; ship `site-v1` → `main` (and npm) only with their OK.
+
+**Other open items:** remove the leftover old worktrees once the background cleanup has finished (merged; listed by `git worktree list` as non-locked agent folders); the Dependabot PRs #29–#31; the user hasn't yet given feel sign-off on the bubbles transition or on the Drawer/Accordion.
 
 **User feedback this session:** wants previews on their phone for everything; dislikes busy pages; the transition must not be jarring (slower, no black flash, lighter band, no visible swap); the user approves merges explicitly ("merge it"), and auto mode blocks merges, production config changes and deletions without that.
 
