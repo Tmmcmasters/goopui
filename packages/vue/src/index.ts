@@ -125,3 +125,5 @@ export {
 export { goopComponents, type GoopComponentName } from './manifest'
 export { seedFrom, useGoop, type UseGoopReturn } from './use-goop'
 export { cn } from 'cn'
+export * from './components/sidebar'
+export { SIDEBAR_PROP_KEYS, toSidebarOptions, type GoopSidebarProps, type ResolvedSidebarGoo } from './goop-props'
