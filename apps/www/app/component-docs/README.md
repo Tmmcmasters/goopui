@@ -17,7 +17,7 @@ the Code tab are generated from it. Don't write per-page UI.
      title: 'Combobox',
      category: 'Forms',             // Actions | Forms | Overlays | Navigation | Feedback | Layout
      component: 'GoopCombobox',     // must be in packages/vue/src/manifest.ts
-     replay: { action: 'click', label: 'Open again' }, // one-shot effects only (overlays: 'click')
+     replay: { action: 'click', label: 'Open again' }, // one-shot effects only (overlays: 'click'; 'toggle' clicks [data-replay] without remounting, e.g. Sidebar)
      code: `<GoopCombobox{{main}}>...</GoopCombobox>`, // {{part}} = the props the reader changed
      controls: [preset(), speed(), effect('pop'), strength('openSlosh'), choice('side', ['top', 'bottom'], 'bottom')],
      tables: { main: { caption: 'GoopCombobox props', rows: [{ prop, type, def, note }] } },

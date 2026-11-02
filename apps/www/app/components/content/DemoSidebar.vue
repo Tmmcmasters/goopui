@@ -2,10 +2,9 @@
 // Live sidebar demo for the Sidebar docs page: a real GoopSidebarProvider + GoopSidebar +
 // GoopSidebarInset in a small frame. The frame is transformed, so the sidebar's `fixed`
 // container (and its slosh) is laid out inside it. Keep in sync with the usage sample.
-const props = withDefaults(defineProps<{ collapsible?: 'icon' | 'offcanvas'; variant?: 'sidebar' | 'floating' | 'inset' }>(), {
-  collapsible: 'icon',
-  variant: 'sidebar',
-})
+const props = defineProps<{ collapsible?: 'icon' | 'offcanvas' | 'none'; variant?: 'sidebar' | 'floating' | 'inset' }>()
+// Customize choices from the page's playground (empty outside it); they win over `props`.
+const pg = usePlayground()
 
 const ICONS: Record<string, string> = {
   home: 'M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8 M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
@@ -29,7 +28,7 @@ const active = ref('Dashboard')
 <template>
   <div class="sidebar-demo relative h-[420px] w-full overflow-hidden rounded-lg border border-border bg-background text-left [transform:translateZ(0)]">
     <GoopSidebarProvider class="h-full min-h-0">
-      <GoopSidebar :collapsible="props.collapsible" :variant="props.variant" class="h-full">
+      <GoopSidebar :collapsible="props.collapsible" :variant="props.variant" class="h-full" v-bind="pg.props">
         <GoopSidebarHeader>
           <GoopSidebarMenu>
             <GoopSidebarMenuItem>
@@ -91,7 +90,7 @@ const active = ref('Dashboard')
       </GoopSidebar>
       <GoopSidebarInset class="min-h-0">
         <header class="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3">
-          <GoopSidebarTrigger />
+          <GoopSidebarTrigger data-replay />
           <span class="text-sm font-medium">{{ active }}</span>
         </header>
         <div class="grid flex-1 gap-3 p-3 sm:grid-cols-3">

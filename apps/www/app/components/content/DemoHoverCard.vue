@@ -2,6 +2,8 @@
 // Live hover card demos for the Hover Card docs page: real <GoopHoverCard>s. `set` picks the
 // group. Keep each set in sync with the code sample beside it in the docs.
 withDefaults(defineProps<{ set?: 'basic' | 'from' }>(), { set: 'basic' })
+// Customize choices from the page's playground (empty outside it).
+const pg = usePlayground()
 </script>
 
 <template>
@@ -10,7 +12,7 @@ withDefaults(defineProps<{ set?: 'basic' | 'from' }>(), { set: 'basic' })
       <GoopHoverCardTrigger href="https://nuxt.com" target="_blank" rel="noreferrer" class="text-sm font-medium underline underline-offset-4">
         @nuxt
       </GoopHoverCardTrigger>
-      <GoopHoverCardContent>
+      <GoopHoverCardContent v-bind="pg.part('content')">
         <div class="flex gap-3">
           <div class="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">N</div>
           <div class="grid gap-1">

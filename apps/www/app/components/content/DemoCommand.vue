@@ -17,10 +17,12 @@ const frameworks = [
 ]
 const open = ref(false)
 const framework = ref<(typeof frameworks)[number]>()
+// Customize choices from the page's playground (empty outside it).
+const pg = usePlayground()
 </script>
 
 <template>
-  <GoopCommand v-if="set === 'basic'" class="w-full max-w-sm rounded-lg border shadow-md">
+  <GoopCommand v-if="set === 'basic'" class="w-full max-w-sm rounded-lg border shadow-md" v-bind="pg.props">
     <GoopCommandInput placeholder="Type a command or search..." />
     <GoopCommandList>
       <GoopCommandEmpty>No results found.</GoopCommandEmpty>
@@ -64,10 +66,11 @@ const framework = ref<(typeof frameworks)[number]>()
   </template>
 
   <GoopCombobox v-else v-model="framework" by="value">
-    <GoopComboboxAnchor class="w-full max-w-56">
+    <GoopComboboxAnchor class="relative w-full max-w-56">
       <GoopComboboxInput placeholder="Select framework..." :display-value="(v) => v?.label ?? ''" />
+      <GoopComboboxTrigger data-replay class="text-muted-foreground absolute inset-y-0 right-0 px-2 text-xs" aria-label="Show frameworks">▾</GoopComboboxTrigger>
     </GoopComboboxAnchor>
-    <GoopComboboxList class="w-(--reka-combobox-trigger-width)">
+    <GoopComboboxList class="w-(--reka-combobox-trigger-width)" v-bind="pg.part('list')">
       <GoopComboboxEmpty>No framework found.</GoopComboboxEmpty>
       <GoopComboboxGroup>
         <GoopComboboxItem v-for="f in frameworks" :key="f.value" :value="f">

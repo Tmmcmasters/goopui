@@ -43,8 +43,10 @@ onBeforeUnmount(() => clearTimeout(remountTimer))
 const stageEl = ref<HTMLElement | null>(null)
 async function replay() {
   tab.value = 'preview'
-  mountKey.value++
-  if (doc?.replay?.action !== 'click') return
+  const action = doc?.replay?.action
+  // 'toggle' clicks the trigger in the live demo (collapse, then expand), no remount.
+  if (action !== 'toggle') mountKey.value++
+  if (action !== 'click' && action !== 'toggle') return
   await nextTick()
   // Let the closing overlay's portal unmount before opening a fresh one.
   requestAnimationFrame(() => {

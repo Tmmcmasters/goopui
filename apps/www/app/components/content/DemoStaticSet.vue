@@ -18,7 +18,8 @@ withDefaults(
   { set: 'skeleton' },
 )
 
-const replay = ref(0)
+// Customize choices from the page's playground (empty outside it).
+const pg = usePlayground()
 const portrait = (hue: number) =>
   `data:image/svg+xml;utf8,${encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${hue} 22% 60%)"/><stop offset="1" stop-color="hsl(${hue + 30} 18% 34%)"/></linearGradient></defs><rect width="64" height="64" fill="url(#g)"/><circle cx="32" cy="26" r="11" fill="hsl(${hue} 15% 86%)"/><path d="M12 64c2-14 10-20 20-20s18 6 20 20z" fill="hsl(${hue} 15% 86%)"/></svg>`,
@@ -33,10 +34,10 @@ const people = [
 <template>
   <div v-if="set === 'skeleton'" class="grid w-full max-w-sm gap-5">
     <div v-for="n in 3" :key="n" class="flex items-center gap-4">
-      <GoopSkeleton class="size-12 shrink-0 rounded-full" />
+      <GoopSkeleton class="size-12 shrink-0 rounded-full" v-bind="pg.props" />
       <div class="grid flex-1 gap-2">
-        <GoopSkeleton class="h-4 w-full" />
-        <GoopSkeleton class="h-4 w-4/5" />
+        <GoopSkeleton class="h-4 w-full" v-bind="pg.props" />
+        <GoopSkeleton class="h-4 w-4/5" v-bind="pg.props" />
       </div>
     </div>
   </div>
@@ -61,13 +62,13 @@ const people = [
   </div>
 
   <div v-else-if="set === 'badge-links'" class="flex flex-wrap justify-center gap-3">
-    <GoopBadge as-child><a href="#usage">Link</a></GoopBadge>
+    <GoopBadge as-child v-bind="pg.props"><a href="#usage">Link</a></GoopBadge>
     <GoopBadge variant="secondary" as-child><a href="#usage">Secondary</a></GoopBadge>
     <GoopBadge variant="outline" as-child><a href="#usage">Outline</a></GoopBadge>
     <GoopBadge as-child :swell="false"><a href="#usage">No swell</a></GoopBadge>
   </div>
 
-  <GoopCard v-else-if="set === 'card' || set === 'card-goo'" class="w-full max-w-sm" :goo="set === 'card-goo'">
+  <GoopCard v-else-if="set === 'card' || set === 'card-goo'" class="w-full max-w-sm" :goo="set === 'card-goo'" v-bind="pg.props">
     <GoopCardHeader>
       <GoopCardTitle>Project Apollo</GoopCardTitle>
       <GoopCardDescription>Three tasks due this week.</GoopCardDescription>
@@ -76,7 +77,7 @@ const people = [
       </GoopCardAction>
     </GoopCardHeader>
     <GoopCardContent class="text-sm text-muted-foreground">
-      {{ set === 'card-goo' ? 'Move the pointer near an edge.' : 'A plain card: no goo unless you ask for it.' }}
+      {{ set === 'card-goo' || pg.props.goo ? 'Move the pointer near an edge.' : 'A plain card: no goo unless you ask for it.' }}
     </GoopCardContent>
     <GoopCardFooter class="gap-2">
       <GoopButton size="sm">Open</GoopButton>
@@ -85,13 +86,12 @@ const people = [
   </GoopCard>
 
   <div v-else-if="set === 'avatar'" class="flex flex-col items-center gap-4">
-    <div :key="replay" class="flex gap-3">
-      <GoopAvatar v-for="p in people" :key="p.name" class="size-10">
+    <div class="flex gap-3">
+      <GoopAvatar v-for="p in people" :key="p.name" class="size-10" v-bind="pg.props">
         <GoopAvatarImage :src="p.src" :alt="p.name" />
         <GoopAvatarFallback>{{ p.initials }}</GoopAvatarFallback>
       </GoopAvatar>
     </div>
-    <GoopButton size="sm" variant="outline" @click="replay++">Replay</GoopButton>
   </div>
 
   <div v-else-if="set === 'separator'" class="w-full max-w-xs text-sm">

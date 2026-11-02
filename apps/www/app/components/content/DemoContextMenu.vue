@@ -4,6 +4,8 @@
 const bookmarks = ref(true)
 const urls = ref(false)
 const person = ref('pedro')
+// Customize choices from the page's playground (empty outside it).
+const pg = usePlayground()
 </script>
 
 <template>
@@ -11,7 +13,7 @@ const person = ref('pedro')
     <GoopContextMenuTrigger class="flex h-44 w-full max-w-sm select-none items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
       Right-click here (or long-press)
     </GoopContextMenuTrigger>
-    <GoopContextMenuContent class="w-52">
+    <GoopContextMenuContent class="w-52" v-bind="pg.part('content')">
       <GoopContextMenuItem inset>Back <GoopContextMenuShortcut>⌘[</GoopContextMenuShortcut></GoopContextMenuItem>
       <GoopContextMenuItem inset disabled>Forward <GoopContextMenuShortcut>⌘]</GoopContextMenuShortcut></GoopContextMenuItem>
       <GoopContextMenuItem inset>Reload <GoopContextMenuShortcut>⌘R</GoopContextMenuShortcut></GoopContextMenuItem>

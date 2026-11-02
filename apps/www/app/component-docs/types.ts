@@ -82,9 +82,10 @@ export interface ComponentDoc {
   /**
    * A replay button on the stage for one-shot effects. `remount` re-creates the demo;
    * `click` re-creates it and clicks its trigger (the first `[data-replay]`, else the first
-   * button), which re-opens an overlay.
+   * button), which re-opens an overlay. `toggle` clicks that trigger in the live demo without
+   * re-creating it (e.g. collapse / expand a sidebar).
    */
-  replay?: { action: 'remount' | 'click'; label?: string }
+  replay?: { action: 'remount' | 'click' | 'toggle'; label?: string }
   /** Re-create the demo after each change (for props a component reads only on mount). */
   remount?: boolean
   /** The Drip / Slow-mo / Let it fly bar under the stage (GoopButton demos). */
