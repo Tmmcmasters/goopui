@@ -23,9 +23,12 @@ export interface SceneStageProps<R extends SceneRuntime> {
   /** Theme class + CSS vars for the scene's components. */
   className?: string
   style?: CSSProperties
+  /** Composition size in CSS px (default the square SIZE). */
+  width?: number
+  height?: number
 }
 
-export function SceneStage<R extends SceneRuntime>({ script, t, className, style }: SceneStageProps<R>) {
+export function SceneStage<R extends SceneRuntime>({ script, t, className, style, width = SIZE, height = SIZE }: SceneStageProps<R>) {
   const root = useRef<HTMLDivElement>(null)
   const replayer = useMemo(() => new SceneReplayer(script), [script])
 
@@ -36,7 +39,7 @@ export function SceneStage<R extends SceneRuntime>({ script, t, className, style
       .then(() => placed(root.current))
       .then(() => {
         if (!root.current) throw new Error('scene root not mounted')
-        return replayer.show(t, root.current, SIZE)
+        return replayer.show(t, root.current, width)
       })
       .then((stats) => {
         if (getInputProps().trace === true) console.log(`[goo] scene t=${t.toFixed(3)} steps=${stats.steps} replay=${stats.ms.toFixed(0)}ms`)
@@ -53,7 +56,7 @@ export function SceneStage<R extends SceneRuntime>({ script, t, className, style
     return () => {
       if (!done) continueRender(handle)
     }
-  }, [t, replayer])
+  }, [t, replayer, width])
 
   useEffect(() => () => void replayer.dispose(), [replayer])
 
@@ -61,7 +64,7 @@ export function SceneStage<R extends SceneRuntime>({ script, t, className, style
     <div
       ref={root}
       className={className}
-      style={{ position: 'absolute', left: 0, top: 0, width: SIZE, height: SIZE, pointerEvents: 'auto', isolation: 'isolate', ...style }}
+      style={{ position: 'absolute', left: 0, top: 0, width, height, pointerEvents: 'auto', isolation: 'isolate', ...style }}
     />
   )
 }
