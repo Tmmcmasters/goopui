@@ -13,5 +13,8 @@ export const textareaVariants = cva(
  *  the field does by default (`w-full min-w-0`); pass `containerClass` to change that. */
 export const goopFieldContainer = 'relative w-full min-w-0'
 
-/** While the goo ring is attached it replaces shadcn's box-shadow ring (border colors stay). */
-export const goopFieldActive = 'focus-visible:ring-0 aria-invalid:ring-0'
+/** While the goo ring is attached it is the focus indicator: it replaces shadcn's box-shadow
+ *  ring (border colors stay) and any app-level `:focus-visible` outline, which would sit right
+ *  on top of the goo (the outline is `!important` so an unlayered global rule can't beat it).
+ *  Reduced motion still draws the goo ring (static); with `:goo="false"` none of this applies. */
+export const goopFieldActive = 'focus-visible:ring-0 aria-invalid:ring-0 focus-visible:outline-none!'
