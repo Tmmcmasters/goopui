@@ -185,11 +185,56 @@ describe('GoopSidebar', () => {
     w.unmount()
   })
 
-  it('the inner edge gets the slosh layer; sub-menus get the flood', async () => {
+  it('the inner edge gets the slosh layer; sub-menus spring open without filling their row', async () => {
     const w = await mountDemo()
     expect(panel().querySelector('[data-goop="sidebar-edge"]')).not.toBeNull()
     expect(document.querySelector('[data-slot="collapsible"]')!.hasAttribute('data-goop-accordion')).toBe(true)
-    expect(document.getElementById('docs')!.hasAttribute('data-goop-accordion-trigger')).toBe(true)
+    // Only the active item is a pill: an open parent keeps shadcn's look (no row fill).
+    const docs = document.getElementById('docs')!
+    expect(docs.hasAttribute('data-goop-accordion-trigger')).toBe(false)
+    docs.click()
+    await flushPromises()
+    expect(docs.getAttribute('data-state')).toBe('open')
+    expect(docs.querySelector('[data-goop]')).toBeNull()
+    expect(docs.hasAttribute('data-goop-pill')).toBe(true)
+    expect(docs.getAttribute('data-active')).not.toBe('true')
+    expect(document.querySelector('[data-slot="collapsible-content"]')!.hasAttribute('data-goop-accordion-content')).toBe(true)
+    w.unmount()
+  })
+
+  it('a sub-menu that sets flood itself still fills its row', async () => {
+    const W = defineComponent({
+      setup: () => () =>
+        h(GoopSidebarProvider, null, () =>
+          h(GoopSidebar, null, () =>
+            h(GoopSidebarMenu, null, () =>
+              h(GoopCollapsible, { asChild: true, flood: true }, () =>
+                h(GoopSidebarMenuItem, null, () => [
+                  h(GoopCollapsibleTrigger, { asChild: true }, () => h(GoopSidebarMenuButton, { id: 'own' }, () => 'Own')),
+                  h(GoopCollapsibleContent, null, () => 'x'),
+                ]),
+              ),
+            ),
+          ),
+        ),
+    })
+    const w = mount(W, { attachTo: document.body })
+    await flushPromises()
+    expect(document.getElementById('own')!.hasAttribute('data-goop-accordion-trigger')).toBe(true)
+    w.unmount()
+  })
+
+  it('a collapsible outside a sidebar keeps its row flood', async () => {
+    const W = defineComponent({
+      setup: () => () =>
+        h(GoopCollapsible, null, () => [
+          h(GoopCollapsibleTrigger, { id: 'solo' }, () => 'Solo'),
+          h(GoopCollapsibleContent, null, () => 'x'),
+        ]),
+    })
+    const w = mount(W, { attachTo: document.body })
+    await flushPromises()
+    expect(document.getElementById('solo')!.hasAttribute('data-goop-accordion-trigger')).toBe(true)
     w.unmount()
   })
 
