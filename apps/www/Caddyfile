@@ -19,6 +19,15 @@
 	@builds path /_nuxt/builds/*
 	header @builds Cache-Control "no-cache"
 
+	# Each page is prerendered for its slash-less URL (/docs/components/sheet) but lives at
+	# .../sheet/index.html. Plain file_server would 308 to /sheet/, and the client router would
+	# then hydrate a different route than the one rendered (active links, route-keyed data):
+	# "Hydration completed but contains mismatches". So serve the index at the slash-less URL
+	# and send any /path/ to /path.
+	@slash path_regexp slash ^(.+)/$
+	redir @slash {re.slash.1} 308
+	try_files {path} {path}/index.html
+
 	file_server
 	handle_errors {
 		rewrite * /404.html

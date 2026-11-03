@@ -29,6 +29,9 @@ export default defineNuxtConfig({
     defaults: { nuxtLink: { prefetchOn: { visibility: true, interaction: true } } },
   },
   devtools: { enabled: false },
+  // DEBUG_HYDRATION=1 nuxt generate: production build that prints which node mismatched
+  // (for `pnpm check:hydration` against a build).
+  debug: process.env.DEBUG_HYDRATION ? { hydration: true } : undefined,
   css: ['~/assets/css/main.css', 'vue-sonner/style.css'],
   vite: {
     plugins: [tailwindcss()],
