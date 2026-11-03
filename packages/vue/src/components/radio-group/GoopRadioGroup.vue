@@ -9,12 +9,14 @@ import { cn } from 'cn'
 import { RadioGroupRoot, type AcceptableValue } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch, type HTMLAttributes, type PropType } from 'vue'
 import { useGoopConfig } from '../../config'
-import { goopRadioProps, toRadioOptions } from '../../goop-props'
+import { goopSoundProp, goopRadioProps, toRadioOptions } from '../../goop-props'
 import { provideGoopRadioGroup } from './context'
 import { goopRadioGroupColors, radioGroupVariants } from './variants'
+import { useGoopSound } from '../../sound'
 
 const props = defineProps({
   ...goopRadioProps,
+  ...goopSoundProp,
   /** The controlled value (v-model). */
   modelValue: { type: null as unknown as PropType<AcceptableValue | null>, default: undefined },
   /** The initial value when uncontrolled. */
@@ -54,6 +56,7 @@ const forwarded = computed(() => {
 
 const root = useTemplateRef<{ $el: unknown }>('root')
 const config = useGoopConfig()
+useGoopSound(() => props.sound)
 const options = computed(() => ({ ...toRadioOptions(props, config), value: selected.value }))
 const handle = shallowRef<RadioGroupHandle | null>(null)
 const active = computed(() => handle.value !== null)

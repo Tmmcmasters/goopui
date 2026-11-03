@@ -6,6 +6,7 @@ import type { DropdownMenuSubTriggerProps } from 'reka-ui'
 import { DropdownMenuSubTrigger, useForwardProps } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, useTemplateRef, type HTMLAttributes } from 'vue'
 import { injectGoopMenuContent, injectGoopMenuSub } from './context'
+import { useGoopCue } from '../../sound'
 
 const props = defineProps<DropdownMenuSubTriggerProps & { class?: HTMLAttributes['class']; inset?: boolean }>()
 
@@ -33,6 +34,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (sub) sub.trigger.value = null
 })
+const cue = useGoopCue('menuSubTrigger')
 </script>
 
 <template>
@@ -40,7 +42,7 @@ onBeforeUnmount(() => {
     ref="row"
     data-slot="dropdown-menu-sub-trigger"
     :data-inset="inset ? '' : undefined"
-    v-bind="forwardedProps"
+    v-bind="{ ...forwardedProps, ...cue }"
     :class="classes"
   >
     <slot />

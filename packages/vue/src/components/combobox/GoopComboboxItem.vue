@@ -9,6 +9,7 @@ import type { AcceptableValue, ComboboxItemEmits, ComboboxItemProps } from 'reka
 import { ComboboxItem, injectComboboxRootContext, useForwardPropsEmits } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
 import { injectGoopComboboxList, provideGoopComboboxItem } from './context'
+import { useGoopCue } from '../../sound'
 
 /** shadcn's flat highlight, used when the goo blob is off. */
 const FLAT_BG = 'data-highlighted:bg-accent'
@@ -73,12 +74,13 @@ const onSelect = (event: Event) => {
     close: true,
   })
 }
+const cue = useGoopCue('comboboxItem')
 </script>
 
 <template>
   <ComboboxItem
     data-slot="combobox-item"
-    v-bind="forwarded"
+    v-bind="{ ...forwarded, ...cue }"
     :class="classes"
     @select="onSelect"
   >

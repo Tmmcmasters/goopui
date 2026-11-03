@@ -3,11 +3,14 @@
 import type { PopoverRootEmits, PopoverRootProps } from 'reka-ui'
 import { PopoverRoot, useForwardPropsEmits } from 'reka-ui'
 import { provideGoopPopover } from './context'
+import type { GoopSoundProps } from '../../goop-props'
+import { omitSound, useGoopSound } from '../../sound'
 
-const props = defineProps<PopoverRootProps>()
+const props = withDefaults(defineProps<PopoverRootProps & GoopSoundProps>(), { sound: undefined })
 const emits = defineEmits<PopoverRootEmits>()
 
-const forwarded = useForwardPropsEmits(props, emits)
+const forwarded = useForwardPropsEmits(omitSound(props), emits)
+useGoopSound(() => props.sound)
 provideGoopPopover()
 </script>
 

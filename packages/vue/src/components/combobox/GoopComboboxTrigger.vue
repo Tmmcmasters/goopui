@@ -5,6 +5,7 @@ import { cn } from 'cn'
 import type { ComboboxTriggerProps } from 'reka-ui'
 import { ComboboxTrigger, useForwardProps } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
+import { useGoopCue } from '../../sound'
 
 const props = defineProps<ComboboxTriggerProps & { class?: HTMLAttributes['class'] }>()
 
@@ -13,12 +14,13 @@ const delegated = computed(() => {
   return rest
 })
 const forwarded = useForwardProps(delegated)
+const cue = useGoopCue('selectTrigger', { claim: true })
 </script>
 
 <template>
   <ComboboxTrigger
     data-slot="combobox-trigger"
-    v-bind="forwarded"
+    v-bind="{ ...forwarded, ...cue }"
     :class="cn('', props.class)"
   >
     <slot />

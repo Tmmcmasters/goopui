@@ -45,7 +45,16 @@
     "demo": "tsdown && node demo/serve.mjs"
   },
   "devDependencies": {
+    "cuelume": "^0.2.8",
     "happy-dom": "^21.0.4"
+  },
+  "peerDependencies": {
+    "cuelume": "^0.2.8"
+  },
+  "peerDependenciesMeta": {
+    "cuelume": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=20"

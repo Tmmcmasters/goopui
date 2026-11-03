@@ -10,15 +10,17 @@ import { cn } from 'cn'
 import { ToggleGroupRoot, type AcceptableValue } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch, type HTMLAttributes, type PropType } from 'vue'
 import { useGoopConfig } from '../../config'
-import { goopToggleGroupProps, toToggleGroupOptions } from '../../goop-props'
+import { goopSoundProp, goopToggleGroupProps, toToggleGroupOptions } from '../../goop-props'
 import { goopToggleColors, type ToggleVariants } from '../toggle/variants'
 import { provideGoopToggleGroup } from './context'
 import { toggleGroupVariants } from './variants'
+import { useGoopSound } from '../../sound'
 
 type Value = AcceptableValue | AcceptableValue[]
 
 const props = defineProps({
   ...goopToggleGroupProps,
+  ...goopSoundProp,
   /** 'single': at most one pressed item (the value is that item's); 'multiple': an array. */
   type: { type: String as PropType<'single' | 'multiple'>, default: undefined },
   /** The controlled value (v-model). */
@@ -66,6 +68,7 @@ const forwarded = computed(() => {
 
 const root = useTemplateRef<{ $el: unknown }>('root')
 const config = useGoopConfig()
+useGoopSound(() => props.sound)
 const options = computed(() => ({ ...toToggleGroupOptions(props, config), value: selected.value }))
 const handle = shallowRef<ToggleHandle | null>(null)
 const active = computed(() => handle.value !== null)

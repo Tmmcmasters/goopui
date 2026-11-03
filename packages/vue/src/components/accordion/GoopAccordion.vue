@@ -9,10 +9,12 @@ import type { AccordionRootEmits, AccordionRootProps } from 'reka-ui'
 import { AccordionRoot, useForwardPropsEmits } from 'reka-ui'
 import { computed } from 'vue'
 import { useGoopConfig } from '../../config'
-import { ACCORDION_PROP_KEYS, toAccordionOptions, type GoopAccordionProps } from '../../goop-props'
+import { ACCORDION_PROP_KEYS, toAccordionOptions, type GoopAccordionProps, type GoopSoundProps } from '../../goop-props'
 import { provideGoopAccordion } from './context'
+import { useGoopSound } from '../../sound'
 
-const props = withDefaults(defineProps<AccordionRootProps & GoopAccordionProps>(), {
+const props = withDefaults(defineProps<AccordionRootProps & GoopAccordionProps & GoopSoundProps>(), {
+  sound: undefined,
   goo: undefined,
   flood: undefined,
   wobble: undefined,
@@ -28,11 +30,12 @@ const props = withDefaults(defineProps<AccordionRootProps & GoopAccordionProps>(
 })
 const emits = defineEmits<AccordionRootEmits>()
 
-const OWN = new Set<string>(ACCORDION_PROP_KEYS)
+const OWN = new Set<string>([...ACCORDION_PROP_KEYS, 'sound'])
 const delegated = computed(
   () => Object.fromEntries(Object.entries(props).filter(([k, v]) => !OWN.has(k) && v !== undefined)) as AccordionRootProps,
 )
 const forwarded = useForwardPropsEmits(delegated, emits)
+useGoopSound(() => props.sound)
 
 const config = useGoopConfig()
 provideGoopAccordion(computed(() => toAccordionOptions(props, config)))

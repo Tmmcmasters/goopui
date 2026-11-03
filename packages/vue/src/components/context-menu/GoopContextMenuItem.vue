@@ -8,6 +8,7 @@ import type { ContextMenuItemEmits, ContextMenuItemProps } from 'reka-ui'
 import { ContextMenuItem, useForwardPropsEmits } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
 import { injectGoopMenuContent } from '../dropdown-menu/context'
+import { useGoopCue } from '../../sound'
 
 /** shadcn's flat highlight, used when the goo blob is off. */
 const FLAT_BG =
@@ -43,6 +44,7 @@ const classes = computed(() =>
 )
 // Runs after the consumer's @select (forwarded first), so their preventDefault is seen.
 const onSelect = (event: Event) => menu?.select(event)
+const cue = useGoopCue('menuItem')
 </script>
 
 <template>
@@ -50,7 +52,7 @@ const onSelect = (event: Event) => menu?.select(event)
     data-slot="context-menu-item"
     :data-inset="inset ? '' : undefined"
     :data-variant="variant"
-    v-bind="forwarded"
+    v-bind="{ ...forwarded, ...cue }"
     :class="classes"
     @select="onSelect"
   >

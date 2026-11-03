@@ -9,12 +9,14 @@ import { cn } from 'cn'
 import { NumberFieldRoot } from 'reka-ui'
 import { computed, ref, type HTMLAttributes, type PropType } from 'vue'
 import { useGoopConfig } from '../../config'
-import { goopNumberFieldProps, toNumberFieldOptions } from '../../goop-props'
+import { goopSoundProp, goopNumberFieldProps, toNumberFieldOptions } from '../../goop-props'
 import { provideGoopNumberField } from './context'
 import { numberFieldVariants } from './variants'
+import { useGoopSound } from '../../sound'
 
 const props = defineProps({
   ...goopNumberFieldProps,
+  ...goopSoundProp,
   /** The controlled value (v-model). */
   modelValue: { type: [Number, null] as PropType<number | null>, default: undefined },
   /** The initial value when uncontrolled. */
@@ -34,6 +36,7 @@ const onUpdate = (v: number | undefined): void => {
 }
 
 const config = useGoopConfig()
+useGoopSound(() => props.sound)
 provideGoopNumberField({
   options: computed(() => toNumberFieldOptions(props, config)),
   goo: computed(() => props.goo),

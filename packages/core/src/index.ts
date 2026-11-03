@@ -855,3 +855,21 @@ export {
   type SidebarHighlightOptions,
   type SidebarSide,
 } from './sidebar'
+export {
+  GOOP_SOUND_CUES,
+  GOOP_TOAST_CUES,
+  cueAttrs,
+  disableSound,
+  enableSound,
+  isSoundEnabled,
+  playCue,
+  requestSound,
+  setSoundEnabled,
+  toastCue,
+  type GoopCue,
+  type GoopCueBinding,
+  type GoopCueEmphasis,
+  type GoopCueOptions,
+  type GoopCueSpec,
+  type GoopSoundPart,
+} from './sound'

@@ -8,6 +8,7 @@ import type { ListboxItemEmits, ListboxItemProps } from 'reka-ui'
 import { ListboxItem, useForwardPropsEmits, useId } from 'reka-ui'
 import { computed, onMounted, onUnmounted, shallowRef, type HTMLAttributes } from 'vue'
 import { injectGoopCommand, injectGoopCommandGroup } from './context'
+import { useGoopCue } from '../../sound'
 
 /** shadcn's flat highlight, used when the goo blob is off. */
 const FLAT_BG = 'data-highlighted:bg-accent'
@@ -61,12 +62,13 @@ const onSelect = () => {
   command.filterState.search = ''
   command.highlight.value?.pop()
 }
+const cue = useGoopCue('commandItem')
 </script>
 
 <template>
   <ListboxItem
     v-if="isRender"
-    v-bind="forwarded"
+    v-bind="{ ...forwarded, ...cue }"
     :id="id"
     :ref="setEl"
     data-slot="command-item"

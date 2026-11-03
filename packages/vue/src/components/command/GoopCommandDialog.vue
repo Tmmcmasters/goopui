@@ -8,18 +8,20 @@
 import type { DialogRootEmits, DialogRootProps } from 'reka-ui'
 import { useForwardPropsEmits } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
-import { COMMAND_DIALOG_PROP_KEYS, DIALOG_PROP_KEYS, type GoopCommandDialogProps } from '../../goop-props'
+import { COMMAND_DIALOG_PROP_KEYS, DIALOG_PROP_KEYS, type GoopCommandDialogProps, type GoopSoundProps } from '../../goop-props'
 import GoopDialog from '../dialog/GoopDialog.vue'
 import GoopDialogContent from '../dialog/GoopDialogContent.vue'
 import GoopDialogDescription from '../dialog/GoopDialogDescription.vue'
 import GoopDialogHeader from '../dialog/GoopDialogHeader.vue'
 import GoopDialogTitle from '../dialog/GoopDialogTitle.vue'
 import GoopCommand from './GoopCommand.vue'
+import { useGoopSound } from '../../sound'
 
 const props = withDefaults(
   defineProps<
     DialogRootProps &
-      GoopCommandDialogProps & {
+      GoopCommandDialogProps &
+      GoopSoundProps & {
         title?: string
         description?: string
         class?: HTMLAttributes['class']
@@ -30,6 +32,7 @@ const props = withDefaults(
     title: 'Command Palette',
     description: 'Search for a command to run...',
     showCloseButton: false,
+    sound: undefined,
     open: undefined,
     defaultOpen: undefined,
     modal: undefined,
@@ -60,9 +63,10 @@ const props = withDefaults(
 )
 const emits = defineEmits<DialogRootEmits>()
 
-const OWN = new Set<string>(['class', 'title', 'description', 'showCloseButton', ...COMMAND_DIALOG_PROP_KEYS])
+const OWN = new Set<string>(['class', 'title', 'description', 'showCloseButton', 'sound', ...COMMAND_DIALOG_PROP_KEYS])
 const delegated = computed(() => Object.fromEntries(Object.entries(props).filter(([k]) => !OWN.has(k))) as DialogRootProps)
 const forwarded = useForwardPropsEmits(delegated, emits)
+useGoopSound(() => props.sound)
 
 const pick = (keys: readonly string[]) =>
   Object.fromEntries(keys.map((k) => [k, (props as Record<string, unknown>)[k]]).filter(([, v]) => v !== undefined))

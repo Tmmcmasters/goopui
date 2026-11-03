@@ -527,7 +527,7 @@ describe('emerge bloom flow style', () => {
     }
     expect(biggest).toBeGreaterThan(0)
     expect(biggest).toBeLessThan(8)
-  })
+  }, 120_000) // heavy sweep: ~33s on a CI runner
 
   it('presets scale the bloom durations', () => {
     const { subtle, playful, wild } = EMERGE_FEEL

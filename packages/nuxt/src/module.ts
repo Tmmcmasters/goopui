@@ -16,6 +16,12 @@ export interface GoopModuleDefaults {
   splash?: GoopSplashMode
   /** Force reduced motion on (`true`) or ignore the OS setting (`false`). Default 'auto'. */
   reducedMotion?: boolean | 'auto'
+  /**
+   * Interaction sounds (Cuelume) on for every component by default. Default false. Install
+   * `cuelume` (an optional peer dependency of @goopui/core) to hear them; without it sound is
+   * a silent no-op with one console warning. Components can still opt in or out with `sound`.
+   */
+  sound?: boolean
 }
 
 /** Goo page transition options (serializable subset of `GoopPageTransitionProps`). */
@@ -204,9 +210,27 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     }
 
     const defaults: GoopModuleDefaults = {}
-    for (const key of ['preset', 'renderer', 'finish', 'splash', 'reducedMotion'] as const) {
+    for (const key of ['preset', 'renderer', 'finish', 'splash', 'reducedMotion', 'sound'] as const) {
       if (options[key] !== undefined) (defaults as Record<string, unknown>)[key] = options[key]
     }
+    if (options.sound) {
+      // Client only: load Cuelume and bind its listeners once the app starts (the server
+      // renders the cue attributes but never loads audio).
+      addPluginTemplate({
+        filename: 'goopui-sound.client.mjs',
+        mode: 'client',
+        getContents: () =>
+          [
+            `import { enableSound } from '@goopui/core'`,
+            `import { defineNuxtPlugin } from '#app/nuxt'`,
+            `export default defineNuxtPlugin({`,
+            `  name: 'goopui:sound',`,
+            `  setup() { void enableSound() },`,
+            `})`,
+          ].join('\n'),
+      })
+    }
+
     if (Object.keys(defaults).length) {
       addPluginTemplate({
         filename: 'goopui-config.mjs',

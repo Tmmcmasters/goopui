@@ -12,8 +12,11 @@ import {
   type GoopDrawerRootEmits,
   type GoopDrawerRootProps,
 } from './context'
+import type { GoopSoundProps } from '../../goop-props'
+import { useGoopSound } from '../../sound'
 
-const props = withDefaults(defineProps<GoopDrawerRootProps>(), {
+const props = withDefaults(defineProps<GoopDrawerRootProps & GoopSoundProps>(), {
+  sound: undefined,
   open: undefined,
   defaultOpen: undefined,
   direction: 'bottom',
@@ -33,6 +36,7 @@ const props = withDefaults(defineProps<GoopDrawerRootProps>(), {
   preventScrollRestoration: undefined,
 })
 const emit = defineEmits<GoopDrawerRootEmits>()
+useGoopSound(() => props.sound)
 
 // ---- open (v-model:open, defaultOpen) ----
 const local = ref(props.open ?? props.defaultOpen ?? false)
