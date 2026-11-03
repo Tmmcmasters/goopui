@@ -5,6 +5,7 @@ import { cn } from 'cn'
 import { NumberFieldDecrement } from 'reka-ui'
 import type { HTMLAttributes, PropType } from 'vue'
 import { numberFieldDecrementVariants } from './variants'
+import { useGoopCue } from '../../sound'
 
 const props = defineProps({
   disabled: { type: Boolean, default: false },
@@ -12,6 +13,7 @@ const props = defineProps({
   asChild: { type: Boolean, default: false },
   class: { type: [String, Array, Object] as PropType<HTMLAttributes['class']>, default: undefined },
 })
+const cue = useGoopCue('numberFieldStep')
 </script>
 
 <template>
@@ -19,7 +21,7 @@ const props = defineProps({
     data-slot="decrement"
     :disabled="props.disabled"
     :as-child="props.asChild"
-    v-bind="props.as !== undefined ? { as: props.as } : {}"
+    v-bind="{ ...(props.as !== undefined ? { as: props.as } : {}), ...cue }"
     :class="cn(numberFieldDecrementVariants(), props.class)"
   >
     <slot>

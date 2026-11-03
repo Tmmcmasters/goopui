@@ -12,7 +12,7 @@ import { cn } from 'cn'
 import { SwitchRoot, SwitchThumb } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch, type HTMLAttributes, type PropType } from 'vue'
 import { useGoopConfig } from '../../config'
-import { goopSwitchProps, toSwitchOptions } from '../../goop-props'
+import { goopSoundProp, goopSwitchProps, toSwitchOptions } from '../../goop-props'
 import {
   goopSwitchColors,
   goopSwitchFilledTrack,
@@ -22,9 +22,11 @@ import {
   switchVariants,
   type SwitchSize,
 } from './variants'
+import { useGoopCue } from '../../sound'
 
 const props = defineProps({
   ...goopSwitchProps,
+  ...goopSoundProp,
   /** The controlled state (v-model). */
   modelValue: { type: Boolean as PropType<boolean | null>, default: undefined },
   /** The initial state when uncontrolled. */
@@ -58,6 +60,7 @@ const forwarded = computed(() => {
   return out
 })
 
+const cue = useGoopCue('switch', { sound: () => props.sound })
 const root = useTemplateRef<{ $el: unknown }>('root')
 const config = useGoopConfig()
 const options = computed(() => ({ ...toSwitchOptions(props, config), checked: checked.value }))
@@ -115,7 +118,7 @@ defineExpose({
     v-slot="slotProps"
     data-slot="switch"
     :data-size="size"
-    v-bind="forwarded"
+    v-bind="{ ...forwarded, ...cue }"
     :model-value="checked"
     :class="classes"
     :data-goop-host="goo ? 'switch' : undefined"

@@ -9,12 +9,14 @@ import { cn } from 'cn'
 import { PinInputRoot } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch, type HTMLAttributes, type PropType } from 'vue'
 import { useGoopConfig } from '../../config'
-import { goopInputOTPProps, toInputOTPOptions } from '../../goop-props'
+import { goopInputOTPProps, goopSoundProp, toInputOTPOptions } from '../../goop-props'
 import { provideGoopInputOTP } from './context'
 import { inputOTPVariants } from './variants'
+import { useGoopCue } from '../../sound'
 
 const props = defineProps({
   ...goopInputOTPProps,
+  ...goopSoundProp,
   /** One-time-code autocomplete (reka `otp`). Default true, like shadcn's PinInput. */
   otp: { type: Boolean, default: true },
   class: { type: [String, Array, Object] as PropType<HTMLAttributes['class']>, default: undefined },
@@ -24,6 +26,7 @@ const props = defineProps({
 
 const root = useTemplateRef<{ $el: unknown }>('root')
 const config = useGoopConfig()
+const cue = useGoopCue('inputOtp', { sound: () => props.sound })
 const options = computed(() => toInputOTPOptions(props, config))
 const handle = shallowRef<InputOTPHandle | null>(null)
 const active = ref(false)
@@ -71,6 +74,7 @@ defineExpose({
     v-slot="slotProps"
     data-slot="input-otp"
     :otp="otp"
+    v-bind="cue"
     :class="cn(inputOTPVariants(), props.class)"
     :data-goop-host="goo ? 'input-otp' : undefined"
     :data-goop-active="active ? '' : undefined"

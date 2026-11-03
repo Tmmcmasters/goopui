@@ -9,6 +9,7 @@ import { computed, type HTMLAttributes, type PropType } from 'vue'
 import { goopToggleItemFilled, toggleVariants, type ToggleVariants } from '../toggle/variants'
 import { injectGoopToggleGroup } from './context'
 import { toggleGroupItemVariants } from './variants'
+import { useGoopCue } from '../../sound'
 
 const props = defineProps({
   value: { type: null as unknown as PropType<AcceptableValue>, required: true },
@@ -25,6 +26,7 @@ const variant = computed(() => group?.variant.value || props.variant)
 const size = computed(() => group?.size.value || props.size)
 const active = computed(() => group?.active.value ?? false)
 
+const cue = useGoopCue('toggleGroupItem')
 const forwarded = computed(() => {
   const out: Record<string, unknown> = { disabled: props.disabled, asChild: props.asChild }
   if (props.as !== undefined) out.as = props.as
@@ -49,7 +51,7 @@ const classes = computed(() =>
     :data-size="size"
     :data-spacing="group?.spacing.value"
     :value="value"
-    v-bind="forwarded"
+    v-bind="{ ...forwarded, ...cue }"
     :class="classes"
   >
     <slot v-bind="slotProps" />

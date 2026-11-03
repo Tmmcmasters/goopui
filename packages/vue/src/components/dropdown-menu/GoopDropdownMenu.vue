@@ -3,11 +3,14 @@
 // props/emits/slot).
 import type { DropdownMenuRootEmits, DropdownMenuRootProps } from 'reka-ui'
 import { DropdownMenuRoot, useForwardPropsEmits } from 'reka-ui'
+import type { GoopSoundProps } from '../../goop-props'
+import { omitSound, useGoopSound } from '../../sound'
 
-const props = defineProps<DropdownMenuRootProps>()
+const props = withDefaults(defineProps<DropdownMenuRootProps & GoopSoundProps>(), { sound: undefined })
 const emits = defineEmits<DropdownMenuRootEmits>()
 
-const forwarded = useForwardPropsEmits(props, emits)
+const forwarded = useForwardPropsEmits(omitSound(props), emits)
+useGoopSound(() => props.sound)
 </script>
 
 <template>

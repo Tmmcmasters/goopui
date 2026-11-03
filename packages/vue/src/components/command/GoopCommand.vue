@@ -11,10 +11,12 @@ import type { ListboxRootEmits, ListboxRootProps } from 'reka-ui'
 import { ListboxRoot, useFilter, useForwardPropsEmits } from 'reka-ui'
 import { computed, reactive, ref, shallowRef, watch, type HTMLAttributes } from 'vue'
 import { useGoopConfig } from '../../config'
-import { COMMAND_PROP_KEYS, resolveCommandProps, toCommandOptions, type GoopCommandProps } from '../../goop-props'
+import { COMMAND_PROP_KEYS, resolveCommandProps, toCommandOptions, type GoopCommandProps, type GoopSoundProps } from '../../goop-props'
 import { provideGoopCommand, type GoopCommandFilterState } from './context'
+import { useGoopSound } from '../../sound'
 
-const props = withDefaults(defineProps<ListboxRootProps & GoopCommandProps & { class?: HTMLAttributes['class'] }>(), {
+const props = withDefaults(defineProps<ListboxRootProps & GoopCommandProps & GoopSoundProps & { class?: HTMLAttributes['class'] }>(), {
+  sound: undefined,
   modelValue: '',
   highlightOnHover: true,
   goo: undefined,
@@ -30,9 +32,10 @@ const props = withDefaults(defineProps<ListboxRootProps & GoopCommandProps & { c
 })
 const emits = defineEmits<ListboxRootEmits>()
 
-const OWN = new Set<string>(['class', ...COMMAND_PROP_KEYS])
+const OWN = new Set<string>(['class', 'sound', ...COMMAND_PROP_KEYS])
 const delegated = computed(() => Object.fromEntries(Object.entries(props).filter(([k]) => !OWN.has(k))) as ListboxRootProps)
 const forwarded = useForwardPropsEmits(delegated, emits)
+useGoopSound(() => props.sound)
 
 const config = useGoopConfig()
 const cmd = computed(() => resolveCommandProps(props))

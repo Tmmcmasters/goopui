@@ -7,6 +7,7 @@ import { AlertDialogCancel } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
 import GoopButton from '../button/GoopButton.vue'
 import type { ButtonSize, ButtonVariant } from '../button/variants'
+import { useGoopCue } from '../../sound'
 
 const props = withDefaults(
   defineProps<
@@ -24,12 +25,13 @@ const delegated = computed(() => {
   const { class: _c, variant: _v, size: _s, goo: _g, asChild: _a, as: _as, ...rest } = props
   return rest
 })
+const cue = useGoopCue('alertDialogCancel', { claim: true })
 </script>
 
 <template>
   <AlertDialogCancel
     data-slot="alert-dialog-cancel"
-    v-bind="delegated"
+    v-bind="{ ...delegated, ...cue }"
     as-child
   >
     <GoopButton

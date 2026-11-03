@@ -9,11 +9,13 @@ import { cn } from 'cn'
 import { CheckboxIndicator, CheckboxRoot } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch, type HTMLAttributes, type PropType } from 'vue'
 import { useGoopConfig } from '../../config'
-import { goopCheckboxProps, toCheckboxOptions } from '../../goop-props'
+import { goopSoundProp, goopCheckboxProps, toCheckboxOptions } from '../../goop-props'
 import { checkboxIndicatorVariants, checkboxVariants, goopCheckboxColors, goopCheckboxFilledBox } from './variants'
+import { useGoopCue } from '../../sound'
 
 const props = defineProps({
   ...goopCheckboxProps,
+  ...goopSoundProp,
   /** The controlled state (v-model): true, false or 'indeterminate'. */
   modelValue: { type: [Boolean, String] as PropType<CheckboxState | null>, default: undefined },
   /** The initial state when uncontrolled. */
@@ -42,6 +44,7 @@ const onUpdate = (v: CheckboxState): void => {
   emit('update:modelValue', v)
 }
 
+const cue = useGoopCue('checkbox', { sound: () => props.sound })
 const forwarded = computed(() => {
   const out: Record<string, unknown> = { disabled: props.disabled, required: props.required, asChild: props.asChild }
   for (const k of ['id', 'value', 'name', 'as'] as const) if (props[k] !== undefined) out[k] = props[k]
@@ -97,7 +100,7 @@ defineExpose({
     ref="root"
     v-slot="slotProps"
     data-slot="checkbox"
-    v-bind="forwarded"
+    v-bind="{ ...forwarded, ...cue }"
     :model-value="checked"
     :class="classes"
     :data-goop-host="goo ? 'checkbox' : undefined"

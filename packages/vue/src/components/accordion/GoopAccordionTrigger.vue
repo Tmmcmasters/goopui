@@ -5,9 +5,10 @@
 // and goop.css switches its text and chevron to the goo's foreground. Layout is shadcn's.
 import { cn } from 'cn'
 import type { AccordionTriggerProps } from 'reka-ui'
-import { AccordionHeader, AccordionTrigger } from 'reka-ui'
+import { AccordionHeader, AccordionTrigger, injectAccordionItemContext } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
 import { injectGoopAccordion } from './context'
+import { useGoopCue } from '../../sound'
 
 const props = defineProps<AccordionTriggerProps & { class?: HTMLAttributes['class'] }>()
 
@@ -17,13 +18,15 @@ const delegated = computed(() => {
 })
 const ctx = injectGoopAccordion()
 const goo = computed(() => !!ctx?.value)
+const item = injectAccordionItemContext(null)
+const cue = useGoopCue('accordionTrigger', { open: () => item?.open.value })
 </script>
 
 <template>
   <AccordionHeader class="flex">
     <AccordionTrigger
       data-slot="accordion-trigger"
-      v-bind="delegated"
+      v-bind="{ ...delegated, ...cue }"
       :data-goop-accordion-trigger="goo ? '' : undefined"
       :class="
         cn(

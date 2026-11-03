@@ -4,15 +4,18 @@ import { cn } from 'cn'
 import type { TabsRootEmits, TabsRootProps } from 'reka-ui'
 import { TabsRoot, useForwardPropsEmits } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
+import type { GoopSoundProps } from '../../goop-props'
+import { useGoopSound } from '../../sound'
 
-const props = defineProps<TabsRootProps & { class?: HTMLAttributes['class'] }>()
+const props = withDefaults(defineProps<TabsRootProps & GoopSoundProps & { class?: HTMLAttributes['class'] }>(), { sound: undefined })
 const emits = defineEmits<TabsRootEmits>()
 
 const delegated = computed(() => {
-  const { class: _class, ...rest } = props
+  const { class: _class, sound: _sound, ...rest } = props
   return rest
 })
 const forwarded = useForwardPropsEmits(delegated, emits)
+useGoopSound(() => props.sound)
 </script>
 
 <template>

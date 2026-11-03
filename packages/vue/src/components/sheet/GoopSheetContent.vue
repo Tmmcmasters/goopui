@@ -23,6 +23,7 @@ import { DialogClose, DialogContent, DialogOverlay, DialogPortal, injectDialogRo
 import { computed, onBeforeUnmount, ref, shallowRef, useTemplateRef, watch, type HTMLAttributes } from 'vue'
 import { useGoopConfig } from '../../config'
 import { SHEET_PROP_KEYS, toSheetOptions, type GoopSheetProps } from '../../goop-props'
+import { useGoopCue } from '../../sound'
 
 defineOptions({
   inheritAttrs: false,
@@ -69,6 +70,7 @@ const forwarded = useForwardPropsEmits(delegated, emits)
 
 const root = injectDialogRootContext()
 const config = useGoopConfig()
+const closeCue = useGoopCue('sheetClose')
 const surface = useTemplateRef<HTMLElement>('surface')
 const handle = shallowRef<SheetHandle | null>(null)
 const closeMs = ref(0)
@@ -171,6 +173,7 @@ defineExpose({
       <DialogClose
         v-if="showCloseButton"
         data-slot="sheet-close"
+        v-bind="closeCue"
         class="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none"
       >
         <svg
