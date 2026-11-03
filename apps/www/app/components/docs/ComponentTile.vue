@@ -17,12 +17,12 @@ defineProps<{ slug: string; title: string }>()
       <GoopCheckbox :default-value="true" aria-label="Checked" />
       <GoopCheckbox aria-label="Unchecked" />
     </div>
-    <GoopRadioGroup v-else-if="slug === 'radio-group'" default-value="a" class="flex gap-3" aria-label="Choice">
+    <GoopRadioGroup v-else-if="slug === 'radio-group'" default-value="a" class="flex w-auto gap-3" aria-label="Choice">
       <GoopRadioGroupItem value="a" aria-label="A" />
       <GoopRadioGroupItem value="b" aria-label="B" />
       <GoopRadioGroupItem value="c" aria-label="C" />
     </GoopRadioGroup>
-    <GoopInput v-else-if="slug === 'input'" class="h-8 w-36 text-xs" placeholder="you@example.com" aria-label="Email" />
+    <GoopInput v-else-if="slug === 'input'" container-class="w-auto" class="h-8 w-36 text-xs" placeholder="you@example.com" aria-label="Email" />
     <GoopSlider v-else-if="slug === 'slider'" :default-value="[62]" class="w-32" aria-label="Volume" />
     <GoopProgress v-else-if="slug === 'progress'" :model-value="64" class="w-32" aria-label="Progress" />
     <GoopNumberField v-else-if="slug === 'number-field'" :default-value="3" class="w-28" aria-label="Quantity">
