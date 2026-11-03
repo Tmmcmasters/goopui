@@ -19,6 +19,7 @@ pnpm install
 pnpm clean:dot
 pnpm turbo run build typecheck test --filter=./packages/core --filter=./packages/vue --filter=./packages/nuxt
 pnpm publish -r --filter "./packages/*" --access public --tag latest --dry-run
+pnpm check:package-managers   # installs + builds a test app with npm, pnpm, yarn 1, yarn 4, bun
 
 # 3. Publish. pnpm rewrites `workspace:*` to 0.1.0-alpha.0 and skips private packages.
 #    With npm 2FA on, add --otp=<code>.

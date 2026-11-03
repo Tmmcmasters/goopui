@@ -1,7 +1,7 @@
 {
   "name": "goopui-monorepo",
   "private": true,
-  "description": "goopUI — interactive gooey, dripping UI elements for Vue, React, and Svelte",
+  "description": "goopUI \u2014 interactive gooey, dripping UI elements for Vue, React, and Svelte",
   "packageManager": "pnpm@12.4.2",
   "engines": {
     "node": ">=22"
@@ -25,7 +25,8 @@
     "check:edge-clip": "node scripts/check-edge-clip.mjs",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "turbo run build --filter=./packages/* && changeset publish"
+    "release": "turbo run build --filter=./packages/* && changeset publish",
+    "check:package-managers": "bash scripts/check-package-managers.sh"
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.3",
