@@ -19,6 +19,8 @@ const dbDir = process.env.CONTENT_DB_DIR || join(tmpdir(), 'goopui-www-content')
 
 export default defineNuxtConfig({
   modules: ['@nuxt/content', '@goopui/nuxt'],
+  // Interaction sounds (Cuelume) on every goop component.
+  goop: { sound: true },
   compatibilityDate: '2026-10-25',
   experimental: {
     // Prefetch a link's page chunk + payload when it scrolls into view (on idle) AND as soon as
@@ -30,7 +32,7 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css', 'vue-sonner/style.css'],
   vite: {
     plugins: [tailwindcss()],
-    optimizeDeps: { include: ['lenis'] },
+    optimizeDeps: { include: ['lenis', 'cuelume'] },
   },
   app: {
     head: {
