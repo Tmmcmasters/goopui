@@ -19,13 +19,11 @@ const dbDir = process.env.CONTENT_DB_DIR || join(tmpdir(), 'goopui-www-content')
 
 export default defineNuxtConfig({
   modules: ['@nuxt/content', '@goopui/nuxt'],
-  // A Slime band with bubbles sweeps between pages (colours: --goop-page-transition* in main.css).
-  goop: { pageTransition: { direction: 'down' } },
   compatibilityDate: '2026-10-25',
   experimental: {
     // Prefetch a link's page chunk + payload when it scrolls into view (on idle) AND as soon as
     // it's hovered, focused or touched: idle can come late on a busy page (the landing's lava
-    // lamp), and the page transition holds the old page frozen until the new one is ready.
+    // lamp).
     defaults: { nuxtLink: { prefetchOn: { visibility: true, interaction: true } } },
   },
   devtools: { enabled: false },
