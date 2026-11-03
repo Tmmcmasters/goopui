@@ -155,6 +155,13 @@ export interface MenuHighlightState {
   bx: SpringState
   /** Where `bx` is heading (the pointer, clamped into the item; else the item's center). */
   bt: number
+  /** Center of the item the head is heading for. */
+  gx: number
+  gy: number
+  /** How far the head had to go when that item became the target (px). A jump past a group
+   *  heading or separator is longer than one item; the trailing mound is scaled down by it so
+   *  it looks the same as the hop between neighbours. */
+  jump: number
   /** 0..1 progress of the grow-in. */
   appear: number
   /** 1 = shown, 0 = hidden (shrinks out). */
@@ -197,6 +204,9 @@ export function menuHighlightInit(): MenuHighlightState {
     ty: spring(),
     bx: spring(),
     bt: 0,
+    gx: 0,
+    gy: 0,
+    jump: 0,
     appear: 1,
     fade: 0,
     pop: 1,
@@ -225,6 +235,9 @@ export function menuHighlightSnap(s: MenuHighlightState, r: EmergeRect, pointer?
   s.ty = spring(cy)
   s.bt = menuBulgeTarget(r, pointer)
   s.bx = spring(s.bt)
+  s.gx = cx
+  s.gy = cy
+  s.jump = 0
   s.appear = 1
   s.fade = 1
   s.shown = true
@@ -277,8 +290,15 @@ export function menuHighlightStep(
   s.appear = Math.min(1, s.appear + dt / Math.max(1e-3, feel.appear))
   const head = cfgOf(fx.wobble ? feel.head : criticalOf(feel.head.response))
   const tail = cfgOf(fx.wobble ? feel.tail : criticalOf(feel.tail.response))
-  stepSpring(s.x, target.x + target.width / 2, head, dt)
-  stepSpring(s.y, target.y + target.height / 2, head, dt)
+  const gx = target.x + target.width / 2
+  const gy = target.y + target.height / 2
+  if (Math.abs(gx - s.gx) > 0.5 || Math.abs(gy - s.gy) > 0.5) {
+    s.gx = gx
+    s.gy = gy
+    s.jump = Math.hypot(gx - s.x.x, gy - s.y.x)
+  }
+  stepSpring(s.x, gx, head, dt)
+  stepSpring(s.y, gy, head, dt)
   stepSpring(s.w, target.width, head, dt)
   stepSpring(s.h, target.height, head, dt)
   // The swell trails the pointer on the tail's (softer) spring: springy, not glued.
@@ -395,7 +415,13 @@ export function menuHighlightPose(
     // Down a column the trailing goo leaves the bar's long flat edge, so it is a low, wide
     // mound under the pointer (the swell's raised cosine, never a round tail knob): as tall
     // as the lag the stretch doesn't absorb (zero as the tail catches up), capped low.
-    const d = Math.min(half * MENU_TRAIL_MAX * feel.stretch, Math.max(0, dist - e) * MENU_TRAIL_GAIN)
+    // The lag is measured as if the hop were one item long: a longer jump (past a group
+    // heading or separator) lags more, which would raise a taller, longer-lived bump over the
+    // gap. The springs are linear, so scaling the lag by item height / jump gives exactly
+    // the mound of the hop between neighbours.
+    const lag = s.jump > h0 ? (dist * h0) / s.jump : dist
+    const le = Math.min(lag * 0.6, reach)
+    const d = Math.min(half * MENU_TRAIL_MAX * feel.stretch, Math.max(0, lag - le) * MENU_TRAIL_GAIN)
     const tlo = Math.min(hw, bulge - (cx - w / 2 + half))
     const thi = Math.min(hw, cx + w / 2 - half - bulge)
     if (d > 0.05 && tlo + thi > 4) {
