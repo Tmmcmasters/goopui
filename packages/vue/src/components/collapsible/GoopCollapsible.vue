@@ -7,11 +7,13 @@ import type { CollapsibleRootEmits, CollapsibleRootProps } from 'reka-ui'
 import { CollapsibleRoot, useForwardPropsEmits } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
 import { useGoopConfig } from '../../config'
-import { ACCORDION_PROP_KEYS, toAccordionOptions, type GoopAccordionProps } from '../../goop-props'
+import { ACCORDION_PROP_KEYS, toAccordionOptions, type GoopAccordionProps, type GoopSoundProps } from '../../goop-props'
 import { injectGoopCollapsibleDefaults, provideGoopAccordion } from '../accordion/context'
 import { useAccordionGoo, useElementRef } from '../accordion/use-accordion-goo'
+import { useGoopSound } from '../../sound'
 
-const props = withDefaults(defineProps<CollapsibleRootProps & GoopAccordionProps & { class?: HTMLAttributes['class'] }>(), {
+const props = withDefaults(defineProps<CollapsibleRootProps & GoopAccordionProps & GoopSoundProps & { class?: HTMLAttributes['class'] }>(), {
+  sound: undefined,
   goo: undefined,
   flood: undefined,
   wobble: undefined,
@@ -28,11 +30,12 @@ const props = withDefaults(defineProps<CollapsibleRootProps & GoopAccordionProps
 })
 const emits = defineEmits<CollapsibleRootEmits>()
 
-const OWN = new Set<string>([...ACCORDION_PROP_KEYS, 'class'])
+const OWN = new Set<string>([...ACCORDION_PROP_KEYS, 'class', 'sound'])
 const delegated = computed(
   () => Object.fromEntries(Object.entries(props).filter(([k, v]) => !OWN.has(k) && v !== undefined)) as CollapsibleRootProps,
 )
 const forwarded = useForwardPropsEmits(delegated, emits)
+useGoopSound(() => props.sound)
 
 const config = useGoopConfig()
 const defaults = injectGoopCollapsibleDefaults()

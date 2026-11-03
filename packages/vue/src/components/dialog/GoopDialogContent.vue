@@ -20,6 +20,7 @@ import { DIALOG_PROP_KEYS, toDialogOptions, type GoopDialogProps } from '../../g
 import GoopDialogOverlay from './GoopDialogOverlay.vue'
 import { useDialogPanel } from './use-dialog-goo'
 import { DIALOG_CLOSE, DIALOG_CONTENT_GOO, DIALOG_CONTENT_SHADCN } from './styles'
+import { useGoopCue } from '../../sound'
 
 defineOptions({
   inheritAttrs: false,
@@ -64,6 +65,7 @@ const forwarded = useForwardPropsEmits(delegated, emits)
 
 const root = injectDialogRootContext()
 const config = useGoopConfig()
+const closeCue = useGoopCue('dialogClose')
 const surface = useTemplateRef<HTMLElement>('surface')
 
 const classes = computed(() => cn(props.goo ? DIALOG_CONTENT_GOO : DIALOG_CONTENT_SHADCN, props.class))
@@ -110,6 +112,7 @@ defineExpose({
         v-if="showCloseButton"
         data-slot="dialog-close"
         :class="DIALOG_CLOSE"
+        v-bind="closeCue"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"

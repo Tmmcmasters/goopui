@@ -11,7 +11,7 @@ import { cn } from 'cn'
 import { Primitive } from 'reka-ui'
 import { computed, useId, useTemplateRef, watch, type HTMLAttributes, type PropType } from 'vue'
 import { useGoopConfig } from '../../config'
-import { goopProps, toGoopOptions, toGoopStyle } from '../../goop-props'
+import { goopProps, goopSoundProp, toGoopOptions, toGoopStyle } from '../../goop-props'
 import { seedFrom, useGoop } from '../../use-goop'
 import {
   buttonVariants,
@@ -20,9 +20,11 @@ import {
   type ButtonSize,
   type ButtonVariant,
 } from './variants'
+import { useGoopCue } from '../../sound'
 
 const props = defineProps({
   ...goopProps,
+  ...goopSoundProp,
   variant: { type: String as PropType<ButtonVariant>, default: undefined },
   size: { type: String as PropType<ButtonSize>, default: undefined },
   class: { type: [String, Array, Object] as PropType<HTMLAttributes['class']>, default: undefined },
@@ -40,6 +42,7 @@ const props = defineProps({
 const primitive = useTemplateRef<{ $el: unknown }>('primitive')
 const config = useGoopConfig()
 const id = useId()
+const cue = useGoopCue('button', { sound: () => props.sound })
 
 const variantKey = computed<ButtonVariant>(() => props.variant ?? 'default')
 const gooStyle = computed(() => goopButtonStyles[variantKey.value])
@@ -119,6 +122,7 @@ defineExpose({
     :style="style"
     :data-goop-host="enabled ? gooStyle : undefined"
     :data-goop-active="active ? '' : undefined"
+    v-bind="cue"
   >
     <slot v-if="asChild" />
     <span

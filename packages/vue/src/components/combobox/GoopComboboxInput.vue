@@ -11,6 +11,7 @@ import { useGoopConfig } from '../../config'
 import { goopInputProps, toInputOptions } from '../../goop-props'
 import { useFieldGoo } from '../input/use-field-goo'
 import { goopFieldActive } from '../input/variants'
+import { useGoopCue } from '../../sound'
 
 defineOptions({ inheritAttrs: false })
 
@@ -29,6 +30,7 @@ const props = defineProps({
 const emits = defineEmits<{ 'update:modelValue': [value: string] }>()
 
 const config = useGoopConfig()
+const cue = useGoopCue('input')
 const options = computed(() => toInputOptions(props, config))
 
 const host = useTemplateRef<HTMLElement>('host')
@@ -91,7 +93,7 @@ defineExpose({
     <ComboboxInput
       :ref="setField"
       data-slot="combobox-input"
-      v-bind="{ ...reka, ...$attrs }"
+      v-bind="{ ...reka, ...$attrs, ...cue }"
       :class="classes"
       @update:model-value="(v: string) => emits('update:modelValue', v)"
     />

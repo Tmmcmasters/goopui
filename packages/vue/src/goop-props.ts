@@ -225,6 +225,25 @@ export const goopProps = Object.freeze({
   goop: def(Object),
 }) as unknown as GoopPropsDefinition
 
+// ---- sound ---------------------------------------------------------------------------------
+
+/**
+ * `sound`: opt-in interaction sounds (Cuelume, an optional peer of @goopui/core). Not an
+ * engine option: core's GoopOptions has no `sound` (the cue map and playback live in core's
+ * sound module), so the Unhandled guards above are unaffected. `undefined` (absent) inherits
+ * the nearest ancestor component's `sound`, then the app default (GoopPlugin / Nuxt
+ * `goop.sound`), then off. Interactive components spread `goopSoundProp` (runtime props) or
+ * add `GoopSoundProps` (type-based props, with `sound: undefined` in withDefaults).
+ */
+export const goopSoundProp = Object.freeze({
+  sound: { type: Boolean as PropType<boolean | undefined>, default: undefined },
+})
+
+export interface GoopSoundProps {
+  /** Interaction sounds for this component and its parts. Default: inherit (off). */
+  sound?: boolean
+}
+
 // ---- props -> options ----------------------------------------------------------------------
 
 const ENGINE_KEYS: readonly GoopEngineKey[] = [...GOOP_TUNING_KEYS, ...ENGINE_OPTION_KEYS]

@@ -4,12 +4,13 @@
 // blob (the flat focus bg is dropped); choosing squishes the blob, sets the value right away
 // and closes the list once the pop has played (`event.preventDefault()` in your @select still
 // cancels the choice). The chosen item's check mark plops in (core `plopIn`).
-import { plopIn } from '@goopui/core'
+import { playCue, plopIn } from '@goopui/core'
 import { cn } from 'cn'
 import type { SelectItemEmits, SelectItemProps } from 'reka-ui'
 import { SelectItem, SelectItemIndicator, SelectItemText, injectSelectRootContext, useForwardPropsEmits } from 'reka-ui'
 import { computed, useTemplateRef, watch, type HTMLAttributes } from 'vue'
 import { injectGoopSelectContent } from './context'
+import { useGoopSound } from '../../sound'
 
 /** shadcn's flat highlight, used when the goo blob is off. */
 const FLAT_BG = 'focus:bg-accent'
@@ -48,8 +49,10 @@ watch(
 )
 
 // Runs after the consumer's @select (forwarded first), so their preventDefault is seen.
+const sound = useGoopSound()
 const onSelect = (event: Event) => {
   if (event.defaultPrevented || props.disabled) return
+  if (sound.value) playCue('select')
   // Already showing its mark: re-choosing (or a multi-select un-choosing) plops nothing.
   chosen = !mark.value
   content?.select(event, {

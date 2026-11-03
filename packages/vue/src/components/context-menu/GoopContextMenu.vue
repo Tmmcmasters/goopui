@@ -4,11 +4,14 @@
 import type { ContextMenuRootEmits, ContextMenuRootProps } from 'reka-ui'
 import { ContextMenuRoot, useForwardPropsEmits } from 'reka-ui'
 import { provideGoopContextMenu } from './context'
+import type { GoopSoundProps } from '../../goop-props'
+import { omitSound, useGoopSound } from '../../sound'
 
-const props = withDefaults(defineProps<ContextMenuRootProps>(), { modal: true })
+const props = withDefaults(defineProps<ContextMenuRootProps & GoopSoundProps>(), { modal: true, sound: undefined })
 const emits = defineEmits<ContextMenuRootEmits>()
 
-const forwarded = useForwardPropsEmits(props, emits)
+const forwarded = useForwardPropsEmits(omitSound(props), emits)
+useGoopSound(() => props.sound)
 provideGoopContextMenu()
 </script>
 

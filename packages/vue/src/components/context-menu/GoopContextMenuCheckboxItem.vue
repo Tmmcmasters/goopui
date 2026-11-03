@@ -7,6 +7,7 @@ import type { ContextMenuCheckboxItemEmits, ContextMenuCheckboxItemProps } from 
 import { ContextMenuCheckboxItem, ContextMenuItemIndicator, useForwardPropsEmits } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
 import { injectGoopMenuContent } from '../dropdown-menu/context'
+import { useGoopCue } from '../../sound'
 
 const props = defineProps<ContextMenuCheckboxItemProps & { class?: HTMLAttributes['class'] }>()
 const emits = defineEmits<ContextMenuCheckboxItemEmits>()
@@ -26,12 +27,13 @@ const classes = computed(() =>
   ),
 )
 const onSelect = (event: Event) => menu?.select(event)
+const cue = useGoopCue('menuCheckboxItem')
 </script>
 
 <template>
   <ContextMenuCheckboxItem
     data-slot="context-menu-checkbox-item"
-    v-bind="forwarded"
+    v-bind="{ ...forwarded, ...cue }"
     :class="classes"
     @select="onSelect"
   >

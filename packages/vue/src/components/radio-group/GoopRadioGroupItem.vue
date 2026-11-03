@@ -13,6 +13,7 @@ import {
   radioGroupIndicatorVariants,
   radioGroupItemVariants,
 } from './variants'
+import { useGoopCue } from '../../sound'
 
 const props = defineProps({
   value: { type: null as unknown as PropType<AcceptableValue>, default: undefined },
@@ -26,6 +27,7 @@ const props = defineProps({
 })
 
 const group = injectGoopRadioGroup()
+const cue = useGoopCue('radioItem')
 const active = computed(() => group?.active.value ?? false)
 
 const forwarded = computed(() => {
@@ -40,7 +42,7 @@ const classes = computed(() => cn(radioGroupItemVariants(), active.value && goop
 <template>
   <RadioGroupItem
     data-slot="radio-group-item"
-    v-bind="forwarded"
+    v-bind="{ ...forwarded, ...cue }"
     :class="classes"
   >
     <RadioGroupIndicator

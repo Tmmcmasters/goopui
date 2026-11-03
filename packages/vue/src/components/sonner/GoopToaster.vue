@@ -8,16 +8,18 @@
 //   drips   leaving toasts drip off; swipe-out flings the goo the swipe's way.
 // With `:goo="false"`, during SSR and before mount it is exactly shadcn's Sonner. Reduced
 // motion: static goo bodies, none of the effects. Needs `vue-sonner/style.css` (as shadcn's).
-import { attachToaster, type ToasterHandle } from '@goopui/core'
+import { attachToaster, playCue, toastCue, type ToasterHandle } from '@goopui/core'
 import { cn } from 'cn'
 import type { ToasterProps } from 'vue-sonner'
-import { Toaster as Sonner } from 'vue-sonner'
-import { computed, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
+import { Toaster as Sonner, useVueSonner } from 'vue-sonner'
+import { computed, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch, type Ref } from 'vue'
 import { useGoopConfig } from '../../config'
-import { toToasterOptions, type GoopToasterProps } from '../../goop-props'
+import { toToasterOptions, type GoopSoundProps, type GoopToasterProps } from '../../goop-props'
+import { useGoopSound } from '../../sound'
 import { CircleCheckIcon, InfoIcon, Loader2Icon, OctagonXIcon, TriangleAlertIcon, XIcon } from './icons'
 
-const props = withDefaults(defineProps<ToasterProps & GoopToasterProps>(), {
+const props = withDefaults(defineProps<ToasterProps & GoopToasterProps & GoopSoundProps>(), {
+  sound: undefined,
   goo: true,
   dropIn: true,
   merge: true,
@@ -36,6 +38,7 @@ const delegated = computed(() => {
     drips: _drips,
     speed: _speed,
     preset: _preset,
+    sound: _sound,
     ...rest
   } = props
   return rest
@@ -66,7 +69,28 @@ const detach = (): void => {
 onMounted(() => {
   mounted = true
   attach()
+  listenForToasts()
 })
+
+// Sound: each new toast (and each type change, e.g. a promise toast going loading -> success)
+// plays the cue for what it reports, subtly. Subscribed on mount only: on the server
+// vue-sonner's store subscription would never be released.
+const sound = useGoopSound(() => props.sound)
+const played = new Map<string | number, string | undefined>()
+function listenForToasts(): void {
+  const { activeToasts } = useVueSonner() as { activeToasts: Ref<{ id: string | number; type?: string }[]> }
+  watch(activeToasts, (list) => {
+    const live = new Set<string | number>()
+    for (const t of list) {
+      live.add(t.id)
+      if (played.has(t.id) && played.get(t.id) === t.type) continue
+      played.set(t.id, t.type)
+      const cue = sound.value ? toastCue(t.type) : null
+      if (cue) playCue(cue, { emphasis: 'subtle' })
+    }
+    for (const id of played.keys()) if (!live.has(id)) played.delete(id)
+  })
+}
 onBeforeUnmount(() => {
   mounted = false
   detach()

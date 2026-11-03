@@ -28,6 +28,8 @@ export * from './components/page-transition'
 export * from './components/hover-card'
 export * from './components/context-menu'
 export { GOOP_CONFIG_KEY, GoopPlugin, provideGoopConfig, useGoopConfig, type GoopConfig } from './config'
+export { GOOP_SOUND_KEY, provideGoopSound, useGoopCue, useGoopSound } from './sound'
+export { goopSoundProp, type GoopSoundProps } from './goop-props'
 export {
   CSS_VAR_KEYS,
   ENGINE_OPTION_KEYS,

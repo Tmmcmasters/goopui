@@ -8,14 +8,16 @@
 import { cn } from 'cn'
 import { computed, useTemplateRef, type HTMLAttributes, type PropType } from 'vue'
 import { useGoopConfig } from '../../config'
-import { goopInputProps, toInputOptions } from '../../goop-props'
+import { goopInputProps, goopSoundProp, toInputOptions } from '../../goop-props'
 import { useFieldGoo } from './use-field-goo'
 import { goopFieldActive, goopFieldContainer, inputVariants } from './variants'
+import { useGoopCue } from '../../sound'
 
 defineOptions({ inheritAttrs: false })
 
 const props = defineProps({
   ...goopInputProps,
+  ...goopSoundProp,
   /** Initial value when uncontrolled. */
   defaultValue: { type: [String, Number] as PropType<string | number>, default: undefined },
   class: { type: [String, Array, Object] as PropType<HTMLAttributes['class']>, default: undefined },
@@ -31,6 +33,7 @@ if (model.value === undefined && props.defaultValue !== undefined) model.value =
 const host = useTemplateRef<HTMLElement>('host')
 const field = useTemplateRef<HTMLInputElement>('field')
 const config = useGoopConfig()
+const cue = useGoopCue('input', { sound: () => props.sound })
 const options = computed(() => toInputOptions(props, config))
 const { handle, active } = useFieldGoo(host, field, () => props.goo, () => options.value)
 
@@ -58,7 +61,7 @@ defineExpose({
     :data-goop-active="active ? '' : undefined"
     :class="containerClasses"
   >
-    <input ref="field" v-model="model" data-slot="input" v-bind="$attrs" :class="classes">
+    <input ref="field" v-model="model" data-slot="input" v-bind="{ ...$attrs, ...cue }" :class="classes">
   </div>
-  <input v-else ref="field" v-model="model" data-slot="input" v-bind="$attrs" :class="classes">
+  <input v-else ref="field" v-model="model" data-slot="input" v-bind="{ ...$attrs, ...cue }" :class="classes">
 </template>

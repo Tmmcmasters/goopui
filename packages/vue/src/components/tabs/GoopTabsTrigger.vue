@@ -8,6 +8,7 @@ import { TabsTrigger, useForwardProps } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
 import { injectGoopTabsList } from './context'
 import { tabsTriggerClass, tabsTriggerGooClass } from './variants'
+import { useGoopCue } from '../../sound'
 
 const props = defineProps<TabsTriggerProps & { class?: HTMLAttributes['class'] }>()
 
@@ -19,13 +20,14 @@ const forwarded = useForwardProps(delegated)
 const list = injectGoopTabsList()
 
 const classes = computed(() => cn(...(list?.blob.value ? tabsTriggerGooClass : tabsTriggerClass), props.class))
+const cue = useGoopCue('tabsTrigger')
 </script>
 
 <template>
   <TabsTrigger
     data-slot="tabs-trigger"
     :class="classes"
-    v-bind="forwarded"
+    v-bind="{ ...forwarded, ...cue }"
   >
     <slot />
   </TabsTrigger>

@@ -9,11 +9,13 @@ import { cn } from 'cn'
 import { Toggle } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch, type HTMLAttributes, type PropType } from 'vue'
 import { useGoopConfig } from '../../config'
-import { goopToggleProps, toToggleOptions } from '../../goop-props'
+import { goopSoundProp, goopToggleProps, toToggleOptions } from '../../goop-props'
 import { goopToggleColors, goopToggleFilled, toggleVariants, type ToggleVariants } from './variants'
+import { useGoopCue } from '../../sound'
 
 const props = defineProps({
   ...goopToggleProps,
+  ...goopSoundProp,
   /** The controlled pressed state (v-model). */
   modelValue: { type: Boolean as PropType<boolean | null>, default: undefined },
   /** The initial pressed state when uncontrolled. */
@@ -39,6 +41,7 @@ const onUpdate = (v: boolean): void => {
   emit('update:modelValue', v)
 }
 
+const cue = useGoopCue('toggle', { sound: () => props.sound })
 const forwarded = computed(() => {
   const out: Record<string, unknown> = { disabled: props.disabled, required: props.required, asChild: props.asChild }
   for (const k of ['name', 'as'] as const) if (props[k] !== undefined) out[k] = props[k]
@@ -99,7 +102,7 @@ defineExpose({
     ref="root"
     v-slot="slotProps"
     data-slot="toggle"
-    v-bind="forwarded"
+    v-bind="{ ...forwarded, ...cue }"
     :model-value="pressed"
     :class="classes"
     :data-goop-host="goo ? 'toggle' : undefined"

@@ -7,6 +7,7 @@ import type { DropdownMenuRadioItemEmits, DropdownMenuRadioItemProps } from 'rek
 import { DropdownMenuItemIndicator, DropdownMenuRadioItem, useForwardPropsEmits } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
 import { injectGoopMenuContent } from './context'
+import { useGoopCue } from '../../sound'
 
 const props = defineProps<DropdownMenuRadioItemProps & { class?: HTMLAttributes['class'] }>()
 const emits = defineEmits<DropdownMenuRadioItemEmits>()
@@ -26,12 +27,13 @@ const classes = computed(() =>
   ),
 )
 const onSelect = (event: Event) => menu?.select(event)
+const cue = useGoopCue('menuRadioItem')
 </script>
 
 <template>
   <DropdownMenuRadioItem
     data-slot="dropdown-menu-radio-item"
-    v-bind="forwarded"
+    v-bind="{ ...forwarded, ...cue }"
     :class="classes"
     @select="onSelect"
   >
