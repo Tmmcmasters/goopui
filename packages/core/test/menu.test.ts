@@ -292,6 +292,39 @@ describe('menuHighlightStep: travel', () => {
     }
   })
 
+  it('across a group heading or separator (a gap with no items): the same low mound as next door', () => {
+    // A command / menu list: the last item of one group, then a separator and a heading
+    // (~40px with no item), then the first item of the next. The pointer crosses the gap; the
+    // highlight jumps further than one item, but the mound behind it must look like the one
+    // between neighbouring items: no taller, still wide (no knob).
+    const at = (y: number): EmergeRect => ({ x: 4, y, width: 180, height: 28 })
+    const peakOf = (from: EmergeRect, to: EmergeRect, preset: keyof typeof MENU_FEEL) => {
+      const feel = MENU_FEEL[preset]
+      const s = menuHighlightInit()
+      menuHighlightSnap(s, from, 120)
+      let peak = 0
+      for (let f = 0; f < 90; f++) {
+        menuHighlightStep(s, to, DT, feel, {}, 120)
+        for (const b of bumps(menuHighlightPose(s, feel))) {
+          peak = Math.max(peak, b.peak)
+          if (b.peak > 0.3) expect(b.width).toBeGreaterThanOrEqual(8 * b.peak)
+        }
+      }
+      return peak
+    }
+    for (const preset of ['subtle', 'playful', 'wild'] as const) {
+      for (const gap of [12, 40, 70]) {
+        for (const [a, b] of [[at(4), at(4 + 28)], [at(4 + 28), at(4)]] as const) {
+          const next = peakOf(a, b, preset)
+          const dir = b.y > a.y ? 1 : -1
+          const far = peakOf(a, at(b.y + dir * gap), preset)
+          expect(next).toBeGreaterThan(0)
+          expect(far).toBeLessThanOrEqual(next + 0.05)
+        }
+      }
+    }
+  })
+
   it('the tail is held on a short rope', () => {
     const s = menuHighlightInit()
     menuHighlightSnap(s, row(0))
