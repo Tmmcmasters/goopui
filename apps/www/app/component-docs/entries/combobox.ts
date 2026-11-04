@@ -9,8 +9,8 @@ export default defineComponentDoc({
   replay: { action: 'click', label: 'Open again' },
   code: `<GoopCombobox v-model="framework" by="value">
   <GoopComboboxAnchor class="relative w-56">
-    <GoopComboboxInput placeholder="Select framework..." :display-value="(v) => v?.label ?? ''" />
-    <GoopComboboxTrigger class="absolute inset-y-0 right-0 px-2" aria-label="Show frameworks">▾</GoopComboboxTrigger>
+    <GoopComboboxInput class="pr-8" placeholder="Select framework..." :display-value="(v) => v?.label ?? ''" />
+    <GoopComboboxTrigger class="absolute inset-y-0 right-0" aria-label="Show frameworks" />
   </GoopComboboxAnchor>
   <GoopComboboxList class="w-(--reka-combobox-trigger-width)"{{list}}>
     <GoopComboboxEmpty>No framework found.</GoopComboboxEmpty>

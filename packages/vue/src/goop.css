@@ -255,7 +255,8 @@
 @layer components {
   /* GoopSkeleton: a soft, low mound of lighter goo (one radial gradient, rising from the
      bottom edge) drifts across. Transform-only, so many skeletons stay cheap. The vars come
-     from core's skeletonStyle; --goop-shimmer-base is the theme's crest opacity. */
+     from core's skeletonStyle; --goop-shimmer-color / --goop-shimmer-base are the theme's
+     crest colour and opacity (set by the component's classes). */
   [data-goop-shimmer] {
     position: relative;
     overflow: hidden;
@@ -272,10 +273,10 @@
        than 44px, so small shapes still get a gentle dome), sitting on the bottom edge. */
     background: radial-gradient(
         50% 100% at 50% 100%,
-        #fff 0%,
-        rgb(255 255 255 / 0.72) 32%,
-        rgb(255 255 255 / 0.28) 64%,
-        rgb(255 255 255 / 0) 100%
+        var(--goop-shimmer-color, #fff) 0%,
+        color-mix(in oklab, var(--goop-shimmer-color, #fff) 72%, transparent) 32%,
+        color-mix(in oklab, var(--goop-shimmer-color, #fff) 28%, transparent) 64%,
+        transparent 100%
       )
       50% 100% / max(var(--goop-shimmer-width, 60%), 72px) min(135%, 44px) no-repeat;
     transform: translateX(-130%);

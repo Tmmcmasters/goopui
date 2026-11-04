@@ -67,8 +67,8 @@ const pg = usePlayground()
 
   <GoopCombobox v-else v-model="framework" by="value">
     <GoopComboboxAnchor class="relative w-full max-w-56">
-      <GoopComboboxInput placeholder="Select framework..." :display-value="(v) => v?.label ?? ''" />
-      <GoopComboboxTrigger data-replay class="text-muted-foreground absolute inset-y-0 right-0 px-2 text-xs" aria-label="Show frameworks">▾</GoopComboboxTrigger>
+      <GoopComboboxInput class="pr-8" placeholder="Select framework..." :display-value="(v) => v?.label ?? ''" />
+      <GoopComboboxTrigger data-replay class="absolute inset-y-0 right-0" aria-label="Show frameworks" />
     </GoopComboboxAnchor>
     <GoopComboboxList class="w-(--reka-combobox-trigger-width)" v-bind="pg.part('list')">
       <GoopComboboxEmpty>No framework found.</GoopComboboxEmpty>
