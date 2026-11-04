@@ -7,7 +7,8 @@
 //   - `pill`: the active item is a soft filled pill;
 //   - `slosh`: collapsing / expanding sloshes the inner edge in low, wide mounds driven by
 //     the edge's real motion (core `attachSidebarEdge`);
-//   - `submenus`: GoopCollapsible sub-menus inside flood their row and spring open;
+//   - `submenus`: GoopCollapsible sub-menus inside spring open (the open row stays unfilled,
+//     as in shadcn: only the active item is a pill);
 //   - `tooltips`: icon-mode tooltips (GoopSidebarMenuButton `tooltip`) are GoopTooltips;
 //   - `bloom`: the mobile sheet blooms from its screen edge (GoopSheetContent).
 // The goo is aria-hidden behind the real content. Reduced motion: no slosh, the highlight snaps.
@@ -57,7 +58,8 @@ const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
 const config = useGoopConfig()
 const goo = computed(() => toSidebarOptions(props, config))
 provideSidebarGoo(goo)
-provideGoopCollapsibleDefaults(computed(() => ({ goo: goo.value.submenus })))
+// Sub-menus spring open but never fill their row: only the active item is a pill.
+provideGoopCollapsibleDefaults(computed(() => ({ goo: goo.value.submenus, rowFill: false })))
 
 const desktopPanel = shallowRef<HTMLElement | null>(null)
 const mobilePanel = shallowRef<HTMLElement | null>(null)

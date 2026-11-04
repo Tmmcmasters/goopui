@@ -64,7 +64,7 @@ export default defineComponentDoc({
         { prop: 'followPointer', type: 'boolean', def: 'true', note: 'The highlight\'s swell follows the cursor along the item. false keeps it centred.' },
         { prop: 'pill', type: 'boolean', def: 'true', note: 'The active item is a soft filled pill with a faint rim.' },
         { prop: 'slosh', type: 'boolean | number', def: 'true', note: 'Collapsing and expanding slosh the inner edge in low, wide mounds, driven by how fast the edge moves. A number from 0 to 2 sets the strength.' },
-        { prop: 'submenus', type: 'boolean', def: 'true', note: 'GoopCollapsible sub-menus inside flood their row and spring open.' },
+        { prop: 'submenus', type: 'boolean', def: 'true', note: 'GoopCollapsible sub-menus inside spring open. The open row stays unfilled, so only the active item is a pill.' },
         { prop: 'tooltips', type: 'boolean', def: 'true', note: 'Icon-mode tooltips (GoopSidebarMenuButton tooltip) bloom as goo.' },
         { prop: 'bloom', type: 'boolean', def: 'true', note: 'On mobile the sheet blooms from its screen edge like GoopSheet.' },
         { prop: 'speed', type: 'number', def: '1', note: 'Animation speed multiplier.' },
