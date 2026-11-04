@@ -18,7 +18,7 @@ const links = [
   { to: '/docs/core/api', label: 'Core', match: '/docs/core' },
 ]
 const isActive = (match: string) => route.path.startsWith(match)
-// The landing keeps the header quiet: see-through over the lava lamp, just Docs + GitHub + theme.
+// The landing keeps the header quiet: see-through over the lava lamp, just Docs + GitHub + sound + theme.
 const landing = computed(() => route.path === '/')
 </script>
 
@@ -76,6 +76,7 @@ const landing = computed(() => route.path === '/')
         >
           <SiteIcon name="github" :size="17" />
         </a>
+        <SoundToggle />
         <ThemeToggle />
       </nav>
     </div>
