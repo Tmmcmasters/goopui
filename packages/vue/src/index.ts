@@ -201,3 +201,10 @@ export {
 } from './goop-props'
 export * from './components/sidebar'
 export { SIDEBAR_PROP_KEYS, toSidebarOptions, type GoopSidebarProps, type ResolvedSidebarGoo } from './goop-props'
+export * from './components/navigation-menu'
+export {
+  NAVIGATION_MENU_PROP_KEYS,
+  toNavigationMenuOptions,
+  type GoopNavigationMenuProps,
+  type ResolvedNavigationMenuGoo,
+} from './goop-props'

@@ -176,6 +176,18 @@ defineProps<{ slug: string; title: string }>()
       </span>
       <span class="absolute left-[38%] top-[17%] size-1.5 rounded-full bg-[var(--foreground)] opacity-60" />
     </div>
+    <div v-else-if="slug === 'navigation-menu'" class="flex w-36 flex-col items-center gap-1">
+      <span class="flex items-center gap-1 text-[10px] font-medium">
+        <span class="rounded-md bg-[color-mix(in_oklch,var(--goo)_80%,transparent)] px-1.5 py-0.5 text-[var(--goo-foreground)]">Start</span>
+        <span class="px-1.5 py-0.5">Parts</span>
+        <span class="px-1.5 py-0.5">Docs</span>
+      </span>
+      <span class="sk-card flex w-28 flex-col gap-1.5 p-2">
+        <span class="sk-line w-3/4 goo" />
+        <span class="sk-line w-full" />
+        <span class="sk-line w-2/3" />
+      </span>
+    </div>
     <div v-else-if="slug === 'sidebar'" class="sk-screen flex overflow-hidden">
       <span class="flex w-2/5 flex-col gap-1.5 sk-panel p-2">
         <span class="sk-line w-3/4 goo" />

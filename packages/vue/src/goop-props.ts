@@ -2050,3 +2050,157 @@ export function toSidebarOptions(props: GoopSidebarProps, config: GoopOptions = 
 }
 
 import { SIDEBAR_EFFECTS, type SidebarEdgeOptions, type SidebarEffect, type SidebarHighlightOptions } from '@goopui/core'
+
+// ---- GoopNavigationMenu ---------------------------------------------------------------------
+// Two engines, set on the root and shared by its parts: the top-level items' hover / focus /
+// open highlight is one goo blob (core `attachNavigationMenuHighlight`, the tabs indicator's
+// feel on the menu highlight engine; the links inside a panel get the same blob with the
+// menu's feel), and the viewport is an emerge bloom out of the active trigger whose box
+// jelly-springs between triggers (core `attachNavigationMenuViewport`). Toggles come from core's
+// NAVIGATION_MENU_EFFECTS plus the bloom's emerge knobs; all default on.
+
+/** Every GoopNavigationMenu engine prop. */
+export const NAVIGATION_MENU_PROP_KEYS = [
+  'goo',
+  ...NAVIGATION_MENU_EFFECTS,
+  'fade',
+  'openSlosh',
+  'openDrips',
+  'closeSlosh',
+  ...EMERGE_DRIP_KEYS,
+  'surface',
+  'speed',
+  'preset',
+  'renderer',
+] as const
+
+/** Engine props of GoopNavigationMenu. Every toggle defaults on. */
+export interface GoopNavigationMenuProps {
+  /** Master switch. `false` renders a plain shadcn NavigationMenu. */
+  goo?: boolean
+  /** The top-level items' hover / open background is one goo blob that flows between them. */
+  highlight?: boolean
+  /** The links inside a panel get the same goo blob (false: shadcn's flat hover bg). */
+  contentHighlight?: boolean
+  /** The panel is a goo body that blooms out of its trigger and shrinks back into it (false:
+   *  shadcn's zoom; `jelly` then has nothing to move). */
+  bloom?: boolean
+  /** Moving to another trigger, the panel slides and resizes on a spring as one body (false:
+   *  it jumps to the new size, like shadcn). */
+  jelly?: boolean
+  /** Overshoot: the blob lands with a jelly bounce, the bloom overshoots, the panel wobbles as
+   *  it settles. */
+  wobble?: boolean
+  /** Momentum: the highlight stretches and necks to a trailing tail while it travels. */
+  momentum?: boolean
+  /** The panel's content fades in once the goo settles. */
+  fade?: boolean
+  /** Open: every edge of the panel bulges past rest, rebounds and wobbles. `true`, `false` or 0..2. */
+  openSlosh?: boolean | number
+  /** Open: a light splash of drops (kept off the menu bar). `true`, `false` or 0..2. */
+  openDrips?: boolean | number
+  /** Burst drop count scale (0..3, default 1). */
+  openDripAmount?: number
+  /** Burst drop size scale (0.3..2.5, default 1). */
+  openDripSize?: number
+  /** How far burst drops are flung (0..3, default 1). */
+  openDripFling?: number
+  /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
+  openDripVariety?: number
+  /** 0..1: how differently each side bulges (re-rolled every open). Default 1. */
+  sloshVariety?: number
+  /** Close: the panel pulls in and wobbles before it shrinks back. `true`, `false` or 0..2. */
+  closeSlosh?: boolean | number
+  /** Panel color: 'popover' (default: shadcn's popover tokens), 'trigger' or a CSS color. */
+  surface?: EmergeSurfaceColor
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+/** Compile-time guards: every option core grows must be a navigation menu prop (or adapter-owned). */
+type NavigationMenuAdapterOwned =
+  | 'anchor'
+  | 'side'
+  | 'ready'
+  | 'surface'
+  | 'surfaceColor'
+  | 'feel'
+  | 'jellyFeel'
+  | 'target'
+  | 'reducedMotion'
+  | 'detached'
+  | 'bloomOrigin'
+  | 'flow'
+  | 'flowStyle'
+  | 'bloomStart'
+  | 'bridge'
+type NavigationMenuUnhandled = Exclude<
+  keyof NavigationMenuViewportOptions | keyof NavigationMenuHighlightOptions | NavigationMenuEffect,
+  keyof GoopNavigationMenuProps | NavigationMenuAdapterOwned
+>
+const _allNavigationMenuOptionsHandled: [NavigationMenuUnhandled] extends [never] ? true : { unhandled: NavigationMenuUnhandled } = true
+void _allNavigationMenuOptionsHandled
+type NavigationMenuPropsListed = Exclude<keyof GoopNavigationMenuProps, (typeof NAVIGATION_MENU_PROP_KEYS)[number]>
+const _allNavigationMenuPropsListed: [NavigationMenuPropsListed] extends [never] ? true : { unlisted: NavigationMenuPropsListed } = true
+void _allNavigationMenuPropsListed
+
+/** Resolved navigation menu goo: what each part should do (null: that part is plain shadcn). */
+export interface ResolvedNavigationMenuGoo {
+  /** Top-level highlight options, or null. */
+  highlight: NavigationMenuHighlightOptions | null
+  /** Panel link highlight options, or null. */
+  contentHighlight: NavigationMenuHighlightOptions | null
+  /** Viewport (and `viewport: false` panel) options, or null. */
+  viewport: NavigationMenuViewportOptions | null
+}
+
+/** Navigation menu goo from props, over app config (`preset`, `renderer`, `reducedMotion`). */
+export function toNavigationMenuOptions(props: GoopNavigationMenuProps, config: GoopOptions = {}): ResolvedNavigationMenuGoo {
+  const on = props.goo !== false
+  const common = {
+    wobble: props.wobble !== false,
+    momentum: props.momentum !== false,
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+  return {
+    highlight: on && props.highlight !== false ? { ...common, feel: NAVIGATION_MENU_FEEL } : null,
+    contentHighlight: on && props.contentHighlight !== false ? { ...common, feel: NAVIGATION_MENU_CONTENT_FEEL } : null,
+    viewport:
+      on && props.bloom !== false
+        ? {
+            ...common,
+            flow: true,
+            flowStyle: 'bloom',
+            bloomStart: 'single',
+            bridge: true,
+            jelly: props.jelly !== false,
+            fade: props.fade !== false,
+            openSlosh: props.openSlosh ?? true,
+            openDrips: props.openDrips ?? true,
+            closeSlosh: props.closeSlosh ?? true,
+            openDripAmount: props.openDripAmount,
+            openDripSize: props.openDripSize,
+            openDripFling: props.openDripFling,
+            openDripVariety: props.openDripVariety,
+            sloshVariety: props.sloshVariety,
+            surfaceColor: props.surface ?? 'popover',
+          }
+        : null,
+  }
+}
+
+import {
+  NAVIGATION_MENU_CONTENT_FEEL,
+  NAVIGATION_MENU_EFFECTS,
+  NAVIGATION_MENU_FEEL,
+  type NavigationMenuEffect,
+  type NavigationMenuHighlightOptions,
+  type NavigationMenuViewportOptions,
+} from '@goopui/core'
