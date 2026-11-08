@@ -10,7 +10,7 @@ Gooey, dripping [shadcn/ui](https://ui.shadcn.com) components for React, built o
 npm install @goopui/react
 ```
 
-Requires React 18 or 19 and Tailwind CSS v4. The components use shadcn theme tokens (`--primary`, `--background`, `--popover`, `--border`, ...), so set up a shadcn/ui theme or define those CSS variables yourself.
+Requires React 18 or 19 and Tailwind CSS v4. Interaction sounds ([Cuelume](https://www.npmjs.com/package/cuelume)) come installed: Next.js' Turbopack can't build an optional dynamic import that isn't there, and Cuelume only loads when a component has `sound` on. The components use shadcn theme tokens (`--primary`, `--background`, `--popover`, `--border`, ...), so set up a shadcn/ui theme or define those CSS variables yourself.
 
 Import the styles once from your Tailwind entry CSS, after Tailwind. That one line also adds the `@source` that lets Tailwind see the components' classes:
 

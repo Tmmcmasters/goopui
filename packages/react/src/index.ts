@@ -53,3 +53,5 @@ export {
 export { goopComponents, type GoopComponentName } from './manifest'
 export { seedFrom, useAttached, useGoop, type UseGoopReturn } from './use-goop'
 export { cn } from 'cn'
+// Engine types used in props and refs.
+export type { BackdropHandle, CheckboxHandle, CheckboxState, EmergeHandle, GoopHandle, GoopOptions, GoopPreset, MenuHighlightHandle, SwitchHandle } from '@goopui/core'
