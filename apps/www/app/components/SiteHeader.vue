@@ -73,7 +73,10 @@ const landing = computed(() => route.path === '/')
         >
           Docs
         </NuxtLink>
-        <FrameworkSwitch class="mx-1" />
+        <!-- The landing's quiet mobile header has no room for it (Docs, GitHub, sound, theme). -->
+        <div class="mx-1 flex max-sm:mx-0" :class="landing ? 'max-sm:hidden' : ''">
+          <FrameworkSwitch />
+        </div>
         <a
           :href="GITHUB_URL"
           class="inline-flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground"

@@ -56,7 +56,7 @@ const toc = computed(() => {
   return keep(((page.value?.body as { toc?: { links?: TocLink[] } } | undefined)?.toc?.links ?? []) as TocLink[])
 })
 
-const fwPage = (item: { path: string } | null | undefined) => (item ? { ...item, path: to(item.path) } : item)
+const fwPage = <T extends { path: string }>(item: T | null | undefined): T | null | undefined => (item ? { ...item, path: to(item.path) } : item)
 
 useSeoMeta({
   title: () => (page.value?.title && isReact.value ? `${page.value.title} (React)` : page.value?.title),

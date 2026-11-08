@@ -87,7 +87,7 @@ function pick(target: Framework) {
 }
 @media (max-width: 639.98px) {
   .fw-option {
-    padding: 0 0.4375rem;
+    padding: 0 0.3125rem;
   }
   .fw-label {
     position: absolute;
