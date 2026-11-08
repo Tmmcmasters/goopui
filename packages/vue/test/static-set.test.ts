@@ -71,7 +71,7 @@ describe('GoopSkeleton', () => {
     const el = w.element as HTMLElement
     expect(el.dataset.slot).toBe('skeleton')
     expect(el.hasAttribute('data-goop-shimmer')).toBe(true)
-    expect(el.className).toContain('bg-accent')
+    expect(el.className).toContain('bg-muted')
     expect(el.className).toContain('h-4 w-40')
     expect(el.className).not.toContain('animate-pulse')
     expect(el.style.getPropertyValue('--goop-shimmer-period')).toBe('2.4s')
@@ -92,15 +92,17 @@ describe('GoopSkeleton', () => {
 
 describe('GoopBadge', () => {
   it('renders every shadcn variant with class passthrough', () => {
-    for (const variant of ['default', 'secondary', 'destructive', 'outline'] as const) {
+    for (const variant of ['default', 'secondary', 'destructive', 'outline', 'ghost', 'link'] as const) {
       const el = mount(GoopBadge, { props: { variant, class: 'extra' }, slots: { default: () => variant } }).element as HTMLElement
       expect(el.tagName).toBe('SPAN')
       expect(el.dataset.slot).toBe('badge')
+      expect(el.dataset.variant).toBe(variant)
+      expect(el.className).toContain('rounded-4xl')
       expect(el.className).toContain('extra')
       expect(el.textContent).toBe(variant)
     }
     const d = mount(GoopBadge, { props: { variant: 'destructive' } }).element as HTMLElement
-    expect(d.className).toContain('bg-destructive')
+    expect(d.className).toContain('bg-destructive/10')
     expect(d.className).toContain('--goop-badge-fill')
   })
 
@@ -138,8 +140,19 @@ describe('GoopCard', () => {
     for (const s of ['card-header', 'card-title', 'card-description', 'card-action', 'card-content', 'card-footer'])
       expect(el.querySelector(`[data-slot="${s}"]`)).toBeTruthy()
     expect(el.querySelector('[data-slot="card-title"]')!.tagName).toBe('H3')
-    expect(el.querySelector('[data-slot="card-content"]')!.className).toContain('px-6 c')
+    expect(el.querySelector('[data-slot="card-content"]')!.className).toContain('px-(--card-spacing) c')
+    // shadcn nova: a ring, not a border; the goo host stops clipping so the mound can show.
+    expect(el.className).toContain('ring-1 ring-foreground/10')
+    expect(el.className).toContain('overflow-visible')
+    expect(el.className).not.toContain('overflow-hidden')
+    expect(el.dataset.size).toBe('default')
     w.unmount()
+  })
+
+  it('takes shadcn\'s size prop and clips like shadcn with the goo off', () => {
+    const el = mount(GoopCard, { props: { size: 'sm' } }).element as HTMLElement
+    expect(el.dataset.size).toBe('sm')
+    expect(el.className).toContain('overflow-hidden')
   })
 
   it('is static by default: no goo layer', () => {
@@ -194,8 +207,12 @@ describe('GoopAvatar', () => {
   it('settle off is shadcn\'s avatar', () => {
     const el = mount(GoopAvatar, { props: { settle: false } }).element as HTMLElement
     expect(el.hasAttribute('data-goop-settle')).toBe(false)
-    expect(el.className).toContain('overflow-hidden')
+    // shadcn nova's avatar doesn't clip: the image and fallback round themselves.
+    expect(el.className).not.toContain('overflow-hidden')
+    expect(el.className).toContain('after:border-border')
+    expect(el.dataset.size).toBe('default')
     expect(el.getAttribute('style') ?? '').not.toContain('--goop')
+    expect((mount(GoopAvatar, { props: { size: 'lg' } }).element as HTMLElement).dataset.size).toBe('lg')
   })
 })
 

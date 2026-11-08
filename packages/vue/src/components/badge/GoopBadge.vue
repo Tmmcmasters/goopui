@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// GoopBadge: shadcn-vue's Badge (same cva variants, `class` merge, `as` / `asChild` via
+// GoopBadge: shadcn's Badge (same cva variants, `class` merge, `as` / `asChild` via
 // reka's Primitive). An interactive badge (a link or button) swells ~1px on hover with a
 // soft gooey overshoot; a plain badge stays static. CSS only. `:swell="false"` turns it off.
 import { badgeStyle, badgeSwellOn } from '@goopui/core'
@@ -37,6 +37,7 @@ const classes = computed(() =>
 <template>
   <Primitive
     data-slot="badge"
+    :data-variant="variant ?? 'default'"
     :as="as"
     :as-child="asChild"
     :data-goop-swell="on ? '' : undefined"
