@@ -1,8 +1,9 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
-// The real shadcn-vue Button from the playground, so drift is caught here.
+// The real shadcn-vue Button from the playground (markup / data attrs), and @goopui/react's
+// Button classes (shadcn/ui radix-nova, verbatim): Vue and React must look identical.
 import ShadcnButton from '../../../apps/playground/app/components/ui/button/Button.vue'
-import { buttonVariants as shadcnVariants } from '../../../apps/playground/app/components/ui/button/index'
+import { buttonVariants as shadcnVariants, goopButtonGooVariants as reactGooVariants } from '../../react/src/components/button/variants'
 import { GoopButton, buttonVariants, cn, goopButtonGooVariants, type ButtonSize, type ButtonVariant } from '../src'
 
 const variants: ButtonVariant[] = ['default', 'outline', 'secondary', 'ghost', 'destructive', 'link']
@@ -21,7 +22,7 @@ describe('GoopButton variants', () => {
       const props = { variant, size: 'sm' as const, class: 'w-full px-8' }
       const a = mount(ShadcnButton, { props, slots: { default: 'Go' } })
       const b = mount(GoopButton, { props: { ...props, goo: false }, slots: { default: 'Go' } })
-      expect(b.classes()).toEqual(a.classes())
+      expect(b.classes()).toEqual(cn(shadcnVariants({ variant, size: 'sm' }), props.class).split(' '))
       for (const attr of ['data-slot', 'data-variant', 'data-size']) {
         expect(b.attributes(attr)).toBe(a.attributes(attr))
       }
@@ -45,6 +46,7 @@ describe('GoopButton variants', () => {
       const extra = w.classes().filter((c) => !shadcn.includes(c))
       expect(extra.every((c) => c.includes('[--goop-'))).toBe(true)
       expect(extra.join(' ')).toBe(goopButtonGooVariants({ variant }))
+      expect(goopButtonGooVariants({ variant })).toBe(reactGooVariants({ variant }))
     }
   })
 
