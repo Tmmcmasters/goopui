@@ -266,6 +266,26 @@ describe('GoopCombobox', () => {
     w.unmount()
   })
 
+  it('the trigger defaults to a size-4 chevron in a tappable box; slot content replaces it', async () => {
+    const Bare = defineComponent(() => () =>
+      h(GoopCombobox, null, () => [h(GoopComboboxAnchor, null, () => [h(GoopComboboxInput), h(GoopComboboxTrigger, { class: 'absolute right-0' })])]),
+    )
+    const w = mount(Bare, { attachTo: document.body })
+    await flushPromises()
+    const t = document.querySelector<HTMLElement>('[data-slot="combobox-trigger"]')!
+    expect(t.querySelector('svg')).not.toBeNull()
+    expect(t.className).toContain('min-w-8')
+    expect(t.className).toContain('min-h-6')
+    expect(t.className).toContain('absolute right-0')
+    w.unmount()
+    const c = mount(ComboDemo, { attachTo: document.body })
+    await flushPromises()
+    const custom = document.querySelector<HTMLElement>('[data-slot="combobox-trigger"]')!
+    expect(custom.querySelector('svg')).toBeNull()
+    expect(custom.textContent).toBe('v')
+    c.unmount()
+  })
+
   it('choosing pops the blob, sets the value, then closes', async () => {
     const w = mount(ComboDemo, { attachTo: document.body })
     await flushPromises()

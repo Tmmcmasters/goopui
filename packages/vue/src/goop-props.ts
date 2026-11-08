@@ -1966,8 +1966,8 @@ import {
 // Core's SIDEBAR_EFFECTS, each a GoopSidebar prop: `highlight` (the menu's goo blob glides
 // between items under the cursor: core `attachSidebarHighlight`), `pill` (the active item's
 // soft filled pill), `slosh` (the inner edge sloshes as the sidebar collapses / expands: core
-// `attachSidebarEdge`; `true`, `false` or 0..2), `submenus` (GoopCollapsible sub-menus flood
-// and spring open), `tooltips` (icon-mode tooltips are GoopTooltips), `bloom` (the mobile
+// `attachSidebarEdge`; `true`, `false` or 0..2), `submenus` (GoopCollapsible sub-menus spring
+// open; their row stays unfilled), `tooltips` (icon-mode tooltips are GoopTooltips), `bloom` (the mobile
 // sheet blooms like GoopSheet). `goo: false` is a plain shadcn Sidebar.
 
 /** Every GoopSidebar engine prop. */
@@ -1983,7 +1983,7 @@ export interface GoopSidebarProps {
   pill?: boolean
   /** The inner edge sloshes in low, wide mounds as the sidebar collapses or expands. `true`, `false` or 0..2. */
   slosh?: boolean | number
-  /** GoopCollapsible sub-menus inside flood their row and spring open (false: plain collapsibles). */
+  /** GoopCollapsible sub-menus inside spring open, their row unfilled (false: plain collapsibles). */
   submenus?: boolean
   /** Icon-mode tooltips bloom as goo (false: shadcn tooltips). */
   tooltips?: boolean
