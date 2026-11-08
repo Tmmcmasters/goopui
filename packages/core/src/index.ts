@@ -306,6 +306,26 @@ export {
   type TabsEffect,
   type TabsIndicatorOptions,
 } from './tabs'
+export {
+  MENUBAR_EFFECTS,
+  MENUBAR_FEEL,
+  MENUBAR_LIT_ATTR,
+  MENUBAR_TRIGGERS,
+  attachMenubarHighlight,
+  findMenubarHighlight,
+  type MenubarEffect,
+  type MenubarHighlightOptions,
+} from './menubar'
+export {
+  PAGINATION_EFFECTS,
+  PAGINATION_FEEL,
+  PAGINATION_ITEM,
+  attachPaginationIndicator,
+  findActivePage,
+  isPaginationActive,
+  type PaginationEffect,
+  type PaginationIndicatorOptions,
+} from './pagination'
 export { TOOLTIP_BLOOM_SPLASH, TOOLTIP_FEEL, TOOLTIP_MOMENTUM } from './tooltip'
 export {
   ALERT_DIALOG_MOMENTUM,
@@ -807,6 +827,30 @@ export {
   type SkeletonFeel,
   type SkeletonOptions,
 } from './skeleton'
+export {
+  REVEAL_BOX_SELECTOR,
+  REVEAL_REACH,
+  SKELETON_REVEAL_EFFECTS,
+  SKELETON_REVEAL_FEEL,
+  SKELETON_REVEAL_GOO,
+  attachSkeletonReveal,
+  matchRevealTargets,
+  rectOverlap,
+  resolveSkeletonReveal,
+  revealOrder,
+  revealTargets,
+  revealTimings,
+  skeletonBlocks,
+  skeletonGooBlur,
+  type ResolvedSkeletonReveal,
+  type RevealRect,
+  type RevealTarget,
+  type RevealTiming,
+  type SkeletonRevealEffect,
+  type SkeletonRevealFeel,
+  type SkeletonRevealHandle,
+  type SkeletonRevealOptions,
+} from './skeleton-reveal'
 export { BADGE_EFFECTS, BADGE_FEEL, badgeStyle, badgeSwellOn, type BadgeEffect, type BadgeFeel, type BadgeOptions } from './badge'
 export { AVATAR_EFFECTS, AVATAR_FEEL, avatarSettleOn, avatarStyle, type AvatarEffect, type AvatarFeel, type AvatarOptions } from './avatar'
 export {
@@ -830,6 +874,7 @@ export {
   SIDEBAR_EDGE_PART,
   SIDEBAR_EFFECTS,
   SIDEBAR_MENU_BUTTONS,
+  SIDEBAR_PLAIN_CURVE,
   attachSidebarEdge,
   attachSidebarHighlight,
   createSidebarEdge,
@@ -843,6 +888,7 @@ export {
   sidebarEdgeCount,
   sidebarEdgeGooParams,
   sidebarEdgeSettled,
+  sidebarMotionCurve,
   sidebarRandom,
   sidebarSloshShape,
   stepSidebarEdge,
@@ -853,6 +899,8 @@ export {
   type SidebarEdgeOptions,
   type SidebarEffect,
   type SidebarHighlightOptions,
+  type SidebarMotionCurve,
+  type SidebarMotionInput,
   type SidebarSide,
 } from './sidebar'
 export {
@@ -873,3 +921,25 @@ export {
   type GoopCueSpec,
   type GoopSoundPart,
 } from './sound'
+export {
+  NAVIGATION_MENU_CONTENT_FEEL,
+  NAVIGATION_MENU_EFFECTS,
+  NAVIGATION_MENU_FEEL,
+  NAVIGATION_MENU_ITEM_ATTR,
+  NAVIGATION_MENU_JELLY,
+  NAVIGATION_MENU_SCOPE_ATTR,
+  NAVIGATION_MENU_VIEWPORT_VARS,
+  attachNavigationMenuHighlight,
+  attachNavigationMenuViewport,
+  findNavigationMenuHighlight,
+  navigationMenuJellyBox,
+  navigationMenuJellyInit,
+  navigationMenuJellySettled,
+  navigationMenuJellyStep,
+  type NavigationMenuBox,
+  type NavigationMenuEffect,
+  type NavigationMenuHighlightOptions,
+  type NavigationMenuJellyState,
+  type NavigationMenuViewportHandle,
+  type NavigationMenuViewportOptions,
+} from './navigation-menu'

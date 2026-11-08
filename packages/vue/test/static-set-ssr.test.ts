@@ -27,4 +27,22 @@ describe('static set SSR', () => {
     expect(html).toContain('TM')
     expect(html).not.toContain('data-goop="card"')
   })
+
+  it('GoopSkeletonReveal renders the slot for its state, with no goo layer', async () => {
+    const { GoopSkeleton, GoopSkeletonReveal } = await import('../src')
+    const render = (loading: boolean) =>
+      renderToString(
+        createSSRApp({
+          render: () => h(GoopSkeletonReveal, { loading }, { skeleton: () => h(GoopSkeleton, { class: 'h-4' }), default: () => h('p', 'Loaded') }),
+        }),
+      )
+    const busy = await render(true)
+    expect(busy).toContain('aria-busy="true"')
+    expect(busy).toContain('data-slot="skeleton"')
+    expect(busy).not.toContain('Loaded')
+    expect(busy).not.toContain('data-goop-skeleton-goo')
+    const done = await render(false)
+    expect(done).toContain('Loaded')
+    expect(done).not.toContain('data-slot="skeleton"')
+  })
 })

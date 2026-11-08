@@ -37,13 +37,12 @@ defineProps<{ slug: string; title: string }>()
         <GoopInputOTPSlot v-for="i in 4" :key="i" :index="i - 1" />
       </GoopInputOTPGroup>
     </GoopInputOTP>
-    <div v-else-if="slug === 'skeleton'" class="flex w-32 items-center gap-2.5">
-      <GoopSkeleton class="size-8 shrink-0 rounded-full" />
-      <div class="grid flex-1 gap-1.5">
-        <GoopSkeleton class="h-2.5 w-full" />
-        <GoopSkeleton class="h-2.5 w-3/4" />
-      </div>
-    </div>
+    <GoopPagination v-else-if="slug === 'pagination'" :items-per-page="10" :total="30" :default-page="2" class="w-auto">
+      <GoopPaginationContent>
+        <GoopPaginationItem v-for="n in 3" :key="n" :value="n" :is-active="n === 2" class="size-7 text-xs">{{ n }}</GoopPaginationItem>
+      </GoopPaginationContent>
+    </GoopPagination>
+    <DocsSkeletonRevealTile v-else-if="slug === 'skeleton'" class="sk-card" />
     <div v-else-if="slug === 'badge'" class="flex items-center gap-1.5">
       <GoopBadge>New</GoopBadge>
       <GoopBadge variant="secondary">Beta</GoopBadge>
@@ -176,6 +175,18 @@ defineProps<{ slug: string; title: string }>()
       </span>
       <span class="absolute left-[38%] top-[17%] size-1.5 rounded-full bg-[var(--foreground)] opacity-60" />
     </div>
+    <div v-else-if="slug === 'navigation-menu'" class="flex w-36 flex-col items-center gap-1">
+      <span class="flex items-center gap-1 text-[10px] font-medium">
+        <span class="rounded-md bg-[color-mix(in_oklch,var(--goo)_80%,transparent)] px-1.5 py-0.5 text-[var(--goo-foreground)]">Start</span>
+        <span class="px-1.5 py-0.5">Parts</span>
+        <span class="px-1.5 py-0.5">Docs</span>
+      </span>
+      <span class="sk-card flex w-28 flex-col gap-1.5 p-2">
+        <span class="sk-line w-3/4 goo" />
+        <span class="sk-line w-full" />
+        <span class="sk-line w-2/3" />
+      </span>
+    </div>
     <div v-else-if="slug === 'sidebar'" class="sk-screen flex overflow-hidden">
       <span class="flex w-2/5 flex-col gap-1.5 sk-panel p-2">
         <span class="sk-line w-3/4 goo" />
@@ -188,6 +199,12 @@ defineProps<{ slug: string; title: string }>()
         <span class="sk-line w-full opacity-60" />
       </span>
     </div>
+    <!-- Menubar: the real bar, "File" open so the goo body sits on it (no menu content). -->
+    <GoopMenubar v-else-if="slug === 'menubar'" default-value="File" class="h-7 gap-0 [&_[data-slot=menubar-trigger]]:text-xs">
+      <GoopMenubarMenu v-for="m in ['File', 'Edit', 'View']" :key="m" :value="m">
+        <GoopMenubarTrigger>{{ m }}</GoopMenubarTrigger>
+      </GoopMenubarMenu>
+    </GoopMenubar>
     <span v-else class="monogram">{{ title.charAt(0) }}</span>
   </div>
 </template>

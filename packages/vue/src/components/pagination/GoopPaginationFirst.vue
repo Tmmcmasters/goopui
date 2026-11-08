@@ -1,0 +1,39 @@
+<script setup lang="ts">
+// GoopPaginationFirst: shadcn-vue's PaginationFirst (reka-ui PaginationFirst, `size`, `class` merge,
+// `asChild`) rendered as a ghost GoopButton, so it press-squishes and gets the ghost hover
+// goo. Engine props (goo, press, speed, preset, renderer) inherit GoopPagination's.
+// `asChild` renders your own child with shadcn's classes and no GoopButton.
+import type { PaginationFirstProps } from 'reka-ui'
+import { PaginationFirst } from 'reka-ui'
+import { cn } from 'cn'
+import type { HTMLAttributes } from 'vue'
+import type { GoopPaginationButtonProps } from '../../goop-props'
+import GoopButton from '../button/GoopButton.vue'
+import { buttonVariants, type ButtonSize } from '../button/variants'
+import { CHEVRON_PATHS, usePaginationButton } from './button'
+
+const props = withDefaults(
+  defineProps<PaginationFirstProps & GoopPaginationButtonProps & { size?: ButtonSize; class?: HTMLAttributes['class'] }>(),
+  { size: 'default', goo: undefined, press: undefined, speed: undefined, preset: undefined, renderer: undefined, asChild: undefined },
+)
+const button = usePaginationButton(props)
+</script>
+
+<template>
+  <PaginationFirst
+    v-if="asChild"
+    data-slot="pagination-first"
+    as-child
+    :class="cn(buttonVariants({ variant: 'ghost', size }), '', props.class)"
+  >
+    <slot />
+  </PaginationFirst>
+  <PaginationFirst v-else data-slot="pagination-first" as-child>
+    <GoopButton variant="ghost" :size="size" :as="as" :class="cn('', props.class)" v-bind="button">
+      <slot>
+        <svg data-icon="inline-start" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path v-for="d in CHEVRON_PATHS.first" :key="d" :d="d" /></svg>
+        <span class="hidden sm:block">First</span>
+      </slot>
+    </GoopButton>
+  </PaginationFirst>
+</template>

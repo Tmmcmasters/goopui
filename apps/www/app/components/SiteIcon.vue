@@ -32,6 +32,7 @@ const PATHS = {
   code: '<path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/>',
   rotate: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
   search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  hash: '<path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/>',
   chevronDown: '<path d="m6 9 6 6 6-6"/>',
   plus: '<path d="M5 12h14M12 5v14"/>',
   minus: '<path d="M5 12h14"/>',

@@ -488,7 +488,7 @@ describe('emerge bloom flow style', () => {
       }
     }
     expect(onTrigger).toEqual([])
-  }, 30_000) // sweeps every side × align
+  }, 120_000) // sweeps every side × align (~35s on a CI runner)
 
   it('closeSlosh drives the bloom close wobble; off, the close contracts smoothly', () => {
     const b = emergeBridge(trigger, panelFor('bottom'), 'bottom')

@@ -28,6 +28,14 @@ import {
   SWITCH_EFFECTS,
   TABS_EFFECTS,
   TABS_FEEL,
+  MENUBAR_EFFECTS,
+  MENUBAR_FEEL,
+  type MenubarEffect,
+  type MenubarHighlightOptions,
+  PAGINATION_EFFECTS,
+  PAGINATION_FEEL,
+  type PaginationEffect,
+  type PaginationIndicatorOptions,
   TOOLTIP_BLOOM_SPLASH,
   TOOLTIP_FEEL,
   TOOLTIP_MOMENTUM,
@@ -864,6 +872,85 @@ export function toTabsOptions(props: GoopTabsProps, config: GoopOptions = {}): T
     renderer: props.renderer ?? config.renderer,
     reducedMotion: config.reducedMotion,
   }
+}
+
+// ---- GoopPagination -------------------------------------------------------------------------
+// The current page is ONE goo blob (core `attachPaginationIndicator`: the Tabs indicator fed
+// PAGINATION_FEEL) on GoopPaginationContent. First / Previous / Next / Last are ghost
+// GoopButtons, so they press-squish. Every prop can sit on GoopPagination (all parts inherit
+// it) or on a part (wins there). Toggles come from core's PAGINATION_EFFECTS; all default true.
+
+/** Every GoopPagination engine prop. */
+export const PAGINATION_PROP_KEYS = ['goo', ...PAGINATION_EFFECTS, 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopPagination (inherited by its parts) and GoopPaginationContent. */
+export interface GoopPaginationProps {
+  /** Master switch. `false` renders plain shadcn Pagination parts. */
+  goo?: boolean
+  /** The current page's background is a goo blob that slides between pages (false: shadcn's outline button). */
+  indicator?: boolean
+  /** Jelly overshoot when the blob lands. */
+  wobble?: boolean
+  /** Momentum: the blob stretches and necks to a trailing tail while it travels. */
+  momentum?: boolean
+  /** First / Previous / Next / Last squish when pressed (GoopButton's press squish). */
+  press?: boolean
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+/** Engine props of the button parts (First / Previous / Next / Last). */
+export type GoopPaginationButtonProps = Pick<GoopPaginationProps, 'goo' | 'press' | 'speed' | 'preset' | 'renderer'>
+export const PAGINATION_BUTTON_PROP_KEYS = ['goo', 'press', 'speed', 'preset', 'renderer'] as const
+
+type PaginationAdapterOwned = 'feel' | 'reducedMotion'
+type PaginationUnhandled = Exclude<keyof PaginationIndicatorOptions | PaginationEffect, keyof GoopPaginationProps | PaginationAdapterOwned>
+const _allPaginationOptionsHandled: [PaginationUnhandled] extends [never] ? true : { unhandled: PaginationUnhandled } = true
+void _allPaginationOptionsHandled
+type PaginationPropsListed = Exclude<keyof GoopPaginationProps, (typeof PAGINATION_PROP_KEYS)[number]>
+const _allPaginationPropsListed: [PaginationPropsListed] extends [never] ? true : { unlisted: PaginationPropsListed } = true
+void _allPaginationPropsListed
+type PaginationButtonPropsListed = Exclude<keyof GoopPaginationButtonProps, (typeof PAGINATION_BUTTON_PROP_KEYS)[number]>
+const _allPaginationButtonPropsListed: [PaginationButtonPropsListed] extends [never] ? true : { unlisted: PaginationButtonPropsListed } = true
+void _allPaginationButtonPropsListed
+
+/** A part's props over the root's: each prop the part sets wins, the rest are inherited. */
+export function resolvePaginationProps(own: GoopPaginationProps, parent?: GoopPaginationProps | null): GoopPaginationProps {
+  const out: GoopPaginationProps = {}
+  for (const k of PAGINATION_PROP_KEYS) {
+    const v = own[k] ?? parent?.[k]
+    if (v !== undefined) (out as Record<string, unknown>)[k] = v
+  }
+  return out
+}
+
+/** Blob options for core over app config, or null when the goo blob is off. */
+export function toPaginationOptions(props: GoopPaginationProps, config: GoopOptions = {}): PaginationIndicatorOptions | null {
+  if (props.goo === false || props.indicator === false) return null
+  return {
+    feel: PAGINATION_FEEL,
+    wobble: props.wobble !== false,
+    momentum: props.momentum !== false,
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+}
+
+/** GoopButton props for a button part (ghost GoopButton): `press: false` turns the squish off. */
+export function toPaginationButtonProps(props: GoopPaginationButtonProps): GoopPropsInput & { goo?: boolean } {
+  const out: GoopPropsInput & { goo?: boolean } = {}
+  if (props.goo !== undefined) out.goo = props.goo
+  if (props.press === false) out.squish = false
+  if (props.preset !== undefined) out.preset = props.preset
+  if (props.renderer !== undefined) out.renderer = props.renderer
+  if (props.speed !== undefined) out.timeScale = props.speed
+  return out
 }
 
 // ---- GoopTooltip ----------------------------------------------------------------------------
@@ -1876,6 +1963,7 @@ export const SKELETON_PROP_KEYS = [...SKELETON_EFFECTS, 'speed', 'preset'] as co
 export const BADGE_PROP_KEYS = [...BADGE_EFFECTS, 'speed', 'preset'] as const
 export const AVATAR_PROP_KEYS = [...AVATAR_EFFECTS, 'speed', 'preset'] as const
 export const CARD_PROP_KEYS = ['goo', ...CARD_EFFECTS, 'speed', 'preset'] as const
+export const SKELETON_REVEAL_PROP_KEYS = [...SKELETON_REVEAL_EFFECTS, 'speed', 'preset'] as const
 
 type StaticEffectProps<E extends string> = { [K in E]: PropDef<boolean | number> } & {
   speed: PropDef<number>
@@ -1896,11 +1984,16 @@ export type GoopAvatarPropsDefinition = StaticEffectProps<AvatarEffect>
 export type GoopAvatarPropsInput = InputOf<GoopAvatarPropsDefinition>
 export type GoopCardPropsDefinition = StaticEffectProps<CardEffect>
 export type GoopCardPropsInput = InputOf<GoopCardPropsDefinition> & { goo?: boolean }
+export type GoopSkeletonRevealPropsDefinition = StaticEffectProps<SkeletonRevealEffect>
+export type GoopSkeletonRevealPropsInput = InputOf<GoopSkeletonRevealPropsDefinition>
 
 /** Spread into `defineProps({ ...goopSkeletonProps, ... })` (likewise badge / avatar / card). */
 export const goopSkeletonProps = staticEffectProps(SKELETON_EFFECTS) as unknown as GoopSkeletonPropsDefinition
 export const goopBadgeProps = staticEffectProps(BADGE_EFFECTS) as unknown as GoopBadgePropsDefinition
 export const goopAvatarProps = staticEffectProps(AVATAR_EFFECTS) as unknown as GoopAvatarPropsDefinition
+/** GoopSkeletonReveal: `sheen` (the flowing sheen and its goo bridges), `breathe` (the
+ *  loading wobble), `melt` (the reveal; `false`: a plain cross-fade), speed, preset. */
+export const goopSkeletonRevealProps = staticEffectProps(SKELETON_REVEAL_EFFECTS) as unknown as GoopSkeletonRevealPropsDefinition
 export const goopCardProps = Object.freeze({
   ...(staticEffectProps(CARD_EFFECTS) as unknown as GoopCardPropsDefinition),
   /** Master switch for the edge swell. Off by default: a card is static. */
@@ -1921,6 +2014,9 @@ void _allAvatarOptionsHandled
 type CardUnhandled = Exclude<keyof CardOptions, keyof GoopCardPropsDefinition | StaticAdapterOwned>
 const _allCardOptionsHandled: [CardUnhandled] extends [never] ? true : { unhandled: CardUnhandled } = true
 void _allCardOptionsHandled
+type SkeletonRevealUnhandled = Exclude<keyof SkeletonRevealOptions, keyof GoopSkeletonRevealPropsDefinition | StaticAdapterOwned>
+const _allSkeletonRevealOptionsHandled: [SkeletonRevealUnhandled] extends [never] ? true : { unhandled: SkeletonRevealUnhandled } = true
+void _allSkeletonRevealOptionsHandled
 
 function toStaticOptions<E extends string>(
   effects: readonly E[],
@@ -1943,6 +2039,8 @@ export const toBadgeOptions = (props: GoopBadgePropsInput, config: GoopOptions =
   toStaticOptions(BADGE_EFFECTS, props, config)
 export const toAvatarOptions = (props: GoopAvatarPropsInput, config: GoopOptions = {}): AvatarOptions =>
   toStaticOptions(AVATAR_EFFECTS, props, config)
+export const toSkeletonRevealOptions = (props: GoopSkeletonRevealPropsInput, config: GoopOptions = {}): SkeletonRevealOptions =>
+  toStaticOptions(SKELETON_REVEAL_EFFECTS, props, config)
 /** Card options, or null when the goo is off (the default). */
 export const toCardOptions = (props: GoopCardPropsInput, config: GoopOptions = {}): CardOptions | null =>
   props.goo ? toStaticOptions(CARD_EFFECTS, props, config) : null
@@ -1952,6 +2050,7 @@ import {
   BADGE_EFFECTS,
   CARD_EFFECTS,
   SKELETON_EFFECTS,
+  SKELETON_REVEAL_EFFECTS,
   type AvatarEffect,
   type AvatarOptions,
   type BadgeEffect,
@@ -1960,15 +2059,20 @@ import {
   type CardOptions,
   type SkeletonEffect,
   type SkeletonOptions,
+  type SkeletonRevealEffect,
+  type SkeletonRevealOptions,
 } from '@goopui/core'
 
 // ---- GoopSidebar ----------------------------------------------------------------------------
 // Core's SIDEBAR_EFFECTS, each a GoopSidebar prop: `highlight` (the menu's goo blob glides
 // between items under the cursor: core `attachSidebarHighlight`), `pill` (the active item's
 // soft filled pill), `slosh` (the inner edge sloshes as the sidebar collapses / expands: core
-// `attachSidebarEdge`; `true`, `false` or 0..2), `submenus` (GoopCollapsible sub-menus spring
-// open; their row stays unfilled), `tooltips` (icon-mode tooltips are GoopTooltips), `bloom` (the mobile
-// sheet blooms like GoopSheet). `goo: false` is a plain shadcn Sidebar.
+// `attachSidebarEdge`; `true`, `false` or 0..2), `travel` (the collapse / expand has the
+// Drawer's momentum: core `sidebarMotionCurve`), `submenus` (GoopCollapsible sub-menus spring
+// open; their row stays unfilled), `pour` (a sub-menu's guide line pours down behind a goo
+// bead), `tooltips` (icon-mode tooltips are GoopTooltips), `drawer` (the mobile sidebar is a
+// GoopDrawer), `bloom` (with `drawer` off, the mobile sheet blooms like GoopSheet).
+// `goo: false` is a plain shadcn Sidebar.
 
 /** Every GoopSidebar engine prop. */
 export const SIDEBAR_PROP_KEYS = ['goo', ...SIDEBAR_EFFECTS, 'followPointer', 'speed', 'preset', 'renderer'] as const
@@ -1983,11 +2087,17 @@ export interface GoopSidebarProps {
   pill?: boolean
   /** The inner edge sloshes in low, wide mounds as the sidebar collapses or expands. `true`, `false` or 0..2. */
   slosh?: boolean | number
+  /** Collapse / expand with the Drawer's momentum: a fast launch into a small landing overshoot, and a collapse that accelerates away (false: shadcn's 200ms linear). */
+  travel?: boolean
   /** GoopCollapsible sub-menus inside spring open, their row unfilled (false: plain collapsibles). */
   submenus?: boolean
+  /** An opening sub-menu's guide line pours down behind a goo bead that melts into it (needs `submenus`). */
+  pour?: boolean
   /** Icon-mode tooltips bloom as goo (false: shadcn tooltips). */
   tooltips?: boolean
-  /** The mobile sheet blooms from its screen edge like GoopSheet (false: shadcn's slide). */
+  /** The mobile sidebar is a GoopDrawer: panel and goo one body, a fast launch with a small landing overshoot, a close that accelerates away, swipe to close (false: a GoopSheet). */
+  drawer?: boolean
+  /** With `drawer` off, the mobile sheet blooms from its screen edge like GoopSheet (false: shadcn's slide). */
   bloom?: boolean
   /** The highlight's soft swell follows the cursor along the item (false: centred). */
   followPointer?: boolean
@@ -2018,9 +2128,14 @@ export interface ResolvedSidebarGoo {
   /** Edge slosh options, or null (off). */
   edge: SidebarEdgeOptions | null
   pill: boolean
+  travel: boolean
   submenus: boolean
+  pour: boolean
   tooltips: boolean
+  drawer: boolean
   bloom: boolean
+  /** App-config reduced motion (true / false force it; else the OS / site switch). */
+  reducedMotion?: boolean | 'auto'
   speed?: number
   preset?: GoopPreset
   renderer?: GoopRendererOption
@@ -2040,9 +2155,13 @@ export function toSidebarOptions(props: GoopSidebarProps, config: GoopOptions = 
     highlight: on && props.highlight !== false ? { ...common, followPointer: props.followPointer !== false } : null,
     edge: on && slosh !== false && slosh !== 0 ? { ...common, slosh } : null,
     pill: on && props.pill !== false,
+    travel: on && props.travel !== false,
     submenus: on && props.submenus !== false,
+    pour: on && props.submenus !== false && props.pour !== false,
     tooltips: on && props.tooltips !== false,
+    drawer: on && props.drawer !== false,
     bloom: on && props.bloom !== false,
+    reducedMotion: config.reducedMotion,
     speed: common.speed,
     preset: common.preset,
     renderer: common.renderer,
@@ -2050,3 +2169,253 @@ export function toSidebarOptions(props: GoopSidebarProps, config: GoopOptions = 
 }
 
 import { SIDEBAR_EFFECTS, type SidebarEdgeOptions, type SidebarEffect, type SidebarHighlightOptions } from '@goopui/core'
+
+// ---- GoopMenubar ----------------------------------------------------------------------------
+// The bar's trigger highlight is ONE goo body (core `attachMenubarHighlight`: the menu
+// highlight engine fed MENUBAR_FEEL, the tabs feel) that flows between triggers as you hover or
+// arrow across them and sits on the open trigger. Each menu is GoopDropdownMenuContent's goo
+// (emerge bloom + item highlight + select pop + goo submenus), on reka's Menubar parts.
+// Menu props left unset inherit the bar's `goo`, `wobble`, `momentum`, `speed`, `preset` and
+// `renderer`; submenus inherit their parent menu's. Surface defaults to 'popover' (menubar
+// triggers are flat text, not a filled button).
+
+/** Every GoopMenubar engine prop (the trigger highlight). */
+export const MENUBAR_PROP_KEYS = ['goo', ...MENUBAR_EFFECTS, 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopMenubar (the bar). */
+export interface GoopMenubarProps {
+  /** Master switch. `false` renders plain shadcn Menubar parts (menus too, unless they set
+   *  their own `goo`). */
+  goo?: boolean
+  /** The trigger highlight (hover, keyboard focus, open menu) is one goo body that flows
+   *  between triggers (false: shadcn's flat hover / open bg). */
+  highlight?: boolean
+  /** Jelly overshoot when the highlight lands (menus inherit it). */
+  wobble?: boolean
+  /** Momentum: the highlight stretches and necks to a trailing tail while it travels (menus
+   *  inherit it). */
+  momentum?: boolean
+  /** Animation speed multiplier (menus inherit it). */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful.
+   *  Menus inherit it. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory (menus inherit it). */
+  renderer?: GoopRendererOption
+}
+
+type MenubarAdapterOwned = 'feel' | 'reducedMotion'
+type MenubarUnhandled = Exclude<keyof MenubarHighlightOptions | MenubarEffect, keyof GoopMenubarProps | MenubarAdapterOwned>
+const _allMenubarOptionsHandled: [MenubarUnhandled] extends [never] ? true : { unhandled: MenubarUnhandled } = true
+void _allMenubarOptionsHandled
+type MenubarPropsListed = Exclude<keyof GoopMenubarProps, (typeof MENUBAR_PROP_KEYS)[number]>
+const _allMenubarPropsListed: [MenubarPropsListed] extends [never] ? true : { unlisted: MenubarPropsListed } = true
+void _allMenubarPropsListed
+
+/** Trigger highlight options for core over app config, or null when it is off. */
+export function toMenubarOptions(props: GoopMenubarProps, config: GoopOptions = {}): MenubarHighlightOptions | null {
+  if (props.goo === false || props.highlight === false) return null
+  return {
+    feel: MENUBAR_FEEL,
+    wobble: props.wobble !== false,
+    momentum: props.momentum !== false,
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+}
+
+/** Every GoopMenubarContent / SubContent engine prop (same as GoopDropdownMenuContent's). */
+export const MENUBAR_MENU_PROP_KEYS = MENU_PROP_KEYS
+
+/** Engine props of GoopMenubarContent / GoopMenubarSubContent. Same meaning as
+ *  GoopDropdownMenuContent's, except as noted. */
+export interface GoopMenubarMenuProps extends Omit<GoopMenuProps, 'surface'> {
+  /** Menu color: 'popover' (default: shadcn's popover tokens), 'trigger' (the trigger's
+   *  colors) or any CSS color. Submenus that leave it unset reuse their parent's. */
+  surface?: EmergeSurfaceColor
+}
+
+/** Resolve a menubar menu's props over its parent menu's (submenus), else over the bar's
+ *  shared settings, then the defaults. */
+export function resolveMenubarMenuProps(
+  props: GoopMenubarMenuProps,
+  parent?: ResolvedMenuProps | null,
+  bar?: GoopMenubarProps | null,
+): ResolvedMenuProps {
+  const base =
+    parent ??
+    resolveMenuProps({
+      goo: bar?.goo,
+      wobble: bar?.wobble,
+      momentum: bar?.momentum,
+      speed: bar?.speed,
+      preset: bar?.preset,
+      renderer: bar?.renderer,
+      surface: 'popover',
+    })
+  return resolveMenuProps(props, base)
+}
+
+/** Core options for a menubar menu (emerge) and its item highlight, over app config. */
+export function toMenubarMenuOptions(
+  menu: ResolvedMenuProps,
+  config: GoopOptions = {},
+): { emerge: EmergeOptions; highlight: MenuHighlightOptions | null } {
+  return toMenuOptions(menu, config)
+}
+
+// ---- GoopNavigationMenu ---------------------------------------------------------------------
+// Two engines, set on the root and shared by its parts: the top-level items' hover / focus /
+// open highlight is one goo blob (core `attachNavigationMenuHighlight`, the tabs indicator's
+// feel on the menu highlight engine; the links inside a panel get the same blob with the
+// menu's feel), and the viewport is an emerge bloom out of the active trigger whose box
+// jelly-springs between triggers (core `attachNavigationMenuViewport`). Toggles come from core's
+// NAVIGATION_MENU_EFFECTS plus the bloom's emerge knobs; all default on.
+
+/** Every GoopNavigationMenu engine prop. */
+export const NAVIGATION_MENU_PROP_KEYS = [
+  'goo',
+  ...NAVIGATION_MENU_EFFECTS,
+  'fade',
+  'openSlosh',
+  'openDrips',
+  'closeSlosh',
+  ...EMERGE_DRIP_KEYS,
+  'surface',
+  'speed',
+  'preset',
+  'renderer',
+] as const
+
+/** Engine props of GoopNavigationMenu. Every toggle defaults on. */
+export interface GoopNavigationMenuProps {
+  /** Master switch. `false` renders a plain shadcn NavigationMenu. */
+  goo?: boolean
+  /** The top-level items' hover / open background is one goo blob that flows between them. */
+  highlight?: boolean
+  /** The links inside a panel get the same goo blob (false: shadcn's flat hover bg). */
+  contentHighlight?: boolean
+  /** The panel is a goo body that blooms out of its trigger and shrinks back into it (false:
+   *  shadcn's zoom; `jelly` then has nothing to move). */
+  bloom?: boolean
+  /** Moving to another trigger, the panel slides and resizes on a spring as one body (false:
+   *  it jumps to the new size, like shadcn). */
+  jelly?: boolean
+  /** Overshoot: the blob lands with a jelly bounce, the bloom overshoots, the panel wobbles as
+   *  it settles. */
+  wobble?: boolean
+  /** Momentum: the highlight stretches and necks to a trailing tail while it travels. */
+  momentum?: boolean
+  /** The panel's content fades in once the goo settles. */
+  fade?: boolean
+  /** Open: every edge of the panel bulges past rest, rebounds and wobbles. `true`, `false` or 0..2. */
+  openSlosh?: boolean | number
+  /** Open: a light splash of drops (kept off the menu bar). `true`, `false` or 0..2. */
+  openDrips?: boolean | number
+  /** Burst drop count scale (0..3, default 1). */
+  openDripAmount?: number
+  /** Burst drop size scale (0.3..2.5, default 1). */
+  openDripSize?: number
+  /** How far burst drops are flung (0..3, default 1). */
+  openDripFling?: number
+  /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
+  openDripVariety?: number
+  /** 0..1: how differently each side bulges (re-rolled every open). Default 1. */
+  sloshVariety?: number
+  /** Close: the panel pulls in and wobbles before it shrinks back. `true`, `false` or 0..2. */
+  closeSlosh?: boolean | number
+  /** Panel color: 'popover' (default: shadcn's popover tokens), 'trigger' or a CSS color. */
+  surface?: EmergeSurfaceColor
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+/** Compile-time guards: every option core grows must be a navigation menu prop (or adapter-owned). */
+type NavigationMenuAdapterOwned =
+  | 'anchor'
+  | 'side'
+  | 'ready'
+  | 'surface'
+  | 'surfaceColor'
+  | 'feel'
+  | 'jellyFeel'
+  | 'target'
+  | 'reducedMotion'
+  | 'detached'
+  | 'bloomOrigin'
+  | 'flow'
+  | 'flowStyle'
+  | 'bloomStart'
+  | 'bridge'
+type NavigationMenuUnhandled = Exclude<
+  keyof NavigationMenuViewportOptions | keyof NavigationMenuHighlightOptions | NavigationMenuEffect,
+  keyof GoopNavigationMenuProps | NavigationMenuAdapterOwned
+>
+const _allNavigationMenuOptionsHandled: [NavigationMenuUnhandled] extends [never] ? true : { unhandled: NavigationMenuUnhandled } = true
+void _allNavigationMenuOptionsHandled
+type NavigationMenuPropsListed = Exclude<keyof GoopNavigationMenuProps, (typeof NAVIGATION_MENU_PROP_KEYS)[number]>
+const _allNavigationMenuPropsListed: [NavigationMenuPropsListed] extends [never] ? true : { unlisted: NavigationMenuPropsListed } = true
+void _allNavigationMenuPropsListed
+
+/** Resolved navigation menu goo: what each part should do (null: that part is plain shadcn). */
+export interface ResolvedNavigationMenuGoo {
+  /** Top-level highlight options, or null. */
+  highlight: NavigationMenuHighlightOptions | null
+  /** Panel link highlight options, or null. */
+  contentHighlight: NavigationMenuHighlightOptions | null
+  /** Viewport (and `viewport: false` panel) options, or null. */
+  viewport: NavigationMenuViewportOptions | null
+}
+
+/** Navigation menu goo from props, over app config (`preset`, `renderer`, `reducedMotion`). */
+export function toNavigationMenuOptions(props: GoopNavigationMenuProps, config: GoopOptions = {}): ResolvedNavigationMenuGoo {
+  const on = props.goo !== false
+  const common = {
+    wobble: props.wobble !== false,
+    momentum: props.momentum !== false,
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+  return {
+    highlight: on && props.highlight !== false ? { ...common, feel: NAVIGATION_MENU_FEEL } : null,
+    contentHighlight: on && props.contentHighlight !== false ? { ...common, feel: NAVIGATION_MENU_CONTENT_FEEL } : null,
+    viewport:
+      on && props.bloom !== false
+        ? {
+            ...common,
+            flow: true,
+            flowStyle: 'bloom',
+            bloomStart: 'single',
+            bridge: true,
+            jelly: props.jelly !== false,
+            fade: props.fade !== false,
+            openSlosh: props.openSlosh ?? true,
+            openDrips: props.openDrips ?? true,
+            closeSlosh: props.closeSlosh ?? true,
+            openDripAmount: props.openDripAmount,
+            openDripSize: props.openDripSize,
+            openDripFling: props.openDripFling,
+            openDripVariety: props.openDripVariety,
+            sloshVariety: props.sloshVariety,
+            surfaceColor: props.surface ?? 'popover',
+          }
+        : null,
+  }
+}
+
+import {
+  NAVIGATION_MENU_CONTENT_FEEL,
+  NAVIGATION_MENU_EFFECTS,
+  NAVIGATION_MENU_FEEL,
+  type NavigationMenuEffect,
+  type NavigationMenuHighlightOptions,
+  type NavigationMenuViewportOptions,
+} from '@goopui/core'
