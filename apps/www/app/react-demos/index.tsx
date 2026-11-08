@@ -25,10 +25,12 @@ import {
 } from '@goopui/react'
 import { useState, type MouseEvent, type ReactNode } from 'react'
 import type { CheckboxState } from '@goopui/core'
+import { SkeletonRevealDemo, SpinnerDemo, StaticSet, Tile } from './batch1'
 
 /** What a Vue demo hands its island. */
 export interface ReactDemoProps {
-  /** Which demo: 'button' | 'switch' | 'checkbox' | 'tabs' | 'dialog'. */
+  /** Which demo: 'button' | 'switch' | 'checkbox' | 'tabs' | 'dialog' | 'static-set' |
+   *  'skeleton-reveal' | 'spinner' | 'tile' (an index tile; `set` is the slug). */
   demo: string
   /** The demo's set (as on the Vue side). */
   set: string
@@ -55,6 +57,14 @@ export function ReactDemo(props: ReactDemoProps) {
         return <TabsDemo {...props} />
       case 'dialog':
         return <DialogDemo {...props} />
+      case 'static-set':
+        return <StaticSet set={props.set} pg={props.pg} />
+      case 'skeleton-reveal':
+        return <SkeletonRevealDemo pg={props.pg} />
+      case 'spinner':
+        return <SpinnerDemo set={props.set} pg={props.pg} />
+      case 'tile':
+        return <Tile slug={props.set} />
       default:
         return null
     }
