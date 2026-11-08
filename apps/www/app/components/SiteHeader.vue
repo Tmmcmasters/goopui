@@ -49,6 +49,7 @@ const landing = computed(() => route.path === '/')
       </span>
 
       <nav class="ml-auto flex items-center gap-0.5" aria-label="Main">
+        <SearchPalette :wide="landing" />
         <NuxtLink
           v-for="l in links"
           :key="l.to"
