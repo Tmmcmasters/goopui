@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// GoopDialogContent: shadcn-vue's DialogContent (reka-ui DialogContent in a portal over a
+// GoopDialogContent: shadcn's DialogContent (reka-ui DialogContent in a portal over a
 // DialogOverlay, same props/emits, `class` merge, a close button unless `showCloseButton` is
 // false) whose panel blooms like GoopPopoverContent, but detached: a dialog has no trigger to
 // grow from, so it pools from its own center, spreads with a lobed edge, overshoots every
@@ -7,8 +7,8 @@
 // the center (core `attachEmerge`, `detached: true`, DIALOG_FEEL). The overlay is shadcn's fade;
 // `:overlay="true"` opts into the goo sheet that pours down and drains off (GoopDialogOverlay).
 //
-// The panel's shadcn background and shadow move onto the goo (`--goop-color:
-// var(--background)`). Content opacity follows `--goop-emerge-content`, and goop.css's hold
+// The panel's shadcn background and ring move onto the goo (`--goop-color:
+// var(--popover)`). Content opacity follows `--goop-emerge-content`, and goop.css's hold
 // animation keeps reka's Presence mounted while the close plays. With `:goo="false"` it is
 // exactly shadcn's DialogContent and overlay. Reduced motion: plain open/close.
 import { cn } from 'cn'
@@ -17,6 +17,7 @@ import { DialogClose, DialogContent, DialogPortal, injectDialogRootContext, useF
 import { computed, useTemplateRef, type HTMLAttributes } from 'vue'
 import { useGoopConfig } from '../../config'
 import { DIALOG_PROP_KEYS, toDialogOptions, type GoopDialogProps } from '../../goop-props'
+import GoopButton from '../button/GoopButton.vue'
 import GoopDialogOverlay from './GoopDialogOverlay.vue'
 import { useDialogPanel } from './use-dialog-goo'
 import { DIALOG_CLOSE, DIALOG_CONTENT_GOO, DIALOG_CONTENT_SHADCN } from './styles'
@@ -111,23 +112,30 @@ defineExpose({
       <DialogClose
         v-if="showCloseButton"
         data-slot="dialog-close"
-        :class="DIALOG_CLOSE"
+        as-child
         v-bind="closeCue"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
+        <GoopButton
+          variant="ghost"
+          size="icon-sm"
+          :goo="goo ? undefined : false"
+          :class="DIALOG_CLOSE"
         >
-          <path d="M18 6 6 18" />
-          <path d="m6 6 12 12" />
-        </svg>
-        <span class="sr-only">Close</span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M18 6 6 18" />
+            <path d="m6 6 12 12" />
+          </svg>
+          <span class="sr-only">Close</span>
+        </GoopButton>
       </DialogClose>
     </DialogContent>
   </DialogPortal>

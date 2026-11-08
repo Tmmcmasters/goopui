@@ -39,7 +39,7 @@ defineExpose({
     data-slot="accordion-item"
     v-bind="forwarded"
     :data-goop-accordion="options ? '' : undefined"
-    :class="cn('border-b last:border-b-0', props.class)"
+    :class="cn('not-last:border-b', props.class)"
   >
     <slot v-bind="slotProps" />
   </AccordionItem>

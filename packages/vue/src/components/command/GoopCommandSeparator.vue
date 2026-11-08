@@ -17,6 +17,6 @@ const delegated = computed(() => {
   <Separator
     data-slot="command-separator"
     v-bind="delegated"
-    :class="cn('bg-border -mx-1 my-1 h-px', props.class)"
+    :class="cn('bg-border -mx-1 h-px', props.class)"
   />
 </template>

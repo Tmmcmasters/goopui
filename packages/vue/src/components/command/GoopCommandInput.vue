@@ -94,7 +94,7 @@ defineExpose({
         stroke-linecap="round"
         stroke-linejoin="round"
         aria-hidden="true"
-        class="text-muted-foreground pointer-events-none absolute left-2.5 z-1 size-4 shrink-0"
+        class="pointer-events-none absolute left-2.5 z-1 size-4 shrink-0 opacity-50"
       >
         <circle
           cx="11"

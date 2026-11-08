@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // GoopAccordionTrigger: shadcn-vue's AccordionTrigger (AccordionHeader + AccordionTrigger, the
-// chevron `icon` slot, same classes). With goo on it is the row that floods
+// chevron `icon` slot, same classes as shadcn/ui radix-nova: a down chevron, an up one when open). With goo on it is the row that floods
 // (`data-goop-accordion-trigger`); once the goo is half in, core marks it `data-goop-flooded`
 // and goop.css switches its text and chevron to the goo's foreground. Layout is shadcn's.
 import { cn } from 'cn'
@@ -30,7 +30,7 @@ const cue = useGoopCue('accordionTrigger', { open: () => item?.open.value })
       :data-goop-accordion-trigger="goo ? '' : undefined"
       :class="
         cn(
-          'focus-visible:border-ring focus-visible:ring-ring/50 flex flex-1 items-start justify-between gap-4 rounded-md py-4 text-left text-sm font-medium transition-all outline-none hover:underline focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 [&[data-state=open]>svg]:rotate-180',
+          'group/accordion-trigger relative flex flex-1 items-start justify-between rounded-lg border border-transparent py-2.5 text-left text-sm font-medium transition-all outline-none hover:underline focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:after:border-ring disabled:pointer-events-none disabled:opacity-50 **:data-[slot=accordion-trigger-icon]:ml-auto **:data-[slot=accordion-trigger-icon]:size-4 **:data-[slot=accordion-trigger-icon]:text-muted-foreground',
           props.class,
         )
       "
@@ -48,8 +48,23 @@ const cue = useGoopCue('accordionTrigger', { open: () => item?.open.value })
           stroke-linecap="round"
           stroke-linejoin="round"
           aria-hidden="true"
-          class="text-muted-foreground pointer-events-none size-4 shrink-0 translate-y-0.5 transition-transform duration-200"
+          data-slot="accordion-trigger-icon"
+          class="pointer-events-none shrink-0 group-aria-expanded/accordion-trigger:hidden"
         ><path d="m6 9 6 6 6-6" /></svg>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+          data-slot="accordion-trigger-icon"
+          class="pointer-events-none hidden shrink-0 group-aria-expanded/accordion-trigger:inline"
+        ><path d="m18 15-6-6-6 6" /></svg>
       </slot>
     </AccordionTrigger>
   </AccordionHeader>

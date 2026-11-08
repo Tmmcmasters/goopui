@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// GoopAlertDialogContent: shadcn-vue's AlertDialogContent (reka-ui AlertDialogContent in a
+// GoopAlertDialogContent: shadcn's AlertDialogContent (reka-ui AlertDialogContent in a
 // portal over an overlay, same props/emits, `class` merge). The panel blooms from its own
 // center like GoopDialogContent, but an alert is the serious one: a lighter splash (a few
 // small drops, core ALERT_DIALOG_SPLASH) and a lighter slosh (ALERT_DIALOG_MOMENTUM); every
@@ -12,7 +12,7 @@ import { AlertDialogContent, AlertDialogPortal, injectDialogRootContext, useForw
 import { computed, useTemplateRef, type HTMLAttributes } from 'vue'
 import { useGoopConfig } from '../../config'
 import { DIALOG_PROP_KEYS, toDialogOptions, type GoopDialogProps } from '../../goop-props'
-import { DIALOG_CONTENT_GOO, DIALOG_CONTENT_SHADCN } from '../dialog/styles'
+import { ALERT_DIALOG_CONTENT_GOO, ALERT_DIALOG_CONTENT_SHADCN } from '../dialog/styles'
 import { useDialogPanel } from '../dialog/use-dialog-goo'
 import GoopAlertDialogOverlay from './GoopAlertDialogOverlay.vue'
 
@@ -20,29 +20,41 @@ defineOptions({
   inheritAttrs: false,
 })
 
-const props = withDefaults(defineProps<AlertDialogContentProps & GoopDialogProps & { class?: HTMLAttributes['class'] }>(), {
-  goo: true,
-  bloomStart: undefined,
-  wobble: undefined,
-  fade: undefined,
-  openSlosh: undefined,
-  openDrips: undefined,
-  closeSlosh: undefined,
-  openDripAmount: undefined,
-  openDripSize: undefined,
-  openDripFling: undefined,
-  openDripVariety: undefined,
-  sloshVariety: undefined,
-  overlay: undefined,
-  overlayDrips: undefined,
-  surface: undefined,
-  speed: undefined,
-  preset: undefined,
-  renderer: undefined,
-})
+const props = withDefaults(
+  defineProps<
+    AlertDialogContentProps &
+      GoopDialogProps & {
+        class?: HTMLAttributes['class']
+        /** shadcn's content size: `sm` is narrower, with a two-column footer. */
+        size?: 'default' | 'sm'
+      }
+  >(),
+  {
+    size: 'default',
+    goo: true,
+    bloomStart: undefined,
+    wobble: undefined,
+    fade: undefined,
+    openSlosh: undefined,
+    openDrips: undefined,
+    closeSlosh: undefined,
+    openDripAmount: undefined,
+    openDripSize: undefined,
+    openDripFling: undefined,
+    openDripVariety: undefined,
+    sloshVariety: undefined,
+    overlay: undefined,
+    overlayDrips: undefined,
+    surface: undefined,
+    speed: undefined,
+    preset: undefined,
+    renderer: undefined,
+  },
+)
+
 const emits = defineEmits<AlertDialogContentEmits>()
 
-const OWN = new Set<string>(['class', ...DIALOG_PROP_KEYS])
+const OWN = new Set<string>(['class', 'size', ...DIALOG_PROP_KEYS])
 const delegated = computed(() => Object.fromEntries(Object.entries(props).filter(([k]) => !OWN.has(k))) as AlertDialogContentProps)
 const forwarded = useForwardPropsEmits(delegated, emits)
 
@@ -51,7 +63,7 @@ const root = injectDialogRootContext()
 const config = useGoopConfig()
 const surface = useTemplateRef<HTMLElement>('surface')
 
-const classes = computed(() => cn(props.goo ? DIALOG_CONTENT_GOO : DIALOG_CONTENT_SHADCN, props.class))
+const classes = computed(() => cn(props.goo ? ALERT_DIALOG_CONTENT_GOO : ALERT_DIALOG_CONTENT_SHADCN, props.class))
 const options = computed(() => toDialogOptions(props, config, 'alert'))
 
 const handle = useDialogPanel(
@@ -80,6 +92,7 @@ defineExpose({
     />
     <AlertDialogContent
       data-slot="alert-dialog-content"
+      :data-size="size"
       v-bind="{ ...$attrs, ...forwarded }"
       :class="classes"
     >

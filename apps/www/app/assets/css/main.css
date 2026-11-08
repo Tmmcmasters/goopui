@@ -8,12 +8,14 @@
    Its goop.css is the same as @goopui/vue's, which @goopui/nuxt already injects. */
 @source "../../../node_modules/@goopui/react/dist";
 
-/* shadcn apps set `border-border` on every element in their base layer; this site doesn't, so a
-   bare `border` / `border-t` in a shadcn component (the React DialogFooter's) would be
-   currentColor. Give shadcn parts (they all carry data-slot) the theme's border color. */
+/* shadcn's base layer: a bare `border` / `border-t` / `ring` in a shadcn component (Card, Alert,
+   the DialogFooter strip) takes the theme's border color, not currentColor. This belongs in the
+   app's CSS, like any shadcn app; goop.css deliberately doesn't style the whole page. */
 @layer base {
-  :where([data-slot]) {
-    border-color: var(--border);
+  *,
+  ::before,
+  ::after {
+    @apply border-border outline-ring/50;
   }
 }
 
@@ -245,22 +247,29 @@ html[data-reduced-motion='true'] [data-reveal] {
   font-size: 0.96875rem;
   line-height: 1.75;
 }
+/* Live previews (Preview, Playground) render components exactly as in an app: none of the
+   prose rules below reach into them, and the text metrics reset to the page defaults, so an
+   accordion's h3 or a card title gets no prose margins or sizes. */
+.prose :is(.preview, .playground) {
+  font-size: 1rem;
+  line-height: 1.5;
+}
 .prose > :first-child {
   margin-top: 0;
 }
-.prose p,
-.prose ul,
-.prose ol,
-.prose blockquote,
-.prose table {
+.prose p:not(:where(.preview *, .playground *)),
+.prose ul:not(:where(.preview *, .playground *)),
+.prose ol:not(:where(.preview *, .playground *)),
+.prose blockquote:not(:where(.preview *, .playground *)),
+.prose table:not(:where(.preview *, .playground *)) {
   margin: 1.1em 0;
 }
-.prose p,
-.prose li {
+.prose p:not(:where(.preview *, .playground *)),
+.prose li:not(:where(.preview *, .playground *)) {
   color: color-mix(in oklch, var(--foreground) 84%, var(--background));
   text-wrap: pretty;
 }
-.prose h2 {
+.prose h2:not(:where(.preview *, .playground *)) {
   font-size: 1.5rem;
   line-height: 1.25;
   font-weight: 600;
@@ -269,21 +278,21 @@ html[data-reduced-motion='true'] [data-reveal] {
   padding-top: 1.1em;
   border-top: 1px solid var(--border);
 }
-.prose h3 {
+.prose h3:not(:where(.preview *, .playground *)) {
   font-size: 1.125rem;
   line-height: 1.4;
   font-weight: 600;
   letter-spacing: -0.015em;
   margin: 2em 0 0.4em;
 }
-.prose h2 + h3 {
+.prose h2 + h3:not(:where(.preview *, .playground *)) {
   margin-top: 1em;
 }
-.prose strong {
+.prose strong:not(:where(.preview *, .playground *)) {
   color: var(--foreground);
   font-weight: 600;
 }
-.prose a:not(.heading-anchor) {
+.prose a:not(.heading-anchor):not(:where(.preview *, .playground *)) {
   color: var(--foreground);
   font-weight: 500;
   text-decoration: underline;
@@ -292,25 +301,25 @@ html[data-reduced-motion='true'] [data-reveal] {
   text-decoration-thickness: 1px;
   transition: text-decoration-color 150ms ease;
 }
-.prose a:not(.heading-anchor):hover {
+.prose a:not(.heading-anchor):hover:not(:where(.preview *, .playground *)) {
   text-decoration-color: var(--foreground);
 }
-.prose ul {
+.prose ul:not(:where(.preview *, .playground *)) {
   list-style: disc;
   padding-left: 1.25em;
 }
-.prose ol {
+.prose ol:not(:where(.preview *, .playground *)) {
   list-style: decimal;
   padding-left: 1.4em;
 }
-.prose li {
+.prose li:not(:where(.preview *, .playground *)) {
   margin: 0.35em 0;
   padding-left: 0.2em;
 }
-.prose li::marker {
+.prose li:not(:where(.preview *, .playground *))::marker {
   color: var(--subtle);
 }
-.prose :not(pre) > code {
+.prose :not(pre) > code:not(:where(.preview *, .playground *)) {
   font-family: var(--font-mono);
   font-size: 0.85em;
   padding: 0.15em 0.4em;
@@ -320,23 +329,23 @@ html[data-reduced-motion='true'] [data-reveal] {
   color: var(--foreground);
   overflow-wrap: anywhere;
 }
-.prose blockquote {
+.prose blockquote:not(:where(.preview *, .playground *)) {
   border-left: 2px solid var(--border-strong);
   padding-left: 1em;
   color: var(--muted-foreground);
 }
-.prose hr {
+.prose hr:not(:where(.preview *, .playground *)) {
   border: 0;
   border-top: 1px solid var(--border);
   margin: 2.5em 0;
 }
-.prose table {
+.prose table:not(:where(.preview *, .playground *)) {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.875rem;
   line-height: 1.55;
 }
-.prose th {
+.prose th:not(:where(.preview *, .playground *)) {
   text-align: left;
   font-weight: 500;
   color: var(--muted-foreground);
@@ -344,7 +353,7 @@ html[data-reduced-motion='true'] [data-reveal] {
   padding: 0.5rem 0.75rem 0.5rem 0;
   white-space: nowrap;
 }
-.prose td {
+.prose td:not(:where(.preview *, .playground *)) {
   border-bottom: 1px solid var(--border);
   padding: 0.6rem 0.75rem 0.6rem 0;
   vertical-align: top;

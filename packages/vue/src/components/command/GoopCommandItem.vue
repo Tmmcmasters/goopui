@@ -11,7 +11,7 @@ import { injectGoopCommand, injectGoopCommandGroup } from './context'
 import { useGoopCue } from '../../sound'
 
 /** shadcn's flat highlight, used when the goo blob is off. */
-const FLAT_BG = 'data-highlighted:bg-accent'
+const FLAT_BG = 'data-highlighted:bg-muted'
 
 const props = defineProps<ListboxItemProps & { class?: HTMLAttributes['class'] }>()
 const emits = defineEmits<ListboxItemEmits>()
@@ -53,7 +53,7 @@ onUnmounted(() => {
 const classes = computed(() =>
   cn(
     command.options.value.highlight ? '' : FLAT_BG,
-    "data-highlighted:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground relative flex cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+    "group/command-item relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none in-data-[slot=dialog-content]:rounded-lg! data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-highlighted:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 data-highlighted:*:[svg]:text-foreground",
     props.class,
   ),
 )

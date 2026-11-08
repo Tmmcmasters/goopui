@@ -43,7 +43,7 @@ describe('GoopToggle', () => {
     const btn = w.get('button')
     expect(btn.attributes('data-slot')).toBe('toggle')
     expect(btn.classes()).toContain('border-input')
-    expect(btn.classes()).toContain('h-8')
+    expect(btn.classes()).toContain('h-7') // shadcn radix-nova's sm size
     expect(btn.attributes()).toHaveProperty('data-goop-active')
     expect(btn.classes()).toContain('data-[state=on]:bg-transparent')
     // Its goo layer sits under its own background: no drain marker needed.

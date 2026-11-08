@@ -1,0 +1,5 @@
+---
+'@goopui/vue': minor
+---
+
+Visual refresh: every component's classes now follow current shadcn (shadcn/ui React `radix-nova`, which shadcn-vue `reka-nova` shares), so `@goopui/vue` and `@goopui/react` look the same. The motion is unchanged. Highlights: Dialog / AlertDialog / Sheet / Drawer panels are `bg-popover` with a ring, a ghost X close button, a muted footer strip and a blurred `bg-black/10` overlay. Card uses a ring instead of a border, `--card-spacing` and a muted footer. Badge is a pill and its destructive variant is a tint. Toggle's pressed state is `bg-muted`, and its sizes are one step smaller. Accordion rows are tighter (`py-2.5`). Command highlights in `bg-muted`. Combobox uses the Input box. Classes like `data-open:` that reka never matched are spelled out as `data-[state=open]:`. Additive API: `size` on GoopCard, GoopAvatar and GoopAlertDialogContent, `ghost` / `link` badge variants, and a new `GoopAlertDialogMedia`. Apps need shadcn's base layer (`* { @apply border-border outline-ring/50 }`), as any shadcn app has.

@@ -1,3 +1,4 @@
-// shadcn-vue's Separator classes, verbatim.
+// shadcn/ui's Separator classes (React, style `radix-nova`). shadcn writes `data-horizontal:` /
+// `data-vertical:`; those are spelled out as the `data-[orientation=...]` reka emits.
 export const SEPARATOR =
-  'bg-border shrink-0 data-[orientation=horizontal]:h-px data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-px'
+  'shrink-0 bg-border data-[orientation=horizontal]:h-px data-[orientation=horizontal]:w-full data-[orientation=vertical]:w-px data-[orientation=vertical]:self-stretch'

@@ -8,14 +8,14 @@ const replay = ref(0)
 </script>
 
 <template>
-  <GoopAlert v-if="set === 'basic'" class="max-w-md border-border" v-bind="pg.props">
+  <GoopAlert v-if="set === 'basic'" class="max-w-md" v-bind="pg.props">
     <SiteIcon :name="pg.props.variant === 'destructive' ? 'circleAlert' : 'circleCheck'" />
     <GoopAlertTitle>Success! Your changes have been saved</GoopAlertTitle>
     <GoopAlertDescription>This is an alert with icon, title and description.</GoopAlertDescription>
   </GoopAlert>
 
   <div v-else-if="set === 'destructive'" class="alert-demo w-full max-w-md">
-    <GoopAlert variant="destructive" class="border-border">
+    <GoopAlert variant="destructive">
       <SiteIcon name="circleAlert" />
       <GoopAlertTitle>Unable to process your payment.</GoopAlertTitle>
       <GoopAlertDescription>
@@ -30,15 +30,15 @@ const replay = ref(0)
         Play again
       </GoopButton>
     </div>
-    <GoopAlert :key="`w${replay}`" class="border-border" preset="wild">
+    <GoopAlert :key="`w${replay}`" preset="wild">
       <SiteIcon name="info" />
       <GoopAlertTitle>preset="wild"</GoopAlertTitle>
     </GoopAlert>
-    <GoopAlert :key="`b${replay}`" class="border-border" :bloom="false">
+    <GoopAlert :key="`b${replay}`" :bloom="false">
       <SiteIcon name="info" />
       <GoopAlertTitle>:bloom="false" (the icon still wobbles)</GoopAlertTitle>
     </GoopAlert>
-    <GoopAlert :key="`g${replay}`" class="border-border" :goo="false">
+    <GoopAlert :key="`g${replay}`" :goo="false">
       <SiteIcon name="info" />
       <GoopAlertTitle>:goo="false" (plain shadcn)</GoopAlertTitle>
     </GoopAlert>

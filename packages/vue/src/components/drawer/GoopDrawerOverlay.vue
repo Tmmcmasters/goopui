@@ -38,7 +38,7 @@ onBeforeUnmount(() => {
     data-vaul-overlay=""
     v-bind="delegated"
     :force-mount="true"
-    :class="cn('fixed inset-0 z-50 bg-black/50', props.class)"
+    :class="cn('fixed inset-0 z-50 bg-black/10 supports-backdrop-filter:backdrop-blur-xs', props.class)"
     style="opacity: 0"
   />
 </template>

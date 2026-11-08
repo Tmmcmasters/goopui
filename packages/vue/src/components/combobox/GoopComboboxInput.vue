@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// GoopComboboxInput: shadcn-vue's ComboboxInput (reka-ui ComboboxInput with a search icon,
+// GoopComboboxInput: shadcn's ComboboxInput (reka-ui ComboboxInput in shadcn's input box,
 // `class` merge, `displayValue`, `autoFocus`) in a rounded input box with GoopInput's goo
 // focus ring (core `attachInput`): focus flows goo around the box, typing ripples it, blur
 // drains it. The ring's effects are GoopInput's props; `:goo="false"` drops it. Reduced
@@ -10,7 +10,7 @@ import { computed, shallowRef, useTemplateRef, type HTMLAttributes, type PropTyp
 import { useGoopConfig } from '../../config'
 import { goopInputProps, toInputOptions } from '../../goop-props'
 import { useFieldGoo } from '../input/use-field-goo'
-import { goopFieldActive } from '../input/variants'
+import { goopFieldActive, inputVariants } from '../input/variants'
 import { useGoopCue } from '../../sound'
 
 defineOptions({ inheritAttrs: false })
@@ -48,9 +48,8 @@ const reka = computed(() => {
   return out
 })
 
-const FIELD =
-  'bg-input/30 border-input/30 placeholder:text-muted-foreground h-8 w-full min-w-0 rounded-lg border pr-2.5 pl-8 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50'
-const classes = computed(() => cn(FIELD, active.value && goopFieldActive, props.class))
+// shadcn/ui's ComboboxInput is an InputGroup: the Input's box (border-input, h-8, rounded-lg).
+const classes = computed(() => cn(inputVariants(), active.value && goopFieldActive, props.class))
 
 defineExpose({
   /** The live ring handle (null before mount / when goo is off). */
@@ -72,24 +71,6 @@ defineExpose({
     :data-goop-active="active ? '' : undefined"
     class="relative flex w-full min-w-0 items-center"
   >
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      aria-hidden="true"
-      class="text-muted-foreground pointer-events-none absolute left-2.5 z-1 size-4 shrink-0"
-    >
-      <circle
-        cx="11"
-        cy="11"
-        r="8"
-      />
-      <path d="m21 21-4.3-4.3" />
-    </svg>
     <ComboboxInput
       :ref="setField"
       data-slot="combobox-input"

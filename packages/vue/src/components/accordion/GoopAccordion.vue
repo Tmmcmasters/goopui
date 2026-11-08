@@ -7,13 +7,14 @@
 // while the new one floods.
 import type { AccordionRootEmits, AccordionRootProps } from 'reka-ui'
 import { AccordionRoot, useForwardPropsEmits } from 'reka-ui'
-import { computed } from 'vue'
+import { cn } from 'cn'
+import { computed, type HTMLAttributes } from 'vue'
 import { useGoopConfig } from '../../config'
 import { ACCORDION_PROP_KEYS, toAccordionOptions, type GoopAccordionProps, type GoopSoundProps } from '../../goop-props'
 import { provideGoopAccordion } from './context'
 import { useGoopSound } from '../../sound'
 
-const props = withDefaults(defineProps<AccordionRootProps & GoopAccordionProps & GoopSoundProps>(), {
+const props = withDefaults(defineProps<AccordionRootProps & GoopAccordionProps & GoopSoundProps & { class?: HTMLAttributes['class'] }>(), {
   sound: undefined,
   goo: undefined,
   flood: undefined,
@@ -30,7 +31,7 @@ const props = withDefaults(defineProps<AccordionRootProps & GoopAccordionProps &
 })
 const emits = defineEmits<AccordionRootEmits>()
 
-const OWN = new Set<string>([...ACCORDION_PROP_KEYS, 'sound'])
+const OWN = new Set<string>([...ACCORDION_PROP_KEYS, 'sound', 'class'])
 const delegated = computed(
   () => Object.fromEntries(Object.entries(props).filter(([k, v]) => !OWN.has(k) && v !== undefined)) as AccordionRootProps,
 )
@@ -42,7 +43,7 @@ provideGoopAccordion(computed(() => toAccordionOptions(props, config)))
 </script>
 
 <template>
-  <AccordionRoot v-slot="slotProps" data-slot="accordion" v-bind="forwarded">
+  <AccordionRoot v-slot="slotProps" data-slot="accordion" v-bind="forwarded" :class="cn('flex w-full flex-col', props.class)">
     <slot v-bind="slotProps" />
   </AccordionRoot>
 </template>

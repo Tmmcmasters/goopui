@@ -1,7 +1,6 @@
 <script setup lang="ts">
 // GoopAlertDialogCancel: shadcn-vue's AlertDialogCancel (closes the dialog and gets the initial
 // focus), rendered as an outline GoopButton. `variant` / `size` / `goo` pass through.
-import { cn } from 'cn'
 import type { AlertDialogCancelProps } from 'reka-ui'
 import { AlertDialogCancel } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
@@ -38,7 +37,7 @@ const cue = useGoopCue('alertDialogCancel', { claim: true })
       :variant="variant"
       :size="size"
       :goo="goo"
-      :class="cn('mt-2 sm:mt-0', props.class)"
+      :class="props.class"
     >
       <slot />
     </GoopButton>

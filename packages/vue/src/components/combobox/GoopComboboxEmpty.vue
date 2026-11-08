@@ -17,7 +17,7 @@ const delegated = computed(() => {
   <ComboboxEmpty
     data-slot="combobox-empty"
     v-bind="delegated"
-    :class="cn('text-muted-foreground py-6 text-center text-sm', props.class)"
+    :class="cn('text-muted-foreground flex w-full justify-center py-2 text-center text-sm', props.class)"
   >
     <slot />
   </ComboboxEmpty>

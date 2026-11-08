@@ -74,7 +74,7 @@ describe('GoopAccordion', () => {
       expect(item.style.getPropertyValue(ACCORDION_TIMING_VARS.openEase)).toMatch(/^linear\(/)
     }
     // shadcn's layout exactly.
-    expect(triggers()[0]!.className).toContain('py-4')
+    expect(triggers()[0]!.className).toContain('py-2.5')
     expect(triggers()[0]!.className).not.toContain('px-')
     expect(activeTickerCount()).toBe(0)
     w.unmount()

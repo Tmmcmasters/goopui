@@ -125,6 +125,10 @@
   :where(.dark) [data-goop='highlight'][data-variant='destructive'] {
     --goop-color: color-mix(in oklab, var(--destructive) 20%, var(--popover));
   }
+  /* Command (GoopCommandList): shadcn's highlighted item is bg-muted, not the menus' accent. */
+  [data-slot='command-list'] [data-goop='highlight'] {
+    --goop-color: var(--muted);
+  }
 
   /* Tabs indicator blob (GoopTabsList): the active tab's shadcn bg + shadow-sm. Dark: shadcn's
      translucent bg-input/30 mixed opaque over the list's muted bg, with an input-colored rim. */

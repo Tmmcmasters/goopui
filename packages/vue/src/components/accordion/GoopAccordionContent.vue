@@ -27,10 +27,10 @@ const goo = computed(() => !!ctx?.value)
     :class="
       goo
         ? 'overflow-hidden text-sm'
-        : 'data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down overflow-hidden text-sm'
+        : 'overflow-hidden text-sm data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up'
     "
   >
-    <div :class="cn('pt-0 pb-4', props.class)">
+    <div :class="cn('pt-0 pb-2.5 [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground [&_p:not(:last-child)]:mb-4', props.class)">
       <slot />
     </div>
   </AccordionContent>

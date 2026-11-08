@@ -77,8 +77,8 @@ describe('GoopSheet', () => {
     const el = content()!
     const cls = el.className.split(' ')
     expect(el.getAttribute('data-side')).toBe('top')
-    expect(cls).toEqual(expect.arrayContaining(['top-0', 'inset-x-0', 'gap-2', '[--goop-color:var(--background)]']))
-    for (const c of ['bg-background', 'border-b', 'shadow-lg', 'gap-4']) expect(cls).not.toContain(c)
+    expect(cls).toEqual(expect.arrayContaining(['top-0', 'inset-x-0', 'gap-2', '[--goop-color:var(--popover)]']))
+    for (const c of ['bg-popover', 'border-b', 'shadow-lg', 'gap-4']) expect(cls).not.toContain(c)
     w.unmount()
   })
 
@@ -86,8 +86,9 @@ describe('GoopSheet', () => {
     const w = mount(Demo, { props: { content: { goo: false, side: 'left' } }, attachTo: document.body })
     await flushPromises()
     const el = content()!
-    expect(el.className.split(' ')).toEqual(expect.arrayContaining(['bg-background', 'border-r', 'shadow-lg', 'data-[state=open]:slide-in-from-left']))
+    expect(el.className.split(' ')).toEqual(expect.arrayContaining(['bg-popover', 'border-r', 'shadow-lg', 'data-[state=open]:slide-in-from-left-10']))
     expect(el.querySelector('[data-goop]')).toBeNull()
+    expect(el.querySelector('[data-slot="sheet-close"]')!.hasAttribute('data-goop-host')).toBe(false)
     expect(el.hasAttribute('data-goop-emerge')).toBe(false)
     w.unmount()
   })

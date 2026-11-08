@@ -62,7 +62,7 @@ const menu = computed(() => {
 const options = computed(() => toContextMenuOptions(menu.value, config))
 
 const SHADCN =
-  'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 ring-foreground/10 bg-popover text-popover-foreground min-w-32 rounded-lg p-1 shadow-lg ring-1 duration-100 cn-menu-translucent z-50 origin-(--reka-context-menu-content-transform-origin) overflow-hidden'
+  'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 border bg-popover text-popover-foreground min-w-32 rounded-lg p-1 shadow-lg duration-100 cn-menu-target cn-menu-translucent z-50 origin-(--reka-context-menu-content-transform-origin) overflow-hidden'
 const GOO = 'text-popover-foreground [--goop-color:var(--popover)] min-w-32 rounded-lg z-50 flex flex-col outline-hidden'
 const SCROLL = 'min-h-0 flex-1 rounded-[inherit] overflow-hidden'
 // `overflow: clip` keeps the highlight blob's goo overshoot out of SCROLL's scroll overflow.

@@ -31,7 +31,7 @@ onMounted(() => {
   <ComboboxItemIndicator
     data-slot="combobox-item-indicator"
     v-bind="delegated"
-    :class="cn('ml-auto', props.class)"
+    :class="cn('pointer-events-none absolute right-2 flex size-4 items-center justify-center', props.class)"
   >
     <span
       ref="mark"

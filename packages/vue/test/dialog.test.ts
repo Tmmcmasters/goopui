@@ -108,6 +108,8 @@ describe('GoopDialog', () => {
     expect(el.getAttribute('data-goop-emerge')).toBe('opening')
     expect(el.textContent).toContain('Make changes to your profile.')
     expect(el.querySelector('[data-slot="dialog-close"]')).not.toBeNull()
+    // shadcn's corner close: a ghost icon-sm button.
+    expect(el.querySelector('[data-slot="dialog-close"]')!.className.split(' ')).toEqual(expect.arrayContaining(['absolute', 'top-2', 'right-2', 'size-7']))
     // Dialog timing (DIALOG_FEEL's bloom close).
     expect(el.style.getPropertyValue('--goop-emerge-close')).toBe(`${Math.round(emergeBloomDuration(DIALOG_FEEL.playful, 'close') * 1000)}ms`)
     expect(isLoopRunning()).toBe(true)
@@ -130,7 +132,7 @@ describe('GoopDialog', () => {
     await flushPromises()
     const ov = q('dialog-overlay')!
     expect(ov.hasAttribute('data-goop-backdrop')).toBe(false)
-    expect(ov.className.split(' ')).toContain('bg-black/50')
+    expect(ov.className.split(' ')).toEqual(expect.arrayContaining(['bg-black/10', 'supports-backdrop-filter:backdrop-blur-xs']))
     expect(q('dialog-content')!.hasAttribute('data-goop-emerge')).toBe(true)
     w.unmount()
   })
@@ -140,9 +142,9 @@ describe('GoopDialog', () => {
     await flushPromises()
     const cls = q('dialog-content')!.className.split(' ')
     expect(cls).toContain('sm:max-w-md')
-    expect(cls).not.toContain('sm:max-w-lg')
-    expect(cls).toContain('[--goop-color:var(--background)]')
-    for (const c of ['bg-background', 'shadow-lg', 'border', 'data-[state=open]:animate-in']) expect(cls).not.toContain(c)
+    expect(cls).not.toContain('sm:max-w-sm')
+    expect(cls).toContain('[--goop-color:var(--popover)]')
+    for (const c of ['bg-popover', 'ring-1', 'data-[state=open]:animate-in']) expect(cls).not.toContain(c)
     w.unmount()
   })
 
@@ -150,10 +152,10 @@ describe('GoopDialog', () => {
     const w = mount(Demo, { props: { content: { goo: false } }, attachTo: document.body })
     await flushPromises()
     const el = q('dialog-content')!
-    expect(el.className.split(' ')).toEqual(expect.arrayContaining(['bg-background', 'border', 'shadow-lg']))
+    expect(el.className.split(' ')).toEqual(expect.arrayContaining(['bg-popover', 'rounded-xl', 'p-4', 'ring-1', 'ring-foreground/10']))
     expect(el.querySelector('[data-goop="surface"]')).toBeNull()
     expect(el.hasAttribute('data-goop-emerge')).toBe(false)
-    expect(q('dialog-overlay')!.className.split(' ')).toContain('bg-black/50')
+    expect(q('dialog-overlay')!.className.split(' ')).toContain('bg-black/10')
     expect(activeTickerCount()).toBe(0)
     w.unmount()
   })
@@ -219,7 +221,8 @@ describe('GoopAlertDialog', () => {
     const cancel = q('alert-dialog-cancel')!
     expect(action.tagName).toBe('BUTTON')
     expect(action.textContent).toContain('Continue')
-    expect(cancel.className).toContain('mt-2')
+    expect(cancel.className).toContain('border-border')
+    expect(el.getAttribute('data-size')).toBe('default')
     w.unmount()
   })
 

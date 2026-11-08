@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// GoopSheetContent: shadcn-vue's SheetContent (reka-ui DialogContent + overlay in a portal,
+// GoopSheetContent: shadcn's SheetContent (reka-ui DialogContent + overlay in a portal,
 // same props/emits, `side` top | right | bottom | left, `class` merge, close button) whose
 // panel blooms in from its screen edge. Core's `attachSheet` (the dialog's detached bloom with
 // its origin at the middle of the screen edge) draws the sheet's background as goo on an
@@ -11,7 +11,7 @@
 // (+ drip knobs), `closeSlosh`.
 //
 // The sheet's shadcn background, border and shadow move onto the goo (`--goop-color:
-// var(--background)`, a drop-shadow on the surface). Content opacity follows
+// var(--popover)`, a drop-shadow on the surface). Content opacity follows
 // `--goop-emerge-content`, and goop.css's hold animation keeps reka's Presence mounted while
 // the close plays (the overlay fades over the same time). Canvas renderer by default (a big
 // surface). With `:goo="false"` it is exactly shadcn's SheetContent. Reduced motion: plain
@@ -24,6 +24,7 @@ import { computed, onBeforeUnmount, ref, shallowRef, useTemplateRef, watch, type
 import { useGoopConfig } from '../../config'
 import { SHEET_PROP_KEYS, toSheetOptions, type GoopSheetProps } from '../../goop-props'
 import { useGoopCue } from '../../sound'
+import GoopButton from '../button/GoopButton.vue'
 
 defineOptions({
   inheritAttrs: false,
@@ -75,10 +76,13 @@ const surface = useTemplateRef<HTMLElement>('surface')
 const handle = shallowRef<SheetHandle | null>(null)
 const closeMs = ref(0)
 
+// shadcn/ui's Sheet classes (style `radix-nova`; `data-open:` / `data-closed:` spelled out as
+// the `data-[state=...]` reka emits, the `data-[side=...]` positions as per-side classes).
 const OVERLAY =
-  'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50'
-const BASE = 'fixed z-50 flex flex-col gap-4 text-sm outline-none'
-const SHADCN_BASE = 'bg-background shadow-lg transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500'
+  'fixed inset-0 z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0'
+const BASE = 'fixed z-50 flex flex-col gap-4 text-sm text-popover-foreground outline-none'
+const SHADCN_BASE =
+  'bg-popover bg-clip-padding shadow-lg transition duration-200 ease-in-out data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0'
 const SIDES: Record<Side, string> = {
   right: 'inset-y-0 right-0 h-full w-3/4 sm:max-w-sm',
   left: 'inset-y-0 left-0 h-full w-3/4 sm:max-w-sm',
@@ -86,13 +90,13 @@ const SIDES: Record<Side, string> = {
   bottom: 'inset-x-0 bottom-0 h-auto',
 }
 const SHADCN_SIDES: Record<Side, string> = {
-  right: 'data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right border-l',
-  left: 'data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left border-r',
-  top: 'data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top border-b',
-  bottom: 'data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom border-t',
+  right: 'border-l data-[state=open]:slide-in-from-right-10 data-[state=closed]:slide-out-to-right-10',
+  left: 'border-r data-[state=open]:slide-in-from-left-10 data-[state=closed]:slide-out-to-left-10',
+  top: 'border-b data-[state=open]:slide-in-from-top-10 data-[state=closed]:slide-out-to-top-10',
+  bottom: 'border-t data-[state=open]:slide-in-from-bottom-10 data-[state=closed]:slide-out-to-bottom-10',
 }
 // The goo paints the background, border and shadow; no CSS slide.
-const GOO = 'text-foreground [--goop-color:var(--background)]'
+const GOO = '[--goop-color:var(--popover)]'
 
 const classes = computed(() =>
   cn(BASE, SIDES[props.side], props.goo ? GOO : [SHADCN_BASE, SHADCN_SIDES[props.side]], props.class),
@@ -173,26 +177,32 @@ defineExpose({
       <DialogClose
         v-if="showCloseButton"
         data-slot="sheet-close"
+        as-child
         v-bind="closeCue"
-        class="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="size-4"
-          aria-hidden="true"
+        <GoopButton
+          variant="ghost"
+          size="icon-sm"
+          :goo="goo ? undefined : false"
+          class="absolute top-3 right-3"
         >
-          <path d="M18 6 6 18" />
-          <path d="m6 6 12 12" />
-        </svg>
-        <span class="sr-only">Close</span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M18 6 6 18" />
+            <path d="m6 6 12 12" />
+          </svg>
+          <span class="sr-only">Close</span>
+        </GoopButton>
       </DialogClose>
     </DialogContent>
   </DialogPortal>

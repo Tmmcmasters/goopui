@@ -1,19 +1,49 @@
-// Class strings shared by GoopDialog and GoopAlertDialog (shadcn-vue's, with the `data-[state=]`
-// variants reka 2.11 emits).
+// Class strings shared by GoopDialog and GoopAlertDialog: shadcn/ui's (style `radix-nova`, the
+// same strings @goopui/react uses). shadcn writes `data-open:` / `data-closed:`; those are
+// spelled out as the `data-[state=...]` reka emits.
 
-/** shadcn's DialogContent / AlertDialogContent (`:goo="false"`). */
+/** shadcn's DialogOverlay / AlertDialogOverlay (the plain fade; goo off). */
+export const DIALOG_OVERLAY_SHADCN =
+  'fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0'
+
+/** Goo overlay: the goo paints the dim (core `attachBackdrop`); no CSS enter/exit. */
+export const DIALOG_OVERLAY_GOO = 'fixed inset-0 isolate z-50'
+
+/** shadcn's DialogContent (`:goo="false"`). */
 export const DIALOG_CONTENT_SHADCN =
-  'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg outline-hidden'
+  'fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95'
 
-/** Goo on: the goo paints the background (`--goop-color`), border and shadow; no CSS enter/exit. */
+/** Goo on: the goo paints the background (`--goop-color: var(--popover)`), ring and shadow
+ *  (goop.css's drop-shadow on the surface); no CSS enter/exit. */
 export const DIALOG_CONTENT_GOO =
-  'text-foreground [--goop-color:var(--background)] fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg p-6 sm:max-w-lg outline-hidden'
+  'fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl p-4 text-sm text-popover-foreground [--goop-color:var(--popover)] outline-none sm:max-w-sm'
 
-/** The corner close (X). Its opacity is scaled by the emerge content fade (1 without goo). */
-export const DIALOG_CLOSE =
-  "ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-[calc(0.7*var(--goop-emerge-content,1))] transition-opacity hover:opacity-[var(--goop-emerge-content,1)] focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+/** The corner close (X): a ghost icon button, like shadcn. */
+export const DIALOG_CLOSE = 'absolute top-2 right-2'
 
-export const DIALOG_HEADER = 'flex flex-col gap-2 text-center sm:text-left'
-export const DIALOG_FOOTER = 'flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'
-export const DIALOG_TITLE = 'text-lg leading-none font-semibold'
-export const DIALOG_DESCRIPTION = 'text-muted-foreground text-sm'
+export const DIALOG_HEADER = 'flex flex-col gap-2'
+export const DIALOG_FOOTER = '-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end'
+export const DIALOG_TITLE = 'cn-font-heading text-base leading-none font-medium'
+export const DIALOG_DESCRIPTION = 'text-sm text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground'
+
+// ---- AlertDialog (shadcn's own strings; `size` is `default` | `sm` on the content) ----------
+
+const ALERT_DIALOG_CONTENT_BASE =
+  'group/alert-dialog-content fixed top-1/2 left-1/2 z-50 grid w-full -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl p-4 text-popover-foreground outline-none data-[size=default]:max-w-xs data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-sm'
+
+/** shadcn's AlertDialogContent (`:goo="false"`). */
+export const ALERT_DIALOG_CONTENT_SHADCN = `${ALERT_DIALOG_CONTENT_BASE} bg-popover ring-1 ring-foreground/10 duration-100 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95`
+
+/** Goo on: the goo paints the background, ring and shadow. */
+export const ALERT_DIALOG_CONTENT_GOO = `${ALERT_DIALOG_CONTENT_BASE} [--goop-color:var(--popover)]`
+
+export const ALERT_DIALOG_HEADER =
+  'grid grid-rows-[auto_1fr] place-items-center gap-1.5 text-center has-data-[slot=alert-dialog-media]:grid-rows-[auto_auto_1fr] has-data-[slot=alert-dialog-media]:gap-x-4 sm:group-data-[size=default]/alert-dialog-content:place-items-start sm:group-data-[size=default]/alert-dialog-content:text-left sm:group-data-[size=default]/alert-dialog-content:has-data-[slot=alert-dialog-media]:grid-rows-[auto_1fr]'
+export const ALERT_DIALOG_FOOTER =
+  '-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 group-data-[size=sm]/alert-dialog-content:grid group-data-[size=sm]/alert-dialog-content:grid-cols-2 sm:flex-row sm:justify-end'
+export const ALERT_DIALOG_MEDIA =
+  "mb-2 inline-flex size-10 items-center justify-center rounded-md bg-muted sm:group-data-[size=default]/alert-dialog-content:row-span-2 *:[svg:not([class*='size-'])]:size-6"
+export const ALERT_DIALOG_TITLE =
+  'cn-font-heading text-base font-medium sm:group-data-[size=default]/alert-dialog-content:group-has-data-[slot=alert-dialog-media]/alert-dialog-content:col-start-2'
+export const ALERT_DIALOG_DESCRIPTION =
+  'text-sm text-balance text-muted-foreground md:text-pretty *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground'

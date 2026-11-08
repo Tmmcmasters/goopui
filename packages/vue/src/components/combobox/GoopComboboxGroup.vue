@@ -23,7 +23,7 @@ const delegated = computed(() => {
     <ComboboxLabel
       v-if="heading"
       data-slot="combobox-group-heading"
-      class="text-muted-foreground px-2 py-1.5 text-xs font-medium"
+      class="text-muted-foreground px-2 py-1.5 text-xs"
     >
       {{ heading }}
     </ComboboxLabel>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // GoopComboboxList: shadcn-vue's ComboboxList (reka-ui ComboboxContent in a portal, same
-// props/emits, `class` merge, popper below the anchor, align start, sideOffset 4) whose list
+// props/emits, `class` merge, popper below the anchor, align start, sideOffset 6) whose list
 // blooms open like GoopSelectContent's popper (core `attachEmerge`, the bloom from its own
 // center) and whose item highlight is the menu's goo blob (core `attachMenuHighlight`, found
 // with `findCommandHighlight` so items filtered out by the search are skipped). Choosing an
@@ -28,7 +28,7 @@ defineOptions({
 const props = withDefaults(defineProps<ComboboxContentProps & GoopComboboxProps & { class?: HTMLAttributes['class'] }>(), {
   position: 'popper',
   align: 'start',
-  sideOffset: 4,
+  sideOffset: 6,
   goo: undefined,
   flow: undefined,
   flowStyle: undefined,
@@ -67,11 +67,11 @@ const combobox = computed(() => resolveComboboxProps(props))
 const options = computed(() => toComboboxOptions(combobox.value, config))
 
 const SHADCN =
-  'z-50 w-[200px] rounded-md border bg-popover text-popover-foreground origin-(--reka-combobox-content-transform-origin) overflow-hidden shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2'
+  'relative z-50 w-(--reka-combobox-trigger-width) max-w-(--reka-combobox-content-available-width) rounded-lg bg-popover text-popover-foreground origin-(--reka-combobox-content-transform-origin) overflow-hidden shadow-md ring-1 ring-foreground/10 duration-100 outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2'
 // The goo paints the background (popover color), ring and shadow; no CSS enter/exit, and no
 // overflow on the panel (the goo pokes past it while it blooms).
 const GOO =
-  'text-popover-foreground [--goop-color:var(--popover)] z-50 w-[200px] rounded-md flex flex-col outline-none max-h-(--reka-combobox-content-available-height)'
+  'text-popover-foreground [--goop-color:var(--popover)] z-50 w-(--reka-combobox-trigger-width) max-w-(--reka-combobox-content-available-width) rounded-lg flex flex-col outline-none max-h-(--reka-combobox-content-available-height)'
 const SCROLL = 'min-h-0 flex-1 rounded-[inherit] overflow-x-hidden overflow-y-auto max-h-72'
 const LIST = 'relative overflow-clip'
 
