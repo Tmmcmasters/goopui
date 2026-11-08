@@ -899,6 +899,16 @@ export {
   type KbdOptions,
 } from './kbd'
 export {
+  BREADCRUMB_EFFECTS,
+  BREADCRUMB_FEEL,
+  BREADCRUMB_LINKS,
+  BREADCRUMB_LIT_ATTR,
+  attachBreadcrumbHighlight,
+  findBreadcrumbHighlight,
+  type BreadcrumbEffect,
+  type BreadcrumbHighlightOptions,
+} from './breadcrumb'
+export {
   SIDEBAR_EDGE_FEEL,
   SIDEBAR_EDGE_PART,
   SIDEBAR_EFFECTS,

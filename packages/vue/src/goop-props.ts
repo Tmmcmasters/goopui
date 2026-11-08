@@ -2492,3 +2492,70 @@ export function toKbdOptions(props: GoopKbdPropsInput, config: GoopOptions = {})
 }
 
 import { KBD_EFFECTS, type KbdEffect, type KbdOptions } from '@goopui/core'
+
+// ---- GoopBreadcrumb -------------------------------------------------------------------------
+// The links' hover / keyboard-focus highlight is ONE goo blob (core
+// `attachBreadcrumbHighlight`: the menu highlight engine fed BREADCRUMB_FEEL, a calm tabs feel
+// with the menu's pointer swell) on GoopBreadcrumbList that flows from link to link.
+// Separator, Ellipsis, Page and Item are plain. Every prop can sit on GoopBreadcrumb (the list
+// inherits it) or on GoopBreadcrumbList (wins there). Toggles come from core's
+// BREADCRUMB_EFFECTS; all default true.
+
+/** Every GoopBreadcrumb engine prop. */
+export const BREADCRUMB_PROP_KEYS = ['goo', ...BREADCRUMB_EFFECTS, 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopBreadcrumb (inherited) and GoopBreadcrumbList. */
+export interface GoopBreadcrumbProps {
+  /** Master switch. `false` renders plain shadcn Breadcrumb parts. */
+  goo?: boolean
+  /** The links' hover / focus highlight is one goo blob that flows between them (false: shadcn's
+   *  text-colour hover only). */
+  highlight?: boolean
+  /** Soft jelly landing when the blob reaches a link. */
+  wobble?: boolean
+  /** Momentum: the blob stretches gently and trails a short tail while it travels. */
+  momentum?: boolean
+  /** A low, wide swell of the blob sits under the pointer (false: centred). */
+  followPointer?: boolean
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+type BreadcrumbAdapterOwned = 'feel' | 'reducedMotion'
+type BreadcrumbUnhandled = Exclude<keyof BreadcrumbHighlightOptions | BreadcrumbEffect, keyof GoopBreadcrumbProps | BreadcrumbAdapterOwned>
+const _allBreadcrumbOptionsHandled: [BreadcrumbUnhandled] extends [never] ? true : { unhandled: BreadcrumbUnhandled } = true
+void _allBreadcrumbOptionsHandled
+type BreadcrumbPropsListed = Exclude<keyof GoopBreadcrumbProps, (typeof BREADCRUMB_PROP_KEYS)[number]>
+const _allBreadcrumbPropsListed: [BreadcrumbPropsListed] extends [never] ? true : { unlisted: BreadcrumbPropsListed } = true
+void _allBreadcrumbPropsListed
+
+/** The list's props over the root's: each prop the list sets wins, the rest are inherited. */
+export function resolveBreadcrumbProps(own: GoopBreadcrumbProps, parent?: GoopBreadcrumbProps | null): GoopBreadcrumbProps {
+  const out: GoopBreadcrumbProps = {}
+  for (const k of BREADCRUMB_PROP_KEYS) {
+    const v = own[k] ?? parent?.[k]
+    if (v !== undefined) (out as Record<string, unknown>)[k] = v
+  }
+  return out
+}
+
+/** Highlight options for core over app config, or null when the blob is off. */
+export function toBreadcrumbOptions(props: GoopBreadcrumbProps, config: GoopOptions = {}): BreadcrumbHighlightOptions | null {
+  if (props.goo === false || props.highlight === false) return null
+  return {
+    feel: BREADCRUMB_FEEL,
+    wobble: props.wobble !== false,
+    momentum: props.momentum !== false,
+    followPointer: props.followPointer !== false,
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+}
+
+import { BREADCRUMB_EFFECTS, BREADCRUMB_FEEL, type BreadcrumbEffect, type BreadcrumbHighlightOptions } from '@goopui/core'

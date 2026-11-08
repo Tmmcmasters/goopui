@@ -71,4 +71,24 @@ describe('small set SSR', () => {
     expect(html).toContain('data-slot="kbd"')
     expect(html).not.toContain('data-goop-pressed')
   })
+
+  it('breadcrumb renders shadcn markup with no blob', async () => {
+    const { GoopBreadcrumb, GoopBreadcrumbList, GoopBreadcrumbItem, GoopBreadcrumbLink, GoopBreadcrumbSeparator, GoopBreadcrumbPage } = await import('../src')
+    const html = await renderToString(
+      createSSRApp({
+        render: () =>
+          h(GoopBreadcrumb, null, () =>
+            h(GoopBreadcrumbList, null, () => [
+              h(GoopBreadcrumbItem, null, () => h(GoopBreadcrumbLink, { href: '/' }, () => 'Home')),
+              h(GoopBreadcrumbSeparator),
+              h(GoopBreadcrumbItem, null, () => h(GoopBreadcrumbPage, null, () => 'Here')),
+            ]),
+          ),
+      }),
+    )
+    expect(html).toContain('<nav aria-label="breadcrumb" data-slot="breadcrumb"')
+    expect(html).toContain('<ol data-slot="breadcrumb-list"')
+    expect(html).toContain('aria-current="page"')
+    expect(html).not.toContain('data-goop="highlight"')
+  })
 })

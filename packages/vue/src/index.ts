@@ -241,3 +241,5 @@ export {
 } from './goop-props'
 export * from './components/kbd'
 export { KBD_PROP_KEYS, goopKbdProps, toKbdOptions, type GoopKbdPropsDefinition, type GoopKbdPropsInput } from './goop-props'
+export * from './components/breadcrumb'
+export { BREADCRUMB_PROP_KEYS, resolveBreadcrumbProps, toBreadcrumbOptions, type GoopBreadcrumbProps } from './goop-props'

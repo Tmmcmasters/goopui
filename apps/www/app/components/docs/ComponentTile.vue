@@ -91,6 +91,15 @@ defineProps<{ slug: string; title: string }>()
       <GoopKbd>⌘</GoopKbd>
       <GoopKbd>K</GoopKbd>
     </GoopKbdGroup>
+    <GoopBreadcrumb v-else-if="slug === 'breadcrumb'" class="text-[11px]">
+      <GoopBreadcrumbList class="gap-1 text-[11px]">
+        <GoopBreadcrumbItem><GoopBreadcrumbLink as="span">Home</GoopBreadcrumbLink></GoopBreadcrumbItem>
+        <GoopBreadcrumbSeparator />
+        <GoopBreadcrumbItem><GoopBreadcrumbLink as="span">Docs</GoopBreadcrumbLink></GoopBreadcrumbItem>
+        <GoopBreadcrumbSeparator />
+        <GoopBreadcrumbItem><GoopBreadcrumbPage>Here</GoopBreadcrumbPage></GoopBreadcrumbItem>
+      </GoopBreadcrumbList>
+    </GoopBreadcrumb>
 
     <!-- Sketches: overlays and the rest. Ink, with the goo colour as the accent. -->
     <div v-else-if="slug === 'select'" class="sk-card flex h-8 w-32 items-center justify-between px-2.5 text-[11px] text-muted-foreground">

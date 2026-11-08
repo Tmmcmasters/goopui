@@ -1,0 +1,7 @@
+export { default as GoopBreadcrumb } from './GoopBreadcrumb.vue'
+export { default as GoopBreadcrumbEllipsis } from './GoopBreadcrumbEllipsis.vue'
+export { default as GoopBreadcrumbItem } from './GoopBreadcrumbItem.vue'
+export { default as GoopBreadcrumbLink } from './GoopBreadcrumbLink.vue'
+export { default as GoopBreadcrumbList } from './GoopBreadcrumbList.vue'
+export { default as GoopBreadcrumbPage } from './GoopBreadcrumbPage.vue'
+export { default as GoopBreadcrumbSeparator } from './GoopBreadcrumbSeparator.vue'

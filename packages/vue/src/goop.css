@@ -535,4 +535,10 @@
       -1px 0 0 0 transparent,
       inset 1px 0 0 0 transparent;
   }
+
+  /* Breadcrumb (GoopBreadcrumbList): one goo blob is the links' hover / focus background, in
+     shadcn's muted tone (shadcn's own hover only changes the text colour). */
+  [data-goop-breadcrumb] > [data-goop='highlight'] {
+    --goop-color: var(--muted);
+  }
 }
