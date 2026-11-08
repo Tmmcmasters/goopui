@@ -4,7 +4,7 @@
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
-type Lang = 'ts' | 'vue' | 'shell' | 'css'
+export type Lang = 'ts' | 'tsx' | 'vue' | 'shell' | 'css'
 
 const RULES: Record<Lang, [RegExp, string][]> = {
   ts: [
@@ -19,6 +19,16 @@ const RULES: Record<Lang, [RegExp, string][]> = {
     [/(&lt;\/?)([A-Za-z][\w-]*)/g, 'tag'],
     [/\s([:@]?[a-zA-Z-]+)(=)/g, 'attr'],
     [/("[^"\n]*")/g, 'string'],
+  ],
+  // React snippets (the docs' Code tabs): TS plus JSX tags and attributes.
+  tsx: [
+    [/(\/\/[^\n]*)/g, 'comment'],
+    [/(&lt;\/?)([A-Za-z][\w.]*)/g, 'tag'],
+    [/\s([a-zA-Z-]+)(=)/g, 'attr'],
+    [/('[^'\n]*'|"[^"\n]*"|`[^`]*`)/g, 'string'],
+    [/\b(import|from|export|const|let|function|return|await|async|type|interface|new|if|else|default)\b/g, 'keyword'],
+    [/\b(\d+(?:\.\d+)?)\b/g, 'number'],
+    [/\b([a-zA-Z_]\w*)(?=\()/g, 'fn'],
   ],
   shell: [
     [/(#[^\n]*)/g, 'comment'],

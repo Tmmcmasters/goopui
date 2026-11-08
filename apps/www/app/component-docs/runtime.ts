@@ -2,6 +2,9 @@
 // the Code tab's snippet, and the props table rows. No Vue here.
 import { controlId, type ComponentDoc, type Control, type ControlValues, type PropRow } from './types'
 
+/** Which docs: Vue (/docs) or React (/react/docs). */
+export type DocsFramework = 'vue' | 'react'
+
 export const partOf = (c: Control): string => c.part ?? 'main'
 
 /** The value a control shows when the reader hasn't touched it. */
@@ -36,6 +39,23 @@ export function partProps(doc: ComponentDoc, values: ControlValues): Record<stri
   return out
 }
 
+/** JSX attributes for one part's changed props (React). */
+function jsxAttrs(doc: ComponentDoc, values: ControlValues, part: string): string[] {
+  const out: string[] = []
+  const styles: string[] = []
+  for (const c of doc.controls) {
+    const id = controlId(c)
+    if (partOf(c) !== part || !(id in values)) continue
+    const v = values[id]
+    if (c.kind === 'color') styles.push(`'${c.cssVar}': '${v}'`)
+    else if (v === true) out.push(c.prop)
+    else if (typeof v === 'boolean' || typeof v === 'number') out.push(`${c.prop}={${v}}`)
+    else out.push(`${c.prop}="${v}"`)
+  }
+  if (styles.length) out.push(`style={{ ${styles.join(', ')} }}`)
+  return out
+}
+
 /** Template attributes for one part's changed props. */
 function attrs(doc: ComponentDoc, values: ControlValues, part: string): string[] {
   const out: string[] = []
@@ -58,29 +78,31 @@ function attrs(doc: ComponentDoc, values: ControlValues, part: string): string[]
  * The Code tab snippet: each `{{part}}` in `doc.code` becomes that part's attributes, inline
  * when the line stays short, otherwise one per line under the tag.
  */
-export function codeFor(doc: ComponentDoc, values: ControlValues): string {
-  return doc.code
+export function codeFor(doc: ComponentDoc, values: ControlValues, fw: DocsFramework = 'vue'): string {
+  const react = fw === 'react' && !!doc.reactCode
+  const list = react ? jsxAttrs : attrs
+  return (react ? doc.reactCode! : doc.code)
     .split('\n')
     .map((line) => {
       const m = /^(.*?)\{\{(\w+)\}\}(.*)$/.exec(line)
       if (!m) return line
       const [, before = '', part = 'main', rest = ''] = m
-      const list = attrs(doc, values, part)
-      if (!list.length) return before + rest
-      const inline = ` ${list.join(' ')}`
+      const items = list(doc, values, part)
+      if (!items.length) return before + rest
+      const inline = ` ${items.join(' ')}`
       if (before.length + inline.length + rest.length <= 76) return before + inline + rest
       // One attribute per line, including the ones already written before the token.
       const indent = /^\s*/.exec(line)![0]
       const tag = /^\s*<[\w.-]+/.exec(before)?.[0] ?? before
-      const existing = before.slice(tag.length).match(/[^\s=]+(="[^"]*")?/g) ?? []
-      return `${tag}\n${[...existing, ...list].map((a) => `${indent}  ${a}`).join('\n')}\n${indent}${rest.trimStart()}`
+      const existing = before.slice(tag.length).match(/[^\s=]+(?:=(?:"[^"]*"|\{\{[^}]*\}\}|\{[^}]*\}))?/g) ?? []
+      return `${tag}\n${[...existing, ...items].map((a) => `${indent}  ${a}`).join('\n')}\n${indent}${rest.trimStart()}`
     })
     .join('\n')
 }
 
 /** Rows for a props table: the entry's own rows, then any control prop they don't cover. */
-export function tableRows(doc: ComponentDoc, part?: string): { caption: string; rows: PropRow[] } {
-  const tables = doc.tables ?? {}
+export function tableRows(doc: ComponentDoc, part?: string, fw: DocsFramework = 'vue'): { caption: string; rows: PropRow[] } {
+  const tables = (fw === 'react' ? doc.reactTables : undefined) ?? doc.tables ?? {}
   const key = part ?? Object.keys(tables)[0] ?? 'main'
   const table = tables[key] ?? { caption: `${doc.component} props`, rows: [] }
   const listed = new Set(table.rows.flatMap((r) => r.prop.split(/,\s*/)))

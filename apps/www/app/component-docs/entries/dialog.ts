@@ -26,6 +26,22 @@ export default defineComponentDoc({
     </GoopDialogFooter>
   </GoopDialogContent>
 </GoopDialog>`,
+  reactCode: `<GoopDialog>
+  <GoopDialogTrigger asChild>
+    <GoopButton variant="outline">Edit profile</GoopButton>
+  </GoopDialogTrigger>
+  <GoopDialogContent className="sm:max-w-md"{{content}}>
+    <GoopDialogHeader>
+      <GoopDialogTitle>Edit profile</GoopDialogTitle>
+      <GoopDialogDescription>Make changes to your profile here.</GoopDialogDescription>
+    </GoopDialogHeader>
+    <GoopDialogFooter>
+      <GoopDialogClose asChild>
+        <GoopButton>Save changes</GoopButton>
+      </GoopDialogClose>
+    </GoopDialogFooter>
+  </GoopDialogContent>
+</GoopDialog>`,
   controls: [
     preset(content),
     speed(content),

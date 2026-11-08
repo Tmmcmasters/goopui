@@ -4,7 +4,8 @@
 const route = useRoute()
 const { data: nav } = await useDocsNav()
 const title = computed(() => {
-  for (const s of nav.value ?? []) for (const i of s.children ?? []) if (i.path === route.path) return i.title
+  const here = canonicalPath(route.path)
+  for (const s of nav.value ?? []) for (const i of s.children ?? []) if (i.path === here) return i.title
   return ''
 })
 </script>

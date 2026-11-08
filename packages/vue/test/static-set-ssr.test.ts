@@ -46,3 +46,75 @@ describe('static set SSR', () => {
     expect(done).not.toContain('data-slot="skeleton"')
   })
 })
+
+describe('small set SSR', () => {
+  it("renders shadcn's markup with no goo layers", async () => {
+    const { GoopAlert, GoopAlertTitle, GoopAlertDescription } = await import('../src')
+    const html = await renderToString(
+      createSSRApp({
+        render: () =>
+          h('div', [
+            h(GoopAlert, { variant: 'destructive' }, () => [h('svg'), h(GoopAlertTitle, null, () => 'Heads up'), h(GoopAlertDescription, null, () => 'Body')]),
+          ]),
+      }),
+    )
+    expect(html).toContain('data-slot="alert"')
+    expect(html).toContain('role="alert"')
+    expect(html).toContain('data-slot="alert-title"')
+    expect(html).not.toContain('data-goop="')
+  })
+
+  it('kbd renders shadcn markup', async () => {
+    const { GoopKbd, GoopKbdGroup } = await import('../src')
+    const html = await renderToString(createSSRApp({ render: () => h(GoopKbdGroup, null, () => [h(GoopKbd, { keys: ['Meta', 'K'] }, () => '⌘'), h(GoopKbd, null, () => 'K')]) }))
+    expect(html).toContain('<kbd data-slot="kbd-group"')
+    expect(html).toContain('data-slot="kbd"')
+    expect(html).not.toContain('data-goop-pressed')
+  })
+
+  it('breadcrumb renders shadcn markup with no blob', async () => {
+    const { GoopBreadcrumb, GoopBreadcrumbList, GoopBreadcrumbItem, GoopBreadcrumbLink, GoopBreadcrumbSeparator, GoopBreadcrumbPage } = await import('../src')
+    const html = await renderToString(
+      createSSRApp({
+        render: () =>
+          h(GoopBreadcrumb, null, () =>
+            h(GoopBreadcrumbList, null, () => [
+              h(GoopBreadcrumbItem, null, () => h(GoopBreadcrumbLink, { href: '/' }, () => 'Home')),
+              h(GoopBreadcrumbSeparator),
+              h(GoopBreadcrumbItem, null, () => h(GoopBreadcrumbPage, null, () => 'Here')),
+            ]),
+          ),
+      }),
+    )
+    expect(html).toContain('<nav aria-label="breadcrumb" data-slot="breadcrumb"')
+    expect(html).toContain('<ol data-slot="breadcrumb-list"')
+    expect(html).toContain('aria-current="page"')
+    expect(html).not.toContain('data-goop="highlight"')
+  })
+
+  it('button group renders shadcn markup, buttons plain', async () => {
+    const { GoopButtonGroup, GoopButton, GoopButtonGroupSeparator } = await import('../src')
+    const html = await renderToString(
+      createSSRApp({
+        render: () =>
+          h(GoopButtonGroup, null, () => [h(GoopButton, { variant: 'outline' }, () => 'A'), h(GoopButtonGroupSeparator), h(GoopButton, { variant: 'outline' }, () => 'B')]),
+      }),
+    )
+    expect(html).toContain('role="group" data-slot="button-group"')
+    expect(html).toContain('data-slot="button-group-separator"')
+    expect(html).not.toContain('data-goop-host="stroke"')
+    expect(html).not.toContain('style="transform')
+  })
+
+  it('empty renders shadcn markup with no puddle', async () => {
+    const { GoopEmpty, GoopEmptyHeader, GoopEmptyMedia, GoopEmptyTitle } = await import('../src')
+    const html = await renderToString(
+      createSSRApp({
+        render: () => h(GoopEmpty, null, () => h(GoopEmptyHeader, null, () => [h(GoopEmptyMedia, { variant: 'icon' }, () => h('svg')), h(GoopEmptyTitle, null, () => 'None')])),
+      }),
+    )
+    expect(html).toContain('data-slot="empty"')
+    expect(html).toContain('data-slot="empty-icon" data-variant="icon"')
+    expect(html).not.toContain('empty-puddle')
+  })
+})

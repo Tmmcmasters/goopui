@@ -73,12 +73,18 @@ export interface ComponentDoc {
    * the reader changed for that part, kebab-cased, inline or one per line when long.
    */
   code: string
+  /** The Code tab on the React page (/react/docs): the same `{{part}}` tokens, expanded as
+   *  JSX attributes. Only for components @goopui/react has; others show the Vue code. */
+  reactCode?: string
   controls: Control[]
   /** false: the props tables don't add the controls missing from `tables` (another table
    *  on the page covers them, like GoopButton's engine table). */
   controlsInTable?: boolean
   /** Props tables for `::component-props{name part}`, keyed by part. The first is the default. */
   tables?: Record<string, { caption: string; rows: PropRow[] }>
+  /** The React page's props tables, keyed like `tables` (the React API differs: `checked` /
+   *  `onCheckedChange` for v-model, `className` for `class`, ...). Falls back to `tables`. */
+  reactTables?: Record<string, { caption: string; rows: PropRow[] }>
   /**
    * A replay button on the stage for one-shot effects. `remount` re-creates the demo;
    * `click` re-creates it and clicks its trigger (the first `[data-replay]`, else the first

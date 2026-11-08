@@ -40,5 +40,11 @@ export const catalog: CatalogEntry[] = [
   { path: '/static-set', goop: 'GoopSkeleton, Badge, Card, Avatar', shadcn: 'Skeleton, Badge, Card, Avatar', blurb: 'Calm and cheap: skeleton goo shimmer, badge hover swell, card edge swell (opt-in), avatar settle. Separator and Label are plain ports.' },
   { path: '/navigation-menu', goop: 'GoopNavigationMenu', shadcn: 'NavigationMenu', blurb: 'One goo highlight flows between the items; the panel blooms from its trigger and jelly-slides to the next one.' },
   { path: '/skeleton-reveal', goop: 'GoopSkeletonReveal', shadcn: 'Skeleton', blurb: 'Loading goo: the skeleton blocks pool, a sheen flows through and bridges them; when the content lands each block melts into its element and drains away.' },
+  { path: '/alert', goop: 'GoopAlert', shadcn: 'Alert', blurb: 'A soft goo entrance: the body blooms out of its top edge and settles; the icon wobbles once.' },
+  { path: '/kbd', goop: 'GoopKbd', shadcn: 'Kbd', blurb: 'Press the matching key (or click it) and the key squishes into its base, then springs back.' },
+  { path: '/breadcrumb', goop: 'GoopBreadcrumb', shadcn: 'Breadcrumb', blurb: 'The hover highlight is one goo blob that flows between the links.' },
+  { path: '/button-group', goop: 'GoopButtonGroup', shadcn: 'ButtonGroup', blurb: 'The buttons flex as one goo body: a press squishes one and tugs its neighbours, no seams.' },
+  { path: '/empty', goop: 'GoopEmpty', shadcn: 'Empty', blurb: 'The media icon sits in a goo puddle that breathes very slowly.' },
   { path: '/sidebar', goop: 'GoopSidebar', shadcn: 'Sidebar', blurb: 'Dashboard sidebar: goo highlight glides between items, the edge sloshes as it collapses.' },
+  { path: '/carousel', goop: 'GoopCarousel', shadcn: 'Carousel', blurb: 'Slides stretch with momentum and wobble on the snap, edges slosh, a gooey rubber band past the ends; goo dots; Prev/Next squish.' },
 ]

@@ -1,5 +1,6 @@
 // Every component docs entry (./entries/*.ts, picked up automatically), plus the component
 // count and sidebar categories. See ./README.md for adding a component.
+import { goopComponents as reactComponents } from '@goopui/react/manifest'
 import { goopComponents } from '@goopui/vue'
 import type { Category, ComponentDoc } from './types'
 
@@ -16,6 +17,15 @@ export const componentDoc = (slug: string): ComponentDoc | undefined => bySlug.g
 if (import.meta.dev) {
   const known = new Set<string>(goopComponents)
   for (const d of componentDocs) if (!known.has(d.component)) console.warn(`[www] ${d.slug}: ${d.component} is not in @goopui/vue's manifest`)
+}
+
+const REACT = new Set<string>(reactComponents)
+
+/** Whether a component docs page (by slug) has a React version in @goopui/react yet. Pages
+ *  with no component (the docs' other sections) count as having one. */
+export const hasReactVersion = (slug: string): boolean => {
+  const d = bySlug.get(slug)
+  return !d || REACT.has(d.component)
 }
 
 /** Categories for docs pages that have no entry yet (so a new page still lands in a group). */
@@ -45,7 +55,7 @@ export const categoryOf = (slug: string): Category => bySlug.get(slug)?.category
  * Roots whose name happens to start with another root's name (ToggleGroup starts with
  * Toggle). Add a new component here if its name extends an existing one.
  */
-const STANDALONE = new Set(['GoopToggleGroup', 'GoopInputOTP', 'GoopInputOtp'])
+const STANDALONE = new Set(['GoopToggleGroup', 'GoopInputOTP', 'GoopInputOtp', 'GoopAlertDialog', 'GoopButtonGroup'])
 
 /**
  * Top-level components in @goopui/vue's manifest. A part (GoopDialogContent, GoopSelectItem)

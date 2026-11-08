@@ -1,5 +1,6 @@
 <script setup lang="ts">
 defineProps<{ wide?: boolean }>()
+const { to } = useFramework()
 </script>
 
 <template>
@@ -13,8 +14,8 @@ defineProps<{ wide?: boolean }>()
         <p>MIT licensed. Alpha, so APIs can still change. Vue first; React and Svelte later.</p>
       </div>
       <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
-        <NuxtLink to="/docs/getting-started/introduction" class="hover:text-foreground">Docs</NuxtLink>
-        <NuxtLink to="/docs/getting-started/accessibility" class="hover:text-foreground">Accessibility</NuxtLink>
+        <NuxtLink :to="to('/docs/getting-started/introduction')" class="hover:text-foreground">Docs</NuxtLink>
+        <NuxtLink :to="to('/docs/getting-started/accessibility')" class="hover:text-foreground">Accessibility</NuxtLink>
         <a
           :href="GITHUB_URL"
           class="group inline-flex items-center gap-1.5 hover:text-foreground"

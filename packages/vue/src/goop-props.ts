@@ -2419,3 +2419,335 @@ import {
   type NavigationMenuHighlightOptions,
   type NavigationMenuViewportOptions,
 } from '@goopui/core'
+
+// ---- GoopCarousel ---------------------------------------------------------------------------
+// Core's CAROUSEL_EFFECTS, each a GoopCarousel prop (all default on; `true`, `false` or a 0..2
+// strength for the slide effects): `stretch` (slides stretch along the motion with momentum and
+// wobble when they snap), `slosh` (slide edges slosh in low, wide mounds with the velocity),
+// `rubberBand` (dragging past the first / last slide: its outer edge reaches back as one low,
+// wide mound), all three core `attachCarousel` fed embla's motion; `squish` (Previous / Next
+// are squishy GoopButtons; false: plain shadcn buttons); `dots` (GoopCarouselDots' active blob
+// flows between dots: core `attachCarouselDots`; false: flat dots). `goo: false` is a plain
+// shadcn Carousel. The parts read every prop from the carousel.
+
+/** Every GoopCarousel engine prop. */
+export const CAROUSEL_PROP_KEYS = ['goo', ...CAROUSEL_EFFECTS, 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopCarousel (its parts read them from the carousel). */
+export interface GoopCarouselProps {
+  /** Master switch. `false` renders a plain shadcn Carousel (every effect off). */
+  goo?: boolean
+  /** Slides stretch a little along the motion with momentum and wobble on the snap. `true`, `false` or 0..2. */
+  stretch?: boolean | number
+  /** Slide edges slosh in low, wide mounds as they scroll and snap. `true`, `false` or 0..2. */
+  slosh?: boolean | number
+  /** Dragging past the first / last slide: its outer edge reaches back as one low, wide mound. `true`, `false` or 0..2. */
+  rubberBand?: boolean | number
+  /** Previous / Next squish like GoopButton (false: plain shadcn buttons). */
+  squish?: boolean
+  /** GoopCarouselDots: the active dot is a goo blob that flows between dots (false: flat dots). */
+  dots?: boolean
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** Renderer of the dots blob: 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+/** Compile-time guards: every carousel option core grows must be a prop (or adapter-owned). */
+type CarouselAdapterOwned = 'axis' | 'overscroll' | 'reducedMotion' | 'feel' | 'seed' | 'wobble' | 'momentum'
+type CarouselUnhandled = Exclude<
+  keyof CarouselOptions | keyof CarouselDotsOptions | CarouselEffect,
+  keyof GoopCarouselProps | CarouselAdapterOwned
+>
+const _allCarouselOptionsHandled: [CarouselUnhandled] extends [never] ? true : { unhandled: CarouselUnhandled } = true
+void _allCarouselOptionsHandled
+type CarouselPropsListed = Exclude<keyof GoopCarouselProps, (typeof CAROUSEL_PROP_KEYS)[number]>
+const _allCarouselPropsListed: [CarouselPropsListed] extends [never] ? true : { unlisted: CarouselPropsListed } = true
+void _allCarouselPropsListed
+
+/** Resolved carousel goo: what each part of the carousel should do. */
+export interface ResolvedCarouselGoo {
+  /** Slide goo options (without `axis` / `overscroll`, the adapter's), or null (all off). */
+  slides: Omit<CarouselOptions, 'axis' | 'overscroll'> | null
+  /** GoopButton props of Previous / Next (`goo: false` when the squish is off). */
+  button: GoopPropsInput & { goo?: boolean }
+  /** Dots blob options, or null (flat dots). */
+  dots: CarouselDotsOptions | null
+  /** Reduced motion forced by app config (`true` / `false`), else 'auto'. */
+  reducedMotion: boolean | 'auto'
+}
+
+const carouselStrength = (v: boolean | number | undefined): boolean | number => (v === undefined ? true : v)
+const carouselOff = (v: boolean | number): boolean => v === false || v === 0
+
+/** Carousel goo from props, over app config (`preset`, `renderer`, `reducedMotion`). */
+export function toCarouselOptions(props: GoopCarouselProps, config: GoopOptions = {}): ResolvedCarouselGoo {
+  const on = props.goo !== false
+  const preset = props.preset ?? config.preset
+  const common = { speed: props.speed ?? 1, preset, reducedMotion: config.reducedMotion }
+  const stretch = carouselStrength(props.stretch)
+  const slosh = carouselStrength(props.slosh)
+  const rubberBand = carouselStrength(props.rubberBand)
+  const anySlide = !carouselOff(stretch) || !carouselOff(slosh) || !carouselOff(rubberBand)
+  const button: GoopPropsInput & { goo?: boolean } = {}
+  if (!on || props.squish === false) button.goo = false
+  if (preset !== undefined) button.preset = preset
+  if (props.speed !== undefined) button.timeScale = props.speed
+  return {
+    slides: on && anySlide ? { ...common, stretch, slosh, rubberBand } : null,
+    button,
+    dots: on && props.dots !== false ? { ...common, feel: CAROUSEL_DOTS_FEEL, wobble: true, momentum: true, renderer: props.renderer ?? config.renderer } : null,
+    reducedMotion: config.reducedMotion ?? 'auto',
+  }
+}
+
+import {
+  CAROUSEL_DOTS_FEEL,
+  CAROUSEL_EFFECTS,
+  type CarouselDotsOptions,
+  type CarouselEffect,
+  type CarouselOptions,
+} from '@goopui/core'
+
+// ---- GoopAlert ------------------------------------------------------------------------------
+// The entrance (core `attachAlert`): when the alert mounts or appears its body blooms out of
+// its top edge in a low, wide mound and settles (`bloom`); its icon gets one gentle jelly
+// wobble (`wobble`). Each takes a boolean or a multiplier, plus speed / preset; `goo: false`
+// renders a plain shadcn Alert. Nothing loops.
+
+/** Every GoopAlert engine prop. */
+export const ALERT_PROP_KEYS = ['goo', ...ALERT_EFFECTS, 'speed', 'preset'] as const
+
+export type GoopAlertPropsDefinition = StaticEffectProps<AlertEffect> & { goo: { type: PropType<boolean>; default: boolean } }
+export type GoopAlertPropsInput = InputOf<StaticEffectProps<AlertEffect>> & { goo?: boolean }
+
+/** Spread into GoopAlert's `defineProps({ ...goopAlertProps, ... })`. */
+export const goopAlertProps = Object.freeze({
+  ...(staticEffectProps(ALERT_EFFECTS) as unknown as StaticEffectProps<AlertEffect>),
+  /** Master switch. `false` renders a plain shadcn Alert. */
+  goo: { type: Boolean, default: true },
+}) as GoopAlertPropsDefinition
+
+type AlertUnhandled = Exclude<keyof AlertOptions, keyof GoopAlertPropsDefinition | StaticAdapterOwned>
+const _allAlertOptionsHandled: [AlertUnhandled] extends [never] ? true : { unhandled: AlertUnhandled } = true
+void _allAlertOptionsHandled
+type AlertPropsListed = Exclude<keyof GoopAlertPropsDefinition, (typeof ALERT_PROP_KEYS)[number]>
+const _allAlertPropsListed: [AlertPropsListed] extends [never] ? true : { unlisted: AlertPropsListed } = true
+void _allAlertPropsListed
+
+/** Entrance options for core over app config, or null when the goo is off. */
+export const toAlertOptions = (props: GoopAlertPropsInput, config: GoopOptions = {}): AlertOptions | null =>
+  props.goo === false ? null : toStaticOptions(ALERT_EFFECTS, props, config)
+
+import { ALERT_EFFECTS, type AlertEffect, type AlertOptions } from '@goopui/core'
+
+// ---- GoopKbd --------------------------------------------------------------------------------
+// The key-press squish (core `attachKbd`): the kbd squishes into its base when clicked, or
+// when the keys in `keys` are pressed (opt-in, e.g. ['Meta', 'K']), and springs back with a
+// small jelly rebound (`press`, a boolean or a multiplier). `goo: false` renders a plain
+// shadcn Kbd. GoopKbdGroup is plain.
+
+/** Every GoopKbd engine prop. */
+export const KBD_PROP_KEYS = ['goo', ...KBD_EFFECTS, 'keys', 'speed', 'preset'] as const
+
+export type GoopKbdPropsDefinition = StaticEffectProps<KbdEffect> & {
+  keys: PropDef<readonly string[]>
+  goo: { type: PropType<boolean>; default: boolean }
+}
+export type GoopKbdPropsInput = InputOf<StaticEffectProps<KbdEffect>> & { keys?: readonly string[]; goo?: boolean }
+
+/** Spread into GoopKbd's `defineProps({ ...goopKbdProps, ... })`. */
+export const goopKbdProps = Object.freeze({
+  ...(staticEffectProps(KBD_EFFECTS) as unknown as StaticEffectProps<KbdEffect>),
+  /** Keyboard keys that press it, e.g. ['Meta', 'K'] (all held = pressed). Default: none. */
+  keys: def(Array),
+  /** Master switch. `false` renders a plain shadcn Kbd. */
+  goo: { type: Boolean, default: true },
+}) as GoopKbdPropsDefinition
+
+type KbdUnhandled = Exclude<keyof KbdOptions, keyof GoopKbdPropsDefinition | StaticAdapterOwned>
+const _allKbdOptionsHandled: [KbdUnhandled] extends [never] ? true : { unhandled: KbdUnhandled } = true
+void _allKbdOptionsHandled
+type KbdPropsListed = Exclude<keyof GoopKbdPropsDefinition, (typeof KBD_PROP_KEYS)[number]>
+const _allKbdPropsListed: [KbdPropsListed] extends [never] ? true : { unlisted: KbdPropsListed } = true
+void _allKbdPropsListed
+
+/** Squish options for core over app config, or null when the goo or the squish is off. */
+export function toKbdOptions(props: GoopKbdPropsInput, config: GoopOptions = {}): KbdOptions | null {
+  if (props.goo === false || props.press === false || props.press === 0) return null
+  const out: KbdOptions = toStaticOptions(KBD_EFFECTS, props, config)
+  if (props.keys?.length) out.keys = [...props.keys]
+  return out
+}
+
+import { KBD_EFFECTS, type KbdEffect, type KbdOptions } from '@goopui/core'
+
+// ---- GoopBreadcrumb -------------------------------------------------------------------------
+// The links' hover / keyboard-focus highlight is ONE goo blob (core
+// `attachBreadcrumbHighlight`: the menu highlight engine fed BREADCRUMB_FEEL, a calm tabs feel
+// with the menu's pointer swell) on GoopBreadcrumbList that flows from link to link.
+// Separator, Ellipsis, Page and Item are plain. Every prop can sit on GoopBreadcrumb (the list
+// inherits it) or on GoopBreadcrumbList (wins there). Toggles come from core's
+// BREADCRUMB_EFFECTS; all default true.
+
+/** Every GoopBreadcrumb engine prop. */
+export const BREADCRUMB_PROP_KEYS = ['goo', ...BREADCRUMB_EFFECTS, 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopBreadcrumb (inherited) and GoopBreadcrumbList. */
+export interface GoopBreadcrumbProps {
+  /** Master switch. `false` renders plain shadcn Breadcrumb parts. */
+  goo?: boolean
+  /** The links' hover / focus highlight is one goo blob that flows between them (false: shadcn's
+   *  text-colour hover only). */
+  highlight?: boolean
+  /** Soft jelly landing when the blob reaches a link. */
+  wobble?: boolean
+  /** Momentum: the blob stretches gently and trails a short tail while it travels. */
+  momentum?: boolean
+  /** A low, wide swell of the blob sits under the pointer (false: centred). */
+  followPointer?: boolean
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+type BreadcrumbAdapterOwned = 'feel' | 'reducedMotion'
+type BreadcrumbUnhandled = Exclude<keyof BreadcrumbHighlightOptions | BreadcrumbEffect, keyof GoopBreadcrumbProps | BreadcrumbAdapterOwned>
+const _allBreadcrumbOptionsHandled: [BreadcrumbUnhandled] extends [never] ? true : { unhandled: BreadcrumbUnhandled } = true
+void _allBreadcrumbOptionsHandled
+type BreadcrumbPropsListed = Exclude<keyof GoopBreadcrumbProps, (typeof BREADCRUMB_PROP_KEYS)[number]>
+const _allBreadcrumbPropsListed: [BreadcrumbPropsListed] extends [never] ? true : { unlisted: BreadcrumbPropsListed } = true
+void _allBreadcrumbPropsListed
+
+/** The list's props over the root's: each prop the list sets wins, the rest are inherited. */
+export function resolveBreadcrumbProps(own: GoopBreadcrumbProps, parent?: GoopBreadcrumbProps | null): GoopBreadcrumbProps {
+  const out: GoopBreadcrumbProps = {}
+  for (const k of BREADCRUMB_PROP_KEYS) {
+    const v = own[k] ?? parent?.[k]
+    if (v !== undefined) (out as Record<string, unknown>)[k] = v
+  }
+  return out
+}
+
+/** Highlight options for core over app config, or null when the blob is off. */
+export function toBreadcrumbOptions(props: GoopBreadcrumbProps, config: GoopOptions = {}): BreadcrumbHighlightOptions | null {
+  if (props.goo === false || props.highlight === false) return null
+  return {
+    feel: BREADCRUMB_FEEL,
+    wobble: props.wobble !== false,
+    momentum: props.momentum !== false,
+    followPointer: props.followPointer !== false,
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+}
+
+import { BREADCRUMB_EFFECTS, BREADCRUMB_FEEL, type BreadcrumbEffect, type BreadcrumbHighlightOptions } from '@goopui/core'
+
+// ---- GoopButtonGroup ------------------------------------------------------------------------
+// The group flexes as one goo body (core `attachButtonGroup`): pressing a button squishes it
+// (`press`) and tugs its neighbours toward it from their far edges (`tug`); joined edges only
+// ever overlap, so no gap or seam opens. Each takes a boolean or a multiplier, plus speed /
+// preset; `goo: false` renders a plain shadcn ButtonGroup. Inside a group, GoopButtons leave
+// their own goo off unless they set `goo` (the group's joined corners are shadcn's).
+
+/** Every GoopButtonGroup engine prop. */
+export const BUTTON_GROUP_PROP_KEYS = ['goo', ...BUTTON_GROUP_EFFECTS, 'speed', 'preset'] as const
+
+export type GoopButtonGroupPropsDefinition = StaticEffectProps<ButtonGroupEffect> & { goo: { type: PropType<boolean>; default: boolean } }
+export type GoopButtonGroupPropsInput = InputOf<StaticEffectProps<ButtonGroupEffect>> & { goo?: boolean }
+
+/** Spread into GoopButtonGroup's `defineProps({ ...goopButtonGroupProps, ... })`. */
+export const goopButtonGroupProps = Object.freeze({
+  ...(staticEffectProps(BUTTON_GROUP_EFFECTS) as unknown as StaticEffectProps<ButtonGroupEffect>),
+  /** Master switch. `false` renders a plain shadcn ButtonGroup. */
+  goo: { type: Boolean, default: true },
+}) as GoopButtonGroupPropsDefinition
+
+type ButtonGroupAdapterOwned = StaticAdapterOwned | 'orientation'
+type ButtonGroupUnhandled = Exclude<keyof ButtonGroupOptions, keyof GoopButtonGroupPropsDefinition | ButtonGroupAdapterOwned>
+const _allButtonGroupOptionsHandled: [ButtonGroupUnhandled] extends [never] ? true : { unhandled: ButtonGroupUnhandled } = true
+void _allButtonGroupOptionsHandled
+type ButtonGroupPropsListed = Exclude<keyof GoopButtonGroupPropsDefinition, (typeof BUTTON_GROUP_PROP_KEYS)[number]>
+const _allButtonGroupPropsListed: [ButtonGroupPropsListed] extends [never] ? true : { unlisted: ButtonGroupPropsListed } = true
+void _allButtonGroupPropsListed
+
+/** Group options for core over app config, or null when the goo is off. `orientation` is the
+ *  group's own (shadcn) prop. */
+export function toButtonGroupOptions(
+  props: GoopButtonGroupPropsInput,
+  config: GoopOptions = {},
+  orientation?: ButtonGroupOrientation | null,
+): ButtonGroupOptions | null {
+  if (props.goo === false) return null
+  const out: ButtonGroupOptions = toStaticOptions(BUTTON_GROUP_EFFECTS, props, config)
+  if (orientation) out.orientation = orientation
+  return out
+}
+
+import {
+  BUTTON_GROUP_EFFECTS,
+  type ButtonGroupEffect,
+  type ButtonGroupOptions,
+  type ButtonGroupOrientation,
+} from '@goopui/core'
+
+// ---- GoopEmpty ------------------------------------------------------------------------------
+// The media (GoopEmptyMedia) sits in a goo puddle of its own muted tone (core
+// `attachEmptyPuddle`) that breathes very slowly, about 1px (`breathe`; static under reduced
+// motion). Props can sit on GoopEmpty (the media inherits them) or on GoopEmptyMedia (wins).
+// The other parts are plain.
+
+/** Every GoopEmpty engine prop. */
+export const EMPTY_PROP_KEYS = ['goo', ...EMPTY_EFFECTS, 'speed', 'preset'] as const
+
+/** Engine props of GoopEmpty (inherited) and GoopEmptyMedia. */
+export interface GoopEmptyProps {
+  /** Master switch. `false` renders plain shadcn Empty parts. */
+  goo?: boolean
+  /** The goo puddle under the media. A number scales its depth. */
+  puddle?: boolean | number
+  /** The puddle's slow ~1px breathing. A number scales it. */
+  breathe?: boolean | number
+  /** Animation speed multiplier (a faster breath). */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+}
+
+type EmptyAdapterOwned = 'reducedMotion' | 'seed'
+type EmptyUnhandled = Exclude<keyof EmptyPuddleOptions, keyof GoopEmptyProps | EmptyAdapterOwned>
+const _allEmptyOptionsHandled: [EmptyUnhandled] extends [never] ? true : { unhandled: EmptyUnhandled } = true
+void _allEmptyOptionsHandled
+type EmptyPropsListed = Exclude<keyof GoopEmptyProps, (typeof EMPTY_PROP_KEYS)[number]>
+const _allEmptyPropsListed: [EmptyPropsListed] extends [never] ? true : { unlisted: EmptyPropsListed } = true
+void _allEmptyPropsListed
+
+/** The media's props over the root's: each prop the media sets wins, the rest are inherited. */
+export function resolveEmptyProps(own: GoopEmptyProps, parent?: GoopEmptyProps | null): GoopEmptyProps {
+  const out: GoopEmptyProps = {}
+  for (const k of EMPTY_PROP_KEYS) {
+    const v = own[k] ?? parent?.[k]
+    if (v !== undefined) (out as Record<string, unknown>)[k] = v
+  }
+  return out
+}
+
+/** Puddle options for core over app config, or null when the puddle is off. */
+export function toEmptyOptions(props: GoopEmptyProps, config: GoopOptions = {}): EmptyPuddleOptions | null {
+  if (props.goo === false || props.puddle === false || props.puddle === 0) return null
+  const out: EmptyPuddleOptions = { preset: props.preset ?? config.preset, reducedMotion: config.reducedMotion }
+  if (props.puddle !== undefined) out.puddle = props.puddle
+  if (props.breathe !== undefined) out.breathe = props.breathe
+  if (props.speed !== undefined) out.speed = props.speed
+  return out
+}
+
+import { EMPTY_EFFECTS, type EmptyPuddleOptions } from '@goopui/core'

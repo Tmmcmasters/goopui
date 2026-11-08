@@ -77,10 +77,48 @@ defineProps<{ slug: string; title: string }>()
         <span>Source</span>
       </div>
     </div>
+    <GoopCarousel v-else-if="slug === 'carousel'" class="w-28" tabindex="-1">
+      <GoopCarouselContent class="-ml-2">
+        <GoopCarouselItem v-for="n in 4" :key="n" class="basis-4/5 pl-2">
+          <div class="flex h-14 items-center justify-center rounded-lg border bg-card text-sm font-semibold">{{ n }}</div>
+        </GoopCarouselItem>
+      </GoopCarouselContent>
+      <GoopCarouselDots class="mt-2.5 gap-2" />
+    </GoopCarousel>
     <div v-else-if="slug === 'label'" class="grid w-36 gap-1.5">
       <GoopLabel class="text-xs">Email</GoopLabel>
       <GoopInput class="h-8 text-xs" placeholder="you@example.com" aria-label="Email" />
     </div>
+
+    <GoopAlert v-else-if="slug === 'alert'" class="w-40 border-border px-2 py-1.5 text-[10px] *:[svg:not([class*=size-])]:size-3">
+      <SiteIcon name="circleCheck" />
+      <GoopAlertTitle>Saved</GoopAlertTitle>
+      <GoopAlertDescription class="text-[10px]">Your changes are live.</GoopAlertDescription>
+    </GoopAlert>
+    <GoopKbdGroup v-else-if="slug === 'kbd'">
+      <GoopKbd>⌘</GoopKbd>
+      <GoopKbd>K</GoopKbd>
+    </GoopKbdGroup>
+    <GoopBreadcrumb v-else-if="slug === 'breadcrumb'" class="text-[11px]">
+      <GoopBreadcrumbList class="gap-1 text-[11px]">
+        <GoopBreadcrumbItem><GoopBreadcrumbLink as="span">Home</GoopBreadcrumbLink></GoopBreadcrumbItem>
+        <GoopBreadcrumbSeparator />
+        <GoopBreadcrumbItem><GoopBreadcrumbLink as="span">Docs</GoopBreadcrumbLink></GoopBreadcrumbItem>
+        <GoopBreadcrumbSeparator />
+        <GoopBreadcrumbItem><GoopBreadcrumbPage>Here</GoopBreadcrumbPage></GoopBreadcrumbItem>
+      </GoopBreadcrumbList>
+    </GoopBreadcrumb>
+    <GoopButtonGroup v-else-if="slug === 'button-group'">
+      <GoopButton variant="outline" size="xs">Copy</GoopButton>
+      <GoopButton variant="outline" size="xs">Cut</GoopButton>
+      <GoopButton variant="outline" size="xs">Paste</GoopButton>
+    </GoopButtonGroup>
+    <GoopEmpty v-else-if="slug === 'empty'" class="gap-1 p-0">
+      <GoopEmptyHeader class="gap-1">
+        <GoopEmptyMedia variant="icon"><SiteIcon name="folder" /></GoopEmptyMedia>
+        <GoopEmptyTitle class="text-[11px]">No projects</GoopEmptyTitle>
+      </GoopEmptyHeader>
+    </GoopEmpty>
 
     <!-- Sketches: overlays and the rest. Ink, with the goo colour as the accent. -->
     <div v-else-if="slug === 'select'" class="sk-card flex h-8 w-32 items-center justify-between px-2.5 text-[11px] text-muted-foreground">

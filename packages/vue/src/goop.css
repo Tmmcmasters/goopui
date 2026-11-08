@@ -176,6 +176,16 @@
     background-color: color-mix(in oklab, var(--input) 30%, transparent);
   }
 
+  /* Carousel dots (GoopCarouselDots): the active dot's fill is ONE goo blob in the primary
+     colour. Once it is attached (core marks the list data-goop-menu) the active dot drops its
+     own flat fill so only the blob shows; before that (SSR, first paint) it keeps it. */
+  [data-goop-carousel-dots] > [data-goop='highlight'] {
+    --goop-color: var(--primary);
+  }
+  [data-goop-carousel-dots][data-goop-menu] > [data-goop-carousel-dot][data-state='active'] {
+    background-color: transparent !important;
+  }
+
   /* Navigation menu (GoopNavigationMenu): one goo blob is the items' hover / open background
      (shadcn's bg-muted), on the bar and inside a panel. Once the blob is attached (core marks
      the scope data-goop-menu) the items drop their own flat bg so only the goo shows. */
@@ -259,6 +269,29 @@
     [data-goop-accordion] [data-goop-accordion-content][data-state='closed'] {
       animation: goop-accordion-up 0.2s ease-out both;
     }
+  }
+
+  /* Breadcrumb (GoopBreadcrumbList): one goo blob is the links' hover / focus background, in
+     shadcn's muted tone (shadcn's own hover only changes the text colour). */
+  [data-goop-breadcrumb] > [data-goop='highlight'] {
+    --goop-color: var(--muted);
+  }
+
+  /* Empty (GoopEmptyMedia): the media's goo puddle, in the icon tile's muted tone, breathing
+     very slowly (~1px; core writes the scales and period). Reduced motion: still. */
+  [data-goop='empty-puddle'] {
+    fill: var(--muted);
+  }
+  [data-goop='empty-puddle'][data-goop-breathe] {
+    animation: goop-puddle-breathe var(--goop-puddle-period, 6s) ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-goop='empty-puddle'][data-goop-breathe] {
+      animation: none;
+    }
+  }
+  [data-reduced-motion='true'] [data-goop='empty-puddle'] {
+    animation: none;
   }
 }
 
@@ -534,5 +567,15 @@
     box-shadow:
       -1px 0 0 0 transparent,
       inset 1px 0 0 0 transparent;
+  }
+}
+
+@keyframes goop-puddle-breathe {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  50% {
+    transform: scale(var(--goop-puddle-sx, 1), var(--goop-puddle-sy, 1));
   }
 }

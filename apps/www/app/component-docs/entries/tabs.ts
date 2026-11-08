@@ -14,6 +14,14 @@ export default defineComponentDoc({
   </GoopTabsList>
   <GoopTabsContent value="account">Make changes to your account here.</GoopTabsContent>
 </GoopTabs>`,
+  reactCode: `<GoopTabs defaultValue="account">
+  <GoopTabsList{{list}}>
+    <GoopTabsTrigger value="account">Account</GoopTabsTrigger>
+    <GoopTabsTrigger value="password">Password</GoopTabsTrigger>
+    <GoopTabsTrigger value="billing">Billing</GoopTabsTrigger>
+  </GoopTabsList>
+  <GoopTabsContent value="account">Make changes to your account here.</GoopTabsContent>
+</GoopTabs>`,
   controls: [
     preset({ part: 'list' }),
     speed({ part: 'list' }),

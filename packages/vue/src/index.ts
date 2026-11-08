@@ -28,6 +28,7 @@ export * from './components/toggle-group'
 export * from './components/page-transition'
 export * from './components/hover-card'
 export * from './components/context-menu'
+export * from './components/carousel'
 export { GOOP_CONFIG_KEY, GoopPlugin, provideGoopConfig, useGoopConfig, type GoopConfig } from './config'
 export { GOOP_SOUND_KEY, provideGoopSound, useGoopCue, useGoopSound } from './sound'
 export { goopSoundProp, type GoopSoundProps } from './goop-props'
@@ -231,3 +232,26 @@ export {
   type GoopNavigationMenuProps,
   type ResolvedNavigationMenuGoo,
 } from './goop-props'
+export { CAROUSEL_PROP_KEYS, toCarouselOptions, type GoopCarouselProps, type ResolvedCarouselGoo } from './goop-props'
+export * from './components/alert'
+export {
+  ALERT_PROP_KEYS,
+  goopAlertProps,
+  toAlertOptions,
+  type GoopAlertPropsDefinition,
+  type GoopAlertPropsInput,
+} from './goop-props'
+export * from './components/kbd'
+export { KBD_PROP_KEYS, goopKbdProps, toKbdOptions, type GoopKbdPropsDefinition, type GoopKbdPropsInput } from './goop-props'
+export * from './components/breadcrumb'
+export { BREADCRUMB_PROP_KEYS, resolveBreadcrumbProps, toBreadcrumbOptions, type GoopBreadcrumbProps } from './goop-props'
+export * from './components/button-group'
+export {
+  BUTTON_GROUP_PROP_KEYS,
+  goopButtonGroupProps,
+  toButtonGroupOptions,
+  type GoopButtonGroupPropsDefinition,
+  type GoopButtonGroupPropsInput,
+} from './goop-props'
+export * from './components/empty'
+export { EMPTY_PROP_KEYS, resolveEmptyProps, toEmptyOptions, type GoopEmptyProps } from './goop-props'
