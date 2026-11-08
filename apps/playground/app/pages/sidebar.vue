@@ -14,11 +14,14 @@ const slosh = ref(true)
 const submenus = ref(true)
 const tooltips = ref(true)
 const bloom = ref(true)
+const travel = ref(true)
+const pour = ref(true)
+const drawer = ref(true)
 const preset = ref<GoopPreset | ''>('')
 const variant = ref<'sidebar' | 'floating' | 'inset'>('sidebar')
 const collapsible = ref<'offcanvas' | 'icon' | 'none'>('icon')
 const side = ref<'left' | 'right'>('left')
-const toggles = { goo, highlight, pill, slosh, submenus, tooltips, bloom }
+const toggles = { goo, highlight, pill, slosh, travel, submenus, pour, tooltips, drawer, bloom }
 
 const nav = [
   { title: 'Dashboard', icon: House, active: true },
@@ -48,6 +51,9 @@ const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
         :submenus="submenus"
         :tooltips="tooltips"
         :bloom="bloom"
+        :travel="travel"
+        :pour="pour"
+        :drawer="drawer"
         :preset="preset || undefined"
       >
         <GoopSidebarHeader>
@@ -141,7 +147,7 @@ const selectClass = 'h-7 rounded-md border bg-background px-1.5 text-xs'
         </header>
         <div class="flex flex-1 flex-col gap-4 p-4">
           <section class="rounded-xl border p-4" data-testid="controls">
-            <p class="mb-3 text-xs text-muted-foreground">Ctrl/Cmd + B toggles the sidebar. Below 768px it's a sheet.</p>
+            <p class="mb-3 text-xs text-muted-foreground">Ctrl/Cmd + B toggles the sidebar. Below 768px it's a drawer (swipe to close).</p>
             <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
               <label v-for="(r, name) in toggles" :key="name" class="flex items-center gap-1.5">
                 <input v-model="r.value" type="checkbox"> {{ name }}

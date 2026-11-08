@@ -22,6 +22,7 @@
 
 import type { GoopPreset } from './constants'
 import type { GooFilterParams } from './filter'
+import { DRAWER_MOTION, planDrawerMove, sampleDrawerMove, type DrawerMotionFeel } from './drawer-physics'
 import { removeTicker, wakeTicker, type Ticker } from './loop'
 import { attachMenuHighlight, findMenuHighlight, type MenuHighlightHandle, type MenuHighlightOptions } from './menu'
 import { isReducedMotion, watchReducedMotion } from './reduced-motion'
@@ -29,11 +30,14 @@ import type { GoopBlob, GoopRenderer } from './renderer'
 import { resolveRenderer, type GoopRendererOption } from './renderers/resolve'
 import { readPreset } from './tuning'
 
-/** Every individually toggleable sidebar effect (GoopSidebar props). Core runs `slosh` and
- *  `highlight`; `pill` (the active item's soft fill), `submenus` (Collapsible flood + jelly),
- *  `tooltips` (GoopTooltip goo in icon mode) and `bloom` (the mobile sheet's bloom) are the
- *  adapters' wiring of other engines. */
-export const SIDEBAR_EFFECTS = ['highlight', 'pill', 'slosh', 'submenus', 'tooltips', 'bloom'] as const
+/** Every individually toggleable sidebar effect (GoopSidebar props). Core runs `slosh`,
+ *  `highlight` and `travel` (the collapse / expand curve, `sidebarMotionCurve`); `pill` (the
+ *  active item's soft fill), `submenus` (Collapsible jelly), `pour` (a sub-menu's guide line
+ *  pours down with a goo bead at its tip), `tooltips` (GoopTooltip goo in icon mode), `drawer`
+ *  (the mobile sidebar is a GoopDrawer: one goo body, fast launch, landing overshoot, swipe to
+ *  close) and `bloom` (the mobile sheet's bloom, when `drawer` is off) are the adapters'
+ *  wiring of other engines. */
+export const SIDEBAR_EFFECTS = ['highlight', 'pill', 'slosh', 'travel', 'submenus', 'pour', 'tooltips', 'drawer', 'bloom'] as const
 export type SidebarEffect = (typeof SIDEBAR_EFFECTS)[number]
 
 /** Which side of the screen the sidebar is on (shadcn's `side`). Its inner edge faces away. */
@@ -260,6 +264,82 @@ export function sidebarEdgeCircles(edge: SidebarEdge, side: SidebarSide, length:
     out.push({ x: dir * (d - r), y: f * length, r })
   }
   return out
+}
+
+// ---- collapse / expand curve (pure) ---------------------------------------------------------
+
+/** A CSS transition for the sidebar's width / offset change. */
+export interface SidebarMotionCurve {
+  /** Seconds. */
+  duration: number
+  /** A `linear()` easing (overshoot included), or a cubic-bezier fallback. */
+  easing: string
+}
+
+export interface SidebarMotionInput {
+  /** How far the sidebar's inner edge travels (px): full width minus the icon rail, or the
+   *  whole width for offcanvas. */
+  distance: number
+  /** true: expanding (the panel lands with a small overshoot); false: collapsing (it
+   *  accelerates away and stops at speed, which is what sloshes the edge). */
+  opening: boolean
+  preset?: GoopPreset
+  /** Animation speed multiplier. Default 1. */
+  speed?: number
+  /** Reduced motion: shadcn's short linear transition. */
+  reduced?: boolean
+  /** Most the landing may overshoot (px). Default: the feel's. */
+  overshootLimit?: number
+  /** `linear()` is supported (default true). false: a cubic-bezier fallback. */
+  linear?: boolean
+  /** Per-preset panel motion. Default DRAWER_MOTION (the Drawer's own feel). */
+  feel?: Readonly<Record<GoopPreset, Readonly<DrawerMotionFeel>>>
+}
+
+/** shadcn's own sidebar transition (reduced motion, `travel` off). */
+export const SIDEBAR_PLAIN_CURVE: Readonly<SidebarMotionCurve> = Object.freeze({ duration: 0.2, easing: 'linear' })
+
+const round = (v: number, d = 4): number => Math.round(v * 10 ** d) / 10 ** d
+
+/**
+ * The collapse / expand curve (pure): the Drawer's panel motion (`planDrawerMove`) as a CSS
+ * transition. Expand is a fast launch that keeps its speed into a damped landing spring (a
+ * few % overshoot, one quick rebound); collapse accelerates from rest like gravity and stops
+ * at speed. The edge slosh reads the edge's real motion, so it sloshes where this brakes.
+ */
+export function sidebarMotionCurve(i: SidebarMotionInput): SidebarMotionCurve {
+  const dist = Math.max(0, Number.isFinite(i.distance) ? i.distance : 0)
+  if (i.reduced || dist < 1) return { ...SIDEBAR_PLAIN_CURVE }
+  const speed = Math.max(0.05, i.speed ?? 1)
+  const feel = (i.feel ?? DRAWER_MOTION)[i.preset ?? 'playful'] ?? DRAWER_MOTION.playful
+  if (i.linear === false) {
+    return i.opening
+      ? { duration: round((feel.travel * 1.6) / speed, 3), easing: 'cubic-bezier(0.22, 1, 0.36, 1.12)' }
+      : { duration: round(feel.close / speed, 3), easing: 'cubic-bezier(0.55, 0, 0.9, 0.5)' }
+  }
+  const move = planDrawerMove({
+    from: i.opening ? dist : 0,
+    to: i.opening ? 0 : dist,
+    velocity: 0,
+    kind: i.opening ? 'land' : 'fall',
+    feel,
+    overshootLimit: i.overshootLimit,
+  })
+  if (!move) return { ...SIDEBAR_PLAIN_CURVE }
+  const STEP = 1 / 240
+  let end = 0
+  for (let t = 0; t < 2; t += STEP) {
+    end = t
+    if (sampleDrawerMove(move, t).done) break
+  }
+  end = Math.max(end, STEP)
+  const n = clamp(Math.ceil(end * 90), 12, 90)
+  const pts: string[] = []
+  for (let k = 0; k <= n; k++) {
+    const x = k === n ? move.to : sampleDrawerMove(move, (k / n) * end).x
+    pts.push(String(round((x - move.from) / (move.to - move.from))))
+  }
+  return { duration: round(end / speed, 3), easing: `linear(${pts.join(', ')})` }
 }
 
 // ---- DOM: edge ------------------------------------------------------------------------------

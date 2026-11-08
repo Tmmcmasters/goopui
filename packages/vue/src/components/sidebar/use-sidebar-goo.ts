@@ -3,13 +3,17 @@
 import {
   attachSidebarEdge,
   attachSidebarHighlight,
+  isReducedMotion,
+  sidebarMotionCurve,
+  watchReducedMotion,
+  type GoopPreset,
   type MenuHighlightHandle,
   type SidebarEdgeHandle,
   type SidebarEdgeOptions,
   type SidebarHighlightOptions,
   type SidebarSide,
 } from '@goopui/core'
-import { onBeforeUnmount, shallowRef, watch, type Ref, type ShallowRef } from 'vue'
+import { computed, onBeforeUnmount, onMounted, shallowRef, watch, type Ref, type ShallowRef } from 'vue'
 
 export interface SidebarGooInput {
   panel: Readonly<ShallowRef<HTMLElement | null>>
@@ -74,4 +78,74 @@ export function useSidebarGoo(input: SidebarGooInput) {
   })
 
   return { highlight, edge }
+}
+
+export interface SidebarTravelInput {
+  /** The desktop sidebar's outer element (holds the --sidebar-width vars). */
+  wrapper: Readonly<ShallowRef<HTMLElement | null>>
+  on: () => boolean
+  state: () => 'expanded' | 'collapsed'
+  collapsible: () => 'offcanvas' | 'icon' | 'none'
+  /** floating / inset: the icon rail is 1rem wider (shadcn's padding). */
+  floating: () => boolean
+  preset: () => GoopPreset | undefined
+  speed: () => number | undefined
+  reducedMotion: () => boolean | 'auto' | undefined
+}
+
+/**
+ * The collapse / expand transition (`travel`): the Drawer's momentum as a CSS transition on the
+ * sidebar's gap and fixed container (core `sidebarMotionCurve`). Expanding launches fast and
+ * lands with a small overshoot; collapsing accelerates away. null until mounted, when off, or
+ * with `collapsible="none"`: shadcn's 200ms linear classes apply.
+ */
+export function useSidebarTravel(input: SidebarTravelInput) {
+  const widths = shallowRef<{ full: number; icon: number } | null>(null)
+  const reduced = shallowRef(false)
+  let linear = true
+  let unwatch: (() => void) | null = null
+
+  const measure = () => {
+    const el = input.wrapper.value
+    if (!el) return
+    const probe = el.ownerDocument.createElement('div')
+    probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;height:0;width:var(--sidebar-width)'
+    el.append(probe)
+    const full = probe.offsetWidth
+    probe.style.width = 'var(--sidebar-width-icon)'
+    const icon = probe.offsetWidth
+    probe.remove()
+    widths.value = { full: full || 256, icon: icon || 48 }
+  }
+  const readReduced = () => {
+    const r = input.reducedMotion()
+    reduced.value = r === true || (r !== false && typeof document !== 'undefined' && isReducedMotion(document))
+  }
+
+  onMounted(() => {
+    linear = typeof CSS === 'undefined' || !CSS.supports || CSS.supports('transition-timing-function', 'linear(0, 1)')
+    readReduced()
+    unwatch = watchReducedMotion(document, readReduced)
+    measure()
+  })
+  watch([input.wrapper, input.collapsible], measure, { flush: 'post' })
+  watch(input.reducedMotion, readReduced)
+  onBeforeUnmount(() => unwatch?.())
+
+  return computed(() => {
+    const w = widths.value
+    const mode = input.collapsible()
+    if (!w || !input.on() || mode === 'none') return null
+    const rail = w.icon + (input.floating() ? 16 : 0)
+    const distance = mode === 'icon' ? Math.max(0, w.full - rail) : w.full
+    const c = sidebarMotionCurve({
+      distance,
+      opening: input.state() === 'expanded',
+      preset: input.preset(),
+      speed: input.speed(),
+      reduced: reduced.value,
+      linear,
+    })
+    return { transitionDuration: `${c.duration}s`, transitionTimingFunction: c.easing }
+  })
 }

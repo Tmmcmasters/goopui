@@ -830,6 +830,7 @@ export {
   SIDEBAR_EDGE_PART,
   SIDEBAR_EFFECTS,
   SIDEBAR_MENU_BUTTONS,
+  SIDEBAR_PLAIN_CURVE,
   attachSidebarEdge,
   attachSidebarHighlight,
   createSidebarEdge,
@@ -843,6 +844,7 @@ export {
   sidebarEdgeCount,
   sidebarEdgeGooParams,
   sidebarEdgeSettled,
+  sidebarMotionCurve,
   sidebarRandom,
   sidebarSloshShape,
   stepSidebarEdge,
@@ -853,6 +855,8 @@ export {
   type SidebarEdgeOptions,
   type SidebarEffect,
   type SidebarHighlightOptions,
+  type SidebarMotionCurve,
+  type SidebarMotionInput,
   type SidebarSide,
 } from './sidebar'
 export {
