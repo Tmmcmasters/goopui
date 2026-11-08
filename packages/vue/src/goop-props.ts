@@ -2559,3 +2559,51 @@ export function toBreadcrumbOptions(props: GoopBreadcrumbProps, config: GoopOpti
 }
 
 import { BREADCRUMB_EFFECTS, BREADCRUMB_FEEL, type BreadcrumbEffect, type BreadcrumbHighlightOptions } from '@goopui/core'
+
+// ---- GoopButtonGroup ------------------------------------------------------------------------
+// The group flexes as one goo body (core `attachButtonGroup`): pressing a button squishes it
+// (`press`) and tugs its neighbours toward it from their far edges (`tug`); joined edges only
+// ever overlap, so no gap or seam opens. Each takes a boolean or a multiplier, plus speed /
+// preset; `goo: false` renders a plain shadcn ButtonGroup. Inside a group, GoopButtons leave
+// their own goo off unless they set `goo` (the group's joined corners are shadcn's).
+
+/** Every GoopButtonGroup engine prop. */
+export const BUTTON_GROUP_PROP_KEYS = ['goo', ...BUTTON_GROUP_EFFECTS, 'speed', 'preset'] as const
+
+export type GoopButtonGroupPropsDefinition = StaticEffectProps<ButtonGroupEffect> & { goo: { type: PropType<boolean>; default: boolean } }
+export type GoopButtonGroupPropsInput = InputOf<StaticEffectProps<ButtonGroupEffect>> & { goo?: boolean }
+
+/** Spread into GoopButtonGroup's `defineProps({ ...goopButtonGroupProps, ... })`. */
+export const goopButtonGroupProps = Object.freeze({
+  ...(staticEffectProps(BUTTON_GROUP_EFFECTS) as unknown as StaticEffectProps<ButtonGroupEffect>),
+  /** Master switch. `false` renders a plain shadcn ButtonGroup. */
+  goo: { type: Boolean, default: true },
+}) as GoopButtonGroupPropsDefinition
+
+type ButtonGroupAdapterOwned = StaticAdapterOwned | 'orientation'
+type ButtonGroupUnhandled = Exclude<keyof ButtonGroupOptions, keyof GoopButtonGroupPropsDefinition | ButtonGroupAdapterOwned>
+const _allButtonGroupOptionsHandled: [ButtonGroupUnhandled] extends [never] ? true : { unhandled: ButtonGroupUnhandled } = true
+void _allButtonGroupOptionsHandled
+type ButtonGroupPropsListed = Exclude<keyof GoopButtonGroupPropsDefinition, (typeof BUTTON_GROUP_PROP_KEYS)[number]>
+const _allButtonGroupPropsListed: [ButtonGroupPropsListed] extends [never] ? true : { unlisted: ButtonGroupPropsListed } = true
+void _allButtonGroupPropsListed
+
+/** Group options for core over app config, or null when the goo is off. `orientation` is the
+ *  group's own (shadcn) prop. */
+export function toButtonGroupOptions(
+  props: GoopButtonGroupPropsInput,
+  config: GoopOptions = {},
+  orientation?: ButtonGroupOrientation | null,
+): ButtonGroupOptions | null {
+  if (props.goo === false) return null
+  const out: ButtonGroupOptions = toStaticOptions(BUTTON_GROUP_EFFECTS, props, config)
+  if (orientation) out.orientation = orientation
+  return out
+}
+
+import {
+  BUTTON_GROUP_EFFECTS,
+  type ButtonGroupEffect,
+  type ButtonGroupOptions,
+  type ButtonGroupOrientation,
+} from '@goopui/core'

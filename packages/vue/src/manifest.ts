@@ -236,6 +236,9 @@ export const goopComponents = [
   'GoopBreadcrumbList',
   'GoopBreadcrumbPage',
   'GoopBreadcrumbSeparator',
+  'GoopButtonGroup',
+  'GoopButtonGroupSeparator',
+  'GoopButtonGroupText',
 ] as const
 
 export type GoopComponentName = (typeof goopComponents)[number]

@@ -91,4 +91,18 @@ describe('small set SSR', () => {
     expect(html).toContain('aria-current="page"')
     expect(html).not.toContain('data-goop="highlight"')
   })
+
+  it('button group renders shadcn markup, buttons plain', async () => {
+    const { GoopButtonGroup, GoopButton, GoopButtonGroupSeparator } = await import('../src')
+    const html = await renderToString(
+      createSSRApp({
+        render: () =>
+          h(GoopButtonGroup, null, () => [h(GoopButton, { variant: 'outline' }, () => 'A'), h(GoopButtonGroupSeparator), h(GoopButton, { variant: 'outline' }, () => 'B')]),
+      }),
+    )
+    expect(html).toContain('role="group" data-slot="button-group"')
+    expect(html).toContain('data-slot="button-group-separator"')
+    expect(html).not.toContain('data-goop-host="stroke"')
+    expect(html).not.toContain('style="transform')
+  })
 })

@@ -100,6 +100,11 @@ defineProps<{ slug: string; title: string }>()
         <GoopBreadcrumbItem><GoopBreadcrumbPage>Here</GoopBreadcrumbPage></GoopBreadcrumbItem>
       </GoopBreadcrumbList>
     </GoopBreadcrumb>
+    <GoopButtonGroup v-else-if="slug === 'button-group'">
+      <GoopButton variant="outline" size="xs">Archive</GoopButton>
+      <GoopButton variant="outline" size="xs">Report</GoopButton>
+      <GoopButton variant="outline" size="xs">Snooze</GoopButton>
+    </GoopButtonGroup>
 
     <!-- Sketches: overlays and the rest. Ink, with the goo colour as the accent. -->
     <div v-else-if="slug === 'select'" class="sk-card flex h-8 w-32 items-center justify-between px-2.5 text-[11px] text-muted-foreground">

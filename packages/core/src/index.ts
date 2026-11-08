@@ -909,6 +909,19 @@ export {
   type BreadcrumbHighlightOptions,
 } from './breadcrumb'
 export {
+  BUTTON_GROUP_EFFECTS,
+  BUTTON_GROUP_FEEL,
+  BUTTON_GROUP_PRESSABLE,
+  attachButtonGroup,
+  buttonGroupPose,
+  type ButtonGroupEffect,
+  type ButtonGroupFeel,
+  type ButtonGroupHandle,
+  type ButtonGroupMemberPose,
+  type ButtonGroupOptions,
+  type ButtonGroupOrientation,
+} from './button-group'
+export {
   SIDEBAR_EDGE_FEEL,
   SIDEBAR_EDGE_PART,
   SIDEBAR_EFFECTS,
