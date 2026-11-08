@@ -39,5 +39,6 @@ export const catalog: CatalogEntry[] = [
   { path: '/menubar', goop: 'GoopMenubar', shadcn: 'Menubar', blurb: 'One goo body flows between the triggers as you hover or arrow across; menus bloom open with the goo item highlight.' },
   { path: '/static-set', goop: 'GoopSkeleton, Badge, Card, Avatar', shadcn: 'Skeleton, Badge, Card, Avatar', blurb: 'Calm and cheap: skeleton goo shimmer, badge hover swell, card edge swell (opt-in), avatar settle. Separator and Label are plain ports.' },
   { path: '/navigation-menu', goop: 'GoopNavigationMenu', shadcn: 'NavigationMenu', blurb: 'One goo highlight flows between the items; the panel blooms from its trigger and jelly-slides to the next one.' },
+  { path: '/skeleton-reveal', goop: 'GoopSkeletonReveal', shadcn: 'Skeleton', blurb: 'Loading goo: the skeleton blocks pool, a sheen flows through and bridges them; when the content lands each block melts into its element and drains away.' },
   { path: '/sidebar', goop: 'GoopSidebar', shadcn: 'Sidebar', blurb: 'Dashboard sidebar: goo highlight glides between items, the edge sloshes as it collapses.' },
 ]

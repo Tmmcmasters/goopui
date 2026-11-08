@@ -827,6 +827,30 @@ export {
   type SkeletonFeel,
   type SkeletonOptions,
 } from './skeleton'
+export {
+  REVEAL_BOX_SELECTOR,
+  REVEAL_REACH,
+  SKELETON_REVEAL_EFFECTS,
+  SKELETON_REVEAL_FEEL,
+  SKELETON_REVEAL_GOO,
+  attachSkeletonReveal,
+  matchRevealTargets,
+  rectOverlap,
+  resolveSkeletonReveal,
+  revealOrder,
+  revealTargets,
+  revealTimings,
+  skeletonBlocks,
+  skeletonGooBlur,
+  type ResolvedSkeletonReveal,
+  type RevealRect,
+  type RevealTarget,
+  type RevealTiming,
+  type SkeletonRevealEffect,
+  type SkeletonRevealFeel,
+  type SkeletonRevealHandle,
+  type SkeletonRevealOptions,
+} from './skeleton-reveal'
 export { BADGE_EFFECTS, BADGE_FEEL, badgeStyle, badgeSwellOn, type BadgeEffect, type BadgeFeel, type BadgeOptions } from './badge'
 export { AVATAR_EFFECTS, AVATAR_FEEL, avatarSettleOn, avatarStyle, type AvatarEffect, type AvatarFeel, type AvatarOptions } from './avatar'
 export {

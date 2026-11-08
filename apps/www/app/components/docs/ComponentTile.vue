@@ -42,13 +42,7 @@ defineProps<{ slug: string; title: string }>()
         <GoopPaginationItem v-for="n in 3" :key="n" :value="n" :is-active="n === 2" class="size-7 text-xs">{{ n }}</GoopPaginationItem>
       </GoopPaginationContent>
     </GoopPagination>
-    <div v-else-if="slug === 'skeleton'" class="flex w-32 items-center gap-2.5">
-      <GoopSkeleton class="size-8 shrink-0 rounded-full" />
-      <div class="grid flex-1 gap-1.5">
-        <GoopSkeleton class="h-2.5 w-full" />
-        <GoopSkeleton class="h-2.5 w-3/4" />
-      </div>
-    </div>
+    <DocsSkeletonRevealTile v-else-if="slug === 'skeleton'" class="sk-card" />
     <div v-else-if="slug === 'badge'" class="flex items-center gap-1.5">
       <GoopBadge>New</GoopBadge>
       <GoopBadge variant="secondary">Beta</GoopBadge>

@@ -185,6 +185,7 @@ export const goopComponents = [
   'GoopNavigationMenuViewport',
   // Static set
   'GoopSkeleton',
+  'GoopSkeletonReveal',
   'GoopBadge',
   'GoopCard',
   'GoopCardAction',
