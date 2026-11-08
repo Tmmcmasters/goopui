@@ -1,8 +1,8 @@
 {
   "name": "@goopui/react",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha.0",
   "private": true,
-  "description": "goopUI components for React",
+  "description": "goopUI components for React: gooey, dripping shadcn/ui components",
   "type": "module",
   "license": "MIT",
   "author": "Timothy McMasters",
@@ -21,31 +21,60 @@
     "ui",
     "components",
     "animation",
-    "react"
+    "react",
+    "shadcn",
+    "radix"
   ],
-  "sideEffects": false,
+  "sideEffects": [
+    "*.css"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.mts",
       "import": "./dist/index.mjs"
-    }
+    },
+    "./manifest": {
+      "types": "./dist/manifest.d.mts",
+      "import": "./dist/manifest.mjs"
+    },
+    "./goop.css": "./dist/goop.css"
   },
   "main": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
   "files": [
-    "dist"
+    "dist",
+    "!**/._*"
   ],
   "scripts": {
-    "build": "tsdown",
+    "build": "tsdown && node scripts/check-dist.mjs",
+    "prepare": "tsdown && node scripts/check-dist.mjs",
     "dev": "tsdown --watch",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "@goopui/core": "workspace:*"
+    "@goopui/core": "workspace:*",
+    "class-variance-authority": "^0.7.1",
+    "cn": "^0.5.0",
+    "radix-ui": "^1.4.3"
   },
   "peerDependencies": {
-    "react": "^19.0.0"
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0",
+    "tailwindcss": "^4.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "happy-dom": "^21.0.4",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "typescript": "~5.9.3"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "publishConfig": {
     "access": "public"
