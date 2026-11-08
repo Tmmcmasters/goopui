@@ -7,6 +7,8 @@
 // - The index loads on first open and stays cached for the visit.
 // - Focus goes back to the trigger on close (reka's dialog restores focus to whatever was
 //   focused when it opened, so keyboard opens focus the visible trigger first).
+// - The palette ranks and filters its own results (utils/search.ts: fuzzy titles, body-text
+//   snippets), so the command's built-in "contains" filter is off (`ignore-filter`).
 import { scoreAction, searchDocs, type SearchHit, type SearchSection } from '~/utils/search'
 
 // `wide`: room for the full bar from `sm` up (the landing's header has one nav link);
@@ -242,64 +244,63 @@ const shortcutAria = 'Meta+K Control+K /'
     title="Search docs"
     description="Search the goopUI docs, or run an action like switching the theme."
     class="search-palette"
+    ignore-filter
   >
-    <SearchBridge @search="query = $event">
-      <GoopCommandInput placeholder="Search docs…" auto-focus aria-label="Search docs" />
-      <!-- The dialog centres a third of the way down; this height keeps its top edge below the
-           header (top = 33dvh - height / 2 >= header + 12px). -->
-      <GoopCommandList class="max-h-[clamp(160px,calc(66dvh-232px),420px)]" data-lenis-prevent>
-        <p v-if="!ready && !failed" class="search-note" role="status">Loading the docs index…</p>
-        <p v-else-if="failed" class="search-note" role="status">
-          Couldn't load the search index.
-          <button type="button" class="underline underline-offset-2" @click="loadIndex">Try again</button>
-        </p>
-        <p v-else-if="nothing" class="search-note" role="status">No results for “{{ query.trim() }}”.</p>
+    <GoopCommandInput v-model="query" placeholder="Search docs…" auto-focus aria-label="Search docs" />
+    <!-- The dialog centres a third of the way down; this height keeps its top edge below the
+         header (top = 33dvh - height / 2 >= header + 12px). -->
+    <GoopCommandList class="max-h-[clamp(160px,calc(66dvh-232px),420px)]" data-lenis-prevent>
+      <p v-if="!ready && !failed" class="search-note" role="status">Loading the docs index…</p>
+      <p v-else-if="failed" class="search-note" role="status">
+        Couldn't load the search index.
+        <button type="button" class="underline underline-offset-2" @click="loadIndex">Try again</button>
+      </p>
+      <p v-else-if="nothing" class="search-note" role="status">No results for “{{ query.trim() }}”.</p>
 
-        <GoopCommandGroup v-for="g in groups" :key="g.label" :heading="g.label">
-          <GoopCommandItem
-            v-for="h in g.hits"
-            :key="h.section.id"
-            :value="h.section.id"
-            class="search-item"
-            @select="go(h)"
-          >
-            <SiteIcon :name="h.crumbs.length > 1 ? 'hash' : 'file'" :size="15" />
-            <span class="min-w-0 flex-1">
-              <span class="block truncate">
-                <template v-for="(c, i) in h.crumbs" :key="i">
-                  <span v-if="i > 0" class="crumb-sep" aria-hidden="true"> › </span>
-                  <span :class="i < h.crumbs.length - 1 ? 'text-muted-foreground' : undefined">{{ c }}</span>
-                </template>
-              </span>
-              <span v-if="h.snippet" class="block truncate text-xs text-muted-foreground">{{ h.snippet }}</span>
+      <GoopCommandGroup v-for="g in groups" :key="g.label" :heading="g.label">
+        <GoopCommandItem
+          v-for="h in g.hits"
+          :key="h.section.id"
+          :value="h.section.id"
+          class="search-item"
+          @select="go(h)"
+        >
+          <SiteIcon :name="h.crumbs.length > 1 ? 'hash' : 'file'" :size="15" />
+          <span class="min-w-0 flex-1">
+            <span class="block truncate">
+              <template v-for="(c, i) in h.crumbs" :key="i">
+                <span v-if="i > 0" class="crumb-sep" aria-hidden="true"> › </span>
+                <span :class="i < h.crumbs.length - 1 ? 'text-muted-foreground' : undefined">{{ c }}</span>
+              </template>
             </span>
-          </GoopCommandItem>
-        </GoopCommandGroup>
+            <span v-if="h.snippet" class="block truncate text-xs text-muted-foreground">{{ h.snippet }}</span>
+          </span>
+        </GoopCommandItem>
+      </GoopCommandGroup>
 
-        <GoopCommandGroup v-if="ready && shownActions.length" heading="Actions">
-          <GoopCommandItem
-            v-for="a in shownActions"
-            :key="a.id"
-            :value="`action:${a.id}`"
-            :disabled="a.disabled"
-            class="search-item"
-            @select="a.run()"
-          >
-            <SiteIcon :name="a.icon" :size="15" />
-            <span class="min-w-0 flex-1 truncate">{{ a.label }}</span>
-            <GoopCommandShortcut v-if="a.hint" class="hidden truncate font-mono tracking-normal sm:inline">
-              {{ a.hint }}
-            </GoopCommandShortcut>
-          </GoopCommandItem>
-        </GoopCommandGroup>
-      </GoopCommandList>
-      <div class="search-foot" aria-hidden="true">
-        <span><kbd>↑</kbd><kbd>↓</kbd> to navigate</span>
-        <span><kbd>↵</kbd> to open</span>
-        <span><kbd>esc</kbd> to close</span>
-      </div>
-      <span class="sr-only" aria-live="polite">{{ copied ? 'Install command copied to clipboard' : '' }}</span>
-    </SearchBridge>
+      <GoopCommandGroup v-if="ready && shownActions.length" heading="Actions">
+        <GoopCommandItem
+          v-for="a in shownActions"
+          :key="a.id"
+          :value="`action:${a.id}`"
+          :disabled="a.disabled"
+          class="search-item"
+          @select="a.run()"
+        >
+          <SiteIcon :name="a.icon" :size="15" />
+          <span class="min-w-0 flex-1 truncate">{{ a.label }}</span>
+          <GoopCommandShortcut v-if="a.hint" class="hidden truncate font-mono tracking-normal sm:inline">
+            {{ a.hint }}
+          </GoopCommandShortcut>
+        </GoopCommandItem>
+      </GoopCommandGroup>
+    </GoopCommandList>
+    <div class="search-foot" aria-hidden="true">
+      <span><kbd>↑</kbd><kbd>↓</kbd> to navigate</span>
+      <span><kbd>↵</kbd> to open</span>
+      <span><kbd>esc</kbd> to close</span>
+    </div>
+    <span class="sr-only" aria-live="polite">{{ copied ? 'Install command copied to clipboard' : '' }}</span>
   </GoopCommandDialog>
 </template>
 

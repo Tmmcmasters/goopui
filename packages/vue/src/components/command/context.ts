@@ -17,6 +17,9 @@ export interface GoopCommandContext {
   allItems: Ref<Map<string, string>>
   allGroups: Ref<Map<string, Set<string>>>
   filterState: GoopCommandFilterState
+  /** True when the built-in filter is off (`ignoreFilter`): every item and group renders as
+   *  given, and the parent filters and orders them itself. */
+  ignoreFilter: ComputedRef<boolean>
   /** Resolved goo settings. */
   cmd: ComputedRef<ResolvedCommandProps>
   /** Core options: the highlight blob and the input ring (null when off). */

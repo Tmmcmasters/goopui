@@ -3,7 +3,7 @@
 // description around a Command; same root props/emits). The panel blooms open like
 // GoopDialogContent (pools from its center, overshoots and splashes all around; close pulls
 // in and shrinks back), and the command inside gets the goo highlight and input ring. The
-// dialog's bloom props and the command's toggles are both props here; `goo`, `wobble`,
+// dialog's bloom props and the command's toggles (and `ignoreFilter`) are both props here; `goo`, `wobble`,
 // `speed`, `preset` and `renderer` drive both. With `:goo="false"` it is shadcn's CommandDialog.
 import type { DialogRootEmits, DialogRootProps } from 'reka-ui'
 import { useForwardPropsEmits } from 'reka-ui'
@@ -26,6 +26,8 @@ const props = withDefaults(
         description?: string
         class?: HTMLAttributes['class']
         showCloseButton?: boolean
+        /** Turn off the command's built-in filter (GoopCommand's `ignoreFilter`). */
+        ignoreFilter?: boolean
       }
   >(),
   {
@@ -63,7 +65,7 @@ const props = withDefaults(
 )
 const emits = defineEmits<DialogRootEmits>()
 
-const OWN = new Set<string>(['class', 'title', 'description', 'showCloseButton', 'sound', ...COMMAND_DIALOG_PROP_KEYS])
+const OWN = new Set<string>(['class', 'title', 'description', 'showCloseButton', 'sound', 'ignoreFilter', ...COMMAND_DIALOG_PROP_KEYS])
 const delegated = computed(() => Object.fromEntries(Object.entries(props).filter(([k]) => !OWN.has(k))) as DialogRootProps)
 const forwarded = useForwardPropsEmits(delegated, emits)
 useGoopSound(() => props.sound)
@@ -92,6 +94,7 @@ const commandGoo = computed(() =>
       </GoopDialogHeader>
       <GoopCommand
         v-bind="commandGoo"
+        :ignore-filter="ignoreFilter"
         :class="['rounded-[inherit] bg-transparent', props.class]"
       >
         <slot v-bind="slotProps" />

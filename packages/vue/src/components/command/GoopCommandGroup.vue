@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // GoopCommandGroup: shadcn-vue's CommandGroup (reka-ui ListboxGroup with an optional
-// `heading`, hidden when none of its items match the search, `class` merge).
+// `heading`, hidden when none of its items match the search, `class` merge). With the
+// command's `ignoreFilter` it always renders.
 import { cn } from 'cn'
 import type { ListboxGroupProps } from 'reka-ui'
 import { ListboxGroup, ListboxGroupLabel, useId } from 'reka-ui'
@@ -16,7 +17,9 @@ const delegated = computed(() => {
 
 const command = injectGoopCommand()
 const id = useId()
-const isRender = computed(() => (command.filterState.search ? command.filterState.filtered.groups.has(id) : true))
+const isRender = computed(() =>
+  command.filterState.search && !command.ignoreFilter.value ? command.filterState.filtered.groups.has(id) : true,
+)
 
 provideGoopCommandGroup({ id })
 onMounted(() => {

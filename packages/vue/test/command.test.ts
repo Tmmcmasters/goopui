@@ -1,7 +1,8 @@
 import { MENU_FEEL, activeTickerCount } from '@goopui/core'
 import { flushPromises, mount } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
-import { defineComponent, h, ref, type PropType } from 'vue'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createSSRApp, defineComponent, h, ref, type PropType } from 'vue'
+import { renderToString } from 'vue/server-renderer'
 import {
   GoopCombobox,
   GoopComboboxAnchor,
@@ -202,6 +203,187 @@ describe('GoopCommand', () => {
     expect(off).toEqual({ highlight: null, ring: null })
     expect(toCommandOptions(resolveCommandProps({ wobble: false })).ring).toMatchObject({ wobble: false })
     expect(toCommandOptions(resolveCommandProps({ momentum: false })).highlight).toMatchObject({ momentum: false })
+  })
+})
+
+// The parent filters and orders its own results (fuzzy-ish: every letter in order, ranked
+// by how early the first letter lands), like the docs search.
+const ALL = ['Slider', 'Select', 'Sheet', 'Dialog', 'Drawer']
+const rank = (q: string) =>
+  ALL.map((label) => {
+    let i = -1
+    for (const c of q.toLowerCase()) {
+      i = label.toLowerCase().indexOf(c, i + 1)
+      if (i < 0) return null
+    }
+    return { label, score: label.toLowerCase().indexOf(q.toLowerCase()[0] ?? '') }
+  })
+    .filter((x): x is { label: string; score: number } => !!x)
+    .sort((a, b) => a.score - b.score || b.label.localeCompare(a.label))
+    .map((x) => x.label)
+
+const selected: string[] = []
+const OwnFilterDemo = defineComponent({
+  props: { ignoreFilter: { type: Boolean, default: true } },
+  setup(props) {
+    const query = ref('')
+    return () =>
+      h(GoopCommand, { ignoreFilter: props.ignoreFilter }, () => [
+        h(GoopCommandInput, { modelValue: query.value, 'onUpdate:modelValue': (v: string) => (query.value = v) }),
+        h(GoopCommandList, null, () => [
+          h(GoopCommandEmpty, null, () => 'Nothing'),
+          rank(query.value).length
+            ? h(GoopCommandGroup, { heading: 'Components' }, () =>
+                rank(query.value).map((label) =>
+                  h(GoopCommandItem, { key: label, value: label, id: label, onSelect: () => selected.push(label) }, () => label),
+                ),
+              )
+            : null,
+        ]),
+      ])
+  },
+})
+const optionIds = () => [...document.querySelectorAll('[role="option"]')].map((e) => e.id)
+const highlighted = () => document.querySelector('[role="option"][data-highlighted]')?.id
+
+describe('GoopCommand ignoreFilter', () => {
+  it('renders every item as given: fuzzy matches survive, in the parent\'s order', async () => {
+    const w = mount(OwnFilterDemo, { attachTo: document.body })
+    await flushPromises()
+    expect(optionIds()).toEqual(rank(''))
+    await w.find('input').setValue('sldr')
+    await flushPromises()
+    // The built-in "contains" filter would hide Slider ("sldr" isn't a substring).
+    expect(optionIds()).toEqual(['Slider'])
+    expect(document.querySelectorAll('[role="group"]:not([hidden])')).toHaveLength(1)
+    expect(document.querySelector('[data-slot="command-empty"]')).toBeNull()
+    await w.find('input').setValue('d')
+    await flushPromises()
+    expect(optionIds()).toEqual(['Drawer', 'Dialog', 'Slider'])
+    w.unmount()
+  })
+
+  it('highlights the first result after each query change; arrows and Enter follow the given order', async () => {
+    selected.length = 0
+    const w = mount(OwnFilterDemo, { attachTo: document.body })
+    await flushPromises()
+    input().focus()
+    await w.find('input').setValue('s')
+    await wait(20)
+    expect(highlighted()).toBe(rank('s')[0])
+    key('ArrowDown')
+    await wait(20)
+    expect(highlighted()).toBe(rank('s')[1])
+    await w.find('input').setValue('d')
+    await wait(20)
+    expect(highlighted()).toBe('Drawer')
+    key('ArrowDown')
+    await wait(20)
+    expect(highlighted()).toBe('Dialog')
+    // The blob sits on the highlighted item.
+    const blob = items().querySelector<HTMLElement>('[data-goop="highlight"]')!
+    await wait(30)
+    expect(blob.style.width).not.toBe('0px')
+    key('Enter')
+    await flushPromises()
+    expect(selected).toEqual(['Dialog'])
+    w.unmount()
+  })
+
+  it('re-highlights the first item when results that replace the highlighted one land later', async () => {
+    const list = ref(['A', 'B'])
+    const Late = defineComponent(() => () =>
+      h(GoopCommand, { ignoreFilter: true }, () => [
+        h(GoopCommandInput),
+        h(GoopCommandList, null, () => list.value.map((v) => h(GoopCommandItem, { key: v, value: v, id: v }, () => v))),
+      ]),
+    )
+    const w = mount(Late, { attachTo: document.body })
+    await flushPromises()
+    input().focus()
+    key('ArrowDown')
+    await wait(20)
+    expect(['A', 'B']).toContain(highlighted())
+    list.value = ['C', 'D']
+    await wait(30)
+    expect(highlighted()).toBe('C')
+    w.unmount()
+  })
+
+  it('Empty shows only when there are no items', async () => {
+    const w = mount(OwnFilterDemo, { attachTo: document.body })
+    await flushPromises()
+    expect(document.querySelector('[data-slot="command-empty"]')).toBeNull()
+    await w.find('input').setValue('zzz')
+    await flushPromises()
+    expect(optionIds()).toEqual([])
+    expect(document.querySelector('[data-slot="command-empty"]')?.textContent).toBe('Nothing')
+    await w.find('input').setValue('sh')
+    await flushPromises()
+    expect(document.querySelector('[data-slot="command-empty"]')).toBeNull()
+    w.unmount()
+  })
+
+  it('defaults off: the built-in filter still hides non-matching items', async () => {
+    const w = mount(OwnFilterDemo, { props: { ignoreFilter: false }, attachTo: document.body })
+    await flushPromises()
+    await w.find('input').setValue('sldr')
+    await flushPromises()
+    // The parent still renders Slider, but "sldr" isn't contained in it.
+    expect(optionIds()).toEqual([])
+    expect(document.querySelector('[data-slot="command-empty"]')?.textContent).toBe('Nothing')
+    expect(root().hasAttribute('ignorefilter')).toBe(false)
+    w.unmount()
+  })
+
+  it('hydrates server markup without mismatch; Empty appears after mount when there are no items', async () => {
+    for (const labels of [['Slider', 'Select'], []]) {
+      const App = {
+        render: () =>
+          h(GoopCommand, { ignoreFilter: true }, () => [
+            h(GoopCommandInput),
+            h(GoopCommandList, null, () => [
+              h(GoopCommandEmpty, null, () => 'Nothing'),
+              h(GoopCommandGroup, { heading: 'Components' }, () => labels.map((v) => h(GoopCommandItem, { key: v, value: v }, () => v))),
+            ]),
+          ]),
+      }
+      const html = await renderToString(createSSRApp(App))
+      const el = document.createElement('div')
+      el.innerHTML = html
+      document.body.append(el)
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const app = createSSRApp(App)
+      app.mount(el)
+      await flushPromises()
+      const messages = [...warn.mock.calls, ...error.mock.calls].map((c) => String(c[0]))
+      warn.mockRestore()
+      error.mockRestore()
+      expect(messages.filter((m) => /hydration|mismatch/i.test(m))).toEqual([])
+      expect(el.querySelectorAll('[role="option"]')).toHaveLength(labels.length)
+      expect(!!el.querySelector('[data-slot="command-empty"]')).toBe(labels.length === 0)
+      app.unmount()
+      el.remove()
+    }
+  })
+
+  it('GoopCommandDialog passes ignoreFilter through', async () => {
+    const w = mount(
+      defineComponent({
+        setup: () => () =>
+          h(GoopCommandDialog, { open: true, ignoreFilter: true }, () => [
+            h(GoopCommandInput),
+            h(GoopCommandList, null, () => [h(GoopCommandItem, { value: 'a', id: 'a' }, () => 'Alpha')]),
+          ]),
+      }),
+      { attachTo: document.body },
+    )
+    await flushPromises()
+    await w.findComponent(GoopCommandInput).find('input').setValue('zzz')
+    await flushPromises()
+    expect(optionIds()).toEqual(['a'])
+    w.unmount()
   })
 })
 

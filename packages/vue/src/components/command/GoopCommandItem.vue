@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // GoopCommandItem: shadcn-vue's CommandItem (reka-ui ListboxItem, registers with the command's
-// filter and hides when it doesn't match, clears the search on select, `class` merge,
+// filter and hides when it doesn't match (unless the command's `ignoreFilter` is on), clears the search on select, `class` merge,
 // `asChild`). With the goo highlight on, the flat highlighted bg is dropped (the blob draws
 // it) and choosing the item squishes the blob.
 import { cn } from 'cn'
@@ -27,7 +27,7 @@ const command = injectGoopCommand()
 const group = injectGoopCommandGroup()
 
 const isRender = computed(() => {
-  if (!command.filterState.search) return true
+  if (command.ignoreFilter.value || !command.filterState.search) return true
   const score = command.filterState.filtered.items.get(id)
   if (score === undefined) return true
   return score > 0

@@ -37,8 +37,9 @@ export default defineComponentDoc({
   ],
   tables: {
     main: {
-      caption: 'GoopCommand goo props',
+      caption: 'GoopCommand props',
       rows: [
+        { prop: 'ignoreFilter', type: 'boolean', def: 'false', note: `Turns off the built-in filter: every item and group renders as given, so you can filter and order them yourself (fuzzy ranking, async results). GoopCommandEmpty then shows when there are no items. Also on GoopCommandDialog.` },
         { prop: 'goo', type: 'boolean', def: 'true', note: 'Master switch. false renders plain shadcn Command parts.' },
         { prop: 'highlight', type: 'boolean', def: 'true', note: `The active item is a goo blob that glides between items, following the arrow keys and the pointer. false gives shadcn's flat background.` },
         { prop: 'pop', type: 'boolean', def: 'true', note: 'The highlight squishes when an item is chosen.' },

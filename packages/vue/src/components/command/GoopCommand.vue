@@ -5,6 +5,9 @@
 // core `attachMenuHighlight` + `findCommandHighlight`), choosing an item squishes it, and the
 // search input gets GoopInput's goo focus ring. `highlightOnHover` defaults on (the pointer
 // moves the highlight, like cmdk). With `:goo="false"` it is exactly shadcn's Command.
+// `ignoreFilter` (reka's ComboboxRoot name; cmdk's `shouldFilter={false}`) turns the built-in
+// filter off: every item and group renders as given, GoopCommandEmpty shows when there are no
+// items, and the parent filters and orders the results itself (async search, fuzzy ranking).
 import type { MenuHighlightHandle } from '@goopui/core'
 import { cn } from 'cn'
 import type { ListboxRootEmits, ListboxRootProps } from 'reka-ui'
@@ -15,7 +18,16 @@ import { COMMAND_PROP_KEYS, resolveCommandProps, toCommandOptions, type GoopComm
 import { provideGoopCommand, type GoopCommandFilterState } from './context'
 import { useGoopSound } from '../../sound'
 
-const props = withDefaults(defineProps<ListboxRootProps & GoopCommandProps & GoopSoundProps & { class?: HTMLAttributes['class'] }>(), {
+const props = withDefaults(defineProps<
+    ListboxRootProps &
+      GoopCommandProps &
+      GoopSoundProps & {
+        class?: HTMLAttributes['class']
+        /** Turn off the built-in filter: render every item and group as given (filter and
+         *  order them yourself). Default false. */
+        ignoreFilter?: boolean
+      }
+  >(), {
   sound: undefined,
   modelValue: '',
   highlightOnHover: true,
@@ -32,7 +44,7 @@ const props = withDefaults(defineProps<ListboxRootProps & GoopCommandProps & Goo
 })
 const emits = defineEmits<ListboxRootEmits>()
 
-const OWN = new Set<string>(['class', 'sound', ...COMMAND_PROP_KEYS])
+const OWN = new Set<string>(['class', 'sound', 'ignoreFilter', ...COMMAND_PROP_KEYS])
 const delegated = computed(() => Object.fromEntries(Object.entries(props).filter(([k]) => !OWN.has(k))) as ListboxRootProps)
 const forwarded = useForwardPropsEmits(delegated, emits)
 useGoopSound(() => props.sound)
@@ -42,7 +54,7 @@ const cmd = computed(() => resolveCommandProps(props))
 const options = computed(() => toCommandOptions(cmd.value, config))
 
 // shadcn-vue's filter: every item registers its text; typing scores them (contains,
-// accent-insensitive) and groups with no match hide.
+// accent-insensitive) and groups with no match hide. Off with `ignoreFilter`.
 const allItems = ref<Map<string, string>>(new Map())
 const allGroups = ref<Map<string, Set<string>>>(new Map())
 const { contains } = useFilter({ sensitivity: 'base' })
@@ -50,9 +62,10 @@ const filterState = reactive<GoopCommandFilterState>({
   search: '',
   filtered: { count: 0, items: new Map(), groups: new Set() },
 })
+const ignoreFilter = computed(() => !!props.ignoreFilter)
 
 function filterItems() {
-  if (!filterState.search) {
+  if (!filterState.search || ignoreFilter.value) {
     filterState.filtered.count = allItems.value.size
     return
   }
@@ -73,12 +86,13 @@ function filterItems() {
   }
   filterState.filtered.count = count
 }
-watch(() => filterState.search, filterItems)
+watch([() => filterState.search, ignoreFilter], filterItems)
 
 provideGoopCommand({
   allItems,
   allGroups,
   filterState,
+  ignoreFilter,
   cmd,
   options,
   highlight: shallowRef<MenuHighlightHandle | null>(null),

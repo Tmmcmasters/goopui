@@ -6,10 +6,14 @@
 // shrinks out when a filter hides the highlighted item (`findCommandHighlight`). The list
 // clips the blob's overshoot (`overflow: clip`), so it never adds scroll overflow. Reduced
 // motion: the blob snaps to the item.
+// With the command's `ignoreFilter`, the parent renders (and reorders) the items itself, maybe
+// after the search changes (async results): any change to the items re-reads the blob's
+// target, and when the highlighted item is removed, the first item is highlighted (reka
+// highlights the first item on each keystroke; this covers results that land later).
 import { attachMenuHighlight, findCommandHighlight } from '@goopui/core'
 import { cn } from 'cn'
 import type { ListboxContentProps } from 'reka-ui'
-import { ListboxContent } from 'reka-ui'
+import { injectListboxRootContext, ListboxContent } from 'reka-ui'
 import { computed, onBeforeUnmount, useTemplateRef, watch, type HTMLAttributes } from 'vue'
 import { injectGoopCommand } from './context'
 
@@ -21,6 +25,7 @@ const delegated = computed(() => {
 })
 
 const command = injectGoopCommand()
+const listbox = injectListboxRootContext()
 const list = useTemplateRef<HTMLElement>('list')
 
 const detach = () => {
@@ -42,7 +47,38 @@ watch(list, () => {
 watch(() => command.options.value.highlight, sync, { flush: 'post' })
 // Filtering adds / removes items without touching data-highlighted: re-read the target.
 watch(() => command.filterState.search, () => command.highlight.value?.refresh(), { flush: 'post' })
-onBeforeUnmount(detach)
+
+// ignoreFilter: follow the parent's own item changes.
+let observer: MutationObserver | null = null
+const unobserve = () => {
+  observer?.disconnect()
+  observer = null
+}
+const onItemsChange = (records: MutationRecord[]) => {
+  // Skip the blob's own layer.
+  const inBlob = (r: MutationRecord) => {
+    const layer = (r.target as Element).closest?.('[data-goop]')
+    return !!layer && !!list.value?.contains(layer)
+  }
+  if (records.every(inBlob)) return
+  const el = listbox.highlightedElement.value
+  if (el && !el.isConnected) listbox.highlightFirstItem()
+  command.highlight.value?.refresh()
+}
+watch(
+  [list, command.ignoreFilter],
+  ([el, ignore]) => {
+    unobserve()
+    if (!el || !ignore || typeof MutationObserver === 'undefined') return
+    observer = new MutationObserver(onItemsChange)
+    observer.observe(el, { childList: true, subtree: true })
+  },
+  { flush: 'post' },
+)
+onBeforeUnmount(() => {
+  unobserve()
+  detach()
+})
 </script>
 
 <template>
