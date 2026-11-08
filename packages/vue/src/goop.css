@@ -381,6 +381,14 @@
     opacity: 0;
   }
 
+  /* GoopCard: a card with a ring (box-shadow) and no border gives core's edge path no stroke,
+     so the mound would cover the ring. Draw the ring on the path instead (only when core set
+     no stroke). shadcn/ui React's card is like that; shadcn-vue's has a border (unaffected). */
+  [data-slot='card'][data-goop-host='card'] > [data-goop='card'] > path:not([stroke]) {
+    stroke: color-mix(in oklab, var(--foreground) 10%, transparent);
+    stroke-width: 1px;
+  }
+
   /* GoopBadge: the hover swell size (core's badgeStyle); zero under reduced motion. */
   [data-goop-swell] {
     --goop-badge-swell: var(--goop-badge-swell-size, 1px);
@@ -397,17 +405,6 @@
   :root[data-reduced-motion='true'] [data-goop-settle] > *,
   [data-goop-settle][data-goop-still] > * {
     animation: none;
-  }
-
-  /* GoopCard goo edge: shadcn's card has no border, its rim is `ring-1 ring-foreground/10` (a
-     box-shadow) that can't follow the mound. Core's edge path (filled with the card's bg) gets
-     that ring as a 2px stroke painted under the fill, so 1px shows outside the path, mound
-     included. Opaque (the ring mixed over the page background) so it doesn't darken where it
-     lies on the real ring. Tune with --goop-card-ring. */
-  [data-goop-host='card'] > [data-goop='card'] > path {
-    stroke: var(--goop-card-ring, color-mix(in oklab, var(--foreground) 10%, var(--background)));
-    stroke-width: 2px;
-    paint-order: stroke;
   }
 
   @media (prefers-reduced-motion: reduce) {
