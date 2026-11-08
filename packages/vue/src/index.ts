@@ -219,3 +219,10 @@ export {
   type GoopMenubarProps,
   type GoopMenubarMenuProps,
 } from './goop-props'
+export * from './components/navigation-menu'
+export {
+  NAVIGATION_MENU_PROP_KEYS,
+  toNavigationMenuOptions,
+  type GoopNavigationMenuProps,
+  type ResolvedNavigationMenuGoo,
+} from './goop-props'
