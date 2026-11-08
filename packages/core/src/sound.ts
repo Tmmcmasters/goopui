@@ -78,6 +78,7 @@ export const GOOP_SOUND_CUES = {
   toggleGroupItem: { bind: 'select' },
   radioItem: { bind: 'select' },
   tabsTrigger: { bind: 'select' },
+  paginationItem: { bind: 'select' },
   selectTrigger: { bind: 'open', emphasis: 'subtle' },
   // Reka selects on pointerup, then closes: adapters play this from the item's select event.
   selectItem: { bind: 'select' },
