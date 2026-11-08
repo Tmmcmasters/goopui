@@ -10,7 +10,7 @@
 import { attachTabsIndicator, type MenuHighlightHandle } from '@goopui/core'
 import { cn } from 'cn'
 import { Tabs as TabsPrimitive } from 'radix-ui'
-import { createContext, forwardRef, useContext, useImperativeHandle, useRef, type ComponentPropsWithoutRef, type Ref } from 'react'
+import { createContext, forwardRef, useContext, useImperativeHandle, useRef, type ComponentPropsWithoutRef, type MouseEvent, type Ref } from 'react'
 import { useGoopConfig } from '../../config'
 import { TABS_PROP_KEYS, splitProps, toTabsOptions, type GoopSoundProps, type GoopTabsProps } from '../../goop-props'
 import { GoopSoundScope, useGoopCue, useGoopSound } from '../../sound'
@@ -102,7 +102,22 @@ const PLAIN = { blob: false }
 
 export type GoopTabsTriggerProps = ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>
 
-export const GoopTabsTrigger = forwardRef<HTMLButtonElement, GoopTabsTriggerProps>(function GoopTabsTrigger({ className, ...props }, ref) {
+/**
+ * Radix's TabsTrigger focuses itself from script on mousedown (`currentTarget.focus()`, for
+ * Safari, where a clicked button doesn't take focus). Browsers treat that script focus as
+ * keyboard-like, so `:focus-visible` matched and a mouse click showed shadcn's focus ring
+ * (reka's trigger lets the click focus the button natively, so the Vue tabs never did). This
+ * runs first (Radix composes the user's handler before its own) and focuses the trigger
+ * with `focusVisible: false`, so Radix's own `focus()` finds it already focused and is a
+ * no-op. Keyboard focus (Tab, arrow keys) is untouched and still shows the ring.
+ */
+function focusWithoutRing(event: MouseEvent<HTMLButtonElement>): void {
+  const el = event.currentTarget
+  if (event.button !== 0 || event.ctrlKey || el.disabled || el.ownerDocument.activeElement === el) return
+  el.focus({ focusVisible: false } as FocusOptions)
+}
+
+export const GoopTabsTrigger = forwardRef<HTMLButtonElement, GoopTabsTriggerProps>(function GoopTabsTrigger({ className, onMouseDown, ...props }, ref) {
   const list = useContext(ListContext)
   const cue = useGoopCue('tabsTrigger')
   return (
@@ -112,6 +127,10 @@ export const GoopTabsTrigger = forwardRef<HTMLButtonElement, GoopTabsTriggerProp
       className={cn(...(list?.blob ? tabsTriggerGooClass : tabsTriggerClass), className)}
       {...cue}
       {...props}
+      onMouseDown={(event) => {
+        onMouseDown?.(event)
+        if (!event.defaultPrevented) focusWithoutRing(event)
+      }}
     />
   )
 })
