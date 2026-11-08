@@ -1966,9 +1966,12 @@ import {
 // Core's SIDEBAR_EFFECTS, each a GoopSidebar prop: `highlight` (the menu's goo blob glides
 // between items under the cursor: core `attachSidebarHighlight`), `pill` (the active item's
 // soft filled pill), `slosh` (the inner edge sloshes as the sidebar collapses / expands: core
-// `attachSidebarEdge`; `true`, `false` or 0..2), `submenus` (GoopCollapsible sub-menus spring
-// open; their row stays unfilled), `tooltips` (icon-mode tooltips are GoopTooltips), `bloom` (the mobile
-// sheet blooms like GoopSheet). `goo: false` is a plain shadcn Sidebar.
+// `attachSidebarEdge`; `true`, `false` or 0..2), `travel` (the collapse / expand has the
+// Drawer's momentum: core `sidebarMotionCurve`), `submenus` (GoopCollapsible sub-menus spring
+// open; their row stays unfilled), `pour` (a sub-menu's guide line pours down behind a goo
+// bead), `tooltips` (icon-mode tooltips are GoopTooltips), `drawer` (the mobile sidebar is a
+// GoopDrawer), `bloom` (with `drawer` off, the mobile sheet blooms like GoopSheet).
+// `goo: false` is a plain shadcn Sidebar.
 
 /** Every GoopSidebar engine prop. */
 export const SIDEBAR_PROP_KEYS = ['goo', ...SIDEBAR_EFFECTS, 'followPointer', 'speed', 'preset', 'renderer'] as const
@@ -1983,11 +1986,17 @@ export interface GoopSidebarProps {
   pill?: boolean
   /** The inner edge sloshes in low, wide mounds as the sidebar collapses or expands. `true`, `false` or 0..2. */
   slosh?: boolean | number
+  /** Collapse / expand with the Drawer's momentum: a fast launch into a small landing overshoot, and a collapse that accelerates away (false: shadcn's 200ms linear). */
+  travel?: boolean
   /** GoopCollapsible sub-menus inside spring open, their row unfilled (false: plain collapsibles). */
   submenus?: boolean
+  /** An opening sub-menu's guide line pours down behind a goo bead that melts into it (needs `submenus`). */
+  pour?: boolean
   /** Icon-mode tooltips bloom as goo (false: shadcn tooltips). */
   tooltips?: boolean
-  /** The mobile sheet blooms from its screen edge like GoopSheet (false: shadcn's slide). */
+  /** The mobile sidebar is a GoopDrawer: panel and goo one body, a fast launch with a small landing overshoot, a close that accelerates away, swipe to close (false: a GoopSheet). */
+  drawer?: boolean
+  /** With `drawer` off, the mobile sheet blooms from its screen edge like GoopSheet (false: shadcn's slide). */
   bloom?: boolean
   /** The highlight's soft swell follows the cursor along the item (false: centred). */
   followPointer?: boolean
@@ -2018,9 +2027,14 @@ export interface ResolvedSidebarGoo {
   /** Edge slosh options, or null (off). */
   edge: SidebarEdgeOptions | null
   pill: boolean
+  travel: boolean
   submenus: boolean
+  pour: boolean
   tooltips: boolean
+  drawer: boolean
   bloom: boolean
+  /** App-config reduced motion (true / false force it; else the OS / site switch). */
+  reducedMotion?: boolean | 'auto'
   speed?: number
   preset?: GoopPreset
   renderer?: GoopRendererOption
@@ -2040,9 +2054,13 @@ export function toSidebarOptions(props: GoopSidebarProps, config: GoopOptions = 
     highlight: on && props.highlight !== false ? { ...common, followPointer: props.followPointer !== false } : null,
     edge: on && slosh !== false && slosh !== 0 ? { ...common, slosh } : null,
     pill: on && props.pill !== false,
+    travel: on && props.travel !== false,
     submenus: on && props.submenus !== false,
+    pour: on && props.submenus !== false && props.pour !== false,
     tooltips: on && props.tooltips !== false,
+    drawer: on && props.drawer !== false,
     bloom: on && props.bloom !== false,
+    reducedMotion: config.reducedMotion,
     speed: common.speed,
     preset: common.preset,
     renderer: common.renderer,
