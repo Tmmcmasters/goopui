@@ -82,7 +82,7 @@ defineProps<{ slug: string; title: string }>()
       <GoopInput class="h-8 text-xs" placeholder="you@example.com" aria-label="Email" />
     </div>
 
-    <GoopAlert v-else-if="slug === 'alert'" class="w-40 px-2 py-1.5 text-[10px] *:[svg:not([class*=size-])]:size-3">
+    <GoopAlert v-else-if="slug === 'alert'" class="w-40 border-border px-2 py-1.5 text-[10px] *:[svg:not([class*=size-])]:size-3">
       <SiteIcon name="circleCheck" />
       <GoopAlertTitle>Saved</GoopAlertTitle>
       <GoopAlertDescription class="text-[10px]">Your changes are live.</GoopAlertDescription>
@@ -101,9 +101,9 @@ defineProps<{ slug: string; title: string }>()
       </GoopBreadcrumbList>
     </GoopBreadcrumb>
     <GoopButtonGroup v-else-if="slug === 'button-group'">
-      <GoopButton variant="outline" size="xs">Archive</GoopButton>
-      <GoopButton variant="outline" size="xs">Report</GoopButton>
-      <GoopButton variant="outline" size="xs">Snooze</GoopButton>
+      <GoopButton variant="outline" size="xs">Copy</GoopButton>
+      <GoopButton variant="outline" size="xs">Cut</GoopButton>
+      <GoopButton variant="outline" size="xs">Paste</GoopButton>
     </GoopButtonGroup>
     <GoopEmpty v-else-if="slug === 'empty'" class="gap-1 p-0">
       <GoopEmptyHeader class="gap-1">

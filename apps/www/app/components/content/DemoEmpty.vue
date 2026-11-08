@@ -7,7 +7,7 @@ const pg = usePlayground()
 </script>
 
 <template>
-  <GoopEmpty v-if="set === 'basic'" class="p-2" v-bind="pg.props">
+  <GoopEmpty v-if="set === 'basic'" class="empty-demo p-2" v-bind="pg.props">
     <GoopEmptyHeader>
       <GoopEmptyMedia variant="icon">
         <SiteIcon name="folder" />
@@ -22,7 +22,7 @@ const pg = usePlayground()
     </GoopEmptyContent>
   </GoopEmpty>
 
-  <GoopEmpty v-else class="p-2">
+  <GoopEmpty v-else class="empty-demo p-2">
     <GoopEmptyHeader>
       <GoopEmptyMedia>
         <SiteIcon name="inbox" :size="28" />
@@ -32,3 +32,10 @@ const pg = usePlayground()
     </GoopEmptyHeader>
   </GoopEmpty>
 </template>
+
+<style>
+/* The docs prose spaces paragraphs. The demo is app UI: undo that. */
+.prose .empty-demo p {
+  margin: 0;
+}
+</style>
