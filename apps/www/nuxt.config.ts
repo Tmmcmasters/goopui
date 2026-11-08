@@ -7,9 +7,11 @@ import tailwindcss from '@tailwindcss/vite'
 // (e.g. on a deploy target that wants them elsewhere).
 // Dark is the default theme (the landing is designed dark); the toggle stores 'light'.
 // Runs before first paint on every page (including error pages): theme class,
-// the site's reduced-motion switch, and the `js` class that lets scroll reveals hide
-// content (no JS = everything visible). Keys match useTheme / useMotionPreference.
-const boot = `(function(){try{var d=document.documentElement;d.classList.add('js');var t=localStorage.getItem('goop-theme');var dark=t!=='light';d.classList.toggle('dark',dark);if(localStorage.getItem('goop-reduced-motion')==='true')d.dataset.reducedMotion='true'}catch(e){}})()`
+// the site's reduced-motion switch, the sound mute (data-sound="off", applied to
+// @goopui/core by plugins/04.sound) and the `js` class that lets scroll reveals hide
+// content (no JS = everything visible). Keys match useTheme / useMotionPreference /
+// useSoundPreference.
+const boot = `(function(){try{var d=document.documentElement;d.classList.add('js');var t=localStorage.getItem('goop-theme');var dark=t!=='light';d.classList.toggle('dark',dark);if(localStorage.getItem('goop-reduced-motion')==='true')d.dataset.reducedMotion='true';if(localStorage.getItem('goop-sound')==='off')d.dataset.sound='off'}catch(e){}})()`
 
 const site = 'https://goop.timmcmasters.work'
 const description =
