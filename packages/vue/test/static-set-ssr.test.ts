@@ -105,4 +105,16 @@ describe('small set SSR', () => {
     expect(html).not.toContain('data-goop-host="stroke"')
     expect(html).not.toContain('style="transform')
   })
+
+  it('empty renders shadcn markup with no puddle', async () => {
+    const { GoopEmpty, GoopEmptyHeader, GoopEmptyMedia, GoopEmptyTitle } = await import('../src')
+    const html = await renderToString(
+      createSSRApp({
+        render: () => h(GoopEmpty, null, () => h(GoopEmptyHeader, null, () => [h(GoopEmptyMedia, { variant: 'icon' }, () => h('svg')), h(GoopEmptyTitle, null, () => 'None')])),
+      }),
+    )
+    expect(html).toContain('data-slot="empty"')
+    expect(html).toContain('data-slot="empty-icon" data-variant="icon"')
+    expect(html).not.toContain('empty-puddle')
+  })
 })

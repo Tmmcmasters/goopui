@@ -922,6 +922,20 @@ export {
   type ButtonGroupOrientation,
 } from './button-group'
 export {
+  EMPTY_EFFECTS,
+  EMPTY_FEEL,
+  EMPTY_PUDDLE_PART,
+  attachEmptyPuddle,
+  emptyPuddleBounds,
+  emptyPuddleBreath,
+  emptyPuddlePath,
+  type EmptyEffect,
+  type EmptyFeel,
+  type EmptyPuddleHandle,
+  type EmptyPuddleOptions,
+  type EmptyPuddleShape,
+} from './empty'
+export {
   SIDEBAR_EDGE_FEEL,
   SIDEBAR_EDGE_PART,
   SIDEBAR_EFFECTS,

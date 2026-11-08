@@ -2607,3 +2607,56 @@ import {
   type ButtonGroupOptions,
   type ButtonGroupOrientation,
 } from '@goopui/core'
+
+// ---- GoopEmpty ------------------------------------------------------------------------------
+// The media (GoopEmptyMedia) sits in a goo puddle of its own muted tone (core
+// `attachEmptyPuddle`) that breathes very slowly, about 1px (`breathe`; static under reduced
+// motion). Props can sit on GoopEmpty (the media inherits them) or on GoopEmptyMedia (wins).
+// The other parts are plain.
+
+/** Every GoopEmpty engine prop. */
+export const EMPTY_PROP_KEYS = ['goo', ...EMPTY_EFFECTS, 'speed', 'preset'] as const
+
+/** Engine props of GoopEmpty (inherited) and GoopEmptyMedia. */
+export interface GoopEmptyProps {
+  /** Master switch. `false` renders plain shadcn Empty parts. */
+  goo?: boolean
+  /** The goo puddle under the media. A number scales its depth. */
+  puddle?: boolean | number
+  /** The puddle's slow ~1px breathing. A number scales it. */
+  breathe?: boolean | number
+  /** Animation speed multiplier (a faster breath). */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+}
+
+type EmptyAdapterOwned = 'reducedMotion' | 'seed'
+type EmptyUnhandled = Exclude<keyof EmptyPuddleOptions, keyof GoopEmptyProps | EmptyAdapterOwned>
+const _allEmptyOptionsHandled: [EmptyUnhandled] extends [never] ? true : { unhandled: EmptyUnhandled } = true
+void _allEmptyOptionsHandled
+type EmptyPropsListed = Exclude<keyof GoopEmptyProps, (typeof EMPTY_PROP_KEYS)[number]>
+const _allEmptyPropsListed: [EmptyPropsListed] extends [never] ? true : { unlisted: EmptyPropsListed } = true
+void _allEmptyPropsListed
+
+/** The media's props over the root's: each prop the media sets wins, the rest are inherited. */
+export function resolveEmptyProps(own: GoopEmptyProps, parent?: GoopEmptyProps | null): GoopEmptyProps {
+  const out: GoopEmptyProps = {}
+  for (const k of EMPTY_PROP_KEYS) {
+    const v = own[k] ?? parent?.[k]
+    if (v !== undefined) (out as Record<string, unknown>)[k] = v
+  }
+  return out
+}
+
+/** Puddle options for core over app config, or null when the puddle is off. */
+export function toEmptyOptions(props: GoopEmptyProps, config: GoopOptions = {}): EmptyPuddleOptions | null {
+  if (props.goo === false || props.puddle === false || props.puddle === 0) return null
+  const out: EmptyPuddleOptions = { preset: props.preset ?? config.preset, reducedMotion: config.reducedMotion }
+  if (props.puddle !== undefined) out.puddle = props.puddle
+  if (props.breathe !== undefined) out.breathe = props.breathe
+  if (props.speed !== undefined) out.speed = props.speed
+  return out
+}
+
+import { EMPTY_EFFECTS, type EmptyPuddleOptions } from '@goopui/core'

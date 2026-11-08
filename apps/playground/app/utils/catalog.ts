@@ -44,5 +44,6 @@ export const catalog: CatalogEntry[] = [
   { path: '/kbd', goop: 'GoopKbd', shadcn: 'Kbd', blurb: 'Press the matching key (or click it) and the key squishes into its base, then springs back.' },
   { path: '/breadcrumb', goop: 'GoopBreadcrumb', shadcn: 'Breadcrumb', blurb: 'The hover highlight is one goo blob that flows between the links.' },
   { path: '/button-group', goop: 'GoopButtonGroup', shadcn: 'ButtonGroup', blurb: 'The buttons flex as one goo body: a press squishes one and tugs its neighbours, no seams.' },
+  { path: '/empty', goop: 'GoopEmpty', shadcn: 'Empty', blurb: 'The media icon sits in a goo puddle that breathes very slowly.' },
   { path: '/sidebar', goop: 'GoopSidebar', shadcn: 'Sidebar', blurb: 'Dashboard sidebar: goo highlight glides between items, the edge sloshes as it collapses.' },
 ]

@@ -105,6 +105,12 @@ defineProps<{ slug: string; title: string }>()
       <GoopButton variant="outline" size="xs">Report</GoopButton>
       <GoopButton variant="outline" size="xs">Snooze</GoopButton>
     </GoopButtonGroup>
+    <GoopEmpty v-else-if="slug === 'empty'" class="gap-1 p-0">
+      <GoopEmptyHeader class="gap-1">
+        <GoopEmptyMedia variant="icon"><SiteIcon name="folder" /></GoopEmptyMedia>
+        <GoopEmptyTitle class="text-[11px]">No projects</GoopEmptyTitle>
+      </GoopEmptyHeader>
+    </GoopEmpty>
 
     <!-- Sketches: overlays and the rest. Ink, with the goo colour as the accent. -->
     <div v-else-if="slug === 'select'" class="sk-card flex h-8 w-32 items-center justify-between px-2.5 text-[11px] text-muted-foreground">

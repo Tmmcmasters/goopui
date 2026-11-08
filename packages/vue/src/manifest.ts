@@ -239,6 +239,12 @@ export const goopComponents = [
   'GoopButtonGroup',
   'GoopButtonGroupSeparator',
   'GoopButtonGroupText',
+  'GoopEmpty',
+  'GoopEmptyContent',
+  'GoopEmptyDescription',
+  'GoopEmptyHeader',
+  'GoopEmptyMedia',
+  'GoopEmptyTitle',
 ] as const
 
 export type GoopComponentName = (typeof goopComponents)[number]
