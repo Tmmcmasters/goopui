@@ -6,6 +6,7 @@ import { TabsRoot, useForwardPropsEmits } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
 import type { GoopSoundProps } from '../../goop-props'
 import { useGoopSound } from '../../sound'
+import { TABS_ROOT } from './variants'
 
 const props = withDefaults(defineProps<TabsRootProps & GoopSoundProps & { class?: HTMLAttributes['class'] }>(), { sound: undefined })
 const emits = defineEmits<TabsRootEmits>()
@@ -24,7 +25,7 @@ useGoopSound(() => props.sound)
     data-slot="tabs"
     :data-orientation="forwarded.orientation || 'horizontal'"
     v-bind="forwarded"
-    :class="cn('gap-2 group/tabs flex data-[orientation=horizontal]:flex-col', props.class)"
+    :class="cn(TABS_ROOT, props.class)"
   >
     <slot v-bind="slotProps" />
   </TabsRoot>

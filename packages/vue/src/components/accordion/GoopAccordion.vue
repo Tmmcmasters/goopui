@@ -42,7 +42,7 @@ provideGoopAccordion(computed(() => toAccordionOptions(props, config)))
 </script>
 
 <template>
-  <AccordionRoot v-slot="slotProps" data-slot="accordion" v-bind="forwarded">
+  <AccordionRoot v-slot="slotProps" data-slot="accordion" class="flex w-full flex-col" v-bind="forwarded">
     <slot v-bind="slotProps" />
   </AccordionRoot>
 </template>

@@ -15,8 +15,8 @@ const { toggleSidebar } = useSidebar()
     data-sidebar="trigger"
     data-slot="sidebar-trigger"
     variant="ghost"
-    size="icon"
-    :class="cn('size-7', props.class)"
+    size="icon-sm"
+    :class="cn(props.class)"
     @click="toggleSidebar"
   >
     <slot>
@@ -31,6 +31,7 @@ const { toggleSidebar } = useSidebar()
         stroke-linecap="round"
         stroke-linejoin="round"
         aria-hidden="true"
+        class="cn-rtl-flip"
       >
         <rect width="18" height="18" x="3" y="3" rx="2" />
         <path d="M9 3v18" />

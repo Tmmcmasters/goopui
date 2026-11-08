@@ -17,10 +17,10 @@ const width = computed(() => skeletonWidth(id ?? ''))
     data-sidebar="menu-skeleton"
     :class="cn('flex h-8 items-center gap-2 rounded-md px-2', props.class)"
   >
-    <div v-if="showIcon" data-sidebar="menu-skeleton-icon" class="bg-sidebar-accent size-4 animate-pulse rounded-md motion-reduce:animate-none" />
+    <div v-if="showIcon" data-sidebar="menu-skeleton-icon" class="size-4 animate-pulse rounded-md bg-muted motion-reduce:animate-none" />
     <div
       data-sidebar="menu-skeleton-text"
-      class="bg-sidebar-accent h-4 max-w-(--skeleton-width) flex-1 animate-pulse rounded-md motion-reduce:animate-none"
+      class="h-4 max-w-(--skeleton-width) flex-1 animate-pulse rounded-md bg-muted motion-reduce:animate-none"
       :style="{ '--skeleton-width': width }"
     />
   </div>
