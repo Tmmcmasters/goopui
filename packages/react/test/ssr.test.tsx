@@ -108,4 +108,66 @@ describe('SSR (react-dom/server)', () => {
     expect(sounding).toContain('data-cuelume-toggle')
     expect(core.isSoundEnabled()).toBe(false)
   })
+
+  it('batch 1: skeleton, reveal, badge, card, avatar, separator, label render shadcn markup', async () => {
+    const m = await import('../src')
+    const html = await render(() =>
+      h(
+        'div',
+        null,
+        h(m.GoopSkeleton, { className: 'h-4 w-20' }),
+        h(m.GoopSkeleton, { shimmer: false }),
+        h(m.GoopSkeletonReveal, { loading: true, skeleton: h(m.GoopSkeleton, { className: 'size-12' }) }, h('p', null, 'Loaded')),
+        h(m.GoopBadge, { asChild: true }, h('a', { href: '/x' }, 'Link')),
+        h(
+          m.GoopCard,
+          { goo: true },
+          h(m.GoopCardHeader, null, h(m.GoopCardTitle, null, 'Title'), h(m.GoopCardDescription, null, 'Desc')),
+          h(m.GoopCardContent, null, 'Body'),
+          h(m.GoopCardFooter, null, 'Foot'),
+        ),
+        h(m.GoopAvatar, null, h(m.GoopAvatarImage, { src: '/a.png', alt: 'A' }), h(m.GoopAvatarFallback, null, 'AL')),
+        h(m.GoopSeparator, { orientation: 'vertical' }),
+        h(m.GoopLabel, { htmlFor: 'e' }, 'Email'),
+      ),
+    )
+    expect(html).toContain('data-slot="skeleton" data-goop-shimmer=""')
+    expect(html).toContain('animate-pulse')
+    expect(html).toContain('aria-busy="true"')
+    expect(html).toContain('data-slot="skeleton-reveal-skeleton"')
+    expect(html).not.toContain('Loaded')
+    expect(html).toContain('<a href="/x" data-slot="badge"')
+    expect(html).toContain('data-goop-swell=""')
+    expect(html).toContain('data-slot="card" data-size="default" data-goop-host="card"')
+    expect(html).not.toContain('data-goop="card"')
+    expect(html).toContain('data-slot="card-footer"')
+    expect(html).toContain('data-goop-settle=""')
+    // Radix renders the fallback on the server (the image waits for its load on the client).
+    expect(html).toContain('>AL</span>')
+    expect(html).toContain('data-orientation="vertical"')
+    expect(html).toContain('<label data-slot="label"')
+  })
+
+  it("GoopSpinner renders its static goo pose (inline svg + filter), shadcn's role and label", async () => {
+    const { GoopSpinner } = await import('../src')
+    const html = await render(() => h('div', null, h(GoopSpinner, { className: 'size-8' }), h(GoopSpinner, { variant: 'dots', interactive: false })))
+    expect(html).toContain('role="status"')
+    expect(html).toContain('aria-label="Loading"')
+    expect(html).toContain('data-variant="orbit"')
+    expect(html).toContain('<feColorMatrix')
+    expect((html.match(/<circle /g) ?? []).length).toBeGreaterThan(2)
+    expect(html).toContain('pointer-events-none')
+    expect(html).not.toContain('blobs')
+  })
+
+  it("'use client' only where a component needs the client (goo or React context)", async () => {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const client = (f: string) => /^\s*['"]use client['"]/.test(readFileSync(join(__dirname, '../src/components', f), 'utf8'))
+    for (const f of ['skeleton/GoopSkeleton.tsx', 'skeleton/GoopSkeletonReveal.tsx', 'badge/GoopBadge.tsx', 'card/GoopCard.tsx', 'avatar/GoopAvatar.tsx', 'spinner/GoopSpinner.tsx'])
+      expect(client(f), f).toBe(true)
+    for (const f of ['card/parts.tsx', 'avatar/parts.tsx', 'separator/GoopSeparator.tsx', 'label/GoopLabel.tsx', 'skeleton/variants.ts', 'badge/variants.ts'])
+      expect(client(f), f).toBe(false)
+  })
 })
+

@@ -526,3 +526,168 @@ export function toBackdropOptions(
     reducedMotion: config.reducedMotion,
   }
 }
+
+// ---- GoopSkeleton / GoopSkeletonReveal / GoopBadge / GoopAvatar / GoopCard (the static set) --
+// Cheap, calm effects (same as @goopui/vue). Skeleton `shimmer`, Badge `swell` and Avatar
+// `settle` are CSS-only (core's skeletonStyle / badgeStyle / avatarStyle resolve the feel into
+// CSS vars); Card's edge `swell` is core's `attachCard`, off unless `goo` is set;
+// GoopSkeletonReveal is core's `attachSkeletonReveal`. Each effect takes a boolean or a
+// multiplier, plus speed / preset.
+
+/** Every static-set engine prop, per component. */
+export const SKELETON_PROP_KEYS = [...SKELETON_EFFECTS, 'speed', 'preset'] as const
+export const BADGE_PROP_KEYS = [...BADGE_EFFECTS, 'speed', 'preset'] as const
+export const AVATAR_PROP_KEYS = [...AVATAR_EFFECTS, 'speed', 'preset'] as const
+export const CARD_PROP_KEYS = ['goo', ...CARD_EFFECTS, 'speed', 'preset'] as const
+export const SKELETON_REVEAL_PROP_KEYS = [...SKELETON_REVEAL_EFFECTS, 'speed', 'preset'] as const
+
+/** Props of a static-set component: each effect takes a boolean or a multiplier. */
+export type GoopStaticEffectProps<E extends string> = { [K in E]?: boolean | number } & {
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+}
+export type GoopSkeletonEngineProps = GoopStaticEffectProps<SkeletonEffect>
+export type GoopBadgeEngineProps = GoopStaticEffectProps<BadgeEffect>
+export type GoopAvatarEngineProps = GoopStaticEffectProps<AvatarEffect>
+export type GoopSkeletonRevealEngineProps = GoopStaticEffectProps<SkeletonRevealEffect>
+export type GoopCardEngineProps = GoopStaticEffectProps<CardEffect> & {
+  /** Master switch for the edge swell. Off by default: a card is static. */
+  goo?: boolean
+}
+
+/** Compile-time guards: every option core grows must be a prop (or adapter-owned). */
+type StaticAdapterOwned = 'reducedMotion'
+type SkeletonUnhandled = Exclude<keyof SkeletonOptions, keyof GoopSkeletonEngineProps | StaticAdapterOwned>
+const _allSkeletonOptionsHandled: [SkeletonUnhandled] extends [never] ? true : { unhandled: SkeletonUnhandled } = true
+void _allSkeletonOptionsHandled
+type BadgeUnhandled = Exclude<keyof BadgeOptions, keyof GoopBadgeEngineProps | StaticAdapterOwned>
+const _allBadgeOptionsHandled: [BadgeUnhandled] extends [never] ? true : { unhandled: BadgeUnhandled } = true
+void _allBadgeOptionsHandled
+type AvatarUnhandled = Exclude<keyof AvatarOptions, keyof GoopAvatarEngineProps | StaticAdapterOwned>
+const _allAvatarOptionsHandled: [AvatarUnhandled] extends [never] ? true : { unhandled: AvatarUnhandled } = true
+void _allAvatarOptionsHandled
+type CardUnhandled = Exclude<keyof CardOptions, keyof GoopCardEngineProps | StaticAdapterOwned>
+const _allCardOptionsHandled: [CardUnhandled] extends [never] ? true : { unhandled: CardUnhandled } = true
+void _allCardOptionsHandled
+type SkeletonRevealUnhandled = Exclude<keyof SkeletonRevealOptions, keyof GoopSkeletonRevealEngineProps | StaticAdapterOwned>
+const _allSkeletonRevealOptionsHandled: [SkeletonRevealUnhandled] extends [never] ? true : { unhandled: SkeletonRevealUnhandled } = true
+void _allSkeletonRevealOptionsHandled
+// And every listed key is a prop (the lists above are what splitProps takes off).
+type StaticListed<K extends readonly string[], P> = Exclude<keyof P, K[number]>
+const _staticPropsListed: [
+  | StaticListed<typeof SKELETON_PROP_KEYS, GoopSkeletonEngineProps>
+  | StaticListed<typeof BADGE_PROP_KEYS, GoopBadgeEngineProps>
+  | StaticListed<typeof AVATAR_PROP_KEYS, GoopAvatarEngineProps>
+  | StaticListed<typeof CARD_PROP_KEYS, GoopCardEngineProps>
+  | StaticListed<typeof SKELETON_REVEAL_PROP_KEYS, GoopSkeletonRevealEngineProps>,
+] extends [never]
+  ? true
+  : false = true
+void _staticPropsListed
+
+function toStaticOptions<E extends string>(
+  effects: readonly E[],
+  props: GoopStaticEffectProps<E>,
+  config: GoopOptions,
+): { [K in E]?: boolean | number } & { speed?: number; preset?: GoopPreset; reducedMotion?: boolean | 'auto' } {
+  const out: Record<string, unknown> = { preset: props.preset ?? config.preset, reducedMotion: config.reducedMotion }
+  if (props.speed !== undefined) out.speed = props.speed
+  for (const k of effects) {
+    const v = (props as Record<string, unknown>)[k]
+    if (v !== undefined) out[k] = v
+  }
+  return out as never
+}
+
+/** Skeleton / badge / avatar / reveal options from props, over app config (same as Vue). */
+export const toSkeletonOptions = (props: GoopSkeletonEngineProps, config: GoopOptions = {}): SkeletonOptions =>
+  toStaticOptions(SKELETON_EFFECTS, props, config)
+export const toBadgeOptions = (props: GoopBadgeEngineProps, config: GoopOptions = {}): BadgeOptions =>
+  toStaticOptions(BADGE_EFFECTS, props, config)
+export const toAvatarOptions = (props: GoopAvatarEngineProps, config: GoopOptions = {}): AvatarOptions =>
+  toStaticOptions(AVATAR_EFFECTS, props, config)
+export const toSkeletonRevealOptions = (props: GoopSkeletonRevealEngineProps, config: GoopOptions = {}): SkeletonRevealOptions =>
+  toStaticOptions(SKELETON_REVEAL_EFFECTS, props, config)
+/** Card options, or null when the goo is off (the default). */
+export const toCardOptions = (props: GoopCardEngineProps, config: GoopOptions = {}): CardOptions | null =>
+  props.goo ? toStaticOptions(CARD_EFFECTS, props, config) : null
+
+// ---- GoopSpinner ---------------------------------------------------------------------------
+// Core `attachSpinner`. @goopui/vue declares these as GoopSpinner.vue props with the same
+// defaults; the parity test reads them from that file.
+
+/** Every GoopSpinner engine prop. */
+export const SPINNER_PROP_KEYS = ['variant', 'blobs', 'speed', 'preset', 'drips', 'interactive', 'slosh', 'grab', 'pop', 'renderer'] as const
+
+/** Engine props of GoopSpinner. */
+export interface GoopSpinnerEngineProps {
+  /** Shape: 'orbit' (chasing blobs) | 'comet' (a spinning arc) | 'ring' (a bead rolling round a
+   *  donut) | 'dots' (a bead rolling along three dots) | 'pulse' (a core budding satellites). */
+  variant?: SpinnerVariant
+  /** Number of blobs, 3..6 (orbit and pulse). Default 4. */
+  blobs?: number
+  /** Orbit speed multiplier (1 = about 1.15s per turn on `playful`). */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** Drips hang off the bottom and fall away as it turns (orbit only). Default false. */
+  drips?: boolean
+  /** Pointer play: master switch for slosh, grab and pop. Off under reduced motion. Default true. */
+  interactive?: boolean
+  /** Moving the pointer over it sloshes the goo. Default true. */
+  slosh?: boolean
+  /** Press and drag pulls the goo out in lumps; release snaps it back. Default true. */
+  grab?: boolean
+  /** Click / tap squishes it, then it swells back with a ripple. Default true. */
+  pop?: boolean
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+type SpinnerUnhandled = Exclude<keyof SpinnerOptions, keyof GoopSpinnerEngineProps | 'reducedMotion'>
+const _allSpinnerOptionsHandled: [SpinnerUnhandled] extends [never] ? true : { unhandled: SpinnerUnhandled } = true
+void _allSpinnerOptionsHandled
+type SpinnerPropsListed = Exclude<keyof GoopSpinnerEngineProps, (typeof SPINNER_PROP_KEYS)[number]>
+const _allSpinnerPropsListed: [SpinnerPropsListed] extends [never] ? true : { unlisted: SpinnerPropsListed } = true
+void _allSpinnerPropsListed
+
+/** Spinner options from props (with GoopSpinner.vue's defaults), over app config. */
+export function toSpinnerOptions(props: GoopSpinnerEngineProps, config: GoopOptions = {}): SpinnerOptions {
+  return {
+    variant: props.variant ?? SPINNER_DEFAULT_VARIANT,
+    blobs: props.blobs ?? SPINNER_DEFAULT_BLOBS,
+    speed: props.speed ?? 1,
+    drips: props.drips ?? false,
+    interactive: props.interactive ?? true,
+    slosh: props.slosh ?? true,
+    grab: props.grab ?? true,
+    pop: props.pop ?? true,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+}
+
+import {
+  AVATAR_EFFECTS,
+  BADGE_EFFECTS,
+  CARD_EFFECTS,
+  SKELETON_EFFECTS,
+  SKELETON_REVEAL_EFFECTS,
+  SPINNER_DEFAULT_BLOBS,
+  SPINNER_DEFAULT_VARIANT,
+  type AvatarEffect,
+  type AvatarOptions,
+  type BadgeEffect,
+  type BadgeOptions,
+  type CardEffect,
+  type CardOptions,
+  type SkeletonEffect,
+  type SkeletonOptions,
+  type SkeletonRevealEffect,
+  type SkeletonRevealOptions,
+  type SpinnerOptions,
+  type SpinnerVariant,
+} from '@goopui/core'

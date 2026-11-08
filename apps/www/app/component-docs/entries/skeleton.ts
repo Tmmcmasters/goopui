@@ -15,7 +15,26 @@ export default defineComponentDoc({
     <GoopSkeleton class="h-4 w-4/5"{{main}} />
   </div>
 </div>`,
+  reactCode: `<div className="flex items-center gap-4">
+  <GoopSkeleton className="size-12 rounded-full"{{main}} />
+  <div className="grid flex-1 gap-2">
+    <GoopSkeleton className="h-4 w-full"{{main}} />
+    <GoopSkeleton className="h-4 w-4/5"{{main}} />
+  </div>
+</div>`,
   controls: [preset(), speed(), strength('shimmer')],
+  reactTables: {
+    main: {
+      caption: 'GoopSkeleton props',
+      rows: [
+        { prop: 'className', type: 'string', def: '', note: 'Merged onto the root. Size and shape it with classes, like shadcn.' },
+        { prop: 'shimmer', type: fx, def: 'true', note: "A low mound of lighter goo drifts across. A number scales its brightness. false: shadcn's pulse." },
+        { prop: 'speed', type: 'number', def: '1', note: 'Animation speed multiplier.' },
+        { prop: 'preset', type: `'subtle' | 'playful' | 'wild'`, def: 'app config, then playful', note: 'The feel.' },
+        { prop: '...div props', type: '', def: '', note: 'Any other prop goes to the div, including ref.' },
+      ],
+    },
+  },
   tables: {
     main: {
       caption: 'GoopSkeleton props',

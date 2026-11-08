@@ -20,10 +20,13 @@ onBeforeUnmount(() => clearTimeout(timer))
 const portrait = `data:image/svg+xml;utf8,${encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(200 22% 60%)"/><stop offset="1" stop-color="hsl(230 18% 34%)"/></linearGradient></defs><rect width="64" height="64" fill="url(#g)"/><circle cx="32" cy="26" r="11" fill="hsl(200 15% 86%)"/><path d="M12 64c2-14 10-20 20-20s18 6 20 20z" fill="hsl(200 15% 86%)"/></svg>`,
 )}`
+// On /react/docs: the same demo, as real @goopui/react components (react-demos/batch1.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <div class="flex w-full flex-col items-center gap-4">
+  <ReactIsland v-if="isReact" demo="skeleton-reveal" :pg="{ main: pg.props }" />
+  <div v-else class="flex w-full flex-col items-center gap-4">
     <GoopCard class="w-full max-w-sm" data-shot="reveal-card">
       <GoopSkeletonReveal :loading="loading" class="grid gap-4 px-6" v-bind="pg.props">
         <template #skeleton>

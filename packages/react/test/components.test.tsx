@@ -1,7 +1,7 @@
 import { activeTickerCount, isLoopRunning, type EmergeHandle } from '@goopui/core'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { createElement as h, createRef, useState } from 'react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   GoopButton,
   GoopCheckbox,
@@ -152,6 +152,30 @@ describe('GoopTabs', () => {
     })
     expect(screen.getByRole('tab', { name: 'B' }).dataset.state).toBe('active')
     expect(screen.getByText('Panel B')).toBeTruthy()
+  })
+
+  it('a mouse click focuses the trigger without the focus-visible ring (keyboard still shows it)', () => {
+    const onMouseDown = vi.fn()
+    render(
+      h(GoopTabs, { defaultValue: 'a' }, h(GoopTabsList, null, h(GoopTabsTrigger, { value: 'a' }, 'A'), h(GoopTabsTrigger, { value: 'b', onMouseDown }, 'B'))),
+    )
+    const b = screen.getByRole('tab', { name: 'B' })
+    const focus = vi.spyOn(b, 'focus')
+    act(() => {
+      fireEvent.mouseDown(b, { button: 0 })
+    })
+    expect(onMouseDown).toHaveBeenCalledOnce()
+    // First call is ours, with focusVisible: false; Radix's own focus() follows (a no-op).
+    expect(focus.mock.calls[0]?.[0]).toEqual({ focusVisible: false })
+    expect(document.activeElement).toBe(b)
+    expect(b.dataset.state).toBe('active')
+    // Not a primary click: left to Radix.
+    const a = screen.getByRole('tab', { name: 'A' })
+    const focusA = vi.spyOn(a, 'focus')
+    act(() => {
+      fireEvent.mouseDown(a, { button: 2 })
+    })
+    expect(focusA).not.toHaveBeenCalled()
   })
 
   it('goo={false} and variant line are exactly shadcn', () => {

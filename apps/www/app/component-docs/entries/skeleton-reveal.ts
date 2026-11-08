@@ -40,7 +40,60 @@ export default defineComponentDoc({
     <GoopButton class="w-28">Follow</GoopButton>
   </GoopSkeletonReveal>
 </GoopCard>`,
+  reactCode: `<GoopCard className="w-full max-w-sm">
+  <GoopSkeletonReveal
+    loading={loading}
+    className="grid gap-4 px-(--card-spacing)"{{main}}
+    skeleton={
+      <>
+        <div className="flex items-center gap-4">
+          <GoopSkeleton className="size-12 shrink-0 rounded-full" />
+          <div className="grid flex-1 gap-1">
+            <div className="flex h-5 items-center"><GoopSkeleton className="h-4 w-32" /></div>
+            <div className="flex h-5 items-center"><GoopSkeleton className="h-3.5 w-24" /></div>
+          </div>
+        </div>
+        <div className="grid">
+          <div className="flex h-5 items-center"><GoopSkeleton className="h-3.5 w-full" /></div>
+          <div className="flex h-5 items-center"><GoopSkeleton className="h-3.5 w-4/5" /></div>
+        </div>
+        <GoopSkeleton className="h-8 w-28" />
+      </>
+    }
+  >
+    <div className="flex items-center gap-4">
+      <GoopAvatar className="size-12">
+        <GoopAvatarImage src={user.avatar} alt={user.name} />
+        <GoopAvatarFallback>{user.initials}</GoopAvatarFallback>
+      </GoopAvatar>
+      <div className="grid min-w-0 flex-1 gap-1">
+        <p className="truncate text-sm leading-5 font-semibold">{user.name}</p>
+        <p className="truncate text-sm leading-5 text-muted-foreground">{user.handle}</p>
+      </div>
+    </div>
+    <p className="line-clamp-2 h-10 text-sm leading-5 text-muted-foreground">{user.bio}</p>
+    <GoopButton className="w-28">Follow</GoopButton>
+  </GoopSkeletonReveal>
+</GoopCard>`,
   controls: [preset(), speed(), effect('sheen'), effect('breathe'), effect('melt')],
+  reactTables: {
+    main: {
+      caption: 'GoopSkeletonReveal props',
+      rows: [
+        { prop: 'loading', type: 'boolean', def: 'false', note: 'Shows skeleton. Set it to false when the data arrives and the skeleton melts into children.' },
+        { prop: 'skeleton', type: 'ReactNode', def: '', note: 'The placeholder: GoopSkeleton blocks laid out like the content.' },
+        { prop: 'children', type: 'ReactNode', def: '', note: 'The real content, rendered once loading is false.' },
+        { prop: 'onRevealed', type: '() => void', def: '', note: 'The melt finished (or was skipped): the content is fully shown.' },
+        { prop: 'className', type: 'string', def: '', note: 'Merged onto the root. Both skeleton and children are laid out by it, so give them the same layout.' },
+        { prop: 'sheen', type: fx, def: 'true', note: 'While loading, a slow sheen flows through the group and close blocks bridge with goo as it passes. A number scales it.' },
+        { prop: 'breathe', type: fx, def: 'true', note: 'While loading, each block breathes: a tiny, slow swell. A number scales it.' },
+        { prop: 'melt', type: fx, def: 'true', note: 'Each block flows into the element replacing it, then drains away. A number scales the jelly. false: a plain cross-fade.' },
+        { prop: 'speed', type: 'number', def: '1', note: 'Animation speed multiplier.' },
+        { prop: 'preset', type: `'subtle' | 'playful' | 'wild'`, def: 'app config, then playful', note: 'The feel.' },
+        { prop: 'goopRef', type: 'Ref<SkeletonRevealHandle>', def: '', note: 'The live engine handle (null before mount). ref is the root div.' },
+      ],
+    },
+  },
   tables: {
     main: {
       caption: 'GoopSkeletonReveal props',

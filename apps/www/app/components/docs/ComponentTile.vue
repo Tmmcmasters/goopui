@@ -2,12 +2,17 @@
 // The small preview in a /docs/components index tile. Inline components render live (and
 // still: the tile is inert); overlays get a quiet sketch. Unknown slugs get a monogram, so a
 // new component's tile works before anyone draws one. Add a case here to give it a preview.
+// On /react/docs the ported components' tiles are React previews (react-demos/batch1.tsx `Tile`).
+import { REACT_TILES } from '~/react-demos/tiles'
+
 defineProps<{ slug: string; title: string }>()
+const { isReact } = useFramework()
 </script>
 
 <template>
   <div class="tile-art flex size-full items-center justify-center" inert>
-    <GoopButton v-if="slug === 'button'" size="sm" :resting-drips="[0.3, 0.72]" :interactive="false">Button</GoopButton>
+    <ReactIsland v-if="isReact && REACT_TILES.has(slug)" demo="tile" :set="slug" />
+    <GoopButton v-else-if="slug === 'button'" size="sm" :resting-drips="[0.3, 0.72]" :interactive="false">Button</GoopButton>
     <GoopSpinner v-else-if="slug === 'spinner'" class="size-9" />
     <GoopToggle v-else-if="slug === 'toggle'" default-value class="[--accent:var(--goo)] [--accent-foreground:var(--goo-foreground)]" aria-label="Bold">
       <span class="font-bold">B</span>
@@ -300,5 +305,25 @@ defineProps<{ slug: string; title: string }>()
   font-size: 1.25rem;
   color: var(--goo-foreground);
   background: var(--goo);
+}
+</style>
+
+<style>
+/* The React tiles (react-demos/batch1.tsx) render outside Vue's style scoping: the same
+   sketch tokens as above, for them. */
+.tile-art [data-react-island] .sk-card {
+  border-radius: 0.45rem;
+  background: var(--card);
+  box-shadow:
+    inset 0 0 0 1px var(--border-strong),
+    0 6px 14px -8px rgb(0 0 0 / 0.4);
+}
+.tile-art [data-react-island] .sk-pill {
+  display: block;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--foreground) 14%, transparent);
+}
+.tile-art [data-react-island] .goo-fill {
+  background: color-mix(in oklch, var(--goo) 80%, transparent);
 }
 </style>

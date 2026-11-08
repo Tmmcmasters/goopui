@@ -29,10 +29,13 @@ const people = [
   { name: 'Ada Lovelace', initials: 'AL', src: portrait(210) },
   { name: 'Grace Hopper', initials: 'GH', src: '' },
 ]
+// On /react/docs: the same sets, as real @goopui/react components (react-demos/batch1.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <div v-if="set === 'skeleton'" class="grid w-full max-w-sm gap-5">
+  <ReactIsland v-if="isReact" demo="static-set" :set="set" :pg="{ main: pg.props }" />
+  <div v-else-if="set === 'skeleton'" class="grid w-full max-w-sm gap-5">
     <div v-for="n in 3" :key="n" class="flex items-center gap-4">
       <GoopSkeleton class="size-12 shrink-0 rounded-full" v-bind="pg.props" />
       <div class="grid flex-1 gap-2">

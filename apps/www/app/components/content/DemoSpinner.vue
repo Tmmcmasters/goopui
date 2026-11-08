@@ -6,10 +6,13 @@ const variants = ['orbit', 'comet', 'ring', 'dots', 'pulse'] as const
 
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react spinners (react-demos/batch1.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <GoopSpinner v-if="set === 'playground'" class="size-12" v-bind="pg.props" />
+  <ReactIsland v-if="isReact" demo="spinner" :set="set" :pg="{ main: pg.props }" />
+  <GoopSpinner v-else-if="set === 'playground'" class="size-12" v-bind="pg.props" />
   <template v-else-if="set === 'default'">
     <GoopSpinner class="size-10" />
   </template>

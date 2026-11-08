@@ -284,12 +284,21 @@
       )
       50% 100% / max(var(--goop-shimmer-width, 60%), 72px) min(135%, 44px) no-repeat;
     transform: translateX(-130%);
+    transform-origin: 50% 100%;
     animation: goop-shimmer var(--goop-shimmer-period, 2.4s) cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
   }
   :root[data-reduced-motion='true'] [data-goop-shimmer]::after,
   [data-goop-shimmer][data-goop-still]::after {
     animation: none;
     opacity: 0;
+  }
+
+  /* GoopCard: shadcn/ui's card has a ring (box-shadow), not a border, so core's edge path gets
+     no stroke from it and the mound would cover the ring. Draw the ring on the path instead
+     (only when core set no stroke, i.e. the card has no border of its own). */
+  [data-slot='card'][data-goop-host='card'] > [data-goop='card'] > path:not([stroke]) {
+    stroke: color-mix(in oklab, var(--foreground) 10%, transparent);
+    stroke-width: 1px;
   }
 
   /* GoopBadge: the hover swell size (core's badgeStyle); zero under reduced motion. */
@@ -324,12 +333,17 @@
   }
 }
 
+/* The mound swells a little as it crosses the middle and settles as it leaves: liquid, not a
+   rigid stripe. Origin on the bottom edge, so it rises out of the shape. */
 @keyframes goop-shimmer {
   from {
-    transform: translateX(-130%);
+    transform: translateX(-130%) scaleY(0.82);
+  }
+  50% {
+    transform: translateX(0%) scaleY(1.1);
   }
   to {
-    transform: translateX(130%);
+    transform: translateX(130%) scaleY(0.82);
   }
 }
 
