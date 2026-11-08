@@ -227,6 +227,8 @@ export const goopComponents = [
   'GoopAlertAction',
   'GoopAlertDescription',
   'GoopAlertTitle',
+  'GoopKbd',
+  'GoopKbdGroup',
 ] as const
 
 export type GoopComponentName = (typeof goopComponents)[number]

@@ -63,4 +63,12 @@ describe('small set SSR', () => {
     expect(html).toContain('data-slot="alert-title"')
     expect(html).not.toContain('data-goop="')
   })
+
+  it('kbd renders shadcn markup', async () => {
+    const { GoopKbd, GoopKbdGroup } = await import('../src')
+    const html = await renderToString(createSSRApp({ render: () => h(GoopKbdGroup, null, () => [h(GoopKbd, { keys: ['Meta', 'K'] }, () => '⌘'), h(GoopKbd, null, () => 'K')]) }))
+    expect(html).toContain('<kbd data-slot="kbd-group"')
+    expect(html).toContain('data-slot="kbd"')
+    expect(html).not.toContain('data-goop-pressed')
+  })
 })

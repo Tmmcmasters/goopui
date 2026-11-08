@@ -886,6 +886,19 @@ export {
   type AlertShape,
 } from './alert'
 export {
+  KBD_EFFECTS,
+  KBD_FEEL,
+  attachKbd,
+  kbdHasKey,
+  kbdMatches,
+  kbdModifier,
+  kbdPose,
+  type KbdEffect,
+  type KbdFeel,
+  type KbdHandle,
+  type KbdOptions,
+} from './kbd'
+export {
   SIDEBAR_EDGE_FEEL,
   SIDEBAR_EDGE_PART,
   SIDEBAR_EFFECTS,

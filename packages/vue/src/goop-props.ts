@@ -2451,3 +2451,44 @@ export const toAlertOptions = (props: GoopAlertPropsInput, config: GoopOptions =
   props.goo === false ? null : toStaticOptions(ALERT_EFFECTS, props, config)
 
 import { ALERT_EFFECTS, type AlertEffect, type AlertOptions } from '@goopui/core'
+
+// ---- GoopKbd --------------------------------------------------------------------------------
+// The key-press squish (core `attachKbd`): the kbd squishes into its base when clicked, or
+// when the keys in `keys` are pressed (opt-in, e.g. ['Meta', 'K']), and springs back with a
+// small jelly rebound (`press`, a boolean or a multiplier). `goo: false` renders a plain
+// shadcn Kbd. GoopKbdGroup is plain.
+
+/** Every GoopKbd engine prop. */
+export const KBD_PROP_KEYS = ['goo', ...KBD_EFFECTS, 'keys', 'speed', 'preset'] as const
+
+export type GoopKbdPropsDefinition = StaticEffectProps<KbdEffect> & {
+  keys: PropDef<readonly string[]>
+  goo: { type: PropType<boolean>; default: boolean }
+}
+export type GoopKbdPropsInput = InputOf<StaticEffectProps<KbdEffect>> & { keys?: readonly string[]; goo?: boolean }
+
+/** Spread into GoopKbd's `defineProps({ ...goopKbdProps, ... })`. */
+export const goopKbdProps = Object.freeze({
+  ...(staticEffectProps(KBD_EFFECTS) as unknown as StaticEffectProps<KbdEffect>),
+  /** Keyboard keys that press it, e.g. ['Meta', 'K'] (all held = pressed). Default: none. */
+  keys: def(Array),
+  /** Master switch. `false` renders a plain shadcn Kbd. */
+  goo: { type: Boolean, default: true },
+}) as GoopKbdPropsDefinition
+
+type KbdUnhandled = Exclude<keyof KbdOptions, keyof GoopKbdPropsDefinition | StaticAdapterOwned>
+const _allKbdOptionsHandled: [KbdUnhandled] extends [never] ? true : { unhandled: KbdUnhandled } = true
+void _allKbdOptionsHandled
+type KbdPropsListed = Exclude<keyof GoopKbdPropsDefinition, (typeof KBD_PROP_KEYS)[number]>
+const _allKbdPropsListed: [KbdPropsListed] extends [never] ? true : { unlisted: KbdPropsListed } = true
+void _allKbdPropsListed
+
+/** Squish options for core over app config, or null when the goo or the squish is off. */
+export function toKbdOptions(props: GoopKbdPropsInput, config: GoopOptions = {}): KbdOptions | null {
+  if (props.goo === false || props.press === false || props.press === 0) return null
+  const out: KbdOptions = toStaticOptions(KBD_EFFECTS, props, config)
+  if (props.keys?.length) out.keys = [...props.keys]
+  return out
+}
+
+import { KBD_EFFECTS, type KbdEffect, type KbdOptions } from '@goopui/core'

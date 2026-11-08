@@ -239,3 +239,5 @@ export {
   type GoopAlertPropsDefinition,
   type GoopAlertPropsInput,
 } from './goop-props'
+export * from './components/kbd'
+export { KBD_PROP_KEYS, goopKbdProps, toKbdOptions, type GoopKbdPropsDefinition, type GoopKbdPropsInput } from './goop-props'

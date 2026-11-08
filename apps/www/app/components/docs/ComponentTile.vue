@@ -87,6 +87,10 @@ defineProps<{ slug: string; title: string }>()
       <GoopAlertTitle>Saved</GoopAlertTitle>
       <GoopAlertDescription class="text-[10px]">Your changes are live.</GoopAlertDescription>
     </GoopAlert>
+    <GoopKbdGroup v-else-if="slug === 'kbd'">
+      <GoopKbd>⌘</GoopKbd>
+      <GoopKbd>K</GoopKbd>
+    </GoopKbdGroup>
 
     <!-- Sketches: overlays and the rest. Ink, with the goo colour as the accent. -->
     <div v-else-if="slug === 'select'" class="sk-card flex h-8 w-32 items-center justify-between px-2.5 text-[11px] text-muted-foreground">

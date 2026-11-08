@@ -41,5 +41,6 @@ export const catalog: CatalogEntry[] = [
   { path: '/navigation-menu', goop: 'GoopNavigationMenu', shadcn: 'NavigationMenu', blurb: 'One goo highlight flows between the items; the panel blooms from its trigger and jelly-slides to the next one.' },
   { path: '/skeleton-reveal', goop: 'GoopSkeletonReveal', shadcn: 'Skeleton', blurb: 'Loading goo: the skeleton blocks pool, a sheen flows through and bridges them; when the content lands each block melts into its element and drains away.' },
   { path: '/alert', goop: 'GoopAlert', shadcn: 'Alert', blurb: 'A soft goo entrance: the body blooms out of its top edge and settles; the icon wobbles once.' },
+  { path: '/kbd', goop: 'GoopKbd', shadcn: 'Kbd', blurb: 'Press the matching key (or click it) and the key squishes into its base, then springs back.' },
   { path: '/sidebar', goop: 'GoopSidebar', shadcn: 'Sidebar', blurb: 'Dashboard sidebar: goo highlight glides between items, the edge sloshes as it collapses.' },
 ]
