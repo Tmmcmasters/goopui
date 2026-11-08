@@ -46,3 +46,21 @@ describe('static set SSR', () => {
     expect(done).not.toContain('data-slot="skeleton"')
   })
 })
+
+describe('small set SSR', () => {
+  it("renders shadcn's markup with no goo layers", async () => {
+    const { GoopAlert, GoopAlertTitle, GoopAlertDescription } = await import('../src')
+    const html = await renderToString(
+      createSSRApp({
+        render: () =>
+          h('div', [
+            h(GoopAlert, { variant: 'destructive' }, () => [h('svg'), h(GoopAlertTitle, null, () => 'Heads up'), h(GoopAlertDescription, null, () => 'Body')]),
+          ]),
+      }),
+    )
+    expect(html).toContain('data-slot="alert"')
+    expect(html).toContain('role="alert"')
+    expect(html).toContain('data-slot="alert-title"')
+    expect(html).not.toContain('data-goop="')
+  })
+})

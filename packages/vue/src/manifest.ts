@@ -222,6 +222,11 @@ export const goopComponents = [
   'GoopSidebarRail',
   'GoopSidebarSeparator',
   'GoopSidebarTrigger',
+  // Small set: Alert, Kbd, Breadcrumb, ButtonGroup, Empty
+  'GoopAlert',
+  'GoopAlertAction',
+  'GoopAlertDescription',
+  'GoopAlertTitle',
 ] as const
 
 export type GoopComponentName = (typeof goopComponents)[number]

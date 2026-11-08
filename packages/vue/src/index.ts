@@ -231,3 +231,11 @@ export {
   type GoopNavigationMenuProps,
   type ResolvedNavigationMenuGoo,
 } from './goop-props'
+export * from './components/alert'
+export {
+  ALERT_PROP_KEYS,
+  goopAlertProps,
+  toAlertOptions,
+  type GoopAlertPropsDefinition,
+  type GoopAlertPropsInput,
+} from './goop-props'

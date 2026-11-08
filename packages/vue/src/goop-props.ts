@@ -2419,3 +2419,35 @@ import {
   type NavigationMenuHighlightOptions,
   type NavigationMenuViewportOptions,
 } from '@goopui/core'
+
+// ---- GoopAlert ------------------------------------------------------------------------------
+// The entrance (core `attachAlert`): when the alert mounts or appears its body blooms out of
+// its top edge in a low, wide mound and settles (`bloom`); its icon gets one gentle jelly
+// wobble (`wobble`). Each takes a boolean or a multiplier, plus speed / preset; `goo: false`
+// renders a plain shadcn Alert. Nothing loops.
+
+/** Every GoopAlert engine prop. */
+export const ALERT_PROP_KEYS = ['goo', ...ALERT_EFFECTS, 'speed', 'preset'] as const
+
+export type GoopAlertPropsDefinition = StaticEffectProps<AlertEffect> & { goo: { type: PropType<boolean>; default: boolean } }
+export type GoopAlertPropsInput = InputOf<StaticEffectProps<AlertEffect>> & { goo?: boolean }
+
+/** Spread into GoopAlert's `defineProps({ ...goopAlertProps, ... })`. */
+export const goopAlertProps = Object.freeze({
+  ...(staticEffectProps(ALERT_EFFECTS) as unknown as StaticEffectProps<AlertEffect>),
+  /** Master switch. `false` renders a plain shadcn Alert. */
+  goo: { type: Boolean, default: true },
+}) as GoopAlertPropsDefinition
+
+type AlertUnhandled = Exclude<keyof AlertOptions, keyof GoopAlertPropsDefinition | StaticAdapterOwned>
+const _allAlertOptionsHandled: [AlertUnhandled] extends [never] ? true : { unhandled: AlertUnhandled } = true
+void _allAlertOptionsHandled
+type AlertPropsListed = Exclude<keyof GoopAlertPropsDefinition, (typeof ALERT_PROP_KEYS)[number]>
+const _allAlertPropsListed: [AlertPropsListed] extends [never] ? true : { unlisted: AlertPropsListed } = true
+void _allAlertPropsListed
+
+/** Entrance options for core over app config, or null when the goo is off. */
+export const toAlertOptions = (props: GoopAlertPropsInput, config: GoopOptions = {}): AlertOptions | null =>
+  props.goo === false ? null : toStaticOptions(ALERT_EFFECTS, props, config)
+
+import { ALERT_EFFECTS, type AlertEffect, type AlertOptions } from '@goopui/core'

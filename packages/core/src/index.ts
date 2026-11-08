@@ -870,6 +870,22 @@ export {
   type CardShape,
 } from './card'
 export {
+  ALERT_BLOOMING_ATTR,
+  ALERT_EFFECTS,
+  ALERT_FEEL,
+  ALERT_PART,
+  alertDuration,
+  alertPath,
+  alertPose,
+  attachAlert,
+  type AlertEffect,
+  type AlertFeel,
+  type AlertHandle,
+  type AlertOptions,
+  type AlertPose,
+  type AlertShape,
+} from './alert'
+export {
   SIDEBAR_EDGE_FEEL,
   SIDEBAR_EDGE_PART,
   SIDEBAR_EFFECTS,

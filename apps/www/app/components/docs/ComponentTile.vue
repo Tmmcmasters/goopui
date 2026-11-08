@@ -82,6 +82,12 @@ defineProps<{ slug: string; title: string }>()
       <GoopInput class="h-8 text-xs" placeholder="you@example.com" aria-label="Email" />
     </div>
 
+    <GoopAlert v-else-if="slug === 'alert'" class="w-40 px-2 py-1.5 text-[10px] *:[svg:not([class*=size-])]:size-3">
+      <SiteIcon name="circleCheck" />
+      <GoopAlertTitle>Saved</GoopAlertTitle>
+      <GoopAlertDescription class="text-[10px]">Your changes are live.</GoopAlertDescription>
+    </GoopAlert>
+
     <!-- Sketches: overlays and the rest. Ink, with the goo colour as the accent. -->
     <div v-else-if="slug === 'select'" class="sk-card flex h-8 w-32 items-center justify-between px-2.5 text-[11px] text-muted-foreground">
       Pick a fruit <SiteIcon name="chevronDown" :size="12" />
