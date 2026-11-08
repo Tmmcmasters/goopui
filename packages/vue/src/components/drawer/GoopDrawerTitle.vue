@@ -16,7 +16,7 @@ const delegated = computed(() => {
   <DialogTitle
     data-slot="drawer-title"
     v-bind="delegated"
-    :class="cn('text-foreground font-semibold', props.class)"
+    :class="cn('cn-font-heading text-base font-medium text-foreground', props.class)"
   >
     <slot />
   </DialogTitle>

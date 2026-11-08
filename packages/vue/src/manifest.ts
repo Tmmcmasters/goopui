@@ -78,6 +78,7 @@ export const goopComponents = [
   'GoopAlertDialogDescription',
   'GoopAlertDialogFooter',
   'GoopAlertDialogHeader',
+  'GoopAlertDialogMedia',
   'GoopAlertDialogOverlay',
   'GoopAlertDialogTitle',
   'GoopAlertDialogTrigger',

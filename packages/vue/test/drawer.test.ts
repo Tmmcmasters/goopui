@@ -223,7 +223,7 @@ describe('GoopDrawer', () => {
     const w = mount(Demo, { attachTo: document.body, props: { content: { goo: false } } })
     await flushPromises()
     const el = content()!
-    expect(el.className).toContain('bg-background')
+    expect(el.className).toContain('bg-popover')
     expect(el.querySelector('[data-goop="surface"]')).toBeNull()
     expect(el.querySelector('[data-goop-drawer-handle]')!.className).toContain('bg-muted')
     w.unmount()
@@ -252,7 +252,7 @@ describe('GoopDrawer', () => {
     await nextTick()
     await flushPromises()
     expect(content()!.querySelector('[data-goop="surface"]')).toBeNull()
-    expect(content()!.className).toContain('bg-background')
+    expect(content()!.className).toContain('bg-popover')
     w.unmount()
   })
 })

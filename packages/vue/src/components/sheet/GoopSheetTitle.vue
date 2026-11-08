@@ -17,7 +17,7 @@ const delegated = computed(() => {
 <template>
   <DialogTitle
     data-slot="sheet-title"
-    :class="cn('text-foreground font-semibold', props.class)"
+    :class="cn('cn-font-heading text-base font-medium text-foreground', props.class)"
     v-bind="delegated"
   >
     <slot />

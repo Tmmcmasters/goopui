@@ -4,7 +4,7 @@ import { cn } from 'cn'
 import type { AlertDialogTitleProps } from 'reka-ui'
 import { AlertDialogTitle } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
-import { DIALOG_TITLE } from '../dialog/styles'
+import { ALERT_DIALOG_TITLE } from '../dialog/styles'
 
 const props = defineProps<AlertDialogTitleProps & { class?: HTMLAttributes['class'] }>()
 const delegated = computed(() => {
@@ -17,7 +17,7 @@ const delegated = computed(() => {
   <AlertDialogTitle
     data-slot="alert-dialog-title"
     v-bind="delegated"
-    :class="cn(DIALOG_TITLE, props.class)"
+    :class="cn(ALERT_DIALOG_TITLE, props.class)"
   >
     <slot />
   </AlertDialogTitle>

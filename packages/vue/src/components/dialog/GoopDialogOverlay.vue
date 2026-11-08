@@ -13,6 +13,7 @@ import { computed, useTemplateRef, type HTMLAttributes } from 'vue'
 import { useGoopConfig } from '../../config'
 import { toBackdropOptions, type GoopDialogProps } from '../../goop-props'
 import { useDialogBackdrop } from './use-dialog-goo'
+import { DIALOG_OVERLAY_GOO, DIALOG_OVERLAY_SHADCN } from './styles'
 
 const props = withDefaults(
   defineProps<
@@ -39,10 +40,6 @@ const root = injectDialogRootContext()
 const config = useGoopConfig()
 const surface = useTemplateRef<HTMLElement>('surface')
 
-const SHADCN =
-  'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50'
-// The goo paints the dim; no CSS enter/exit.
-const GOO = 'fixed inset-0 z-50'
 
 const options = () =>
   toBackdropOptions({ goo: props.goo, overlayDrips: props.drips, speed: props.speed, preset: props.preset, renderer: props.renderer }, config)
@@ -61,7 +58,7 @@ defineExpose({
   <DialogOverlay
     data-slot="dialog-overlay"
     v-bind="delegated"
-    :class="cn(goo ? GOO : SHADCN, props.class)"
+    :class="cn(goo ? DIALOG_OVERLAY_GOO : DIALOG_OVERLAY_SHADCN, props.class)"
   >
     <span
       v-if="goo"
