@@ -152,6 +152,7 @@ export const goopComponents = [
   'GoopContextMenuTrigger',
   // Static set
   'GoopSkeleton',
+  'GoopSkeletonReveal',
   'GoopBadge',
   'GoopCard',
   'GoopCardAction',

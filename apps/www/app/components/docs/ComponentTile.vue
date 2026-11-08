@@ -37,13 +37,7 @@ defineProps<{ slug: string; title: string }>()
         <GoopInputOTPSlot v-for="i in 4" :key="i" :index="i - 1" />
       </GoopInputOTPGroup>
     </GoopInputOTP>
-    <div v-else-if="slug === 'skeleton'" class="flex w-32 items-center gap-2.5">
-      <GoopSkeleton class="size-8 shrink-0 rounded-full" />
-      <div class="grid flex-1 gap-1.5">
-        <GoopSkeleton class="h-2.5 w-full" />
-        <GoopSkeleton class="h-2.5 w-3/4" />
-      </div>
-    </div>
+    <DocsSkeletonRevealTile v-else-if="slug === 'skeleton'" class="sk-card" />
     <div v-else-if="slug === 'badge'" class="flex items-center gap-1.5">
       <GoopBadge>New</GoopBadge>
       <GoopBadge variant="secondary">Beta</GoopBadge>

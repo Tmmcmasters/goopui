@@ -36,5 +36,6 @@ export const catalog: CatalogEntry[] = [
   { path: '/hover-card', goop: 'GoopHoverCard', shadcn: 'HoverCard', blurb: 'Card blooms out of the edge facing its link, splashes, shrinks back into it.' },
   { path: '/context-menu', goop: 'GoopContextMenu', shadcn: 'ContextMenu', blurb: 'Menu blooms out of the right-click point; goo highlight glides; submenus bloom from their item.' },
   { path: '/static-set', goop: 'GoopSkeleton, Badge, Card, Avatar', shadcn: 'Skeleton, Badge, Card, Avatar', blurb: 'Calm and cheap: skeleton goo shimmer, badge hover swell, card edge swell (opt-in), avatar settle. Separator and Label are plain ports.' },
+  { path: '/skeleton-reveal', goop: 'GoopSkeletonReveal', shadcn: 'Skeleton', blurb: 'Loading goo: the skeleton blocks pool, a sheen flows through and bridges them; when the content lands each block melts into its element and drains away.' },
   { path: '/sidebar', goop: 'GoopSidebar', shadcn: 'Sidebar', blurb: 'Dashboard sidebar: goo highlight glides between items, the edge sloshes as it collapses.' },
 ]
