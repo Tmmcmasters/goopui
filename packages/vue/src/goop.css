@@ -270,6 +270,29 @@
       animation: goop-accordion-up 0.2s ease-out both;
     }
   }
+
+  /* Breadcrumb (GoopBreadcrumbList): one goo blob is the links' hover / focus background, in
+     shadcn's muted tone (shadcn's own hover only changes the text colour). */
+  [data-goop-breadcrumb] > [data-goop='highlight'] {
+    --goop-color: var(--muted);
+  }
+
+  /* Empty (GoopEmptyMedia): the media's goo puddle, in the icon tile's muted tone, breathing
+     very slowly (~1px; core writes the scales and period). Reduced motion: still. */
+  [data-goop='empty-puddle'] {
+    fill: var(--muted);
+  }
+  [data-goop='empty-puddle'][data-goop-breathe] {
+    animation: goop-puddle-breathe var(--goop-puddle-period, 6s) ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-goop='empty-puddle'][data-goop-breathe] {
+      animation: none;
+    }
+  }
+  [data-reduced-motion='true'] [data-goop='empty-puddle'] {
+    animation: none;
+  }
 }
 
 /* A flooded accordion / collapsible trigger: text (and icons, e.g. the chevron's
@@ -544,5 +567,15 @@
     box-shadow:
       -1px 0 0 0 transparent,
       inset 1px 0 0 0 transparent;
+  }
+}
+
+@keyframes goop-puddle-breathe {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  50% {
+    transform: scale(var(--goop-puddle-sx, 1), var(--goop-puddle-sy, 1));
   }
 }

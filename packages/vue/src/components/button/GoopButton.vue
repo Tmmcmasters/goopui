@@ -21,6 +21,7 @@ import {
   type ButtonVariant,
 } from './variants'
 import { useGoopCue } from '../../sound'
+import { inGoopButtonGroup } from '../button-group/context'
 
 const props = defineProps({
   ...goopProps,
@@ -46,7 +47,9 @@ const cue = useGoopCue('button', { sound: () => props.sound })
 
 const variantKey = computed<ButtonVariant>(() => props.variant ?? 'default')
 const gooStyle = computed(() => goopButtonStyles[variantKey.value])
-const enabled = computed(() => props.goo ?? gooStyle.value !== 'none')
+// Inside a GoopButtonGroup the group flexes the buttons; their own goo stays off unless set.
+const grouped = inGoopButtonGroup()
+const enabled = computed(() => props.goo ?? (!grouped && gooStyle.value !== 'none'))
 
 const options = computed<GoopOptions>(() =>
   toGoopOptions(props, {
