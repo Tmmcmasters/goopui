@@ -115,7 +115,7 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     // ...but do pre-bundle its plain-JS deps, or Vite discovers them at runtime and reloads.
     nuxt.options.vite.optimizeDeps.include = [
       ...(nuxt.options.vite.optimizeDeps.include ?? []),
-      ...['reka-ui', 'cn', 'class-variance-authority', 'vue-sonner'].map((dep) => `@goopui/vue > ${dep}`),
+      ...['reka-ui', 'cn', 'class-variance-authority', 'vue-sonner', 'embla-carousel-vue'].map((dep) => `@goopui/vue > ${dep}`),
     ]
     // vue-sonner keeps its toast queue in module state: GoopToaster and the app's `toast()`
     // must share one copy (pnpm can install two when their optional nuxt peers differ).

@@ -77,6 +77,14 @@ defineProps<{ slug: string; title: string }>()
         <span>Source</span>
       </div>
     </div>
+    <GoopCarousel v-else-if="slug === 'carousel'" class="w-28" tabindex="-1">
+      <GoopCarouselContent class="-ml-2">
+        <GoopCarouselItem v-for="n in 4" :key="n" class="basis-4/5 pl-2">
+          <div class="flex h-14 items-center justify-center rounded-lg border bg-card text-sm font-semibold">{{ n }}</div>
+        </GoopCarouselItem>
+      </GoopCarouselContent>
+      <GoopCarouselDots class="mt-2.5 gap-2" />
+    </GoopCarousel>
     <div v-else-if="slug === 'label'" class="grid w-36 gap-1.5">
       <GoopLabel class="text-xs">Email</GoopLabel>
       <GoopInput class="h-8 text-xs" placeholder="you@example.com" aria-label="Email" />

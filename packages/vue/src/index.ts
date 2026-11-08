@@ -28,6 +28,7 @@ export * from './components/toggle-group'
 export * from './components/page-transition'
 export * from './components/hover-card'
 export * from './components/context-menu'
+export * from './components/carousel'
 export { GOOP_CONFIG_KEY, GoopPlugin, provideGoopConfig, useGoopConfig, type GoopConfig } from './config'
 export { GOOP_SOUND_KEY, provideGoopSound, useGoopCue, useGoopSound } from './sound'
 export { goopSoundProp, type GoopSoundProps } from './goop-props'
@@ -231,3 +232,4 @@ export {
   type GoopNavigationMenuProps,
   type ResolvedNavigationMenuGoo,
 } from './goop-props'
+export { CAROUSEL_PROP_KEYS, toCarouselOptions, type GoopCarouselProps, type ResolvedCarouselGoo } from './goop-props'

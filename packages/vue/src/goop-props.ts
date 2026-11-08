@@ -2419,3 +2419,94 @@ import {
   type NavigationMenuHighlightOptions,
   type NavigationMenuViewportOptions,
 } from '@goopui/core'
+
+// ---- GoopCarousel ---------------------------------------------------------------------------
+// Core's CAROUSEL_EFFECTS, each a GoopCarousel prop (all default on; `true`, `false` or a 0..2
+// strength for the slide effects): `stretch` (slides stretch along the motion with momentum and
+// wobble when they snap), `slosh` (slide edges slosh in low, wide mounds with the velocity),
+// `rubberBand` (dragging past the first / last slide: its outer edge reaches back as one low,
+// wide mound), all three core `attachCarousel` fed embla's motion; `squish` (Previous / Next
+// are squishy GoopButtons; false: plain shadcn buttons); `dots` (GoopCarouselDots' active blob
+// flows between dots: core `attachCarouselDots`; false: flat dots). `goo: false` is a plain
+// shadcn Carousel. The parts read every prop from the carousel.
+
+/** Every GoopCarousel engine prop. */
+export const CAROUSEL_PROP_KEYS = ['goo', ...CAROUSEL_EFFECTS, 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopCarousel (its parts read them from the carousel). */
+export interface GoopCarouselProps {
+  /** Master switch. `false` renders a plain shadcn Carousel (every effect off). */
+  goo?: boolean
+  /** Slides stretch a little along the motion with momentum and wobble on the snap. `true`, `false` or 0..2. */
+  stretch?: boolean | number
+  /** Slide edges slosh in low, wide mounds as they scroll and snap. `true`, `false` or 0..2. */
+  slosh?: boolean | number
+  /** Dragging past the first / last slide: its outer edge reaches back as one low, wide mound. `true`, `false` or 0..2. */
+  rubberBand?: boolean | number
+  /** Previous / Next squish like GoopButton (false: plain shadcn buttons). */
+  squish?: boolean
+  /** GoopCarouselDots: the active dot is a goo blob that flows between dots (false: flat dots). */
+  dots?: boolean
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** Renderer of the dots blob: 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+/** Compile-time guards: every carousel option core grows must be a prop (or adapter-owned). */
+type CarouselAdapterOwned = 'axis' | 'overscroll' | 'reducedMotion' | 'feel' | 'seed' | 'wobble' | 'momentum'
+type CarouselUnhandled = Exclude<
+  keyof CarouselOptions | keyof CarouselDotsOptions | CarouselEffect,
+  keyof GoopCarouselProps | CarouselAdapterOwned
+>
+const _allCarouselOptionsHandled: [CarouselUnhandled] extends [never] ? true : { unhandled: CarouselUnhandled } = true
+void _allCarouselOptionsHandled
+type CarouselPropsListed = Exclude<keyof GoopCarouselProps, (typeof CAROUSEL_PROP_KEYS)[number]>
+const _allCarouselPropsListed: [CarouselPropsListed] extends [never] ? true : { unlisted: CarouselPropsListed } = true
+void _allCarouselPropsListed
+
+/** Resolved carousel goo: what each part of the carousel should do. */
+export interface ResolvedCarouselGoo {
+  /** Slide goo options (without `axis` / `overscroll`, the adapter's), or null (all off). */
+  slides: Omit<CarouselOptions, 'axis' | 'overscroll'> | null
+  /** GoopButton props of Previous / Next (`goo: false` when the squish is off). */
+  button: GoopPropsInput & { goo?: boolean }
+  /** Dots blob options, or null (flat dots). */
+  dots: CarouselDotsOptions | null
+  /** Reduced motion forced by app config (`true` / `false`), else 'auto'. */
+  reducedMotion: boolean | 'auto'
+}
+
+const carouselStrength = (v: boolean | number | undefined): boolean | number => (v === undefined ? true : v)
+const carouselOff = (v: boolean | number): boolean => v === false || v === 0
+
+/** Carousel goo from props, over app config (`preset`, `renderer`, `reducedMotion`). */
+export function toCarouselOptions(props: GoopCarouselProps, config: GoopOptions = {}): ResolvedCarouselGoo {
+  const on = props.goo !== false
+  const preset = props.preset ?? config.preset
+  const common = { speed: props.speed ?? 1, preset, reducedMotion: config.reducedMotion }
+  const stretch = carouselStrength(props.stretch)
+  const slosh = carouselStrength(props.slosh)
+  const rubberBand = carouselStrength(props.rubberBand)
+  const anySlide = !carouselOff(stretch) || !carouselOff(slosh) || !carouselOff(rubberBand)
+  const button: GoopPropsInput & { goo?: boolean } = {}
+  if (!on || props.squish === false) button.goo = false
+  if (preset !== undefined) button.preset = preset
+  if (props.speed !== undefined) button.timeScale = props.speed
+  return {
+    slides: on && anySlide ? { ...common, stretch, slosh, rubberBand } : null,
+    button,
+    dots: on && props.dots !== false ? { ...common, feel: CAROUSEL_DOTS_FEEL, wobble: true, momentum: true, renderer: props.renderer ?? config.renderer } : null,
+    reducedMotion: config.reducedMotion ?? 'auto',
+  }
+}
+
+import {
+  CAROUSEL_DOTS_FEEL,
+  CAROUSEL_EFFECTS,
+  type CarouselDotsOptions,
+  type CarouselEffect,
+  type CarouselOptions,
+} from '@goopui/core'
