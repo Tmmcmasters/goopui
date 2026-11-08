@@ -306,6 +306,16 @@ export {
   type TabsEffect,
   type TabsIndicatorOptions,
 } from './tabs'
+export {
+  MENUBAR_EFFECTS,
+  MENUBAR_FEEL,
+  MENUBAR_LIT_ATTR,
+  MENUBAR_TRIGGERS,
+  attachMenubarHighlight,
+  findMenubarHighlight,
+  type MenubarEffect,
+  type MenubarHighlightOptions,
+} from './menubar'
 export { TOOLTIP_BLOOM_SPLASH, TOOLTIP_FEEL, TOOLTIP_MOMENTUM } from './tooltip'
 export {
   ALERT_DIALOG_MOMENTUM,

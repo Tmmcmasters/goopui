@@ -188,6 +188,12 @@ defineProps<{ slug: string; title: string }>()
         <span class="sk-line w-full opacity-60" />
       </span>
     </div>
+    <!-- Menubar: the real bar, "File" open so the goo body sits on it (no menu content). -->
+    <GoopMenubar v-else-if="slug === 'menubar'" default-value="File" class="h-7 gap-0 [&_[data-slot=menubar-trigger]]:text-xs">
+      <GoopMenubarMenu v-for="m in ['File', 'Edit', 'View']" :key="m" :value="m">
+        <GoopMenubarTrigger>{{ m }}</GoopMenubarTrigger>
+      </GoopMenubarMenu>
+    </GoopMenubar>
     <span v-else class="monogram">{{ title.charAt(0) }}</span>
   </div>
 </template>

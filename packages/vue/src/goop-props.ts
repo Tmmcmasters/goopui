@@ -28,6 +28,10 @@ import {
   SWITCH_EFFECTS,
   TABS_EFFECTS,
   TABS_FEEL,
+  MENUBAR_EFFECTS,
+  MENUBAR_FEEL,
+  type MenubarEffect,
+  type MenubarHighlightOptions,
   TOOLTIP_BLOOM_SPLASH,
   TOOLTIP_FEEL,
   TOOLTIP_MOMENTUM,
@@ -2050,3 +2054,99 @@ export function toSidebarOptions(props: GoopSidebarProps, config: GoopOptions = 
 }
 
 import { SIDEBAR_EFFECTS, type SidebarEdgeOptions, type SidebarEffect, type SidebarHighlightOptions } from '@goopui/core'
+
+// ---- GoopMenubar ----------------------------------------------------------------------------
+// The bar's trigger highlight is ONE goo body (core `attachMenubarHighlight`: the menu
+// highlight engine fed MENUBAR_FEEL, the tabs feel) that flows between triggers as you hover or
+// arrow across them and sits on the open trigger. Each menu is GoopDropdownMenuContent's goo
+// (emerge bloom + item highlight + select pop + goo submenus), on reka's Menubar parts.
+// Menu props left unset inherit the bar's `goo`, `wobble`, `momentum`, `speed`, `preset` and
+// `renderer`; submenus inherit their parent menu's. Surface defaults to 'popover' (menubar
+// triggers are flat text, not a filled button).
+
+/** Every GoopMenubar engine prop (the trigger highlight). */
+export const MENUBAR_PROP_KEYS = ['goo', ...MENUBAR_EFFECTS, 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopMenubar (the bar). */
+export interface GoopMenubarProps {
+  /** Master switch. `false` renders plain shadcn Menubar parts (menus too, unless they set
+   *  their own `goo`). */
+  goo?: boolean
+  /** The trigger highlight (hover, keyboard focus, open menu) is one goo body that flows
+   *  between triggers (false: shadcn's flat hover / open bg). */
+  highlight?: boolean
+  /** Jelly overshoot when the highlight lands (menus inherit it). */
+  wobble?: boolean
+  /** Momentum: the highlight stretches and necks to a trailing tail while it travels (menus
+   *  inherit it). */
+  momentum?: boolean
+  /** Animation speed multiplier (menus inherit it). */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful.
+   *  Menus inherit it. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory (menus inherit it). */
+  renderer?: GoopRendererOption
+}
+
+type MenubarAdapterOwned = 'feel' | 'reducedMotion'
+type MenubarUnhandled = Exclude<keyof MenubarHighlightOptions | MenubarEffect, keyof GoopMenubarProps | MenubarAdapterOwned>
+const _allMenubarOptionsHandled: [MenubarUnhandled] extends [never] ? true : { unhandled: MenubarUnhandled } = true
+void _allMenubarOptionsHandled
+type MenubarPropsListed = Exclude<keyof GoopMenubarProps, (typeof MENUBAR_PROP_KEYS)[number]>
+const _allMenubarPropsListed: [MenubarPropsListed] extends [never] ? true : { unlisted: MenubarPropsListed } = true
+void _allMenubarPropsListed
+
+/** Trigger highlight options for core over app config, or null when it is off. */
+export function toMenubarOptions(props: GoopMenubarProps, config: GoopOptions = {}): MenubarHighlightOptions | null {
+  if (props.goo === false || props.highlight === false) return null
+  return {
+    feel: MENUBAR_FEEL,
+    wobble: props.wobble !== false,
+    momentum: props.momentum !== false,
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+}
+
+/** Every GoopMenubarContent / SubContent engine prop (same as GoopDropdownMenuContent's). */
+export const MENUBAR_MENU_PROP_KEYS = MENU_PROP_KEYS
+
+/** Engine props of GoopMenubarContent / GoopMenubarSubContent. Same meaning as
+ *  GoopDropdownMenuContent's, except as noted. */
+export interface GoopMenubarMenuProps extends Omit<GoopMenuProps, 'surface'> {
+  /** Menu color: 'popover' (default: shadcn's popover tokens), 'trigger' (the trigger's
+   *  colors) or any CSS color. Submenus that leave it unset reuse their parent's. */
+  surface?: EmergeSurfaceColor
+}
+
+/** Resolve a menubar menu's props over its parent menu's (submenus), else over the bar's
+ *  shared settings, then the defaults. */
+export function resolveMenubarMenuProps(
+  props: GoopMenubarMenuProps,
+  parent?: ResolvedMenuProps | null,
+  bar?: GoopMenubarProps | null,
+): ResolvedMenuProps {
+  const base =
+    parent ??
+    resolveMenuProps({
+      goo: bar?.goo,
+      wobble: bar?.wobble,
+      momentum: bar?.momentum,
+      speed: bar?.speed,
+      preset: bar?.preset,
+      renderer: bar?.renderer,
+      surface: 'popover',
+    })
+  return resolveMenuProps(props, base)
+}
+
+/** Core options for a menubar menu (emerge) and its item highlight, over app config. */
+export function toMenubarMenuOptions(
+  menu: ResolvedMenuProps,
+  config: GoopOptions = {},
+): { emerge: EmergeOptions; highlight: MenuHighlightOptions | null } {
+  return toMenuOptions(menu, config)
+}
