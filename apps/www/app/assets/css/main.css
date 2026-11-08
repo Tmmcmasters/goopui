@@ -4,6 +4,9 @@
 @import "@fontsource-variable/dynapuff/standard.css";
 @import "tailwindcss";
 @import "lenis/dist/lenis.css";
+/* The React docs' live previews (react-demos/) use @goopui/react: let Tailwind see its classes.
+   Its goop.css is the same as @goopui/vue's, which @goopui/nuxt already injects. */
+@source "../../../node_modules/@goopui/react/dist";
 
 @custom-variant dark (&:where(.dark, .dark *));
 

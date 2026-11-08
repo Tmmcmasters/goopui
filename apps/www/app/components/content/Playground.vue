@@ -27,7 +27,10 @@ const stage = createGoopStage()
 
 const tab = ref<'preview' | 'code'>('preview')
 const id = useId()
-const code = computed(() => (doc ? codeFor(doc, values.value) : ''))
+const { fw } = useFramework()
+// The React page shows React code when the entry has it (the component is in @goopui/react).
+const reactCode = computed(() => fw.value === 'react' && !!doc?.reactCode)
+const code = computed(() => (doc ? codeFor(doc, values.value, fw.value) : ''))
 
 // Remount: a fresh demo (replays mount-time effects, and applies props read only on mount).
 const mountKey = ref(0)
@@ -109,7 +112,7 @@ const replayLabel = computed(() => doc?.replay?.label ?? 'Replay')
     </div>
 
     <div v-show="tab === 'code'" :id="`${id}-code`" role="tabpanel" :aria-labelledby="`${id}-tab-code`" class="code-panel">
-      <CodeSnippet :code="code" lang="vue" />
+      <CodeSnippet :code="code" :lang="reactCode ? 'tsx' : 'vue'" />
     </div>
 
     <DocsCustomize v-if="doc?.controls.length" v-model="values" :doc="doc" class="mt-4" />

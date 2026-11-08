@@ -8,6 +8,8 @@ const overlays = [
 ] as const
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react dialogs (react-demos/index.tsx).
+const { isReact } = useFramework()
 const surfaces = [
   { label: 'popover (default)', value: 'popover', variant: 'outline' },
   { label: 'trigger', value: 'trigger', variant: 'default' },
@@ -16,7 +18,8 @@ const surfaces = [
 </script>
 
 <template>
-  <GoopDialog v-if="set === 'basic'">
+  <ReactIsland v-if="isReact" demo="dialog" :set="set" :pg="{ content: pg.part('content') }" />
+  <GoopDialog v-else-if="set === 'basic'">
     <GoopDialogTrigger as-child>
       <GoopButton variant="outline">Edit profile</GoopButton>
     </GoopDialogTrigger>

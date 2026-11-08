@@ -12,12 +12,15 @@ onMounted(() => {
 })
 onUnmounted(() => window.removeEventListener('scroll', onScroll))
 
+// Links follow the current framework (/docs or /react/docs; see useFramework).
+const { to } = useFramework()
 const links = [
   { to: '/docs/getting-started/introduction', label: 'Docs', match: '/docs/getting-started' },
   { to: '/docs/components', label: 'Components', match: '/docs/components' },
   { to: '/docs/core/api', label: 'Core', match: '/docs/core' },
 ]
-const isActive = (match: string) => route.path.startsWith(match)
+const here = computed(() => canonicalPath(route.path))
+const isActive = (match: string) => here.value.startsWith(match)
 const { stars } = useGithubStars()
 const githubLabel = computed(() => (stars.value === null ? 'goopUI on GitHub' : `goopUI on GitHub, ${stars.value} stars`))
 // The landing keeps the header quiet: see-through over the lava lamp, just Docs + GitHub + sound + theme.
@@ -55,7 +58,7 @@ const landing = computed(() => route.path === '/')
         <NuxtLink
           v-for="l in links"
           :key="l.to"
-          :to="l.to"
+          :to="to(l.to)"
           class="nav-link hidden rounded-lg px-3 py-2 text-sm"
           :class="landing ? '' : 'sm:inline-block'"
           :data-active="isActive(l.match) || undefined"
@@ -63,13 +66,14 @@ const landing = computed(() => route.path === '/')
           {{ l.label }}
         </NuxtLink>
         <NuxtLink
-          to="/docs/getting-started/introduction"
+          :to="to('/docs/getting-started/introduction')"
           class="nav-link rounded-lg px-3 py-2 text-sm"
-          :class="landing ? '' : 'sm:hidden'"
-          :data-active="route.path.startsWith('/docs') || undefined"
+          :class="landing ? '' : 'hidden'"
+          :data-active="here.startsWith('/docs') || undefined"
         >
           Docs
         </NuxtLink>
+        <FrameworkSwitch class="mx-1" />
         <a
           :href="GITHUB_URL"
           class="inline-flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground"

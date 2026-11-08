@@ -11,10 +11,13 @@ withDefaults(
 const stage = useGoopStage()
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react buttons (react-demos/index.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <GoopButton v-if="set === 'playground'" :ref="stage.register" v-bind="{ ...stage.props, ...pg.props }" size="lg">Save changes</GoopButton>
+  <ReactIsland v-if="isReact" demo="button" :set="set" :pg="{ main: pg.props }" :stage="stage" />
+  <GoopButton v-else-if="set === 'playground'" :ref="stage.register" v-bind="{ ...stage.props, ...pg.props }" size="lg">Save changes</GoopButton>
   <template v-else-if="set === 'variants'">
     <GoopButton :ref="stage.register" v-bind="stage.props">Default</GoopButton>
     <GoopButton :ref="stage.register" v-bind="stage.props" variant="secondary">Secondary</GoopButton>

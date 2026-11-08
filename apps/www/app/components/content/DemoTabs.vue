@@ -9,10 +9,13 @@ const tabs = [
 ] as const
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react tabs (react-demos/index.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <GoopTabs v-if="set === 'basic'" default-value="account" class="w-full max-w-sm flex-col">
+  <ReactIsland v-if="isReact" demo="tabs" :set="set" :pg="{ list: pg.part('list') }" />
+  <GoopTabs v-else-if="set === 'basic'" default-value="account" class="w-full max-w-sm flex-col">
     <GoopTabsList v-bind="pg.part('list')">
       <GoopTabsTrigger v-for="t in tabs" :key="t.value" :value="t.value">{{ t.label }}</GoopTabsTrigger>
     </GoopTabsList>

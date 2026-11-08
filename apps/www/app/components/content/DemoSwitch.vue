@@ -5,10 +5,13 @@ const airplane = ref(true)
 const wifi = ref(false)
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react switches (react-demos/index.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <template v-if="set === 'default'">
+  <ReactIsland v-if="isReact" demo="switch" :set="set" :pg="{ main: pg.props }" />
+  <template v-else-if="set === 'default'">
     <label class="flex items-center gap-2 text-sm"><GoopSwitch v-model="airplane" v-bind="pg.props" /> Airplane mode</label>
     <label class="flex items-center gap-2 text-sm"><GoopSwitch v-model="wifi" v-bind="pg.props" /> Wi-Fi</label>
   </template>
