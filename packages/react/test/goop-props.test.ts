@@ -1,24 +1,38 @@
 import { GOOP_DEFAULTS, GOOP_VAR_META } from '@goopui/core'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 // The Vue adapter's mapping, imported from source (it only type-imports vue), so the two
 // adapters provably send core the same options for the same props.
 import * as vue from '../../vue/src/goop-props'
 import {
+  AVATAR_PROP_KEYS,
+  BADGE_PROP_KEYS,
+  CARD_PROP_KEYS,
   CHECKBOX_PROP_KEYS,
   DIALOG_PROP_KEYS,
   FEATURE_KEYS,
   GOOP_PROP_KEYS,
   GOOP_TUNING_KEYS,
+  SKELETON_PROP_KEYS,
+  SKELETON_REVEAL_PROP_KEYS,
+  SPINNER_PROP_KEYS,
   SWITCH_PROP_KEYS,
   TABS_PROP_KEYS,
   diffOptions,
   goopPropMeta,
   splitProps,
+  toAvatarOptions,
   toBackdropOptions,
+  toBadgeOptions,
+  toCardOptions,
   toCheckboxOptions,
   toDialogOptions,
   toGoopOptions,
   toGoopStyle,
+  toSkeletonOptions,
+  toSkeletonRevealOptions,
+  toSpinnerOptions,
   toSwitchOptions,
   toTabsOptions,
 } from '../src'
@@ -85,5 +99,54 @@ describe('props -> core options match @goopui/vue', () => {
   it('diffOptions resets keys that went away', () => {
     expect(diffOptions({ dripSize: 3 }, {})).toEqual({ dripSize: undefined })
     expect(diffOptions({ restingDrips: [1, 2] }, { restingDrips: [1, 2] })).toBeNull()
+  })
+})
+
+describe('batch 1 (skeleton, reveal, badge, avatar, card, spinner) match @goopui/vue', () => {
+  it('lists the same prop keys', () => {
+    expect([...SKELETON_PROP_KEYS]).toEqual([...vue.SKELETON_PROP_KEYS])
+    expect([...SKELETON_REVEAL_PROP_KEYS]).toEqual([...vue.SKELETON_REVEAL_PROP_KEYS])
+    expect([...BADGE_PROP_KEYS]).toEqual([...vue.BADGE_PROP_KEYS])
+    expect([...AVATAR_PROP_KEYS]).toEqual([...vue.AVATAR_PROP_KEYS])
+    expect([...CARD_PROP_KEYS]).toEqual([...vue.CARD_PROP_KEYS])
+    expect(Object.keys(vue.goopSkeletonProps).sort()).toEqual([...SKELETON_PROP_KEYS].sort())
+    expect(Object.keys(vue.goopCardProps).sort()).toEqual([...CARD_PROP_KEYS].sort())
+  })
+
+  it('sends core the same options', () => {
+    const cfgs = [{}, { preset: 'subtle' as const, reducedMotion: true as const }]
+    const cases = [{}, { shimmer: false }, { shimmer: 2, speed: 0.5, preset: 'wild' as const }]
+    for (const cfg of cfgs) {
+      for (const p of cases) expect(toSkeletonOptions(p, cfg)).toEqual(vue.toSkeletonOptions(p, cfg))
+      for (const p of [{}, { swell: false }, { swell: 2, preset: 'wild' as const }]) expect(toBadgeOptions(p, cfg)).toEqual(vue.toBadgeOptions(p, cfg))
+      for (const p of [{}, { settle: false }, { settle: 0.5, speed: 2 }]) expect(toAvatarOptions(p, cfg)).toEqual(vue.toAvatarOptions(p, cfg))
+      for (const p of [{}, { sheen: false, melt: 2 }, { breathe: 0, preset: 'wild' as const }])
+        expect(toSkeletonRevealOptions(p, cfg)).toEqual(vue.toSkeletonRevealOptions(p, cfg))
+      for (const p of [{}, { goo: true }, { goo: true, swell: 2, speed: 0.5 }, { goo: false, swell: 2 }]) expect(toCardOptions(p, cfg)).toEqual(vue.toCardOptions(p, cfg))
+    }
+    expect(toCardOptions({})).toBeNull()
+  })
+
+  it("GoopSpinner: the same props and defaults as GoopSpinner.vue's", () => {
+    // GoopSpinner.vue declares its props inline (no goop-props helper), so read them from the SFC.
+    const sfc = readFileSync(join(__dirname, '../../vue/src/components/spinner/GoopSpinner.vue'), 'utf8')
+    const block = /defineProps\(\{([\s\S]*?)\n\}\)/.exec(sfc)![1]!
+    const props = Object.fromEntries([...block.matchAll(/^  (\w+): \{[^\n]*?default: ([^,}]+)/gm)].map((m) => [m[1], m[2]!.trim()]))
+    delete props.class
+    expect(Object.keys(props).sort()).toEqual([...SPINNER_PROP_KEYS].sort())
+    // Vue's defaults, as core sees them with no props set.
+    const opts = toSpinnerOptions({})
+    expect(props.variant).toBe('SPINNER_DEFAULT_VARIANT')
+    expect(props.blobs).toBe('SPINNER_DEFAULT_BLOBS')
+    for (const k of ['speed', 'drips', 'interactive', 'slosh', 'grab', 'pop'] as const) expect(String(opts[k])).toBe(props[k])
+    for (const k of ['preset', 'renderer'] as const) expect(props[k]).toBe('undefined')
+    // App config fills preset / renderer / reducedMotion, like the SFC's computed options.
+    expect(toSpinnerOptions({ variant: 'comet', blobs: 6 }, { preset: 'wild', renderer: 'canvas', reducedMotion: true })).toMatchObject({
+      variant: 'comet',
+      blobs: 6,
+      preset: 'wild',
+      renderer: 'canvas',
+      reducedMotion: true,
+    })
   })
 })
