@@ -18,6 +18,18 @@ const terms = ref(false)
     Accept terms and conditions
   </label>
 </template>`,
+  reactCode: `import { GoopCheckbox, type CheckboxState } from '@goopui/react'
+import { useState } from 'react'
+
+export function Terms() {
+  const [terms, setTerms] = useState<CheckboxState>(false)
+  return (
+    <label className="flex items-center gap-2 text-sm">
+      <GoopCheckbox checked={terms} onCheckedChange={setTerms}{{main}} />
+      Accept terms and conditions
+    </label>
+  )
+}`,
   controls: [
     preset(),
     color(),
@@ -26,6 +38,21 @@ const terms = ref(false)
     effect('splat'),
     effect('droplets'),
   ],
+  reactTables: {
+    main: {
+      caption: 'GoopCheckbox props',
+      rows: [
+        { prop: 'checked', type: `boolean | 'indeterminate'`, def: '', note: 'The controlled state. Pair it with onCheckedChange.' },
+        { prop: 'defaultChecked', type: `boolean | 'indeterminate'`, def: 'false', note: 'The initial state when uncontrolled.' },
+        { prop: 'onCheckedChange', type: `(checked: boolean | 'indeterminate') => void`, def: '', note: 'Called when the state changes.' },
+        { prop: 'disabled', type: 'boolean', def: 'false', note: '' },
+        { prop: 'id, name, value, required, asChild', type: '', def: '', note: 'Passed to Radix. name and value make it submit with a form.' },
+        { prop: 'className', type: 'string', def: '', note: 'Merged onto the box.' },
+        { prop: 'goo', type: 'boolean', def: 'true', note: 'Master switch. false renders a plain shadcn Checkbox.' },
+        { prop: 'goopRef', type: 'Ref<CheckboxHandle>', def: '', note: 'The live engine handle (null before mount or with goo off).' },
+      ],
+    },
+  },
   tables: {
     main: {
       caption: 'GoopCheckbox props',

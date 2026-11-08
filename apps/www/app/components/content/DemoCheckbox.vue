@@ -7,10 +7,13 @@ const marketing = ref<CheckboxState>(true)
 const all = ref<CheckboxState>('indeterminate')
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react checkboxes (react-demos/index.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <template v-if="set === 'default'">
+  <ReactIsland v-if="isReact" demo="checkbox" :set="set" :pg="{ main: pg.props }" />
+  <template v-else-if="set === 'default'">
     <label class="flex items-center gap-2 text-sm"><GoopCheckbox v-model="terms" v-bind="pg.props" /> Accept terms and conditions</label>
     <label class="flex items-center gap-2 text-sm"><GoopCheckbox v-model="marketing" v-bind="pg.props" /> Send me product news</label>
   </template>

@@ -16,7 +16,9 @@ const props = defineProps<{ wide?: boolean }>()
 const GITHUB = GITHUB_URL
 const { label: starsLabel } = useGithubStars()
 // The first command on the installation page (pnpm, the Nuxt module).
-const INSTALL = 'pnpm add @goopui/nuxt'
+// Results link into the current framework's docs (/docs or /react/docs).
+const { to, isReact, counterpart, setPreferred } = useFramework()
+const install = computed(() => (isReact.value ? 'pnpm add @goopui/react' : 'pnpm add @goopui/nuxt'))
 
 const open = ref(false)
 const query = ref('')
@@ -65,7 +67,7 @@ interface Action {
   id: string
   label: string
   keywords: string
-  icon: 'sun' | 'moon' | 'volume' | 'volumeOff' | 'pause' | 'drop' | 'github' | 'copy' | 'check'
+  icon: 'sun' | 'moon' | 'volume' | 'volumeOff' | 'pause' | 'drop' | 'github' | 'copy' | 'check' | 'code'
   hint?: string
   disabled?: boolean
   run: () => void | Promise<void>
@@ -108,6 +110,18 @@ const actions = computed<Action[]>(() => [
     },
   },
   {
+    id: 'framework',
+    label: isReact.value ? 'Switch to the Vue docs' : 'Switch to the React docs',
+    keywords: 'framework react vue nuxt next switch docs',
+    icon: 'code',
+    run: () => {
+      const target = isReact.value ? 'vue' : 'react'
+      setPreferred(target)
+      close()
+      navigateTo(counterpart(target) ?? docsPathFor('/docs/getting-started/introduction', target))
+    },
+  },
+  {
     id: 'github',
     label: 'Open GitHub',
     keywords: 'github repository source code issues',
@@ -121,12 +135,12 @@ const actions = computed<Action[]>(() => [
   {
     id: 'install',
     label: copied.value ? 'Copied install command' : 'Copy install command',
-    keywords: `install copy pnpm npm add ${INSTALL}`,
+    keywords: `install copy pnpm npm add ${install.value}`,
     icon: copied.value ? 'check' : 'copy',
-    hint: INSTALL,
+    hint: install.value,
     run: async () => {
       try {
-        await navigator.clipboard.writeText(INSTALL)
+        await navigator.clipboard.writeText(install.value)
         copied.value = true
         // Let the check mark show for a beat before the palette closes.
         setTimeout(() => {
@@ -167,7 +181,7 @@ function close() {
 
 function go(hit: SearchHit) {
   close()
-  navigateTo(hit.section.id)
+  navigateTo(to(hit.section.id))
 }
 
 function isTyping(t: EventTarget | null): boolean {

@@ -15,6 +15,13 @@ const airplane = ref(true)
 <template>
   <GoopSwitch v-model="airplane"{{main}} />
 </template>`,
+  reactCode: `import { GoopSwitch } from '@goopui/react'
+import { useState } from 'react'
+
+export function AirplaneMode() {
+  const [airplane, setAirplane] = useState(true)
+  return <GoopSwitch checked={airplane} onCheckedChange={setAirplane}{{main}} />
+}`,
   controls: [
     preset(),
     color(),
@@ -28,6 +35,22 @@ const airplane = ref(true)
     effect('wave', { advanced: true }),
     effect('fill', { advanced: true, type: 'boolean' }),
   ],
+  reactTables: {
+    main: {
+      caption: 'GoopSwitch props',
+      rows: [
+        { prop: 'checked', type: 'boolean', def: '', note: 'The controlled state. Pair it with onCheckedChange.' },
+        { prop: 'defaultChecked', type: 'boolean', def: 'false', note: 'The initial state when uncontrolled.' },
+        { prop: 'onCheckedChange', type: '(checked: boolean) => void', def: '', note: 'Called when the state changes.' },
+        { prop: 'size', type: `'default' | 'sm'`, def: `'default'`, note: 'Same as shadcn/ui.' },
+        { prop: 'disabled', type: 'boolean', def: 'false', note: '' },
+        { prop: 'id, name, value, required, asChild', type: '', def: '', note: 'Passed to Radix. name and value make it submit with a form.' },
+        { prop: 'className', type: 'string', def: '', note: 'Merged onto the track.' },
+        { prop: 'goo', type: 'boolean', def: 'true', note: 'Master switch. false renders a plain shadcn Switch.' },
+        { prop: 'goopRef', type: 'Ref<SwitchHandle>', def: '', note: 'The live engine handle (null before mount or with goo off).' },
+      ],
+    },
+  },
   tables: {
     main: {
       caption: 'GoopSwitch props',

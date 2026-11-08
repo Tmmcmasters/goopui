@@ -3,6 +3,7 @@ import type { NuxtError } from '#app'
 
 const props = defineProps<{ error: NuxtError }>()
 const notFound = computed(() => props.error.statusCode === 404)
+const { to } = useFramework()
 useSeoMeta({ title: () => (notFound.value ? 'Page not found' : 'Something broke') })
 </script>
 
@@ -20,7 +21,7 @@ useSeoMeta({ title: () => (notFound.value ? 'Page not found' : 'Something broke'
         </p>
         <div class="mt-8 flex gap-3">
           <GoopButton size="lg" @click="clearError({ redirect: '/' })">Home</GoopButton>
-          <GoopButton size="lg" variant="secondary" @click="clearError({ redirect: '/docs/getting-started/introduction' })">
+          <GoopButton size="lg" variant="secondary" @click="clearError({ redirect: to('/docs/getting-started/introduction') })">
             Docs
           </GoopButton>
         </div>

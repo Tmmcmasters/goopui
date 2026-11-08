@@ -1,0 +1,18 @@
+export {
+  GoopDialog,
+  GoopDialogClose,
+  GoopDialogContent,
+  GoopDialogDescription,
+  GoopDialogFooter,
+  GoopDialogHeader,
+  GoopDialogOverlay,
+  GoopDialogPortal,
+  GoopDialogTitle,
+  GoopDialogTrigger,
+  type GoopDialogCloseProps,
+  type GoopDialogContentProps,
+  type GoopDialogOverlayProps,
+  type GoopDialogPortalProps,
+  type GoopDialogRootProps,
+  type GoopDialogTriggerProps,
+} from './GoopDialog'

@@ -2,11 +2,13 @@
 // Docs sidebar: a filter box, then each section. Components are grouped by category (from
 // their docs entries, app/component-docs). Filtering matches page titles across sections.
 import type { ContentNavigationItem } from '@nuxt/content'
-import { categoryOf } from '~/component-docs/registry'
+import { categoryOf, hasReactVersion } from '~/component-docs/registry'
 import { CATEGORIES } from '~/component-docs/types'
 
 const emit = defineEmits<{ navigate: [] }>()
 const route = useRoute()
+const { isReact, to } = useFramework()
+const here = computed(() => canonicalPath(route.path))
 const { data: nav } = await useDocsNav()
 
 const COMPONENTS = '/docs/components'
@@ -56,9 +58,9 @@ const onKey = (e: KeyboardEvent) => {
       <p class="mb-2 px-2.5 font-mono text-[11px] uppercase tracking-[0.1em] text-subtle">{{ section.title }}</p>
       <NuxtLink
         v-if="section.path === COMPONENTS && !q"
-        :to="COMPONENTS"
+        :to="to(COMPONENTS)"
         class="nav-item mb-1 flex items-center rounded-lg px-2.5 py-1.5"
-        :aria-current="route.path === COMPONENTS ? 'page' : undefined"
+        :aria-current="here === COMPONENTS ? 'page' : undefined"
         @click="emit('navigate')"
       >
         Overview
@@ -68,13 +70,18 @@ const onKey = (e: KeyboardEvent) => {
         <ul class="grid gap-px">
           <li v-for="item in group.items" :key="item.path">
             <NuxtLink
-              :to="item.path"
+              :to="to(item.path)"
               class="nav-item flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5"
-              :aria-current="route.path === item.path ? 'page' : undefined"
+              :aria-current="here === item.path ? 'page' : undefined"
               @click="emit('navigate')"
             >
               <span>{{ item.title }}</span>
               <span v-if="item.status === 'soon'" class="soon">soon</span>
+              <span
+                v-else-if="isReact && section.path === COMPONENTS && !hasReactVersion(item.path.split('/').pop() ?? '')"
+                class="soon"
+                title="React version coming soon"
+              >Vue only</span>
               <span v-else-if="item.badge === 'experimental'" class="new" title="New · experimental">
                 New<span class="sr-only"> · experimental</span>
               </span>

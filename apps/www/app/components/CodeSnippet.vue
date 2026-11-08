@@ -1,5 +1,6 @@
 <script setup lang="ts">
-const props = withDefaults(defineProps<{ code: string; lang?: 'ts' | 'vue' | 'shell' | 'css'; filename?: string }>(), {
+import type { Lang } from '~/utils/highlight'
+const props = withDefaults(defineProps<{ code: string; lang?: Lang; filename?: string }>(), {
   lang: 'ts',
 })
 const html = computed(() => highlight(props.code.trim(), props.lang))

@@ -51,7 +51,7 @@ export default defineNuxtPlugin((nuxtApp) => {
   }
 
   const onIntent = (e: Event) => {
-    const a = (e.target as Element | null)?.closest?.('a[href^="/docs/"]')
+    const a = (e.target as Element | null)?.closest?.('a[href^="/docs/"], a[href^="/react/docs/"]')
     if (!a) return
     const path = new URL((a as HTMLAnchorElement).href).pathname.replace(/\/$/, '')
     if (path !== nuxtApp.$router.currentRoute.value.path) void warm(path)

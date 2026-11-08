@@ -1,6 +1,7 @@
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
+import { transformWithOxc, type Plugin } from 'vite'
 
 // SQLite can't write on this repo's exFAT drive ("attempt to write a readonly database"),
 // so Nuxt Content's databases live in the OS temp dir. Override with CONTENT_DB_DIR
@@ -16,6 +17,19 @@ const boot = `(function(){try{var d=document.documentElement;d.classList.add('js
 const site = 'https://goop.timmcmasters.work'
 const description =
   'goopUI is the shadcn catalog made gooey: same components, same API, built on reka-ui, with drips and squish from a tiny physics engine. Alpha.'
+
+// app/react-demos/*.tsx are React (the React docs' live previews, mounted by
+// components/ReactIsland.vue). Nuxt compiles .tsx as Vue JSX (or leaves JSX to the app's
+// `jsx: preserve` tsconfig), so these files get React's automatic runtime here, first.
+const reactDemos: Plugin = {
+  name: 'goop:react-demos-jsx',
+  enforce: 'pre',
+  async transform(code, id) {
+    if (!/\/app\/react-demos\/[^?]*\.tsx(\?|$)/.test(id)) return
+    const out = await transformWithOxc(code, id.split('?')[0]!, { lang: 'tsx', jsx: { runtime: 'automatic', importSource: 'react' } })
+    return { code: out.code, map: out.map }
+  },
+}
 
 const dbDir = process.env.CONTENT_DB_DIR || join(tmpdir(), 'goopui-www-content')
 
@@ -36,8 +50,10 @@ export default defineNuxtConfig({
   debug: process.env.DEBUG_HYDRATION ? { hydration: true } : false,
   css: ['~/assets/css/main.css', 'vue-sonner/style.css'],
   vite: {
-    plugins: [tailwindcss()],
-    optimizeDeps: { include: ['lenis', 'cuelume'] },
+    plugins: [tailwindcss(), reactDemos],
+    // Keep Vue's JSX transform off the React demos (see `reactDemos` above).
+    vueJsx: { exclude: [/react-demos/] },
+    optimizeDeps: { include: ['lenis', 'cuelume', 'react', 'react-dom', 'react-dom/client', 'react/jsx-runtime', 'radix-ui'] },
   },
   app: {
     head: {
@@ -79,7 +95,7 @@ export default defineNuxtConfig({
         toc: { depth: 3, searchDepth: 3 },
         highlight: {
           theme: { default: 'github-light', dark: 'github-dark' },
-          langs: ['ts', 'js', 'vue', 'html', 'css', 'shell', 'bash', 'json'],
+          langs: ['ts', 'tsx', 'js', 'jsx', 'vue', 'html', 'css', 'shell', 'bash', 'json'],
         },
       },
     },

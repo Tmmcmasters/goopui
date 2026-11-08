@@ -6,7 +6,8 @@ import { tableRows } from '~/component-docs/runtime'
 
 const props = defineProps<{ name: string; part?: string }>()
 const doc = componentDoc(props.name)
-const table = computed(() => (doc ? tableRows(doc, props.part) : null))
+const { fw } = useFramework()
+const table = computed(() => (doc ? tableRows(doc, props.part, fw.value) : null))
 </script>
 
 <template>

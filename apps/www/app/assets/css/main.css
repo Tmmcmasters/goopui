@@ -4,6 +4,18 @@
 @import "@fontsource-variable/dynapuff/standard.css";
 @import "tailwindcss";
 @import "lenis/dist/lenis.css";
+/* The React docs' live previews (react-demos/) use @goopui/react: let Tailwind see its classes.
+   Its goop.css is the same as @goopui/vue's, which @goopui/nuxt already injects. */
+@source "../../../node_modules/@goopui/react/dist";
+
+/* shadcn apps set `border-border` on every element in their base layer; this site doesn't, so a
+   bare `border` / `border-t` in a shadcn component (the React DialogFooter's) would be
+   currentColor. Give shadcn parts (they all carry data-slot) the theme's border color. */
+@layer base {
+  :where([data-slot]) {
+    border-color: var(--border);
+  }
+}
 
 @custom-variant dark (&:where(.dark, .dark *));
 
