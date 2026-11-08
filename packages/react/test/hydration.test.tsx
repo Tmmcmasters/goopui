@@ -1,6 +1,7 @@
 // Server markup hydrates on the client with no mismatch, then the goo attaches (like the Vue
 // hydration test). Uses react-dom/server + hydrateRoot, the same path as Next.js.
-import { act, createElement as h, type ReactElement } from 'react'
+import type { SkeletonRevealHandle } from '@goopui/core'
+import { act, createElement as h, createRef, type ReactElement } from 'react'
 import { hydrateRoot } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -59,4 +60,33 @@ describe('hydration', () => {
     await act(async () => r.unmount())
     expect(document.querySelector('[data-goop="layer"]')).toBeNull()
   })
+
+  it('hydrates batch 1 without mismatch, then the goo attaches (spinner, card, reveal)', async () => {
+    const m = await import('../src')
+    const reveal = createRef<SkeletonRevealHandle>()
+    const App = () =>
+      h(
+        GoopProvider,
+        { preset: 'playful' },
+        h(m.GoopSkeleton, { className: 'h-4 w-20' }),
+        h(m.GoopSkeletonReveal, { loading: true, goopRef: reveal, skeleton: h(m.GoopSkeleton, { className: 'size-12' }) }, h('p', null, 'Loaded')),
+        h(m.GoopBadge, { variant: 'outline' }, 'Badge'),
+        h(m.GoopCard, { goo: true }, h(m.GoopCardHeader, null, h(m.GoopCardTitle, null, 'Title')), h(m.GoopCardContent, null, 'Body')),
+        h(m.GoopAvatar, null, h(m.GoopAvatarFallback, null, 'AL')),
+        h(m.GoopSeparator),
+        h(m.GoopLabel, null, 'Email'),
+        h(m.GoopSpinner, { className: 'size-6' }),
+      )
+    const { root, r, messages, recoverable } = await hydrate(App)
+    expect(messages.filter((msg) => /hydrat|mismatch|did not match/i.test(msg))).toEqual([])
+    expect(recoverable).toEqual([])
+    const spinner = root.querySelector('[data-slot="spinner"]')!
+    expect(spinner.hasAttribute('data-goop-active')).toBe(true)
+    expect(spinner.querySelector(':scope > svg filter')).toBeNull()
+    expect(root.querySelector('[data-slot="card"] > svg[data-goop="card"]')).not.toBeNull()
+    expect(reveal.current).not.toBeNull()
+    await act(async () => r.unmount())
+    expect(document.querySelector('[data-goop]')).toBeNull()
+  })
 })
+

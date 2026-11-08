@@ -10,9 +10,19 @@ export * from './components/switch'
 export * from './components/checkbox'
 export * from './components/tabs'
 export * from './components/dialog'
+export * from './components/skeleton'
+export * from './components/badge'
+export * from './components/card'
+export * from './components/avatar'
+export * from './components/separator'
+export * from './components/label'
+export * from './components/spinner'
 export { GoopConfigContext, GoopProvider, useGoopConfig, type GoopConfig, type GoopProviderProps } from './config'
 export { GoopCueClaim, GoopSoundContext, GoopSoundScope, useGoopCue, useGoopSound } from './sound'
 export {
+  AVATAR_PROP_KEYS,
+  BADGE_PROP_KEYS,
+  CARD_PROP_KEYS,
   CHECKBOX_PROP_KEYS,
   CSS_VAR_KEYS,
   DIALOG_PROP_KEYS,
@@ -21,6 +31,9 @@ export {
   FEATURE_KEYS,
   GOOP_PROP_KEYS,
   GOOP_TUNING_KEYS,
+  SKELETON_PROP_KEYS,
+  SKELETON_REVEAL_PROP_KEYS,
+  SPINNER_PROP_KEYS,
   SWITCH_PROP_KEYS,
   TABS_PROP_KEYS,
   diffOptions,
@@ -28,13 +41,22 @@ export {
   isGoopFeature,
   sameValue,
   splitProps,
+  toAvatarOptions,
   toBackdropOptions,
+  toBadgeOptions,
+  toCardOptions,
   toCheckboxOptions,
   toDialogOptions,
   toGoopOptions,
   toGoopStyle,
+  toSkeletonOptions,
+  toSkeletonRevealOptions,
+  toSpinnerOptions,
   toSwitchOptions,
   toTabsOptions,
+  type GoopAvatarEngineProps,
+  type GoopBadgeEngineProps,
+  type GoopCardEngineProps,
   type GoopCheckboxEngineKey,
   type GoopCheckboxEngineProps,
   type GoopCssVarKey,
@@ -45,6 +67,10 @@ export {
   type GoopEngineProps,
   type GoopFeatureKey,
   type GoopPropValue,
+  type GoopSkeletonEngineProps,
+  type GoopSkeletonRevealEngineProps,
+  type GoopSpinnerEngineProps,
+  type GoopStaticEffectProps,
   type GoopSoundProps,
   type GoopSwitchEngineKey,
   type GoopSwitchEngineProps,
@@ -54,4 +80,4 @@ export { goopComponents, type GoopComponentName } from './manifest'
 export { seedFrom, useAttached, useGoop, type UseGoopReturn } from './use-goop'
 export { cn } from 'cn'
 // Engine types used in props and refs.
-export type { BackdropHandle, CheckboxHandle, CheckboxState, EmergeHandle, GoopHandle, GoopOptions, GoopPreset, MenuHighlightHandle, SwitchHandle } from '@goopui/core'
+export type { BackdropHandle, CardHandle, CheckboxHandle, CheckboxState, EmergeHandle, GoopHandle, GoopOptions, GoopPreset, MenuHighlightHandle, SkeletonRevealHandle, SpinnerHandle, SpinnerVariant, SwitchHandle } from '@goopui/core'
