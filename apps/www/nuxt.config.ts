@@ -31,6 +31,9 @@ export default defineNuxtConfig({
     defaults: { nuxtLink: { prefetchOn: { visibility: true, interaction: true } } },
   },
   devtools: { enabled: false },
+  // DEBUG_HYDRATION=1 nuxt generate: a production build whose hydration warnings name the node
+  // that differs (used by `pnpm check:hydration`).
+  debug: process.env.DEBUG_HYDRATION ? { hydration: true } : false,
   css: ['~/assets/css/main.css', 'vue-sonner/style.css'],
   vite: {
     plugins: [tailwindcss()],
