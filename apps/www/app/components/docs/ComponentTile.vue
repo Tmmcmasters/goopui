@@ -37,6 +37,11 @@ defineProps<{ slug: string; title: string }>()
         <GoopInputOTPSlot v-for="i in 4" :key="i" :index="i - 1" />
       </GoopInputOTPGroup>
     </GoopInputOTP>
+    <GoopPagination v-else-if="slug === 'pagination'" :items-per-page="10" :total="30" :default-page="2" class="w-auto">
+      <GoopPaginationContent>
+        <GoopPaginationItem v-for="n in 3" :key="n" :value="n" :is-active="n === 2" class="size-7 text-xs">{{ n }}</GoopPaginationItem>
+      </GoopPaginationContent>
+    </GoopPagination>
     <div v-else-if="slug === 'skeleton'" class="flex w-32 items-center gap-2.5">
       <GoopSkeleton class="size-8 shrink-0 rounded-full" />
       <div class="grid flex-1 gap-1.5">

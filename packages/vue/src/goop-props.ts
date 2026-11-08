@@ -32,6 +32,10 @@ import {
   MENUBAR_FEEL,
   type MenubarEffect,
   type MenubarHighlightOptions,
+  PAGINATION_EFFECTS,
+  PAGINATION_FEEL,
+  type PaginationEffect,
+  type PaginationIndicatorOptions,
   TOOLTIP_BLOOM_SPLASH,
   TOOLTIP_FEEL,
   TOOLTIP_MOMENTUM,
@@ -868,6 +872,85 @@ export function toTabsOptions(props: GoopTabsProps, config: GoopOptions = {}): T
     renderer: props.renderer ?? config.renderer,
     reducedMotion: config.reducedMotion,
   }
+}
+
+// ---- GoopPagination -------------------------------------------------------------------------
+// The current page is ONE goo blob (core `attachPaginationIndicator`: the Tabs indicator fed
+// PAGINATION_FEEL) on GoopPaginationContent. First / Previous / Next / Last are ghost
+// GoopButtons, so they press-squish. Every prop can sit on GoopPagination (all parts inherit
+// it) or on a part (wins there). Toggles come from core's PAGINATION_EFFECTS; all default true.
+
+/** Every GoopPagination engine prop. */
+export const PAGINATION_PROP_KEYS = ['goo', ...PAGINATION_EFFECTS, 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopPagination (inherited by its parts) and GoopPaginationContent. */
+export interface GoopPaginationProps {
+  /** Master switch. `false` renders plain shadcn Pagination parts. */
+  goo?: boolean
+  /** The current page's background is a goo blob that slides between pages (false: shadcn's outline button). */
+  indicator?: boolean
+  /** Jelly overshoot when the blob lands. */
+  wobble?: boolean
+  /** Momentum: the blob stretches and necks to a trailing tail while it travels. */
+  momentum?: boolean
+  /** First / Previous / Next / Last squish when pressed (GoopButton's press squish). */
+  press?: boolean
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+/** Engine props of the button parts (First / Previous / Next / Last). */
+export type GoopPaginationButtonProps = Pick<GoopPaginationProps, 'goo' | 'press' | 'speed' | 'preset' | 'renderer'>
+export const PAGINATION_BUTTON_PROP_KEYS = ['goo', 'press', 'speed', 'preset', 'renderer'] as const
+
+type PaginationAdapterOwned = 'feel' | 'reducedMotion'
+type PaginationUnhandled = Exclude<keyof PaginationIndicatorOptions | PaginationEffect, keyof GoopPaginationProps | PaginationAdapterOwned>
+const _allPaginationOptionsHandled: [PaginationUnhandled] extends [never] ? true : { unhandled: PaginationUnhandled } = true
+void _allPaginationOptionsHandled
+type PaginationPropsListed = Exclude<keyof GoopPaginationProps, (typeof PAGINATION_PROP_KEYS)[number]>
+const _allPaginationPropsListed: [PaginationPropsListed] extends [never] ? true : { unlisted: PaginationPropsListed } = true
+void _allPaginationPropsListed
+type PaginationButtonPropsListed = Exclude<keyof GoopPaginationButtonProps, (typeof PAGINATION_BUTTON_PROP_KEYS)[number]>
+const _allPaginationButtonPropsListed: [PaginationButtonPropsListed] extends [never] ? true : { unlisted: PaginationButtonPropsListed } = true
+void _allPaginationButtonPropsListed
+
+/** A part's props over the root's: each prop the part sets wins, the rest are inherited. */
+export function resolvePaginationProps(own: GoopPaginationProps, parent?: GoopPaginationProps | null): GoopPaginationProps {
+  const out: GoopPaginationProps = {}
+  for (const k of PAGINATION_PROP_KEYS) {
+    const v = own[k] ?? parent?.[k]
+    if (v !== undefined) (out as Record<string, unknown>)[k] = v
+  }
+  return out
+}
+
+/** Blob options for core over app config, or null when the goo blob is off. */
+export function toPaginationOptions(props: GoopPaginationProps, config: GoopOptions = {}): PaginationIndicatorOptions | null {
+  if (props.goo === false || props.indicator === false) return null
+  return {
+    feel: PAGINATION_FEEL,
+    wobble: props.wobble !== false,
+    momentum: props.momentum !== false,
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+}
+
+/** GoopButton props for a button part (ghost GoopButton): `press: false` turns the squish off. */
+export function toPaginationButtonProps(props: GoopPaginationButtonProps): GoopPropsInput & { goo?: boolean } {
+  const out: GoopPropsInput & { goo?: boolean } = {}
+  if (props.goo !== undefined) out.goo = props.goo
+  if (props.press === false) out.squish = false
+  if (props.preset !== undefined) out.preset = props.preset
+  if (props.renderer !== undefined) out.renderer = props.renderer
+  if (props.speed !== undefined) out.timeScale = props.speed
+  return out
 }
 
 // ---- GoopTooltip ----------------------------------------------------------------------------

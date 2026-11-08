@@ -316,6 +316,16 @@ export {
   type MenubarEffect,
   type MenubarHighlightOptions,
 } from './menubar'
+export {
+  PAGINATION_EFFECTS,
+  PAGINATION_FEEL,
+  PAGINATION_ITEM,
+  attachPaginationIndicator,
+  findActivePage,
+  isPaginationActive,
+  type PaginationEffect,
+  type PaginationIndicatorOptions,
+} from './pagination'
 export { TOOLTIP_BLOOM_SPLASH, TOOLTIP_FEEL, TOOLTIP_MOMENTUM } from './tooltip'
 export {
   ALERT_DIALOG_MOMENTUM,

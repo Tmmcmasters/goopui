@@ -155,6 +155,27 @@
     background-color: var(--muted);
   }
 
+  /* Pagination blob (GoopPaginationContent): the current page's shadcn outline button
+     (bg-background with a border-colored rim). Dark: shadcn's translucent bg-input/30 mixed
+     opaque over the page background, with an input-colored rim. */
+  [data-goop-pagination] > [data-goop='highlight'] {
+    --goop-color: var(--background);
+    filter: drop-shadow(0 0 0.5px var(--border)) drop-shadow(0 0 0.5px var(--border));
+  }
+  :where(.dark) [data-goop-pagination] > [data-goop='highlight'] {
+    --goop-color: color-mix(in oklab, var(--input) 30%, var(--background));
+    filter: drop-shadow(0 0 0.5px var(--input)) drop-shadow(0 0 0.5px var(--input));
+  }
+  /* Until the blob attaches (SSR, first paint), the current page keeps shadcn's look. */
+  [data-goop-pagination]:not([data-goop-menu]) > :is([data-active]:not([data-active='false']), [data-selected='true']:not([data-active])) {
+    border-color: var(--border);
+    background-color: var(--background);
+  }
+  :where(.dark) [data-goop-pagination]:not([data-goop-menu]) > :is([data-active]:not([data-active='false']), [data-selected='true']:not([data-active])) {
+    border-color: var(--input);
+    background-color: color-mix(in oklab, var(--input) 30%, transparent);
+  }
+
   /* Tooltip (GoopTooltipContent): shadcn's tooltip has no ring or shadow. */
   [data-slot='tooltip-content'][data-goop-emerge] {
     --goop-surface-shadow: none;
