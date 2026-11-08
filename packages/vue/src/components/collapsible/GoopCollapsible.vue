@@ -8,7 +8,7 @@ import { CollapsibleRoot, useForwardPropsEmits } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
 import { useGoopConfig } from '../../config'
 import { ACCORDION_PROP_KEYS, toAccordionOptions, type GoopAccordionProps, type GoopSoundProps } from '../../goop-props'
-import { injectGoopCollapsibleDefaults, provideGoopAccordion } from '../accordion/context'
+import { injectGoopCollapsibleDefaults, provideGoopAccordion, provideGoopCollapsibleRowFill } from '../accordion/context'
 import { useAccordionGoo, useElementRef } from '../accordion/use-accordion-goo'
 import { useGoopSound } from '../../sound'
 
@@ -41,6 +41,7 @@ const config = useGoopConfig()
 const defaults = injectGoopCollapsibleDefaults()
 const options = computed(() => toAccordionOptions({ ...props, goo: props.goo ?? defaults?.value.goo }, config))
 provideGoopAccordion(options)
+provideGoopCollapsibleRowFill(computed(() => props.flood !== undefined || defaults?.value.rowFill !== false))
 const [el, setEl] = useElementRef()
 const handle = useAccordionGoo(el, options)
 

@@ -255,7 +255,8 @@
 @layer components {
   /* GoopSkeleton: a soft, low mound of lighter goo (one radial gradient, rising from the
      bottom edge) drifts across. Transform-only, so many skeletons stay cheap. The vars come
-     from core's skeletonStyle; --goop-shimmer-base is the theme's crest opacity. */
+     from core's skeletonStyle; --goop-shimmer-color / --goop-shimmer-base are the theme's
+     crest colour and opacity (set by the component's classes). */
   [data-goop-shimmer] {
     position: relative;
     overflow: hidden;
@@ -272,10 +273,10 @@
        than 44px, so small shapes still get a gentle dome), sitting on the bottom edge. */
     background: radial-gradient(
         50% 100% at 50% 100%,
-        #fff 0%,
-        rgb(255 255 255 / 0.72) 32%,
-        rgb(255 255 255 / 0.28) 64%,
-        rgb(255 255 255 / 0) 100%
+        var(--goop-shimmer-color, #fff) 0%,
+        color-mix(in oklab, var(--goop-shimmer-color, #fff) 72%, transparent) 32%,
+        color-mix(in oklab, var(--goop-shimmer-color, #fff) 28%, transparent) 64%,
+        transparent 100%
       )
       50% 100% / max(var(--goop-shimmer-width, 60%), 72px) min(135%, 44px) no-repeat;
     transform: translateX(-130%);
@@ -352,7 +353,8 @@
 }
 
 /* Sidebar (GoopSidebar): the hover blob is the sidebar's accent; the edge slosh is the
-   sidebar's own color (invisible at rest); sub-menu floods use the accent too. The active
+   sidebar's own color (invisible at rest); sub-menu floods (outside GoopSidebar's own
+   collapsibles, which don't fill their row) use the accent too. The active
    item's soft pill (`pill`): the accent with a hint of the sidebar's primary and a faint rim.
    GoopSidebarMenuButton drops its flat active bg utility while the pill is on. */
 @layer components {
@@ -361,6 +363,15 @@
   }
   [data-goop='sidebar-edge'] {
     --goop-color: var(--sidebar, var(--background));
+  }
+  /* Inset: the page around the panel is sidebar-colored too (GoopSidebarProvider), so mounds
+     on the panel's own edge land on the same color and vanish. The visible edge is the inset
+     card's, the panel's p-2 further out: start the mounds there, over the card. */
+  [data-variant='inset'][data-side='left'] [data-goop='sidebar-edge'] {
+    translate: 0.5rem 0;
+  }
+  [data-variant='inset'][data-side='right'] [data-goop='sidebar-edge'] {
+    translate: -0.5rem 0;
   }
   [data-goop-sidebar] {
     --goop-accordion-fill: var(--sidebar-accent, var(--accent));

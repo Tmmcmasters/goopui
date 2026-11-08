@@ -3,6 +3,8 @@
 export const SKELETON_BASE = 'bg-accent rounded-md'
 export const SKELETON_PULSE = 'animate-pulse'
 
-/** The mound's crest is white at this opacity (times the preset's lift): strong on a light
- *  theme's pale accent, faint on a dark one. Override `--goop-shimmer-base` to tune. */
-export const goopSkeletonShimmer = '[--goop-shimmer-base:0.85] dark:[--goop-shimmer-base:0.075]'
+/** The mound's crest colour and opacity (times the preset's lift). Light: white at 0.85 on the
+ *  pale accent. Dark: the theme's `--foreground` at 0.16, enough to read clearly on a dark
+ *  accent while staying calm. Override `--goop-shimmer-color` / `--goop-shimmer-base` to tune. */
+export const goopSkeletonShimmer =
+  '[--goop-shimmer-base:0.85] dark:[--goop-shimmer-base:0.16] dark:[--goop-shimmer-color:var(--foreground)]'

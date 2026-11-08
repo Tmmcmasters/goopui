@@ -1,8 +1,33 @@
-# goopUI handoff (updated 2026-11-02, session 7 in progress)
+# goopUI handoff (updated 2026-11-03, end of session 8)
 
 Repo: **public** `github.com/Tmmcmasters/goopui`. `CLAUDE.md` covers layout, tooling and gotchas; this note covers state, decisions and what's next.
 
-## Session 7 state (read this first; the session 6 notes below are history)
+## Session 8 state (read this first; session 7 and older notes below are history)
+
+**Live (`main`, goop.timmcmasters.work) and the preview (`site-v1`) are identical** as of PR #54 (`c212e72`). What shipped this session:
+- #50 real previews for the 13 newer components on `/docs/components`; Radio Group and Input tiles centred (their roots are `w-full` like shadcn, so the tile passes `w-auto` / `container-class="w-auto"`). The slow core `emerge` splash test got a 120s timeout (it was ~33s on CI against 30s).
+- #51 the site no longer runs the goo page transition. The `GoopPageTransition` component and its docs stay.
+- #52 **opt-in sound via Cuelume** (`cuelume@^0.2.8`, an optional peer of core). Core: `enableSound`, `disableSound`, `setSoundEnabled`, `isSoundEnabled`, `requestSound`, `playCue`, `GOOP_SOUND_CUES`. Vue: a `sound` prop (inherited root → parts → app default), `provideGoopSound`, `GoopPlugin`/`provideGoopConfig({ sound })`. Nuxt: `goop.sound`. Docs page `1.getting-started/5.sound.md`.
+- #53 the site turns sound on (`goop: { sound: true }`). The user listened locally and approved it.
+
+**Open PRs into `site-v1`, all done and verified by their agents, NOT merged (the user hasn't said "merge it" yet):**
+- #55 sound on/off toggle in the header (`SoundToggle.vue`, `useSoundPreference`, localStorage `goop-sound`; the boot script + `04.sound.client.ts` keep muted visitors silent). When muted, Cuelume still downloads but never plays.
+- #56 Combobox trigger: the default chevron is Select's, with a 32px hit area. Skeleton shimmer is visible on dark (`--goop-shimmer-color`).
+- #57 Command/menu highlight: no bump when crossing group headings/separators (`menuHighlightPose` scales the lag by item height / jump). Core test added.
+- #58 Sidebar: the slosh shows on `inset`; an open sub-menu parent no longer gets a filled row. **Decision for the user:** this removes the open-parent fill on desktop too, not only mobile (a one-line change in `GoopSidebar.vue` if they want it mobile-only).
+- #59 **package managers:** `vue-sonner` moves from peer to dependency of `@goopui/vue`. Without it, yarn 1 and 4 failed to build any app, because the main entry imports the Toaster. Adds `pnpm check:package-managers` (packs core/vue/nuxt and builds a Vite app with npm, pnpm, yarn 1, yarn 4, bun; all PASS), now part of RELEASING.md. The docs get pnpm/npm/yarn/bun tabs on every `pnpm add|up|dlx` block (`ProsePre.vue`, localStorage `goop-pm`).
+
+A local branch `review-local` (worktree `.claude/worktrees/review`) has #55–#59 merged together with packages built; run `cd .claude/worktrees/review/apps/www && NUXT_IGNORE_LOCK=1 pnpm exec nuxt dev --port 3001` for the user to review them in one go.
+
+**Unfinished:** the docs hydration-mismatch fix. Its agent was stopped mid-way; its uncommitted work (a `scripts/check-hydration.mjs` and small Caddyfile / nuxt.config / package.json edits, not reviewed) is on branch **`wip-hydration`**. Restart it from that branch or from scratch.
+
+**npm (next step):** the user is logged in (`npm whoami` = tmmcmasters) and owns the **goopui** org; nothing is published yet. On `main`, build + typecheck pass and the tarballs are clean (no `workspace:*`, no `._*`). The core tests pass, but they can time out when the machine is busy; rerun them. **Publish only after #59 is on `main`**, otherwise yarn users can't build. Order: merge #55–#59 into `site-v1` → PR `site-v1` → `main` → on `main` follow RELEASING.md (dry run, `pnpm check:package-managers`, then **ask the user** before the real `pnpm publish -r --filter "./packages/*" --access public --tag latest`, then tag and push). Pending changesets (sound, vue-sonner, earlier ones) will feed `0.1.0-alpha.1`. The first publish is `0.1.0-alpha.0` as RELEASING.md says.
+
+**Still open from session 7:** Safari check of the split transition (now moot for the site); Dependabot PRs #29–#31; the user hasn't signed off on the Drawer/Accordion feel.
+
+**User feedback this session:** wants sounds and approved them; dislikes misaligned elements (check tile/preview centring when adding components); wants the library installable with npm, pnpm, yarn and bun (keep `check:package-managers` green); reviews locally when home, on the phone preview when away.
+
+## Session 7 state (history)
 
 **Live:** goop.timmcmasters.work now serves the real site (`apps/www`). PR #38 merged `site-v1` → `main`; Railway service `coming-soon` builds `apps/www/Dockerfile` from `main` (watch patterns for apps/www + packages); Cloudflare was purged. `apps/soon` is retired but still in the repo. PR #33 is superseded by #38: the user can close it (auto mode blocked me).
 
@@ -14,7 +39,7 @@ Repo: **public** `github.com/Tmmcmasters/goopui`. `CLAUDE.md` covers layout, too
 
 **Launch clip:** `apps/promo/src/launch/` (`LaunchClip`, branch `promo-launch`, pushed, not merged). `pnpm --filter promo render:launch` uses `apps/promo/scripts/render.mjs` (Remotion Node API; the CLI times out on this machine) and now re-renders corrupt frames that Chrome occasionally returns at 3x scale. The X-ready encode was sent to the user. ffmpeg isn't installed: use Remotion's bundled one under `node_modules/.pnpm/@remotion+compositor-darwin-arm64@*/.../ffmpeg` with DYLD_LIBRARY_PATH set to its folder.
 
-**npm:** blocked on the user: `! npm login`, and create the npm org **goopui** (no `@goopui/*` packages exist yet). Then follow `RELEASING.md` (dry run first, ask before the real publish).
+**npm:** see session 8 above (login and org are done).
 
 ### Session 7 results (all shipped to `main` and live, 2026-11-02)
 
