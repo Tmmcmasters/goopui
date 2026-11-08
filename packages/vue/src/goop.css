@@ -146,6 +146,15 @@
     border-color: var(--input);
   }
 
+  /* Menubar trigger highlight (GoopMenubar): one goo body in shadcn's hover / open bg-muted.
+     Until it attaches (SSR, first paint), the hovered / open trigger keeps shadcn's look. */
+  [data-goop-menubar] > [data-goop='highlight'] {
+    --goop-color: var(--muted);
+  }
+  [data-goop-menubar]:not([data-goop-menu]) [data-slot='menubar-trigger']:is(:hover, [aria-expanded='true']) {
+    background-color: var(--muted);
+  }
+
   /* Tooltip (GoopTooltipContent): shadcn's tooltip has no ring or shadow. */
   [data-slot='tooltip-content'][data-goop-emerge] {
     --goop-surface-shadow: none;

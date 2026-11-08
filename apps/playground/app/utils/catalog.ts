@@ -35,6 +35,7 @@ export const catalog: CatalogEntry[] = [
   { path: '/input-otp', goop: 'GoopInputOTP', shadcn: 'PinInput', blurb: 'Focus goo flows from cell to cell as you type, with a pulse as each digit lands.' },
   { path: '/hover-card', goop: 'GoopHoverCard', shadcn: 'HoverCard', blurb: 'Card blooms out of the edge facing its link, splashes, shrinks back into it.' },
   { path: '/context-menu', goop: 'GoopContextMenu', shadcn: 'ContextMenu', blurb: 'Menu blooms out of the right-click point; goo highlight glides; submenus bloom from their item.' },
+  { path: '/menubar', goop: 'GoopMenubar', shadcn: 'Menubar', blurb: 'One goo body flows between the triggers as you hover or arrow across; menus bloom open with the goo item highlight.' },
   { path: '/static-set', goop: 'GoopSkeleton, Badge, Card, Avatar', shadcn: 'Skeleton, Badge, Card, Avatar', blurb: 'Calm and cheap: skeleton goo shimmer, badge hover swell, card edge swell (opt-in), avatar settle. Separator and Label are plain ports.' },
   { path: '/sidebar', goop: 'GoopSidebar', shadcn: 'Sidebar', blurb: 'Dashboard sidebar: goo highlight glides between items, the edge sloshes as it collapses.' },
 ]
