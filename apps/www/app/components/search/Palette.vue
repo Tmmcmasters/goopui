@@ -13,7 +13,8 @@ import { scoreAction, searchDocs, type SearchHit, type SearchSection } from '~/u
 // otherwise the bar shows from `md` and narrower screens get the icon button.
 const props = defineProps<{ wide?: boolean }>()
 
-const GITHUB = 'https://github.com/Tmmcmasters/goopui'
+const GITHUB = GITHUB_URL
+const { label: starsLabel } = useGithubStars()
 // The first command on the installation page (pnpm, the Nuxt module).
 const INSTALL = 'pnpm add @goopui/nuxt'
 
@@ -111,6 +112,7 @@ const actions = computed<Action[]>(() => [
     label: 'Open GitHub',
     keywords: 'github repository source code issues',
     icon: 'github',
+    hint: starsLabel.value === null ? undefined : `${starsLabel.value} stars`,
     run: () => {
       window.open(GITHUB, '_blank', 'noopener')
       close()

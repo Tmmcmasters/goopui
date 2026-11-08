@@ -18,6 +18,8 @@ const links = [
   { to: '/docs/core/api', label: 'Core', match: '/docs/core' },
 ]
 const isActive = (match: string) => route.path.startsWith(match)
+const { stars } = useGithubStars()
+const githubLabel = computed(() => (stars.value === null ? 'goopUI on GitHub' : `goopUI on GitHub, ${stars.value} stars`))
 // The landing keeps the header quiet: see-through over the lava lamp, just Docs + GitHub + sound + theme.
 const landing = computed(() => route.path === '/')
 </script>
@@ -69,13 +71,14 @@ const landing = computed(() => route.path === '/')
           Docs
         </NuxtLink>
         <a
-          href="https://github.com/Tmmcmasters/goopui"
-          class="grid size-9 place-items-center rounded-lg text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground"
-          aria-label="goopUI on GitHub"
+          :href="GITHUB_URL"
+          class="inline-flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground"
+          :aria-label="githubLabel"
           rel="noopener"
           target="_blank"
         >
-          <SiteIcon name="github" :size="17" />
+          <SiteIcon name="github" :size="17" class="shrink-0" />
+          <GithubStars class="text-[13px] font-medium leading-none" />
         </a>
         <SoundToggle />
         <ThemeToggle />
