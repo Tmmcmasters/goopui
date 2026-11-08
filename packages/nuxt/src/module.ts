@@ -132,16 +132,25 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
 
     if (options.css) nuxt.options.css.push('@goopui/vue/goop.css')
 
-    if (options.tailwindSource) {
-      const vueDist = dirname(await resolvePath('@goopui/vue/goop.css'))
-      const source = `\n@source ${JSON.stringify(vueDist)};\n`
+    if (options.tailwindSource || options.css) {
+      const goopCss = await resolvePath('@goopui/vue/goop.css')
+      const source = `\n@source ${JSON.stringify(dirname(goopCss))};\n`
       const TAILWIND_ROOT = /@import\s+(?:url\()?["']tailwindcss["']/
+      const stripComments = (code: string) => code.replace(/\/\*[\s\S]*?\*\//g, '')
       addVitePlugin(
         {
           name: 'goopui:tailwind-source',
           enforce: 'pre',
           transform(code, id) {
-            if (!/\.css(?:$|\?)/.test(id) || !TAILWIND_ROOT.test(code) || code.includes(source)) return
+            if (!/\.css(?:$|\?)/.test(id)) return
+            if (id.split('?')[0] === goopCss) {
+              // Injected through `nuxt.options.css`, goop.css is its own root that Tailwind
+              // never compiles, so its `@source "./"` (meant for `@import`ing it from a Tailwind
+              // entry) would ship to the browser as-is and warn on every build.
+              return options.css ? { code: code.replace(/^@source\s[^;]*;[^\S\n]*\n?/gm, ''), map: null } : undefined
+            }
+            // Comments don't count: goop.css's own header mentions `@import "tailwindcss"`.
+            if (!options.tailwindSource || !TAILWIND_ROOT.test(stripComments(code)) || code.includes(source)) return
             return { code: code + source, map: null }
           },
         },
