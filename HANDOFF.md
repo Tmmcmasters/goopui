@@ -1,8 +1,34 @@
-# goopUI handoff (updated 2026-11-03, end of session 8)
+# goopUI handoff (updated 2026-11-08, end of session 9)
 
 Repo: **public** `github.com/Tmmcmasters/goopui`. `CLAUDE.md` covers layout, tooling and gotchas; this note covers state, decisions and what's next.
 
-## Session 8 state (read this first; session 7 and older notes below are history)
+## Session 9 state (read this first; session 8 and older notes below are history)
+
+**npm: published.** `@goopui/core`, `@goopui/vue`, `@goopui/nuxt` **0.1.0-alpha.0** are on npm (`latest`), tagged `@goopui/{core,vue,nuxt}@0.1.0-alpha.0` at `fe01878`. The user's npm account uses browser 2FA (no OTP codes): pnpm/npm can't publish from Claude's non-TTY shell. Flow that worked: Claude runs `pnpm pack` per package into a scratch dir; the user runs `npm publish ./goopui-<pkg>-<ver>.tgz --access public --tag latest --auth-type=web` in their own terminal, core → vue → nuxt; Claude verifies on the registry (new packages 404 for a few minutes) and pushes the tags. Check `npm whoami` first (the login expired once). Pending changesets → `0.1.0-alpha.1` for the next release (sound, release fixes, every component below). `@goopui/react` is still `private`.
+
+**Live (`main` = `site-v1`, goop.timmcmasters.work), shipped this session:**
+- #55–#59 (sound toggle, Combobox/Skeleton, menu bump, Sidebar #58, npm/yarn/bun support).
+- #60 docs search: ⌘K / Ctrl+K / "/" palette (`components/search/*`), Nuxt Content search sections, Actions group. `GoopCommand` has no `shouldFilter`, so `search/Bridge.vue` re-shows items after the built-in filter: add a `shouldFilter`/`ignoreFilter` prop to GoopCommand and drop the bridge.
+- #62 Sidebar motion (`travel`, `drawer`, `pour`); #63 GitHub star count (build-time module `apps/www/modules/github-stars.ts` + client refresh); #64 Menubar; #65 Pagination; #66 NavigationMenu (`openDrips` on by default); #67 gooier Skeleton + `GoopSkeletonReveal` (skeleton must copy the content's exact layout).
+- #69 release fixes: typed cva variant props in apps (vue `build.mjs` fails on private `dist/` type imports); the Nuxt module no longer appends `@source` to goop.css.
+- #70/#73 hydration: Caddy redirected `/docs/x` → `/docs/x/`, so every docs page hydrated a different route. Caddyfile now `try_files {path} {path}/index.html` and redirects `/x/` → `/x`. `pnpm check:hydration` (all pages × fresh/prefs/mobile; `BASE_URL=` for a live site, `--no-build`). **Cloudflare Email Obfuscation** also broke Input/Label (it rewrites example emails): a Configuration Rule now disables it for host `goop.timmcmasters.work` only (portfolio untouched). Live check: 0 mismatches; headless Chrome shows occasional `ERR_QUIC_PROTOCOL_ERROR` (network, not code).
+- #71 Carousel (embla deps of `@goopui/vue`, in the nuxt `optimizeDeps` list); #74 Alert, Kbd, Breadcrumb, Button Group (a GoopButton inside a group drops its own goo unless `goo` is set), Empty. Docs pages 36–44.
+- #72 **React foundation**: `@goopui/react` on **Radix**, a 1:1 mirror of shadcn/ui React; `'use client'` per file (post-build check), SSR of shadcn markup, goo attaches after hydration; `GoopProvider`; `ref` = DOM, `goopRef` = engine. Pilots: Button, Switch, Checkbox, Tabs, Dialog. Proven in Next.js 16 and Vite consumer apps. Docs: `/react/docs/...` shares the markdown (`::fw` blocks, `reactCode`/`reactTables` in entries), header Vue/React switch, React previews are real React islands; unported pages say "Vue only".
+
+**User decisions (session 9):** React = Radix, single Next-ready package (no `@goopui/next`), path prefix `/react/docs`, real React islands, foundation + pilots then batches. **Update the Vue components' classes to current shadcn** so Vue and React look identical (not started). NumberField / Combobox / InputOTP in React follow shadcn/ui React (input-otp, cmdk + Popover, plain input + steppers). Next.js setup stays one `@import "@goopui/react/goop.css"` line.
+
+**Next (in order):**
+1. The user's phone feel feedback on Carousel (stretch + slosh + rubber band together?), NavigationMenu drips, Breadcrumb/Empty (faint on dark: `--muted` ≈ background), Sidebar pour bead.
+2. Agents: Vue style refresh to current shadcn; React tab focus ring shows on click (Vue doesn't); React batch 1 (Skeleton, Badge, Card, Avatar, Separator, Label, Spinner). Later batches from #72's report: form controls; bloom overlays; menus; disclosure; bespoke (Drawer, Toaster, Command, Combobox, NumberField, InputOTP, Sidebar, PageTransition).
+3. Railway: neither service's watch patterns include `packages/react` (a React-only change won't redeploy). Needs the user's OK (production config).
+4. Remaining Vue components: Tags Input, Calendar (WIP `goop-calendar`), Range Calendar, Date Picker, Resizable / Scroll Area (WIP on `goop-catalog-ports`), Input Group, Table, Form/Field, Aspect Ratio, Chart, Item.
+5. Then `0.1.0-alpha.1` (same publish flow), Dependabot #29–#31, Drawer/Accordion feel sign-off, `/nope` logs `[NUXT_E1005]` on the 404 page.
+
+**Housekeeping:** 17 old agent worktrees removed (the user approved); their uncommitted work was saved as `wip(...)` commits on their branches (`a11y-audit`, `size-and-visual`, `goop-calendar`, `goop-catalog-ports`, `fix-command-highlight`, `fix-hydration`). Superseded: `wip-hydration`, `fix-hydration-2`, `fix-hydration`. This session's worktrees (`docs-search`, `github-stars`, `sidebar-motion`, `goop-*`, `skeleton-goo`, `react-foundation`, `*-s9`, `release`, `review`) are merged and can go (ask first). Disk: ~269 GB free after cleanup.
+
+**Merging parallel branches (again):** shared files (`index.ts`, `goop-props.ts`, `goop.css`, `manifest.ts`, `ComponentTile.vue`, catalog) conflict every time. What worked: for files where the branch only appended, rebuild = ours + the branch's added lines (`git diff <merge-base> <branch> -- <file>`); otherwise keep both hunks and fix the shared `export {` / closing brace. Then build, typecheck, all tests and `check:hydration`, and fast-forward `site-v1` (GitHub marks the PRs merged). `pnpm build --concurrency=1` dodges most exFAT `._*` chmod races.
+
+## Session 8 state (history)
 
 **Live (`main`, goop.timmcmasters.work) and the preview (`site-v1`) are identical** as of PR #54 (`c212e72`). What shipped this session:
 - #50 real previews for the 13 newer components on `/docs/components`; Radio Group and Input tiles centred (their roots are `w-full` like shadcn, so the tile passes `w-auto` / `container-class="w-auto"`). The slow core `emerge` splash test got a 120s timeout (it was ~33s on CI against 30s).
