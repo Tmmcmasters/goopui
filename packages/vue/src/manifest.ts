@@ -222,6 +222,12 @@ export const goopComponents = [
   'GoopSidebarRail',
   'GoopSidebarSeparator',
   'GoopSidebarTrigger',
+  'GoopCarousel',
+  'GoopCarouselContent',
+  'GoopCarouselDots',
+  'GoopCarouselItem',
+  'GoopCarouselNext',
+  'GoopCarouselPrevious',
 ] as const
 
 export type GoopComponentName = (typeof goopComponents)[number]

@@ -176,6 +176,16 @@
     background-color: color-mix(in oklab, var(--input) 30%, transparent);
   }
 
+  /* Carousel dots (GoopCarouselDots): the active dot's fill is ONE goo blob in the primary
+     colour. Once it is attached (core marks the list data-goop-menu) the active dot drops its
+     own flat fill so only the blob shows; before that (SSR, first paint) it keeps it. */
+  [data-goop-carousel-dots] > [data-goop='highlight'] {
+    --goop-color: var(--primary);
+  }
+  [data-goop-carousel-dots][data-goop-menu] > [data-goop-carousel-dot][data-state='active'] {
+    background-color: transparent !important;
+  }
+
   /* Navigation menu (GoopNavigationMenu): one goo blob is the items' hover / open background
      (shadcn's bg-muted), on the bar and inside a panel. Once the blob is attached (core marks
      the scope data-goop-menu) the items drop their own flat bg so only the goo shows. */
