@@ -109,7 +109,7 @@ describe('GoopCommand', () => {
     expect(blob.getAttribute('data-goop')).toBe('highlight')
     expect(blob.getAttribute('aria-hidden')).toBe('true')
     // The blob draws the highlight: no flat bg on the items.
-    expect(document.querySelector('#calendar')!.className).not.toContain('data-highlighted:bg-accent')
+    expect(document.querySelector('#calendar')!.className).not.toContain('data-highlighted:bg-muted')
     // The input's goo ring layer.
     const host = document.querySelector('[data-slot="command-input-goo"]')!
     expect(host.hasAttribute('data-goop-active')).toBe(true)
@@ -164,7 +164,7 @@ describe('GoopCommand', () => {
     let w = mount(CommandDemo, { props: { goo: { highlight: false, ring: false } }, attachTo: document.body })
     await flushPromises()
     expect(items().querySelector('[data-goop="highlight"]')).toBeNull()
-    expect(document.querySelector('#calendar')!.className).toContain('data-highlighted:bg-accent')
+    expect(document.querySelector('#calendar')!.className).toContain('data-highlighted:bg-muted')
     expect(document.querySelector('[data-slot="command-input-goo"]')!.hasAttribute('data-goop-active')).toBe(false)
     w.unmount()
     w = mount(CommandDemo, { props: { goo: { goo: false } }, attachTo: document.body })

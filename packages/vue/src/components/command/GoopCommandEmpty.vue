@@ -22,7 +22,7 @@ const isRender = computed(() => !!command.filterState.search && command.filterSt
     v-if="isRender"
     data-slot="command-empty"
     v-bind="delegated"
-    :class="cn('text-muted-foreground py-6 text-center text-sm', props.class)"
+    :class="cn('py-6 text-center text-sm', props.class)"
   >
     <slot />
   </Primitive>
