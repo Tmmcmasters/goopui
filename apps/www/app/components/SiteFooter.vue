@@ -16,13 +16,13 @@ defineProps<{ wide?: boolean }>()
         <NuxtLink to="/docs/getting-started/introduction" class="hover:text-foreground">Docs</NuxtLink>
         <NuxtLink to="/docs/getting-started/accessibility" class="hover:text-foreground">Accessibility</NuxtLink>
         <a
-          href="https://github.com/Tmmcmasters/goopui"
-          class="inline-flex items-center gap-1.5 hover:text-foreground"
+          :href="GITHUB_URL"
+          class="group inline-flex items-center gap-1.5 hover:text-foreground"
           rel="noopener"
           target="_blank"
         >
           <SiteIcon name="github" :size="15" />
-          GitHub
+          <span class="inline-flex items-center">GitHub<GithubStars class="text-subtle group-hover:text-muted-foreground" /></span>
         </a>
         <MotionSwitch compact />
       </div>

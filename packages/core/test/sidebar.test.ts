@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   SIDEBAR_EDGE_FEEL,
   SIDEBAR_EFFECTS,
+  SIDEBAR_PLAIN_CURVE,
   attachSidebarEdge,
   attachSidebarHighlight,
   createSidebarEdge,
@@ -10,6 +11,7 @@ import {
   sidebarEdgeBulge,
   sidebarEdgeCircles,
   sidebarEdgeSettled,
+  sidebarMotionCurve,
   sidebarRandom,
   sidebarSloshShape,
   stepSidebarEdge,
@@ -35,7 +37,7 @@ function simulate(v: number, moving: number, total: number, slosh = 1, seed = 3)
 
 describe('sidebar slosh shape', () => {
   it('lists every toggle', () => {
-    expect([...SIDEBAR_EFFECTS]).toEqual(['highlight', 'pill', 'slosh', 'submenus', 'tooltips', 'bloom'])
+    expect([...SIDEBAR_EFFECTS]).toEqual(['highlight', 'pill', 'slosh', 'travel', 'submenus', 'pour', 'tooltips', 'drawer', 'bloom'])
   })
 
   it('is low and wide: most of the edge moves, the ends stay put', () => {
@@ -147,5 +149,49 @@ describe('attachSidebarHighlight', () => {
     expect(panel.querySelector('[data-highlighted]')).toBeNull()
     h.destroy()
     expect(panel.querySelector('[data-goop="highlight"]')).toBeNull()
+  })
+})
+
+describe('sidebarMotionCurve', () => {
+  const pts = (easing: string) => easing.replace(/^linear\(|\)$/g, '').split(',').map(Number)
+
+  it('expands with a fast launch and a small landing overshoot', () => {
+    const c = sidebarMotionCurve({ distance: 208, opening: true })
+    expect(c.easing.startsWith('linear(')).toBe(true)
+    const p = pts(c.easing)
+    expect(p[0]).toBe(0)
+    expect(p[p.length - 1]).toBe(1)
+    const peak = Math.max(...p)
+    // Overshoots a few % of the travel, never a big bounce.
+    expect(peak).toBeGreaterThan(1.01)
+    expect(peak).toBeLessThan(1.1)
+    // Fast travel: it reaches the target in the first two thirds; the rest is the landing.
+    expect(p.findIndex((v) => v >= 1)).toBeLessThan(p.length * 0.67)
+    expect(c.duration).toBeGreaterThan(0.2)
+    expect(c.duration).toBeLessThan(1.2)
+  })
+
+  it('collapses by accelerating away and never overshoots', () => {
+    const p = pts(sidebarMotionCurve({ distance: 208, opening: false }).easing)
+    expect(Math.max(...p)).toBeLessThanOrEqual(1)
+    // Starts slowly, ends fast: the last step is the biggest.
+    const first = p[1]! - p[0]!
+    const last = p[p.length - 1]! - p[p.length - 2]!
+    expect(last).toBeGreaterThan(first * 4)
+  })
+
+  it('caps the overshoot, scales with speed, and is plain under reduced motion', () => {
+    const capped = pts(sidebarMotionCurve({ distance: 256, opening: true, overshootLimit: 0 }).easing)
+    expect(Math.max(...capped)).toBeLessThanOrEqual(1.001)
+    const a = sidebarMotionCurve({ distance: 208, opening: true })
+    const b = sidebarMotionCurve({ distance: 208, opening: true, speed: 2 })
+    expect(b.duration).toBeCloseTo(a.duration / 2, 2)
+    expect(sidebarMotionCurve({ distance: 208, opening: true, reduced: true })).toEqual(SIDEBAR_PLAIN_CURVE)
+    expect(sidebarMotionCurve({ distance: 208, opening: false, linear: false }).easing).toMatch(/^cubic-bezier/)
+  })
+
+  it('wild overshoots more than subtle', () => {
+    const peak = (preset: 'subtle' | 'wild') => Math.max(...pts(sidebarMotionCurve({ distance: 208, opening: true, preset }).easing))
+    expect(peak('wild')).toBeGreaterThan(peak('subtle'))
   })
 })

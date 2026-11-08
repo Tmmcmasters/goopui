@@ -10,6 +10,7 @@ export * from './components/popover'
 export * from './components/dropdown-menu'
 export * from './components/select'
 export * from './components/tabs'
+export * from './components/pagination'
 export * from './components/tooltip'
 export * from './components/slider'
 export * from './components/progress'
@@ -64,6 +65,11 @@ export {
   toMenuOptions,
   toSelectOptions,
   toTabsOptions,
+  PAGINATION_PROP_KEYS,
+  PAGINATION_BUTTON_PROP_KEYS,
+  resolvePaginationProps,
+  toPaginationOptions,
+  toPaginationButtonProps,
   toTooltipOptions,
   toGoopOptions,
   toGoopStyle,
@@ -102,6 +108,8 @@ export {
   type GoopSelectProps,
   type ResolvedSelectProps,
   type GoopTabsProps,
+  type GoopPaginationProps,
+  type GoopPaginationButtonProps,
   type GoopTooltipProps,
   type ResolvedMenuProps,
   type GoopPropValue,
@@ -182,16 +190,21 @@ export {
   BADGE_PROP_KEYS,
   AVATAR_PROP_KEYS,
   CARD_PROP_KEYS,
+  SKELETON_REVEAL_PROP_KEYS,
   goopSkeletonProps,
+  goopSkeletonRevealProps,
   goopBadgeProps,
   goopAvatarProps,
   goopCardProps,
   toSkeletonOptions,
+  toSkeletonRevealOptions,
   toBadgeOptions,
   toAvatarOptions,
   toCardOptions,
   type GoopSkeletonPropsDefinition,
   type GoopSkeletonPropsInput,
+  type GoopSkeletonRevealPropsDefinition,
+  type GoopSkeletonRevealPropsInput,
   type GoopBadgePropsDefinition,
   type GoopBadgePropsInput,
   type GoopAvatarPropsDefinition,
@@ -201,3 +214,20 @@ export {
 } from './goop-props'
 export * from './components/sidebar'
 export { SIDEBAR_PROP_KEYS, toSidebarOptions, type GoopSidebarProps, type ResolvedSidebarGoo } from './goop-props'
+export * from './components/menubar'
+export {
+  MENUBAR_PROP_KEYS,
+  MENUBAR_MENU_PROP_KEYS,
+  toMenubarOptions,
+  resolveMenubarMenuProps,
+  toMenubarMenuOptions,
+  type GoopMenubarProps,
+  type GoopMenubarMenuProps,
+} from './goop-props'
+export * from './components/navigation-menu'
+export {
+  NAVIGATION_MENU_PROP_KEYS,
+  toNavigationMenuOptions,
+  type GoopNavigationMenuProps,
+  type ResolvedNavigationMenuGoo,
+} from './goop-props'

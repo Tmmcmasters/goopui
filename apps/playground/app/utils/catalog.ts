@@ -19,6 +19,7 @@ export const catalog: CatalogEntry[] = [
   { path: '/dropdown', goop: 'GoopDropdown', shadcn: 'DropdownMenu', blurb: 'Goo bridge on open, crisp items.' },
   { path: '/select', goop: 'GoopSelect', shadcn: 'Select', blurb: 'List blooms out of the selected value; goo highlight, check plops in.' },
   { path: '/tabs', goop: 'GoopTabs', shadcn: 'Tabs', blurb: 'Active-tab goo blob that slides with momentum.' },
+  { path: '/pagination', goop: 'GoopPagination', shadcn: 'Pagination', blurb: 'The current page is one goo blob that slides between page numbers; Prev/Next squish.' },
   { path: '/tooltip', goop: 'GoopTooltip', shadcn: 'Tooltip', blurb: 'Tooltip oozes out of its trigger.' },
   { path: '/slider', goop: 'GoopSlider', shadcn: 'Slider', blurb: 'Jelly goo thumb over a sloshing liquid fill.' },
   { path: '/progress', goop: 'GoopProgress', shadcn: 'Progress', blurb: 'Fills like liquid: wobbling goo front, slosh, drips.' },
@@ -35,6 +36,9 @@ export const catalog: CatalogEntry[] = [
   { path: '/input-otp', goop: 'GoopInputOTP', shadcn: 'PinInput', blurb: 'Focus goo flows from cell to cell as you type, with a pulse as each digit lands.' },
   { path: '/hover-card', goop: 'GoopHoverCard', shadcn: 'HoverCard', blurb: 'Card blooms out of the edge facing its link, splashes, shrinks back into it.' },
   { path: '/context-menu', goop: 'GoopContextMenu', shadcn: 'ContextMenu', blurb: 'Menu blooms out of the right-click point; goo highlight glides; submenus bloom from their item.' },
+  { path: '/menubar', goop: 'GoopMenubar', shadcn: 'Menubar', blurb: 'One goo body flows between the triggers as you hover or arrow across; menus bloom open with the goo item highlight.' },
   { path: '/static-set', goop: 'GoopSkeleton, Badge, Card, Avatar', shadcn: 'Skeleton, Badge, Card, Avatar', blurb: 'Calm and cheap: skeleton goo shimmer, badge hover swell, card edge swell (opt-in), avatar settle. Separator and Label are plain ports.' },
+  { path: '/navigation-menu', goop: 'GoopNavigationMenu', shadcn: 'NavigationMenu', blurb: 'One goo highlight flows between the items; the panel blooms from its trigger and jelly-slides to the next one.' },
+  { path: '/skeleton-reveal', goop: 'GoopSkeletonReveal', shadcn: 'Skeleton', blurb: 'Loading goo: the skeleton blocks pool, a sheen flows through and bridges them; when the content lands each block melts into its element and drains away.' },
   { path: '/sidebar', goop: 'GoopSidebar', shadcn: 'Sidebar', blurb: 'Dashboard sidebar: goo highlight glides between items, the edge sloshes as it collapses.' },
 ]

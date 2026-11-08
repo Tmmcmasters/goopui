@@ -146,6 +146,61 @@
     border-color: var(--input);
   }
 
+  /* Menubar trigger highlight (GoopMenubar): one goo body in shadcn's hover / open bg-muted.
+     Until it attaches (SSR, first paint), the hovered / open trigger keeps shadcn's look. */
+  [data-goop-menubar] > [data-goop='highlight'] {
+    --goop-color: var(--muted);
+  }
+  [data-goop-menubar]:not([data-goop-menu]) [data-slot='menubar-trigger']:is(:hover, [aria-expanded='true']) {
+    background-color: var(--muted);
+  }
+
+  /* Pagination blob (GoopPaginationContent): the current page's shadcn outline button
+     (bg-background with a border-colored rim). Dark: shadcn's translucent bg-input/30 mixed
+     opaque over the page background, with an input-colored rim. */
+  [data-goop-pagination] > [data-goop='highlight'] {
+    --goop-color: var(--background);
+    filter: drop-shadow(0 0 0.5px var(--border)) drop-shadow(0 0 0.5px var(--border));
+  }
+  :where(.dark) [data-goop-pagination] > [data-goop='highlight'] {
+    --goop-color: color-mix(in oklab, var(--input) 30%, var(--background));
+    filter: drop-shadow(0 0 0.5px var(--input)) drop-shadow(0 0 0.5px var(--input));
+  }
+  /* Until the blob attaches (SSR, first paint), the current page keeps shadcn's look. */
+  [data-goop-pagination]:not([data-goop-menu]) > :is([data-active]:not([data-active='false']), [data-selected='true']:not([data-active])) {
+    border-color: var(--border);
+    background-color: var(--background);
+  }
+  :where(.dark) [data-goop-pagination]:not([data-goop-menu]) > :is([data-active]:not([data-active='false']), [data-selected='true']:not([data-active])) {
+    border-color: var(--input);
+    background-color: color-mix(in oklab, var(--input) 30%, transparent);
+  }
+
+  /* Navigation menu (GoopNavigationMenu): one goo blob is the items' hover / open background
+     (shadcn's bg-muted), on the bar and inside a panel. Once the blob is attached (core marks
+     the scope data-goop-menu) the items drop their own flat bg so only the goo shows. */
+  [data-goop-nav-scope] > [data-goop='highlight'] {
+    --goop-color: var(--muted);
+  }
+  [data-goop-menu] [data-goop-nav-item] {
+    background-color: transparent !important;
+  }
+  /* The blob isolates the list (a stacking context): while a `viewport: false` panel is
+     mounted inside it, lift the list so the panel stays above what follows on the page. */
+  [data-goop-menu][data-goop-nav-scope]:has([data-slot='navigation-menu-content']) {
+    z-index: 50;
+  }
+  /* The viewport's goo is its background, ring and shadow (shadcn: ring-1 + shadow). */
+  [data-slot='navigation-menu-viewport-box'][data-goop-emerge] {
+    --goop-surface-shadow: drop-shadow(0 0 0.5px color-mix(in oklab, var(--foreground, #000) 30%, transparent))
+      drop-shadow(0 1px 3px rgb(0 0 0 / 0.1)) drop-shadow(0 1px 2px rgb(0 0 0 / 0.06));
+  }
+  /* reka's viewport inside the goo box is what its Presence watches: hold it while the goo
+     shrinks back into the trigger. Off under reduced motion. */
+  [data-goop-emerge]:not([data-goop-still]) > [data-slot='navigation-menu-viewport'][data-state='closed'] {
+    animation: goop-emerge-hold var(--goop-emerge-close, 0ms) linear both;
+  }
+
   /* Tooltip (GoopTooltipContent): shadcn's tooltip has no ring or shadow. */
   [data-slot='tooltip-content'][data-goop-emerge] {
     --goop-surface-shadow: none;
@@ -280,6 +335,7 @@
       )
       50% 100% / max(var(--goop-shimmer-width, 60%), 72px) min(135%, 44px) no-repeat;
     transform: translateX(-130%);
+    transform-origin: 50% 100%;
     animation: goop-shimmer var(--goop-shimmer-period, 2.4s) cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
   }
   :root[data-reduced-motion='true'] [data-goop-shimmer]::after,
@@ -320,12 +376,17 @@
   }
 }
 
+/* The mound swells a little as it crosses the middle and settles as it leaves: liquid, not a
+   rigid stripe. Origin on the bottom edge, so it rises out of the shape. */
 @keyframes goop-shimmer {
   from {
-    transform: translateX(-130%);
+    transform: translateX(-130%) scaleY(0.82);
+  }
+  50% {
+    transform: translateX(0%) scaleY(1.1);
   }
   to {
-    transform: translateX(130%);
+    transform: translateX(130%) scaleY(0.82);
   }
 }
 
@@ -377,10 +438,101 @@
     --goop-accordion-fill: var(--sidebar-accent, var(--accent));
     --goop-accordion-text: var(--sidebar-accent-foreground, var(--accent-foreground));
   }
+  /* Sub-menu pour (`pour`): while a GoopSidebar sub-menu's content springs open (core's jelly
+     timing on the collapsible), its guide line is a thick goo stream with a bead at the
+     opening edge (the content's bottom, so it rides the overshoot), and both melt into the
+     hairline as it settles. Closing draws the bead back up. Never under reduced motion
+     (core marks the collapsible data-goop-still; the media query covers the OS setting). */
+  [data-goop-accordion]:not([data-goop-still]) [data-goop-accordion-content]:has(> [data-goop-pour]) {
+    position: relative;
+  }
+  [data-goop-accordion]:not([data-goop-still]) [data-goop-accordion-content]:has(> [data-goop-pour])::after {
+    content: '';
+    position: absolute;
+    bottom: 1px;
+    left: calc(0.875rem - 1.5px);
+    width: 6px;
+    height: 10px;
+    border-radius: 999px;
+    background: var(--goop-sidebar-pour, color-mix(in oklab, var(--sidebar-primary, var(--primary)) 45%, var(--sidebar-border, var(--border))));
+    pointer-events: none;
+    opacity: 0;
+    transform-origin: 50% 100%;
+  }
+  [data-goop-accordion]:not([data-goop-still]) [data-goop-accordion-content][data-state='open']:has(> [data-goop-pour])::after {
+    animation: goop-pour-bead var(--goop-accordion-open, 0.5s) ease-out both;
+  }
+  [data-goop-accordion]:not([data-goop-still]) [data-goop-accordion-content][data-state='closed']:has(> [data-goop-pour])::after {
+    animation: goop-pour-bead-up var(--goop-accordion-close, 0.25s) ease-out both;
+  }
+  [data-goop-accordion]:not([data-goop-still]) [data-goop-accordion-content][data-state='open'] > [data-goop-pour] {
+    animation: goop-pour-line var(--goop-accordion-open, 0.5s) ease-out both;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-goop-accordion] [data-goop-accordion-content]:has(> [data-goop-pour])::after {
+      display: none;
+    }
+    [data-goop-accordion] [data-goop-accordion-content] > [data-goop-pour] {
+      animation: none !important;
+    }
+  }
+  html[data-reduced-motion='true'] [data-goop-accordion] [data-goop-accordion-content]:has(> [data-goop-pour])::after {
+    display: none;
+  }
+  html[data-reduced-motion='true'] [data-goop-accordion] [data-goop-accordion-content] > [data-goop-pour] {
+    animation: none !important;
+  }
   [data-goop-pill][data-active='true'] {
     background-color: color-mix(in oklab, var(--sidebar-primary, var(--primary)) 10%, var(--sidebar-accent, var(--accent)));
     box-shadow:
       inset 0 0 0 1px color-mix(in oklab, var(--sidebar-primary, var(--primary)) 16%, transparent),
       inset 0 1px 2px color-mix(in oklab, var(--sidebar-primary, var(--primary)) 8%, transparent);
+  }
+}
+
+/* GoopSidebar sub-menu pour (see the Sidebar rules above). The bead swells as it leads the
+   opening edge down, then melts up into the line; the line starts as a 3px stream in the
+   bead's color and thins to the hairline. */
+@keyframes goop-pour-bead {
+  0% {
+    opacity: 1;
+    transform: scale(0.7, 0.9);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(1, 1.25);
+  }
+  80% {
+    opacity: 0.85;
+    transform: scale(0.55, 0.7);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.2, 0.3);
+  }
+}
+@keyframes goop-pour-bead-up {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  35%,
+  100% {
+    opacity: 1;
+    transform: scale(0.85, 1.1);
+  }
+}
+@keyframes goop-pour-line {
+  0% {
+    border-left-color: var(--goop-sidebar-pour, color-mix(in oklab, var(--sidebar-primary, var(--primary)) 45%, var(--sidebar-border, var(--border))));
+    box-shadow:
+      -1px 0 0 0 var(--goop-sidebar-pour, color-mix(in oklab, var(--sidebar-primary, var(--primary)) 45%, var(--sidebar-border, var(--border)))),
+      inset 1px 0 0 0 var(--goop-sidebar-pour, color-mix(in oklab, var(--sidebar-primary, var(--primary)) 45%, var(--sidebar-border, var(--border))));
+  }
+  100% {
+    border-left-color: var(--sidebar-border, var(--border));
+    box-shadow:
+      -1px 0 0 0 transparent,
+      inset 1px 0 0 0 transparent;
   }
 }

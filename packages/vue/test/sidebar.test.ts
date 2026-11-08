@@ -266,6 +266,27 @@ describe('GoopSidebar', () => {
     expect(toSidebarOptions({ bloom: false }).bloom).toBe(false)
   })
 
+  it('maps the motion toggles: travel, pour (needs submenus), drawer', () => {
+    expect(toSidebarOptions({})).toMatchObject({ travel: true, pour: true, drawer: true })
+    expect(toSidebarOptions({ travel: false }).travel).toBe(false)
+    expect(toSidebarOptions({ pour: false }).pour).toBe(false)
+    expect(toSidebarOptions({ submenus: false }).pour).toBe(false)
+    expect(toSidebarOptions({ drawer: false }).drawer).toBe(false)
+    expect(toSidebarOptions({ goo: false })).toMatchObject({ travel: false, pour: false, drawer: false })
+  })
+
+  it('travel: the collapse / expand uses the momentum curve, off restores shadcn timing', async () => {
+    const container = () => sidebarRoot().querySelector<HTMLElement>('.fixed')!
+    const w = await mountDemo()
+    await flushPromises()
+    expect(container().style.transitionTimingFunction).toMatch(/linear\(|cubic-bezier/)
+    w.unmount()
+    const w2 = await mountDemo({ sidebar: { travel: false } })
+    await flushPromises()
+    expect(container().style.transitionTimingFunction).toBe('')
+    w2.unmount()
+  })
+
   it('reduced motion: the edge is still and the highlight snaps', async () => {
     document.documentElement.dataset.reducedMotion = 'true'
     const w = await mountDemo()
