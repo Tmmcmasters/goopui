@@ -14,14 +14,14 @@ const pg = usePlayground()
 
 <template>
   <GoopAccordion v-if="set === 'basic'" type="single" collapsible default-value="what" class="w-full max-w-md" v-bind="pg.props">
-    <GoopAccordionItem v-for="i in items" :key="i.value" :value="i.value" class="border-border">
+    <GoopAccordionItem v-for="i in items" :key="i.value" :value="i.value">
       <GoopAccordionTrigger>{{ i.title }}</GoopAccordionTrigger>
       <GoopAccordionContent>{{ i.body }}</GoopAccordionContent>
     </GoopAccordionItem>
   </GoopAccordion>
 
   <GoopAccordion v-else-if="set === 'multiple'" type="multiple" preset="wild" :droplets="2" class="w-full max-w-md">
-    <GoopAccordionItem v-for="i in items" :key="i.value" :value="i.value" class="border-border">
+    <GoopAccordionItem v-for="i in items" :key="i.value" :value="i.value">
       <GoopAccordionTrigger>{{ i.title }}</GoopAccordionTrigger>
       <GoopAccordionContent>{{ i.body }}</GoopAccordionContent>
     </GoopAccordionItem>
