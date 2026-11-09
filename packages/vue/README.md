@@ -12,7 +12,7 @@ Using Nuxt? Install [`@goopui/nuxt`](https://www.npmjs.com/package/@goopui/nuxt)
 npm install @goopui/vue
 ```
 
-Requires Vue 3.5+ and Tailwind CSS v4. The components use shadcn theme tokens (`--primary`, `--background`, `--border`, ...), so set up a [shadcn-vue](https://www.shadcn-vue.com) theme or define those CSS variables yourself.
+Requires Vue 3.5.2+ and Tailwind CSS v4. The components use shadcn theme tokens (`--primary`, `--background`, `--border`, ...), so set up a [shadcn-vue](https://www.shadcn-vue.com) theme or define those CSS variables yourself.
 
 Import the styles once from your Tailwind entry CSS, after Tailwind:
 

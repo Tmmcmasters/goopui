@@ -29,12 +29,16 @@
     "release": "turbo run build --filter=./packages/* && changeset publish",
     "check:package-managers": "bash scripts/check-package-managers.sh",
     "build:registry": "node scripts/build-registry.mjs",
-    "check:registry": "bash scripts/check-registry.sh"
+    "check:registry": "bash scripts/check-registry.sh",
+    "check:exports": "bash scripts/check-exports.sh",
+    "release:publish": "bash scripts/publish-release.sh"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
     "@changesets/cli": "^3.0.3",
     "@types/node": "^24.19.2",
     "playwright-core": "1.59.1",
+    "publint": "^0.3.25",
     "tsdown": "^0.23.2",
     "turbo": "^2.11.10",
     "typescript": "~5.9.3",
