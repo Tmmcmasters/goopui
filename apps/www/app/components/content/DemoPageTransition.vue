@@ -9,6 +9,8 @@ type Direction = (typeof directions)[number]
 const direction = ref<Direction>('down')
 const busy = ref(false)
 const pg = usePlayground()
+// On /react/docs: the same demo on a React GoopPageTransition (react-demos/page-transition.tsx).
+const { isReact } = useFramework()
 const transition = useGoopPageTransition(() => ({ ...pg.props, direction: direction.value }))
 
 async function play(d: Direction) {
@@ -24,7 +26,8 @@ async function play(d: Direction) {
 </script>
 
 <template>
-  <div class="flex flex-col items-center gap-4">
+  <ReactIsland v-if="isReact" demo="page-transition" :pg="{ main: pg.props }" />
+  <div v-else class="flex flex-col items-center gap-4">
     <div class="flex flex-wrap items-center justify-center gap-2">
       <GoopButton v-for="d in directions" :key="d" variant="outline" :disabled="busy" @click="play(d)">
         Pour {{ d }}

@@ -28,6 +28,9 @@ import type { CheckboxState } from '@goopui/core'
 import { SkeletonRevealDemo, SpinnerDemo, StaticSet, Tile } from './batch1'
 import { SelectDemo } from './select'
 import { DrawerDemo } from './drawer'
+import { CarouselDemo } from './carousel'
+import { SidebarDemo } from './sidebar'
+import { PageTransitionDemo } from './page-transition'
 
 /** What a Vue demo hands its island. */
 export interface ReactDemoProps {
@@ -71,6 +74,12 @@ export function ReactDemo(props: ReactDemoProps) {
         return <SelectDemo set={props.set} pg={props.pg} />
       case 'drawer':
         return <DrawerDemo set={props.set} pg={props.pg} />
+      case 'carousel':
+        return <CarouselDemo set={props.set} pg={props.pg} />
+      case 'sidebar':
+        return <SidebarDemo pg={props.pg} />
+      case 'page-transition':
+        return <PageTransitionDemo pg={props.pg} />
       default:
         return null
     }

@@ -199,7 +199,9 @@ export function GoopPageTransition(allProps: GoopPageTransitionRootProps) {
     if (p && routeKey !== undefined && p.key !== undefined && routeKey !== p.key) void land()
   }, [routeKey])
 
-  // In-app link clicks: hold the click, cover, then let it through again.
+  // In-app link clicks: hold the click, cover, then let it through again. A window capture
+  // listener runs before React's own (Next.js roots React at the document), so the router never
+  // sees the held click, only the one let through.
   const linksOn = links && options.enabled !== false
   useIsomorphicLayoutEffect(() => {
     if (!linksOn) return
@@ -219,8 +221,8 @@ export function GoopPageTransition(allProps: GoopPageTransitionRootProps) {
         }
       })
     }
-    document.addEventListener('click', onClick, true)
-    return () => document.removeEventListener('click', onClick, true)
+    window.addEventListener('click', onClick, true)
+    return () => window.removeEventListener('click', onClick, true)
   }, [linksOn, api])
 
   useImperativeHandle(goopRef, () => api, [api])

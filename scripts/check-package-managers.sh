@@ -2,10 +2,12 @@
 # Packs @goopui/{core,vue,react,nuxt} and, with each of npm, pnpm, yarn 1, yarn 4 and bun,
 # installs the tarballs into three fresh consumer apps and builds them:
 #   vue    Vite + Vue + Tailwind v4 (GoopButton, GoopSwitch)
-#   react  Vite + React + Tailwind v4 (Button, Tabs, Dialog), then served and smoke-tested
-#   next   Next.js 16 App Router + Tailwind v4: a Server Component page renders Button, Tabs
-#          and Dialog (checked in the prerendered HTML), `next build` type-checks against the
-#          shipped .d.mts, then `next start` is smoke-tested (hydration, dialog opens)
+#   react  Vite + React + Tailwind v4 (Button, Tabs, Dialog, Sidebar, Carousel), then served
+#          and smoke-tested
+#   next   Next.js 16 App Router + Tailwind v4: a Server Component page renders Button, Tabs,
+#          Dialog, Sidebar and Carousel (embla; checked in the prerendered HTML) inside a
+#          GoopPageTransition layout, `next build` type-checks against the shipped .d.mts, then
+#          `next start` is smoke-tested (hydration, dialog opens)
 # Catches what only shows up for consumers: workspace:* left in a manifest, peers a manager
 # won't auto-install (yarn), missing files in the tarball, a dropped 'use client'.
 # Run after `pnpm build`: `pnpm check:package-managers`. Managers that aren't installed run
@@ -94,19 +96,42 @@ EOF
     '"vite": "^7.0.0", "@vitejs/plugin-vue": "^6.0.0", "@tailwindcss/vite": "^4.0.0"'
 }
 
-# The same three components in both React apps. Server-safe: no hooks, no handlers.
+# The same components in both React apps. Server-safe: no hooks, no handlers.
 react_demo() {
   cat <<'EOF'
 import {
   GoopButton,
+  GoopCarousel, GoopCarouselContent, GoopCarouselDots, GoopCarouselItem, GoopCarouselNext, GoopCarouselPrevious,
+  GoopSidebar, GoopSidebarContent, GoopSidebarInset, GoopSidebarMenu, GoopSidebarMenuButton, GoopSidebarMenuItem,
+  GoopSidebarProvider, GoopSidebarRail, GoopSidebarTrigger,
   GoopDialog, GoopDialogContent, GoopDialogDescription, GoopDialogHeader, GoopDialogTitle, GoopDialogTrigger,
   GoopTabs, GoopTabsContent, GoopTabsList, GoopTabsTrigger,
 } from '@goopui/react'
 
 export function Demo() {
   return (
+    <GoopSidebarProvider>
+    <GoopSidebar collapsible="icon">
+      <GoopSidebarContent>
+        <GoopSidebarMenu>
+          <GoopSidebarMenuItem><GoopSidebarMenuButton isActive tooltip="Home">Sidebar home</GoopSidebarMenuButton></GoopSidebarMenuItem>
+        </GoopSidebarMenu>
+      </GoopSidebarContent>
+      <GoopSidebarRail />
+    </GoopSidebar>
+    <GoopSidebarInset>
+    <GoopSidebarTrigger />
     <main>
       <GoopButton>Hello goo</GoopButton>
+      <GoopCarousel className="mx-12 w-48">
+        <GoopCarouselContent>
+          <GoopCarouselItem><div className="h-20 rounded-xl bg-muted">Slide one</div></GoopCarouselItem>
+          <GoopCarouselItem><div className="h-20 rounded-xl bg-muted">Slide two</div></GoopCarouselItem>
+        </GoopCarouselContent>
+        <GoopCarouselPrevious />
+        <GoopCarouselNext />
+        <GoopCarouselDots />
+      </GoopCarousel>
       <GoopTabs defaultValue="a">
         <GoopTabsList>
           <GoopTabsTrigger value="a">Tab A</GoopTabsTrigger>
@@ -125,6 +150,8 @@ export function Demo() {
         </GoopDialogContent>
       </GoopDialog>
     </main>
+    </GoopSidebarInset>
+    </GoopSidebarProvider>
   )
 }
 EOF
@@ -165,15 +192,26 @@ make_next() {
   local dir="$1"
   mkdir -p "$dir/app"
   react_demo > "$dir/app/demo.tsx"
+  cat > "$dir/app/transition.tsx" <<'EOF'
+'use client'
+import type { ReactNode } from 'react'
+import { usePathname } from 'next/navigation'
+import { GoopPageTransition } from '@goopui/react'
+
+export function Transition({ children }: { children: ReactNode }) {
+  return <GoopPageTransition routeKey={usePathname()}>{children}</GoopPageTransition>
+}
+EOF
   cat > "$dir/app/layout.tsx" <<'EOF'
 import type { ReactNode } from 'react'
 import { GoopProvider } from '@goopui/react'
+import { Transition } from './transition'
 import './globals.css'
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body><GoopProvider preset="subtle">{children}</GoopProvider></body>
+      <body><GoopProvider preset="subtle"><Transition>{children}</Transition></GoopProvider></body>
     </html>
   )
 }
@@ -239,6 +277,8 @@ build_and_check() { # $1 = app, $2 = dir; returns 0 on PASS, prints the reason o
     # The page is a Server Component: the goopUI markup must be in the prerendered HTML.
     grep -q 'Hello goo' "$out/server/app/index.html" 2>/dev/null || { echo "not server-rendered"; return 1; }
     grep -q 'Tab A' "$out/server/app/index.html" || { echo "tabs not server-rendered"; return 1; }
+    grep -q 'Slide one' "$out/server/app/index.html" || { echo "carousel not server-rendered"; return 1; }
+    grep -q 'data-slot="sidebar-wrapper"' "$out/server/app/index.html" || { echo "sidebar not server-rendered"; return 1; }
   else
     (cd "$dir" && npx --no-install vite build > build.log 2>&1) || { echo "build failed"; return 1; }
     out="$dir/dist"
