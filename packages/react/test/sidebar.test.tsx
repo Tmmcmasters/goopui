@@ -1,17 +1,21 @@
 // Client tests for GoopSidebar: shadcn/ui's Sidebar parts (React) with the same goo as
-// @goopui/vue's GoopSidebar (highlight blob, pill, edge slosh, travel, sub-menu pour, mobile
-// drawer). The sub-menu tests use Radix's Collapsible with the goo markers a GoopCollapsible
-// puts on its parts (data-goop-accordion*), so they don't depend on @goopui/react's Collapsible.
+// @goopui/vue's GoopSidebar (highlight blob, pill, edge slosh, travel, GoopCollapsible
+// sub-menus and pour, GoopTooltip icon-mode tooltips, mobile GoopDrawer / GoopSheet,
+// GoopInput search field).
 import { act, cleanup, render } from '@testing-library/react'
-import { Collapsible } from 'radix-ui'
 import { createElement as h } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   SIDEBAR_COOKIE_NAME,
+  GoopCollapsible,
+  GoopCollapsibleContent,
+  GoopCollapsibleTrigger,
   GoopSidebar,
   GoopSidebarContent,
   GoopSidebarGroup,
   GoopSidebarGroupLabel,
+  GoopSidebarHeader,
+  GoopSidebarInput,
   GoopSidebarInset,
   GoopSidebarMenu,
   GoopSidebarMenuButton,
@@ -37,18 +41,18 @@ const Spy = () => {
   return null
 }
 
-/** A goo Collapsible sub-menu, as @goopui/react's GoopCollapsible marks it. */
+/** A GoopCollapsible sub-menu (no goo props of its own: GoopSidebar's `submenus` decides). */
 const SubMenu = () =>
   h(
-    Collapsible.Root,
-    { asChild: true, 'data-goop-accordion': '' } as never,
+    GoopCollapsible,
+    { asChild: true },
     h(
       GoopSidebarMenuItem,
       null,
-      h(Collapsible.Trigger, { asChild: true, 'data-goop-accordion-trigger': '' } as never, h(GoopSidebarMenuButton, { id: 'docs' }, 'Docs')),
+      h(GoopCollapsibleTrigger, { asChild: true }, h(GoopSidebarMenuButton, { id: 'docs' }, 'Docs')),
       h(
-        Collapsible.Content,
-        { 'data-goop-accordion-content': '' } as never,
+        GoopCollapsibleContent,
+        null,
         h(GoopSidebarMenuSub, null, h(GoopSidebarMenuSubItem, null, h(GoopSidebarMenuSubButton, { href: '#a', isActive: true, id: 'intro' }, 'Intro'))),
       ),
     ),
@@ -61,6 +65,7 @@ const Demo = ({ sidebar = {}, provider = {} }: { sidebar?: Record<string, unknow
     h(
       GoopSidebar,
       { collapsible: 'icon', ...sidebar },
+      h(GoopSidebarHeader, null, h(GoopSidebarInput, { id: 'search', placeholder: 'Search' })),
       h(
         GoopSidebarContent,
         null,
@@ -151,24 +156,87 @@ describe('GoopSidebar', () => {
     expect(document.getElementById('b0')!.className).not.toContain('data-[active=true]:bg-')
   })
 
-  it('the inner edge gets the slosh layer; an open sub-menu keeps its row unfilled and pours', async () => {
+  it('the inner edge gets the slosh layer; a GoopCollapsible sub-menu springs open, row unfilled, and pours', async () => {
     await mount()
     expect(panel().querySelector('[data-goop="sidebar-edge"]')).not.toBeNull()
+    // The sidebar's defaults give the collapsible goo (jelly spring) but no row fill.
+    expect(document.querySelector('[data-slot="collapsible"]')!.hasAttribute('data-goop-accordion')).toBe(true)
     const docs = document.getElementById('docs')!
-    // The trigger's flood marker is dropped: only the active item is a pill.
     expect(docs.hasAttribute('data-goop-accordion-trigger')).toBe(false)
     await click(docs)
     expect(docs.getAttribute('data-state')).toBe('open')
     expect(docs.getAttribute('data-active')).toBe('false')
+    expect(document.querySelector('[data-slot="collapsible-content"]')!.hasAttribute('data-goop-accordion-content')).toBe(true)
     expect(document.querySelector('[data-slot="sidebar-menu-sub"]')!.hasAttribute('data-goop-pour')).toBe(true)
     expect(document.getElementById('intro')!.hasAttribute('data-goop-pill')).toBe(true)
   })
 
-  it('submenus={false} leaves the sub-menu as it is (row flood marker kept, no pour)', async () => {
-    await mount({ sidebar: { submenus: false } })
-    expect(document.getElementById('docs')!.hasAttribute('data-goop-accordion-trigger')).toBe(true)
+  it('submenus={false} makes nested collapsibles plain (no goo, no pour); their own props win', async () => {
+    const r = await mount({ sidebar: { submenus: false } })
+    expect(document.querySelector('[data-slot="collapsible"]')!.hasAttribute('data-goop-accordion')).toBe(false)
+    expect(document.getElementById('docs')!.hasAttribute('data-goop-accordion-trigger')).toBe(false)
     await click(document.getElementById('docs')!)
+    expect(document.querySelector('[data-slot="collapsible-content"]')!.hasAttribute('data-goop-accordion-content')).toBe(false)
     expect(document.querySelector('[data-slot="sidebar-menu-sub"]')!.hasAttribute('data-goop-pour')).toBe(false)
+    r.unmount()
+    // A collapsible that sets `flood` itself fills its row even inside the sidebar.
+    render(
+      h(
+        GoopSidebarProvider,
+        null,
+        h(
+          GoopSidebar,
+          null,
+          h(GoopCollapsible, { flood: true }, h(GoopCollapsibleTrigger, { id: 'own' }, 'Own'), h(GoopCollapsibleContent, null, 'x')),
+        ),
+      ),
+    )
+    await act(async () => {})
+    expect(document.getElementById('own')!.hasAttribute('data-goop-accordion-trigger')).toBe(true)
+  })
+
+  it('outside a sidebar a GoopCollapsible is unchanged (goo on, row fills)', async () => {
+    render(h(GoopCollapsible, null, h(GoopCollapsibleTrigger, { id: 'plain' }, 'Plain'), h(GoopCollapsibleContent, null, 'x')))
+    await act(async () => {})
+    expect(document.getElementById('plain')!.hasAttribute('data-goop-accordion-trigger')).toBe(true)
+  })
+
+  it('icon-mode tooltips are GoopTooltips (tooltips={false}: shadcn), only while collapsed', async () => {
+    const focusTip = async (id: string) => {
+      await act(async () => {
+        document.getElementById(id)!.focus()
+      })
+      return document.querySelector<HTMLElement>('[data-slot="tooltip-content"]')
+    }
+    const r = await mount()
+    expect(await focusTip('b1')).toBeNull()
+    await act(async () => document.getElementById('b1')!.blur())
+    await click(document.querySelector('[data-sidebar="trigger"]')!)
+    const tip = (await focusTip('b1'))!
+    expect(tip).not.toBeNull()
+    expect(tip.textContent).toContain('Inbox')
+    expect(tip.dataset.side).toBe('right')
+    expect(tip.hasAttribute('data-goop-emerge')).toBe(true)
+    r.unmount()
+    document.body.innerHTML = ''
+    await mount({ sidebar: { tooltips: false }, provider: { defaultOpen: false } })
+    const plain = (await focusTip('b1'))!
+    expect(plain).not.toBeNull()
+    expect(plain.hasAttribute('data-goop-emerge')).toBe(false)
+    expect(plain.className).toContain('bg-foreground')
+  })
+
+  it('GoopSidebarInput is a GoopInput (goo focus ring wrapper)', async () => {
+    const r = await mount()
+    const input = document.getElementById('search') as HTMLInputElement
+    expect(input.dataset.sidebar).toBe('input')
+    expect(input.dataset.slot).toBe('sidebar-input')
+    expect(input.parentElement!.dataset.slot).toBe('input-goo')
+    expect(input.className).toContain('h-8')
+    r.unmount()
+    await mount({ sidebar: { goo: false } })
+    // The input keeps its own goo toggle (GoopInput), like Vue's GoopSidebarInput.
+    expect(document.getElementById('search')!.parentElement!.dataset.slot).toBe('input-goo')
   })
 
   it('every effect turns off on its own; goo={false} is plain shadcn', async () => {
@@ -179,7 +247,8 @@ describe('GoopSidebar', () => {
     expect(document.getElementById('b1')!.className).toMatch(/(^|\s)hover:bg-sidebar-accent/)
     r.unmount()
     await mount({ sidebar: { goo: false } })
-    expect(panel().querySelector('[data-goop]')).toBeNull()
+    // (GoopSidebarInput keeps its own GoopInput goo toggle, as in @goopui/vue.)
+    expect([...panel().querySelectorAll('[data-goop]')].filter((el) => !el.closest('[data-slot="input-goo"]'))).toEqual([])
     expect(panel().hasAttribute('data-goop-sidebar')).toBe(false)
   })
 
@@ -188,9 +257,9 @@ describe('GoopSidebar', () => {
     expect(toSidebarOptions({ slosh: 1.5, preset: 'wild' }).edge).toMatchObject({ slosh: 1.5, preset: 'wild' })
     expect(toSidebarOptions({ slosh: 0 }).edge).toBeNull()
     expect(toSidebarOptions({ followPointer: false }).highlight).toMatchObject({ followPointer: false })
-    expect(toSidebarOptions({})).toMatchObject({ travel: true, pour: true, drawer: true })
+    expect(toSidebarOptions({})).toMatchObject({ travel: true, pour: true, drawer: true, submenus: true, tooltips: true, bloom: true })
     expect(toSidebarOptions({ submenus: false }).pour).toBe(false)
-    expect(toSidebarOptions({ goo: false })).toMatchObject({ highlight: null, edge: null, pill: false, travel: false, pour: false, drawer: false })
+    expect(toSidebarOptions({ goo: false })).toMatchObject({ highlight: null, edge: null, pill: false, travel: false, pour: false, drawer: false, submenus: false, tooltips: false, bloom: false })
   })
 
   it('travel: the collapse / expand uses the momentum curve, off restores shadcn timing', async () => {
@@ -202,7 +271,7 @@ describe('GoopSidebar', () => {
     expect(container().style.transitionTimingFunction).toBe('')
   })
 
-  it('below the breakpoint it is a GoopDrawer (drawer on) or shadcn sheet (drawer off)', async () => {
+  it('below the breakpoint it is a GoopDrawer (drawer on) or a GoopSheet (drawer off; bloom toggles its goo)', async () => {
     vi.spyOn(window, 'matchMedia').mockImplementation(
       (q: string) => ({ matches: true, media: q, addEventListener() {}, removeEventListener() {} }) as unknown as MediaQueryList,
     )
@@ -217,12 +286,26 @@ describe('GoopSidebar', () => {
     expect(drawer.querySelectorAll('[data-sidebar="menu-button"]').length).toBe(4)
     expect(drawer.querySelector('[data-goop-sidebar] > [data-goop="highlight"]')).not.toBeNull()
     r.unmount()
-    await mount({ sidebar: { drawer: false } })
+    const r2 = await mount({ sidebar: { drawer: false } })
     await click(document.querySelector('[data-sidebar="trigger"]')!)
     const sheet = document.querySelector<HTMLElement>('[role="dialog"][data-mobile="true"]')!
     expect(sheet.hasAttribute('data-goop-drawer')).toBe(false)
-    expect(sheet.className).toContain('bg-sidebar')
+    expect(sheet.dataset.slot).toBe('sidebar')
     expect(sheet.dataset.side).toBe('left')
+    // bloom (default on): GoopSheetContent's goo in the sidebar color, no close button.
+    expect(sheet.hasAttribute('data-goop-emerge')).toBe(true)
+    expect(sheet.querySelector(':scope > [data-goop="surface"]')).not.toBeNull()
+    expect(sheet.className).toContain('[--goop-color:var(--sidebar)]')
+    expect(sheet.className).not.toContain('bg-sidebar')
+    expect(sheet.querySelector('[data-slot="sheet-close"]')).toBeNull()
+    expect(sheet.querySelector('[data-goop-sidebar] > [data-goop="highlight"]')).not.toBeNull()
+    r2.unmount()
+    await mount({ sidebar: { drawer: false, bloom: false } })
+    await click(document.querySelector('[data-sidebar="trigger"]')!)
+    const plain = document.querySelector<HTMLElement>('[role="dialog"][data-mobile="true"]')!
+    expect(plain.querySelector('[data-goop="surface"]')).toBeNull()
+    expect(plain.className).toContain('bg-sidebar')
+    expect(plain.className).toContain('slide-in-from-left-10')
   })
 
   it('reduced motion: the edge is still', async () => {

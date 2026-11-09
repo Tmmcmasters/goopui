@@ -3,13 +3,12 @@
 // React preview for the Sidebar page: a real @goopui/react GoopSidebarProvider + GoopSidebar +
 // GoopSidebarInset in a small frame, mirroring components/content/DemoSidebar.vue; keep the
 // two in sync. The frame is transformed (the Vue component's wrapper), so the sidebar's
-// `fixed` container and its slosh are laid out inside it.
-//
-// The Documentation sub-menu stands in for @goopui/react's GoopCollapsible (its own branch):
-// Radix's Collapsible with the goo markers and core's accordion engine, which is what
-// GoopCollapsible renders. Swap in <GoopCollapsible asChild> once both are in one build.
-import { attachAccordion } from '@goopui/core'
+// `fixed` container and its slosh are laid out inside it. The Documentation sub-menu is a
+// GoopCollapsible with no goo props of its own: GoopSidebar's `submenus` decides (as in Vue).
 import {
+  GoopCollapsible,
+  GoopCollapsibleContent,
+  GoopCollapsibleTrigger,
   GoopSidebar,
   GoopSidebarContent,
   GoopSidebarFooter,
@@ -28,8 +27,7 @@ import {
   GoopSidebarRail,
   GoopSidebarTrigger,
 } from '@goopui/react'
-import { Collapsible } from 'radix-ui'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useState } from 'react'
 
 type Pg = Record<string, Record<string, unknown>>
 
@@ -57,25 +55,9 @@ const NAV = [
 ]
 const DOCS = ['Introduction', 'Get started', 'Theming']
 
-/** GoopCollapsible's markup and engine (see the note at the top). */
-function SubMenu({ goo, children }: { goo: boolean; children: ReactNode }) {
-  const el = useRef<HTMLLIElement | null>(null)
-  useEffect(() => {
-    if (!goo || !el.current) return
-    const h = attachAccordion(el.current, {})
-    return () => h.destroy()
-  }, [goo])
-  return (
-    <Collapsible.Root asChild className="group/collapsible" data-goop-accordion={goo ? '' : undefined}>
-      <GoopSidebarMenuItem ref={el}>{children}</GoopSidebarMenuItem>
-    </Collapsible.Root>
-  )
-}
-
 export function SidebarDemo({ pg }: { pg: Pg }) {
   const [active, setActive] = useState('Dashboard')
   const { collapsible, variant, ...rest } = pg.main as { collapsible?: 'icon' | 'offcanvas' | 'none'; variant?: 'sidebar' | 'floating' | 'inset' }
-  const goo = (rest as { goo?: boolean }).goo !== false
   return (
     <GoopSidebarProvider className="h-full min-h-0">
       <GoopSidebar collapsible={collapsible} variant={variant} className="h-full" {...rest}>
@@ -105,33 +87,35 @@ export function SidebarDemo({ pg }: { pg: Pg }) {
                   {item.badge ? <GoopSidebarMenuBadge>{item.badge}</GoopSidebarMenuBadge> : null}
                 </GoopSidebarMenuItem>
               ))}
-              <SubMenu goo={goo && (rest as { submenus?: boolean }).submenus !== false}>
-                <Collapsible.Trigger asChild data-goop-accordion-trigger="">
-                  <GoopSidebarMenuButton tooltip="Documentation">
-                    <Icon name="book" />
-                    <span>Documentation</span>
-                    <Icon name="chevron" className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                  </GoopSidebarMenuButton>
-                </Collapsible.Trigger>
-                <Collapsible.Content data-goop-accordion-content="" className="overflow-hidden">
-                  <GoopSidebarMenuSub>
-                    {DOCS.map((d) => (
-                      <GoopSidebarMenuSubItem key={d}>
-                        <GoopSidebarMenuSubButton
-                          href="#"
-                          isActive={active === d}
-                          onClick={(e) => {
-                            e.preventDefault()
-                            setActive(d)
-                          }}
-                        >
-                          <span>{d}</span>
-                        </GoopSidebarMenuSubButton>
-                      </GoopSidebarMenuSubItem>
-                    ))}
-                  </GoopSidebarMenuSub>
-                </Collapsible.Content>
-              </SubMenu>
+              <GoopCollapsible asChild className="group/collapsible">
+                <GoopSidebarMenuItem>
+                  <GoopCollapsibleTrigger asChild>
+                    <GoopSidebarMenuButton tooltip="Documentation">
+                      <Icon name="book" />
+                      <span>Documentation</span>
+                      <Icon name="chevron" className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                    </GoopSidebarMenuButton>
+                  </GoopCollapsibleTrigger>
+                  <GoopCollapsibleContent>
+                    <GoopSidebarMenuSub>
+                      {DOCS.map((d) => (
+                        <GoopSidebarMenuSubItem key={d}>
+                          <GoopSidebarMenuSubButton
+                            href="#"
+                            isActive={active === d}
+                            onClick={(e) => {
+                              e.preventDefault()
+                              setActive(d)
+                            }}
+                          >
+                            <span>{d}</span>
+                          </GoopSidebarMenuSubButton>
+                        </GoopSidebarMenuSubItem>
+                      ))}
+                    </GoopSidebarMenuSub>
+                  </GoopCollapsibleContent>
+                </GoopSidebarMenuItem>
+              </GoopCollapsible>
             </GoopSidebarMenu>
           </GoopSidebarGroup>
         </GoopSidebarContent>

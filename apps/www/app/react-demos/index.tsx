@@ -36,6 +36,7 @@ import { BESPOKE_TILES, BespokeTile, CommandDemo, InputOTPDemo, NumberFieldDemo,
 import { CarouselDemo } from './carousel'
 import { SidebarDemo } from './sidebar'
 import { PageTransitionDemo } from './page-transition'
+import { Bespoke2Tile } from './bespoke2-tiles'
 
 /** What a Vue demo hands its island. */
 export interface ReactDemoProps {
@@ -142,6 +143,8 @@ export function ReactDemo(props: ReactDemoProps) {
         return <SidebarDemo pg={props.pg} />
       case 'page-transition':
         return <PageTransitionDemo pg={props.pg} />
+      case 'tile-bespoke-2':
+        return <Bespoke2Tile slug={props.set} />
       default:
         return null
     }

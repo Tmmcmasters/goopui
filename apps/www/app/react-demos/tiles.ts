@@ -7,3 +7,6 @@ export const REACT_FORMS_TILES: ReadonlySet<string> = new Set(['toggle', 'radio-
 
 // Simple batch (react-demos/batch-simple.tsx `SimpleTile`): Alert, Kbd, Breadcrumb, Button Group, Empty, Pagination.
 export const REACT_SIMPLE_TILES: ReadonlySet<string> = new Set(['alert', 'kbd', 'breadcrumb', 'button-group', 'empty', 'pagination'])
+
+// Select, Carousel, Drawer, Sidebar, Page transition (react-demos/bespoke2-tiles.tsx `Bespoke2Tile`).
+export const REACT_BESPOKE2_TILES: ReadonlySet<string> = new Set(['select', 'carousel', 'drawer', 'sidebar', 'page-transition'])

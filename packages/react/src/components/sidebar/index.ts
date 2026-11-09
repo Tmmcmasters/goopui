@@ -23,6 +23,7 @@ export {
   GoopSidebarSeparator,
   GoopSidebarTrigger,
   useSidebar,
+  type GoopSidebarInputProps,
   type GoopSidebarMenuButtonProps,
   type GoopSidebarProviderProps,
   type GoopSidebarRootProps,

@@ -2439,12 +2439,11 @@ import {
 // menu's goo blob glides between items under the cursor: core `attachSidebarHighlight`), `pill`
 // (the active item's soft filled pill), `slosh` (the inner edge sloshes as the sidebar
 // collapses / expands: core `attachSidebarEdge`; `true`, `false` or 0..2), `travel` (the
-// collapse / expand has the Drawer's momentum: core `sidebarMotionCurve`), `submenus` (an open
-// sub-menu's row stays unfilled; its Collapsible keeps its jelly spring), `pour` (a sub-menu's
-// guide line pours down behind a goo bead), `tooltips` (icon-mode tooltips; React renders
-// shadcn's tooltip for now), `drawer` (the mobile sidebar is a GoopDrawer), `bloom` (accepted
-// for parity; React's mobile sheet is shadcn's slide for now). `goo={false}` is a plain shadcn
-// Sidebar.
+// collapse / expand has the Drawer's momentum: core `sidebarMotionCurve`), `submenus`
+// (GoopCollapsible sub-menus inside spring open, their row unfilled), `pour` (a sub-menu's
+// guide line pours down behind a goo bead), `tooltips` (icon-mode tooltips are GoopTooltips),
+// `drawer` (the mobile sidebar is a GoopDrawer), `bloom` (with `drawer` off, the mobile
+// GoopSheet blooms from its edge). `goo={false}` is a plain shadcn Sidebar.
 
 /** Every GoopSidebar engine prop. */
 export const SIDEBAR_PROP_KEYS = ['goo', ...SIDEBAR_EFFECTS, 'followPointer', 'speed', 'preset', 'renderer'] as const
@@ -2461,15 +2460,15 @@ export interface GoopSidebarProps {
   slosh?: boolean | number
   /** Collapse / expand with the Drawer's momentum: a fast launch into a small landing overshoot, and a collapse that accelerates away (false: shadcn's 200ms linear). */
   travel?: boolean
-  /** Sub-menus: an open Collapsible sub-menu's row stays unfilled, only the active item is a pill (false: a goo Collapsible floods its row as anywhere else). */
+  /** GoopCollapsible sub-menus inside spring open, their row unfilled (false: plain collapsibles). */
   submenus?: boolean
-  /** An opening sub-menu's guide line pours down behind a goo bead that melts into it (needs `submenus` and a goo Collapsible). */
+  /** An opening sub-menu's guide line pours down behind a goo bead that melts into it (needs `submenus`). */
   pour?: boolean
-  /** Icon-mode tooltips. Accepted for parity with @goopui/vue; React renders shadcn's tooltip. */
+  /** Icon-mode tooltips bloom as goo (false: shadcn tooltips). */
   tooltips?: boolean
-  /** The mobile sidebar is a GoopDrawer: panel and goo one body, a fast launch with a small landing overshoot, a close that accelerates away, swipe to close (false: shadcn's Sheet). */
+  /** The mobile sidebar is a GoopDrawer: panel and goo one body, a fast launch with a small landing overshoot, a close that accelerates away, swipe to close (false: a GoopSheet). */
   drawer?: boolean
-  /** Accepted for parity with @goopui/vue (its mobile sheet blooms with `drawer` off); React's sheet is shadcn's slide. */
+  /** With `drawer` off, the mobile sheet blooms from its screen edge like GoopSheet (false: shadcn's slide). */
   bloom?: boolean
   /** The highlight's soft swell follows the cursor along the item (false: centred). */
   followPointer?: boolean

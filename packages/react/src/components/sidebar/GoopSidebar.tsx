@@ -13,18 +13,19 @@
 //   - `slosh`: collapsing / expanding sloshes the inner edge in low, wide mounds driven by the
 //     edge's real motion (core `attachSidebarEdge`), so it sloshes where `travel` brakes; on
 //     `inset` the mounds start over the inset card's edge (goop.css);
-//   - `submenus`: an open Collapsible sub-menu's row stays unfilled (only the active item is a
-//     pill, as in shadcn): GoopSidebarMenuButton drops the trigger's flood marker;
-//   - `pour`: an opening sub-menu's guide line pours down behind a goo bead (goop.css; needs a
-//     goo Collapsible, which springs the sub-menu open);
+//   - `submenus`: GoopCollapsible sub-menus inside spring open (the open row stays unfilled,
+//     as in shadcn: only the active item is a pill; GoopCollapsible's defaults context);
+//   - `pour`: an opening sub-menu's guide line pours down behind a goo bead (goop.css);
+//   - `tooltips`: icon-mode tooltips (GoopSidebarMenuButton `tooltip`) are GoopTooltips;
 //   - `drawer`: the mobile sidebar is a GoopDrawer from its side: panel and goo one body, fast
-//     launch, small landing overshoot, a close that accelerates away, swipe to close. Off:
-//     shadcn's Sheet.
+//     launch, small landing overshoot, a close that accelerates away, swipe to close;
+//   - `bloom`: with `drawer` off, the mobile sheet blooms from its screen edge (GoopSheetContent).
+// GoopSidebarInput is a GoopInput (its goo focus ring).
 // The goo is aria-hidden behind the real content and attaches after hydration: SSR renders
 // shadcn's markup (desktop layout; the mobile switch happens after mount, as in shadcn).
 // Reduced motion: no slosh, the highlight snaps, travel is shadcn's linear.
 import { cn } from 'cn'
-import { Dialog as DialogPrimitive, Slot, Tooltip as TooltipPrimitive } from 'radix-ui'
+import { Slot } from 'radix-ui'
 import {
   createContext,
   forwardRef,
@@ -44,8 +45,12 @@ import { useGoopConfig } from '../../config'
 import { SIDEBAR_PROP_KEYS, splitProps, toSidebarOptions, type GoopSidebarProps, type ResolvedSidebarGoo } from '../../goop-props'
 import { useComposedRefs, useIsomorphicLayoutEffect, useStableValue } from '../../utils'
 import { GoopButton, type GoopButtonProps } from '../button/GoopButton'
+import { GoopCollapsibleDefaultsContext, type GoopCollapsibleDefaults } from '../accordion/context'
 import { GoopDrawer, GoopDrawerContent, GoopDrawerDescription, GoopDrawerHeader, GoopDrawerTitle } from '../drawer/GoopDrawer'
+import { GoopInput, type GoopInputProps } from '../input/GoopInput'
 import { GoopSeparator, type GoopSeparatorProps } from '../separator/GoopSeparator'
+import { GoopSheet, GoopSheetContent, GoopSheetDescription, GoopSheetHeader, GoopSheetTitle } from '../sheet/GoopSheet'
+import { GoopTooltip, GoopTooltipContent, GoopTooltipProvider, GoopTooltipTrigger, type GoopTooltipContentProps } from '../tooltip/GoopTooltip'
 import { useSidebarGoo, useSidebarTravel } from './use-sidebar-goo'
 import {
   SIDEBAR_COOKIE_MAX_AGE,
@@ -53,10 +58,6 @@ import {
   SIDEBAR_KEYBOARD_SHORTCUT,
   SIDEBAR_MENU_SUB_BUTTON,
   SIDEBAR_MOBILE_BREAKPOINT,
-  SIDEBAR_SHEET,
-  SIDEBAR_SHEET_OVERLAY,
-  SIDEBAR_TOOLTIP,
-  SIDEBAR_TOOLTIP_ARROW,
   SIDEBAR_WIDTH,
   SIDEBAR_WIDTH_ICON,
   SIDEBAR_WIDTH_MOBILE,
@@ -121,7 +122,7 @@ export type GoopSidebarProviderProps = ComponentPropsWithoutRef<'div'> & {
  * shadcn/ui's SidebarProvider. Holds the open state (controlled with `open` / `onOpenChange`,
  * or from `defaultOpen`), persists it to the `sidebar_state` cookie, toggles on Ctrl/Cmd+B,
  * switches to the mobile sidebar below 768px, and provides `useSidebar()`. Wraps everything
- * in a TooltipProvider (delay 0) for the icon-mode tooltips.
+ * in a GoopTooltipProvider (delay 0) for the icon-mode tooltips.
  */
 export const GoopSidebarProvider = forwardRef<HTMLDivElement, GoopSidebarProviderProps>(function GoopSidebarProvider(
   { defaultOpen = true, open: openProp, onOpenChange: setOpenProp, className, style, children, ...props },
@@ -161,7 +162,7 @@ export const GoopSidebarProvider = forwardRef<HTMLDivElement, GoopSidebarProvide
 
   return (
     <SidebarContext.Provider value={value}>
-      <TooltipPrimitive.Provider delayDuration={0}>
+      <GoopTooltipProvider delayDuration={0}>
         <div
           ref={ref}
           data-slot="sidebar-wrapper"
@@ -171,7 +172,7 @@ export const GoopSidebarProvider = forwardRef<HTMLDivElement, GoopSidebarProvide
         >
           {children}
         </div>
-      </TooltipPrimitive.Provider>
+      </GoopTooltipProvider>
     </SidebarContext.Provider>
   )
 })
@@ -193,6 +194,9 @@ export const GoopSidebar = forwardRef<HTMLDivElement, GoopSidebarRootProps>(func
   const config = useGoopConfig()
   const goo = useStableValue(toSidebarOptions(engine, config))
   const marked = goo.highlight || goo.pill ? '' : undefined
+  // Sub-menus spring open but never fill their row: only the active item is a pill.
+  const submenus = goo.submenus
+  const collapsibleDefaults = useMemo<GoopCollapsibleDefaults>(() => ({ goo: submenus, rowFill: false }), [submenus])
 
   // Panels as state: the mobile one mounts in a portal a commit later.
   const [desktopPanel, setDesktopPanel] = useState<HTMLElement | null>(null)
@@ -261,28 +265,29 @@ export const GoopSidebar = forwardRef<HTMLDivElement, GoopSidebarRootProps>(func
     )
   } else if (isMobile) {
     body = (
-      <DialogPrimitive.Root open={openMobile} onOpenChange={setOpenMobile}>
-        <DialogPrimitive.Portal>
-          <DialogPrimitive.Overlay data-slot="sheet-overlay" className={SIDEBAR_SHEET_OVERLAY} />
-          <DialogPrimitive.Content
-            dir={dir}
-            data-sidebar="sidebar"
-            data-slot="sidebar"
-            data-mobile="true"
-            data-side={side}
-            className={cn(SIDEBAR_SHEET, 'w-(--sidebar-width) gap-0 bg-sidebar p-0 text-sidebar-foreground')}
-            style={{ '--sidebar-width': SIDEBAR_WIDTH_MOBILE } as CSSProperties}
-          >
-            <div className="sr-only">
-              <DialogPrimitive.Title>Sidebar</DialogPrimitive.Title>
-              <DialogPrimitive.Description>Displays the mobile sidebar.</DialogPrimitive.Description>
-            </div>
-            <div ref={setMobilePanel} data-sidebar="sidebar" data-goop-sidebar={marked} className="flex h-full w-full flex-col">
-              {children}
-            </div>
-          </DialogPrimitive.Content>
-        </DialogPrimitive.Portal>
-      </DialogPrimitive.Root>
+      <GoopSheet open={openMobile} onOpenChange={setOpenMobile}>
+        <GoopSheetContent
+          dir={dir}
+          data-sidebar="sidebar"
+          data-slot="sidebar"
+          data-mobile="true"
+          side={side}
+          goo={goo.bloom}
+          showCloseButton={false}
+          speed={goo.speed}
+          preset={goo.preset}
+          className={cn('w-(--sidebar-width) gap-0 p-0 text-sidebar-foreground', goo.bloom ? '[--goop-color:var(--sidebar)]' : 'bg-sidebar')}
+          style={{ '--sidebar-width': SIDEBAR_WIDTH_MOBILE } as CSSProperties}
+        >
+          <GoopSheetHeader className="sr-only">
+            <GoopSheetTitle>Sidebar</GoopSheetTitle>
+            <GoopSheetDescription>Displays the mobile sidebar.</GoopSheetDescription>
+          </GoopSheetHeader>
+          <div ref={setMobilePanel} data-sidebar="sidebar" data-goop-sidebar={marked} className="flex h-full w-full flex-col">
+            {children}
+          </div>
+        </GoopSheetContent>
+      </GoopSheet>
     )
   } else {
     body = (
@@ -334,7 +339,11 @@ export const GoopSidebar = forwardRef<HTMLDivElement, GoopSidebarRootProps>(func
       </div>
     )
   }
-  return <SidebarGooContext.Provider value={goo}>{body}</SidebarGooContext.Provider>
+  return (
+    <SidebarGooContext.Provider value={goo}>
+      <GoopCollapsibleDefaultsContext.Provider value={collapsibleDefaults}>{body}</GoopCollapsibleDefaultsContext.Provider>
+    </SidebarGooContext.Provider>
+  )
 })
 GoopSidebar.displayName = 'GoopSidebar'
 
@@ -414,21 +423,12 @@ export const GoopSidebarInset = forwardRef<HTMLElement, ComponentPropsWithoutRef
 })
 GoopSidebarInset.displayName = 'GoopSidebarInset'
 
-/** shadcn/ui's SidebarInput: a compact shadcn input for a search field in the sidebar. */
-export const GoopSidebarInput = forwardRef<HTMLInputElement, ComponentPropsWithoutRef<'input'>>(function GoopSidebarInput({ className, type, ...props }, ref) {
-  return (
-    <input
-      ref={ref}
-      type={type}
-      data-slot="sidebar-input"
-      data-sidebar="input"
-      className={cn(
-        'h-8 w-full min-w-0 rounded-lg border border-input bg-background px-2.5 py-1 text-base shadow-none transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40',
-        className,
-      )}
-      {...props}
-    />
-  )
+export type GoopSidebarInputProps = GoopInputProps
+
+/** shadcn/ui's SidebarInput: a compact GoopInput (with its goo focus ring) for a search field
+ *  in the sidebar. Every GoopInput prop passes through (`goo={false}`: shadcn's input). */
+export const GoopSidebarInput = forwardRef<HTMLInputElement, GoopSidebarInputProps>(function GoopSidebarInput({ className, ...props }, ref) {
+  return <GoopInput ref={ref} data-slot="sidebar-input" data-sidebar="input" className={cn('h-8 w-full bg-background shadow-none', className)} {...props} />
 })
 GoopSidebarInput.displayName = 'GoopSidebarInput'
 
@@ -527,25 +527,25 @@ export const GoopSidebarMenuItem = forwardRef<HTMLLIElement, ComponentPropsWitho
 })
 GoopSidebarMenuItem.displayName = 'GoopSidebarMenuItem'
 
-/** Classes and goo attributes of a menu button inside a (goo) GoopSidebar. Inside one, an
- *  open Collapsible sub-menu never floods its trigger row (`submenus`): the trigger's
- *  `data-goop-accordion-trigger` (merged on by a Collapsible trigger's asChild) is dropped. */
+/** Classes and goo attributes of a menu button inside a (goo) GoopSidebar. (An open
+ *  GoopCollapsible sub-menu's row stays unfilled through GoopCollapsible's `rowFill` default,
+ *  which GoopSidebar provides.) */
 function useMenuButtonGoo(base: string) {
   const goo = useContext(SidebarGooContext)
   let classes = base
   if (goo?.highlight) classes = withoutFlatHover(classes)
   if (goo?.pill) classes = withoutFlatActive(classes)
   const attrs: Record<string, string | undefined> = { 'data-goop-pill': goo?.pill ? '' : undefined }
-  if (goo?.submenus) attrs['data-goop-accordion-trigger'] = undefined
-  return { classes, attrs }
+  return { classes, attrs, goo }
 }
 
 export type GoopSidebarMenuButtonProps = ComponentPropsWithoutRef<'button'> &
   AsChild & {
     isActive?: boolean
     /** Shown to the right of the button while the sidebar is collapsed to icons (desktop):
-     *  text, or TooltipContent props. */
-    tooltip?: string | ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
+     *  text, or GoopTooltipContent props. A GoopTooltip that blooms (GoopSidebar `tooltips`;
+     *  off: shadcn's tooltip). */
+    tooltip?: string | GoopTooltipContentProps
     variant?: SidebarMenuButtonVariants['variant']
     size?: SidebarMenuButtonVariants['size']
   }
@@ -559,7 +559,7 @@ export const GoopSidebarMenuButton = forwardRef<HTMLButtonElement, GoopSidebarMe
 ) {
   const Comp = asChild ? Slot.Root : 'button'
   const { isMobile, state } = useSidebar()
-  const { classes, attrs } = useMenuButtonGoo(sidebarMenuButtonVariants({ variant, size }))
+  const { classes, attrs, goo } = useMenuButtonGoo(sidebarMenuButtonVariants({ variant, size }))
   const button = (
     <Comp
       ref={ref}
@@ -574,24 +574,16 @@ export const GoopSidebarMenuButton = forwardRef<HTMLButtonElement, GoopSidebarMe
   )
   if (!tooltip) return button
   const content = typeof tooltip === 'string' ? { children: tooltip } : tooltip
+  // Only while collapsed to icons on desktop. The trigger stays wrapped either way, so the
+  // button keeps its element (and the highlight its target) when the state flips.
+  const showTip = state === 'collapsed' && !isMobile
   return (
-    <TooltipPrimitive.Root>
-      <TooltipPrimitive.Trigger asChild>{button}</TooltipPrimitive.Trigger>
-      <TooltipPrimitive.Portal>
-        <TooltipPrimitive.Content
-          data-slot="tooltip-content"
-          side="right"
-          align="center"
-          sideOffset={4}
-          hidden={state !== 'collapsed' || isMobile}
-          {...content}
-          className={cn(SIDEBAR_TOOLTIP, content.className)}
-        >
-          {content.children}
-          <TooltipPrimitive.Arrow className={SIDEBAR_TOOLTIP_ARROW} />
-        </TooltipPrimitive.Content>
-      </TooltipPrimitive.Portal>
-    </TooltipPrimitive.Root>
+    <GoopTooltip>
+      <GoopTooltipTrigger asChild>{button}</GoopTooltipTrigger>
+      {showTip ? (
+        <GoopTooltipContent side="right" align="center" sideOffset={4} goo={goo ? goo.tooltips : true} speed={goo?.speed} preset={goo?.preset} {...content} />
+      ) : null}
+    </GoopTooltip>
   )
 })
 GoopSidebarMenuButton.displayName = 'GoopSidebarMenuButton'

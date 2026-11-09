@@ -14,7 +14,7 @@ import { ACCORDION_PROP_KEYS, splitProps, toAccordionOptions, type GoopAccordion
 import { GoopCueClaim, GoopSoundScope, useGoopCue, useGoopSound } from '../../sound'
 import { useAttached } from '../../use-goop'
 import { useComposedRefs, useStableValue } from '../../utils'
-import { GoopAccordionContext, useGoopAccordion } from '../accordion/context'
+import { GoopAccordionContext, useGoopAccordion, useGoopCollapsibleDefaults } from '../accordion/context'
 
 const OPEN = [''] as const
 const CLOSED = [] as const
@@ -30,13 +30,16 @@ export const GoopCollapsible = forwardRef<HTMLDivElement, GoopCollapsibleProps>(
   const [engine, props] = splitProps(allProps, ACCORDION_PROP_KEYS)
   const { className, sound, goopRef, open: openProp, defaultOpen, onOpenChange, ...rest } = props
   const on = useGoopSound(sound)
-  const options = useStableValue(toAccordionOptions(engine, useGoopConfig()))
+  // A container's defaults (GoopSidebar `submenus`) fill in `goo` and the row fill; own props win.
+  const defaults = useGoopCollapsibleDefaults()
+  const options = useStableValue(toAccordionOptions({ ...engine, goo: engine.goo ?? defaults?.goo }, useGoopConfig()))
+  const rowFill = engine.flood !== undefined || defaults?.rowFill !== false
 
   // Open state (only for the trigger's open / close sound cue): Radix's when controlled, else
   // mirrored from onOpenChange.
   const [inner, setInner] = useState(defaultOpen ?? false)
   const open = openProp ?? inner
-  const ctx = useMemo(() => ({ options, open: open ? OPEN : CLOSED }), [options, open])
+  const ctx = useMemo(() => ({ options, open: open ? OPEN : CLOSED, rowFill }), [options, open, rowFill])
 
   const el = useRef<HTMLDivElement | null>(null)
   const composed = useComposedRefs(ref, el)
@@ -69,7 +72,7 @@ export type GoopCollapsibleTriggerProps = ComponentPropsWithoutRef<typeof Collap
 
 /** shadcn/ui's CollapsibleTrigger (Radix, unstyled, `asChild`). With goo on it floods with goo
  *  from the click point while the collapsible is open (`data-goop-accordion-trigger`; its text
- *  follows the goo's edge). */
+ *  follows the goo's edge). Inside GoopSidebar the row stays unfilled (the `rowFill` default). */
 export const GoopCollapsibleTrigger = forwardRef<HTMLButtonElement, GoopCollapsibleTriggerProps>(function GoopCollapsibleTrigger(props, ref) {
   const ctx = useGoopAccordion()
   const cue = useGoopCue('collapsibleTrigger', { open: (ctx?.open.length ?? 0) > 0 })
@@ -78,7 +81,7 @@ export const GoopCollapsibleTrigger = forwardRef<HTMLButtonElement, GoopCollapsi
       <CollapsiblePrimitive.Trigger
         ref={ref}
         data-slot="collapsible-trigger"
-        data-goop-accordion-trigger={ctx?.options ? '' : undefined}
+        data-goop-accordion-trigger={ctx?.options && ctx.rowFill !== false ? '' : undefined}
         {...cue}
         {...props}
       />
