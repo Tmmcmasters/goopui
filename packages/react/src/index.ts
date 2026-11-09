@@ -278,3 +278,8 @@ export {
 export type { ItemPressHandle } from '@goopui/core'
 export * from './components/input-group'
 export { INPUT_GROUP_PROP_KEYS, toInputGroupOptions, type GoopInputGroupProps } from './goop-props'
+// Calendar and Range Calendar (react-day-picker).
+export * from './components/calendar'
+export * from './components/range-calendar'
+export { CALENDAR_PROP_KEYS, toCalendarOptions, type GoopCalendarProps as GoopCalendarEngineProps } from './goop-props'
+export type { CalendarHandle } from '@goopui/core'

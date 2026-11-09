@@ -301,6 +301,9 @@ export const goopComponents = [
   'GoopInputGroupInput',
   'GoopInputGroupText',
   'GoopInputGroupTextarea',
+  'GoopCalendar',
+  'GoopCalendarDayButton',
+  'GoopRangeCalendar',
 ] as const
 
 export type GoopComponentName = (typeof goopComponents)[number]

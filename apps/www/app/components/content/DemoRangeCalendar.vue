@@ -14,10 +14,13 @@ const trip = shallowRef<Range>({ start: start.add({ days: 3 }), end: start.add({
 const plain = shallowRef<Range>({ start, end: start.add({ days: 4 }) })
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react components (react-demos/calendar.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <ClientOnly>
+  <ReactIsland v-if="isReact" demo="range-calendar" :set="set" :pg="{ main: pg.props }" />
+  <ClientOnly v-else>
     <GoopRangeCalendar v-if="set === 'basic'" v-model="range" class="rounded-lg border" v-bind="pg.props" />
     <GoopRangeCalendar v-else-if="set === 'months'" v-model="trip" class="rounded-lg border" :number-of-months="2" />
     <GoopRangeCalendar v-else v-model="plain" class="rounded-lg border" :goo="false" />
