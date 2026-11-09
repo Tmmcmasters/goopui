@@ -56,6 +56,10 @@ export const categoryOf = (slug: string): Category => bySlug.get(slug)?.category
  * Toggle). Add a new component here if its name extends an existing one.
  */
 const STANDALONE = new Set(['GoopToggleGroup', 'GoopInputOTP', 'GoopInputOtp', 'GoopAlertDialog', 'GoopButtonGroup', 'GoopInputGroup'])
+/** Parts whose name doesn't extend their root's (ScrollBar of ScrollArea; Resizable's panel and
+ *  handle, whose root is the group). */
+const PARTS = new Set(['GoopScrollBar', 'GoopResizablePanel', 'GoopResizableHandle'])
+STANDALONE.add('GoopResizablePanelGroup')
 
 /**
  * Top-level components in @goopui/vue's manifest. A part (GoopDialogContent, GoopSelectItem)
@@ -63,8 +67,9 @@ const STANDALONE = new Set(['GoopToggleGroup', 'GoopInputOTP', 'GoopInputOtp', '
  */
 export const rootComponents: string[] = goopComponents.filter(
   (name) =>
-    STANDALONE.has(name) ||
-    !goopComponents.some((other) => other !== name && name.startsWith(other) && /[A-Z]/.test(name[other.length] ?? '')),
+    !PARTS.has(name) &&
+    (STANDALONE.has(name) ||
+      !goopComponents.some((other) => other !== name && name.startsWith(other) && /[A-Z]/.test(name[other.length] ?? ''))),
 )
 
 export const componentCount = rootComponents.length

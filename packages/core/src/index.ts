@@ -1109,6 +1109,34 @@ export {
   type FieldErrorOptions,
   type FieldErrorPose,
 } from './field'
+export {
+  SCROLL_AREA_EFFECTS,
+  SCROLL_AREA_FEEL,
+  SCROLL_ROOT_ATTR,
+  SCROLL_THUMB_ATTR,
+  SCROLL_VIEWPORT_ATTR,
+  attachScrollArea,
+  scrollSquash,
+  scrollStretch,
+  scrollThumbTransform,
+  type ScrollAreaEffect,
+  type ScrollAreaFeel,
+  type ScrollAreaHandle,
+  type ScrollAreaOptions,
+} from './scroll-area'
+export {
+  RESIZABLE_EFFECTS,
+  RESIZABLE_FEEL,
+  RESIZABLE_GRIP_ATTR,
+  attachResizableHandle,
+  isResizableDragging,
+  resizableBeadPath,
+  type ResizableBeadShape,
+  type ResizableEffect,
+  type ResizableFeel,
+  type ResizableHandle,
+  type ResizableOptions,
+} from './resizable'
 export { type MenuHighlightLayout } from './menu'
 export {
   TABLE_EFFECTS,

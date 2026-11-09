@@ -267,6 +267,13 @@ export const goopComponents = [
   'GoopFieldSeparator',
   'GoopFieldSet',
   'GoopFieldTitle',
+  // Layout batch: AspectRatio, ScrollArea, Resizable
+  'GoopAspectRatio',
+  'GoopScrollArea',
+  'GoopScrollBar',
+  'GoopResizablePanelGroup',
+  'GoopResizablePanel',
+  'GoopResizableHandle',
   'GoopTable',
   'GoopTableBody',
   'GoopTableCaption',
