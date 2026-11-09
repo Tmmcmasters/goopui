@@ -37,6 +37,7 @@ import { CarouselDemo } from './carousel'
 import { SidebarDemo } from './sidebar'
 import { PageTransitionDemo } from './page-transition'
 import { Bespoke2Tile } from './bespoke2-tiles'
+import { FieldDemo, Forms2Tile, TagsInputDemo } from './forms-2'
 import { AspectRatioDemo, LayoutTile, ResizableDemo, ScrollAreaDemo } from './layout'
 
 /** What a Vue demo hands its island. */
@@ -146,6 +147,13 @@ export function ReactDemo(props: ReactDemoProps) {
         return <PageTransitionDemo pg={props.pg} />
       case 'tile-bespoke-2':
         return <Bespoke2Tile slug={props.set} />
+      // Tags Input and Field (./forms-2): 'tags-input' | 'field' | 'tile-forms-2'.
+      case 'tags-input':
+        return <TagsInputDemo set={props.set} pg={props.pg} />
+      case 'field':
+        return <FieldDemo set={props.set} pg={props.pg} />
+      case 'tile-forms-2':
+        return <Forms2Tile slug={props.set} />
       // Layout batch (./layout): 'aspect-ratio' | 'scroll-area' | 'resizable' | 'tile-layout'.
       case 'aspect-ratio':
         return <AspectRatioDemo set={props.set} />

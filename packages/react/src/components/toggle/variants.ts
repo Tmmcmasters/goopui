@@ -25,9 +25,13 @@ export const toggleVariants = cva(
 
 export type ToggleVariants = VariantProps<typeof toggleVariants>
 
-/** Goo color: the token shadcn fills a pressed toggle with (core reads --goop-toggle-fill), and
- *  the text on it (--goop-toggle-text): shadcn's pressed toggle keeps the foreground color. */
-export const goopToggleColors = '[--goop-toggle-fill:var(--muted)] [--goop-toggle-text:var(--foreground)]'
+/** Goo color (core reads --goop-toggle-fill) and the text on it (--goop-toggle-text). A pressed
+ *  goo toggle is filled with the theme's on color so on / off reads at a glance (shadcn's flat
+ *  pressed bg-muted is the same grey as its hover): `--goop-toggle-on` /
+ *  `--goop-toggle-on-foreground`, set on any ancestor (or :root), default the theme's
+ *  `--primary` / `--primary-foreground`. Un-pressed hover stays shadcn's bg-muted. */
+export const goopToggleColors =
+  '[--goop-toggle-fill:var(--goop-toggle-on,var(--primary))] [--goop-toggle-text:var(--goop-toggle-on-foreground,var(--primary-foreground))]'
 
 /** While the goo is attached, a pressed toggle drops its own background: the goo is the fill
  *  (and it may still be flooding in or draining out). */

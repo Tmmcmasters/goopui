@@ -8,6 +8,7 @@ import { DropdownMenuCheckboxItem, DropdownMenuItemIndicator, useForwardPropsEmi
 import { computed, type HTMLAttributes } from 'vue'
 import { injectGoopMenuContent } from './context'
 import { useGoopCue } from '../../sound'
+import { quietFocus } from './quiet-focus'
 
 const props = defineProps<DropdownMenuCheckboxItemProps & { class?: HTMLAttributes['class'] }>()
 const emits = defineEmits<DropdownMenuCheckboxItemEmits>()
@@ -35,6 +36,7 @@ const cue = useGoopCue('menuCheckboxItem')
     data-slot="dropdown-menu-checkbox-item"
     v-bind="{ ...forwarded, ...cue }"
     :class="classes"
+    @pointermove="quietFocus"
     @select="onSelect"
   >
     <span
