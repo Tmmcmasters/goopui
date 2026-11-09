@@ -167,6 +167,11 @@ export interface InputOTPHandle {
   resize(): void
   /** Plop a pulse into cell `index` (what typing a digit does). */
   pulse(index: number): void
+  /** Put the goo in cell `index` (-1: none), as focusing that cell would: it floods, flows
+   *  from the previous cell, or drains. For inputs whose cells are not focusable themselves
+   *  (React's input-otp: one hidden input over render-only slots, which marks the active slot
+   *  instead); call it whenever the active cell changes. Real focus moves still work too. */
+  setActive(index: number): void
   /** Index of the cell the goo is in (focused), or -1. */
   readonly active: number
   readonly running: boolean
@@ -381,20 +386,32 @@ export function attachInputOTP(host: HTMLElement, options: InputOTPOptions = {})
     const n = t as Node | null
     return (n && els.find((x) => x === n || x.contains(n))) ?? null
   }
+  /** Set by `setActive`: the active cell comes from the adapter, so focus on something that is
+   *  not a cell (input-otp's hidden input) leaves it alone. */
+  let driven = false
+  /** The cell under a viewport point (a press on an input laid over the cells). */
+  const cellAt = (cx: number, cy: number): HTMLElement | null => {
+    const p = local(cx, cy)
+    const i = rects.findIndex((r) => p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h)
+    return i >= 0 ? els[i]! : null
+  }
   const onPointerDown = (e: PointerEvent): void => {
     measure()
-    const el = cellOf(e.target)
+    const el = cellOf(e.target) ?? (driven ? cellAt(e.clientX, e.clientY) : null)
     if (!el) return
     const p = local(e.clientX, e.clientY)
     press = { el, x: p.x, y: p.y, at: performance.now() }
   }
   const onFocusIn = (e: FocusEvent): void => {
     measure()
-    focusedEl = cellOf(e.target)
+    const cell = cellOf(e.target)
+    if (!cell && driven) return
+    focusedEl = cell
     sync()
   }
   const onFocusOut = (e: FocusEvent): void => {
     measure()
+    if (driven && !cellOf(e.target)) return
     // Focus moving to another cell: focusin handles it (so the flow sees both changes at once).
     if (cellOf(e.relatedTarget)) return
     focusedEl = null
@@ -459,6 +476,13 @@ export function attachInputOTP(host: HTMLElement, options: InputOTPOptions = {})
     },
     resize,
     pulse: addPulse,
+    setActive(index) {
+      if (destroyed) return
+      driven = true
+      measure()
+      focusedEl = index >= 0 ? (els[index] ?? null) : null
+      sync()
+    },
     get active() {
       return focusedEl ? els.indexOf(focusedEl) : -1
     },

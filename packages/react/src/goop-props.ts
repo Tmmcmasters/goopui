@@ -691,3 +691,354 @@ import {
   type SpinnerOptions,
   type SpinnerVariant,
 } from '@goopui/core'
+
+// ---- GoopToaster / GoopCommand / GoopCombobox / GoopNumberField / GoopInputOTP (bespoke 1) --
+// Same mapping as @goopui/vue (the parity test sends both the same props). Names are scoped to
+// these components so they never clash with the other React batches' helpers.
+
+// GoopToaster: core `attachToaster`, TOASTER_EFFECTS (dropIn, merge, drips) each `true`
+// (default), `false` or a 0..2 strength, plus speed / preset. `goo={false}` is shadcn's Sonner.
+
+/** Every GoopToaster engine prop. */
+export const TOASTER_PROP_KEYS = ['goo', ..._TOASTER_EFFECTS, 'speed', 'preset'] as const
+
+/** Engine props of GoopToaster (on top of sonner's ToasterProps). */
+export interface GoopToasterProps {
+  /** Master switch. `false` renders a plain shadcn Sonner. */
+  goo?: boolean
+  /** New toasts drop in as a blob from the toaster edge, overshoot and slosh. `true`, `false` or 0..2. */
+  dropIn?: boolean | number
+  /** Stacked toasts merge with fat goo necks that stretch and snap as the stack expands. `true`, `false` or 0..2. */
+  merge?: boolean | number
+  /** Leaving toasts drip off; swipe-out flings the goo the swipe's way. `true`, `false` or 0..2. */
+  drips?: boolean | number
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+}
+
+type ToasterUnhandled = Exclude<keyof _ToasterOptions | _ToasterEffect, keyof GoopToasterProps | 'reducedMotion'>
+const _allToasterOptionsHandled: [ToasterUnhandled] extends [never] ? true : { unhandled: ToasterUnhandled } = true
+void _allToasterOptionsHandled
+type ToasterPropsListed = Exclude<keyof GoopToasterProps, (typeof TOASTER_PROP_KEYS)[number]>
+const _allToasterPropsListed: [ToasterPropsListed] extends [never] ? true : { unlisted: ToasterPropsListed } = true
+void _allToasterPropsListed
+
+/** Toaster options from props, over app config (`preset`, `reducedMotion`). */
+export function toToasterOptions(props: GoopToasterProps, config: GoopOptions = {}): _ToasterOptions {
+  const out: _ToasterOptions = { preset: props.preset ?? config.preset, reducedMotion: config.reducedMotion }
+  if (props.speed !== undefined) out.speed = props.speed
+  for (const k of _TOASTER_EFFECTS) if (props[k] !== undefined) out[k] = props[k]
+  return out
+}
+
+// GoopCommand: the active item is the menu highlight blob (core `attachMenuHighlight`; cmdk
+// marks it `data-selected`) gliding between items with the keyboard and pointer; choosing
+// squishes it (`pop`); the input gets the Input's goo focus ring (`ring`, core `attachInput`).
+// GoopCommandDialog adds the dialog's bloom.
+
+/** Every GoopCommand engine prop. */
+export const COMMAND_PROP_KEYS = ['goo', ..._COMMAND_EFFECTS, 'wobble', 'momentum', 'followPointer', 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopCommand (its input and items read them). Every toggle defaults on. */
+export interface GoopCommandProps {
+  /** Master switch. `false` renders plain shadcn Command parts. */
+  goo?: boolean
+  /** The active item is a goo blob that glides between items, following the arrow keys and
+   *  the pointer (false: shadcn's flat highlight). */
+  highlight?: boolean
+  /** Jelly squish of the highlight when an item is chosen. */
+  pop?: boolean
+  /** The search input gets the Input's goo focus ring (a GoopCommandInput's own `goo` prop
+   *  overrides it). */
+  ring?: boolean
+  /** Jelly overshoot: the highlight's overshoot and grow-in, and the ring's idle wobble. */
+  wobble?: boolean
+  /** The highlight stretches and necks toward where it came from as it travels. */
+  momentum?: boolean
+  /** The highlight's swell follows the pointer with a little lag (keyboard: centred). */
+  followPointer?: boolean
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+type CommandUnhandled = Exclude<keyof _MenuHighlightOptions | _CommandEffect, keyof GoopCommandProps | 'find' | 'feel' | 'reducedMotion'>
+const _allCommandOptionsHandled: [CommandUnhandled] extends [never] ? true : { unhandled: CommandUnhandled } = true
+void _allCommandOptionsHandled
+type CommandPropsListed = Exclude<keyof GoopCommandProps, (typeof COMMAND_PROP_KEYS)[number]>
+const _allCommandPropsListed: [CommandPropsListed] extends [never] ? true : { unlisted: CommandPropsListed } = true
+void _allCommandPropsListed
+
+/** Fully resolved command settings (no undefined toggles). */
+export interface ResolvedCommandProps extends Required<Omit<GoopCommandProps, 'preset' | 'renderer'>> {
+  preset?: GoopPreset
+  renderer?: GoopRendererOption
+}
+
+const COMMAND_TOGGLES = ['goo', ..._COMMAND_EFFECTS, 'wobble', 'momentum', 'followPointer'] as const
+
+/** Resolve command props over the defaults (every toggle on). */
+export function resolveCommandProps(props: GoopCommandProps): ResolvedCommandProps {
+  const out = { speed: props.speed ?? 1 } as ResolvedCommandProps
+  for (const k of COMMAND_TOGGLES) out[k] = props[k] ?? true
+  out.preset = props.preset
+  out.renderer = props.renderer
+  return out
+}
+
+/** Core options for the highlight blob and the input ring, over app config (null when off). */
+export function toCommandOptions(
+  cmd: ResolvedCommandProps,
+  config: GoopOptions = {},
+): { highlight: _MenuHighlightOptions | null; ring: _InputOptions | null } {
+  const common = {
+    speed: cmd.speed,
+    preset: cmd.preset ?? config.preset,
+    renderer: cmd.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+  return {
+    highlight:
+      cmd.goo && cmd.highlight ? { ...common, wobble: cmd.wobble, momentum: cmd.momentum, pop: cmd.pop, followPointer: cmd.followPointer } : null,
+    ring: cmd.goo && cmd.ring ? { ...common, ...(cmd.wobble ? {} : { wobble: false }) } : null,
+  }
+}
+
+/** Every GoopCommandDialog engine prop: the dialog's bloom (DIALOG_PROP_KEYS) plus the
+ *  command's own toggles. */
+export const COMMAND_DIALOG_PROP_KEYS = [...DIALOG_PROP_KEYS, ..._COMMAND_EFFECTS, 'momentum', 'followPointer'] as const
+
+/** Engine props of GoopCommandDialog: GoopDialogContent's (the panel blooms open) plus
+ *  GoopCommand's highlight / pop / ring / momentum / followPointer. `goo`, `wobble`, `speed`,
+ *  `preset` and `renderer` drive both. */
+export interface GoopCommandDialogProps extends GoopDialogProps {
+  /** The command's goo highlight blob (see GoopCommand). */
+  highlight?: boolean
+  /** Jelly squish of the highlight when an item is chosen. */
+  pop?: boolean
+  /** The search input's goo focus ring. */
+  ring?: boolean
+  /** The highlight stretches and necks as it travels. */
+  momentum?: boolean
+  /** The highlight's swell follows the pointer. */
+  followPointer?: boolean
+}
+type CommandDialogPropsListed = Exclude<keyof GoopCommandDialogProps, (typeof COMMAND_DIALOG_PROP_KEYS)[number]>
+const _allCommandDialogPropsListed: [CommandDialogPropsListed] extends [never] ? true : { unlisted: CommandDialogPropsListed } = true
+void _allCommandDialogPropsListed
+
+/** The ring effects a GoopCommandInput / GoopComboboxInput takes (core INPUT_EFFECTS, as
+ *  GoopInput's), plus speed / preset / renderer. */
+export const COMMAND_INPUT_PROP_KEYS = effectKeys(_INPUT_EFFECTS)
+export type GoopCommandInputEngineProps = GoopEffectProps<_InputEffect>
+type CommandInputUnhandled = Exclude<keyof _InputOptions, keyof GoopCommandInputEngineProps | 'invalid' | 'reducedMotion'>
+const _allCommandInputOptionsHandled: [CommandInputUnhandled] extends [never] ? true : { unhandled: CommandInputUnhandled } = true
+void _allCommandInputOptionsHandled
+
+/** Ring options for a command / combobox input from its props, over app config. */
+export function toCommandInputOptions(props: GoopCommandInputEngineProps, config: GoopOptions = {}): _InputOptions {
+  return toEffectOptions(_INPUT_EFFECTS, props, config)
+}
+
+// GoopCombobox: the list is a popover that blooms like GoopSelectContent's popper (core
+// `attachEmerge`, always from its own center), with the command highlight, the select pop and
+// the check mark plop.
+
+/** Every GoopComboboxList engine prop (GoopSelectContent's, minus `bloomFrom`). */
+export const COMBOBOX_PROP_KEYS = [
+  'goo',
+  'flow',
+  'flowStyle',
+  'bloomStart',
+  'bridge',
+  'wobble',
+  'momentum',
+  'fade',
+  'openSlosh',
+  'openDrips',
+  'closeSlosh',
+  ...EMERGE_DRIP_KEYS,
+  ..._COMBOBOX_EFFECTS,
+  'followPointer',
+  'surface',
+  'speed',
+  'preset',
+  'renderer',
+] as const
+
+/** Engine props of GoopComboboxList. Every toggle defaults on. */
+export interface GoopComboboxProps {
+  /** Master switch. `false` renders a plain shadcn popover list. */
+  goo?: boolean
+  /** The list opens in `flowStyle` (false: it inflates from a bulb at the input edge). */
+  flow?: boolean
+  /** 'bloom' (default: pools from the list's own center, spreads, overshoots, splashes) or
+   *  'neck' (out of the input through a thick neck). */
+  flowStyle?: _EmergeFlowStyle
+  /** Bloom start: 'single' (default: one droplet swells) or 'merge' (a few drops fuse). */
+  bloomStart?: EmergeBloomStart
+  /** Bulb + lumpy neck between the input and the list (not used by bloom). */
+  bridge?: boolean
+  /** Jelly overshoot: the open overshoot and settle, the highlight overshoot, the plop wobble. */
+  wobble?: boolean
+  /** The panel's launch (not used by bloom), and the highlight's stretch + neck as it travels. */
+  momentum?: boolean
+  /** The items fade in once the goo settles. */
+  fade?: boolean
+  /** On open, every edge overshoots, rebounds and wobbles. */
+  openSlosh?: boolean
+  /** On open, the edges splash (drops kept off the input). */
+  openDrips?: boolean
+  /** Splash drop count scale (0..3, default 1). */
+  openDripAmount?: number
+  /** Splash drop size scale (0.3..2.5, default 1). */
+  openDripSize?: number
+  /** How far splash drops are flung (0..3, default 1). */
+  openDripFling?: number
+  /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
+  openDripVariety?: number
+  /** 0..1: how differently each side bulges on open and sloshes on close. Default 1. */
+  sloshVariety?: number
+  /** On close, the list pulls in and wobbles before it shrinks back. */
+  closeSlosh?: boolean
+  /** The item highlight is a goo blob that glides between items (false: shadcn's flat bg). */
+  highlight?: boolean
+  /** Jelly squish of the highlight when an item is chosen, before the list closes. */
+  pop?: boolean
+  /** The chosen item's check mark plops in: falls in small, squashes as it lands, jiggles back. */
+  plop?: boolean
+  /** The highlight's swell follows the pointer with a little lag (keyboard: centred). */
+  followPointer?: boolean
+  /** Panel color: 'popover' (default), 'trigger', or any CSS color. */
+  surface?: EmergeSurfaceColor
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+// `bloomOrigin` stays the panel's center: a combobox list always blooms from its own center.
+type ComboboxAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'surfaceColor' | 'find' | 'feel' | 'reducedMotion' | 'detached' | 'bloomOrigin'
+type ComboboxUnhandled = Exclude<
+  keyof EmergeOptions | keyof _MenuHighlightOptions | keyof _SelectPlopOptions | _ComboboxEffect,
+  keyof GoopComboboxProps | ComboboxAdapterOwned
+>
+const _allComboboxOptionsHandled: [ComboboxUnhandled] extends [never] ? true : { unhandled: ComboboxUnhandled } = true
+void _allComboboxOptionsHandled
+type ComboboxPropsListed = Exclude<keyof GoopComboboxProps, (typeof COMBOBOX_PROP_KEYS)[number]>
+const _allComboboxPropsListed: [ComboboxPropsListed] extends [never] ? true : { unlisted: ComboboxPropsListed } = true
+void _allComboboxPropsListed
+
+/** Fully resolved combobox list settings (no undefined toggles). */
+export interface ResolvedComboboxProps
+  extends Required<Omit<GoopComboboxProps, 'preset' | 'renderer' | (typeof EMERGE_DRIP_KEYS)[number]>>,
+    Pick<GoopComboboxProps, (typeof EMERGE_DRIP_KEYS)[number]> {
+  preset?: GoopPreset
+  renderer?: GoopRendererOption
+}
+
+const COMBOBOX_TOGGLES = ['goo', 'flow', 'bridge', 'wobble', 'momentum', 'fade', 'openSlosh', 'openDrips', 'closeSlosh', ..._COMBOBOX_EFFECTS, 'followPointer'] as const
+
+/** Resolve combobox list props over the defaults (as @goopui/vue's resolveComboboxProps). */
+export function resolveComboboxProps(props: GoopComboboxProps): ResolvedComboboxProps {
+  const out = { speed: props.speed ?? 1 } as ResolvedComboboxProps
+  for (const k of COMBOBOX_TOGGLES) out[k] = props[k] ?? true
+  for (const k of EMERGE_DRIP_KEYS) if (props[k] !== undefined) out[k] = props[k]
+  out.flowStyle = props.flowStyle ?? 'bloom'
+  out.bloomStart = props.bloomStart ?? 'single'
+  out.surface = props.surface ?? 'popover'
+  out.preset = props.preset
+  out.renderer = props.renderer
+  return out
+}
+
+/** Core options for the list (emerge), the highlight blob and the check plop, over app
+ *  config. `highlight` / `plop` are null when off. */
+export function toComboboxOptions(
+  c: ResolvedComboboxProps,
+  config: GoopOptions = {},
+): { emerge: EmergeOptions; highlight: _MenuHighlightOptions | null; plop: _SelectPlopOptions | null } {
+  const common = { speed: c.speed, preset: c.preset ?? config.preset, renderer: c.renderer ?? config.renderer, reducedMotion: config.reducedMotion }
+  return {
+    emerge: {
+      ...common,
+      flow: c.flow,
+      flowStyle: c.flowStyle,
+      bloomStart: c.bloomStart,
+      bridge: c.bridge,
+      wobble: c.wobble,
+      momentum: c.momentum,
+      fade: c.fade,
+      openSlosh: c.openSlosh,
+      openDrips: c.openDrips,
+      closeSlosh: c.closeSlosh,
+      openDripAmount: c.openDripAmount,
+      openDripSize: c.openDripSize,
+      openDripFling: c.openDripFling,
+      openDripVariety: c.openDripVariety,
+      sloshVariety: c.sloshVariety,
+      surfaceColor: c.surface,
+    },
+    highlight: c.goo && c.highlight ? { ...common, wobble: c.wobble, momentum: c.momentum, pop: c.pop, followPointer: c.followPointer } : null,
+    plop: c.goo && c.plop ? { speed: c.speed, preset: c.preset ?? config.preset, wobble: c.wobble, reducedMotion: config.reducedMotion } : null,
+  }
+}
+
+// GoopNumberField: core `attachNumberField`, the Input's ring (INPUT_EFFECTS) plus the
+// steppers' squish and nudge (NUMBER_FIELD_EFFECTS), and speed / preset / renderer.
+
+/** Every GoopNumberField engine prop. */
+export const NUMBER_FIELD_PROP_KEYS = effectKeys(_NUMBER_FIELD_EFFECTS)
+export type GoopNumberFieldEngineProps = GoopEffectProps<_NumberFieldEffect>
+type NumberFieldUnhandled = Exclude<keyof _NumberFieldOptions, keyof GoopNumberFieldEngineProps | 'invalid' | 'reducedMotion'>
+const _allNumberFieldOptionsHandled: [NumberFieldUnhandled] extends [never] ? true : { unhandled: NumberFieldUnhandled } = true
+void _allNumberFieldOptionsHandled
+
+/** Number field options from props, over app config. */
+export function toNumberFieldOptions(props: GoopNumberFieldEngineProps, config: GoopOptions = {}): _NumberFieldOptions {
+  return toEffectOptions(_NUMBER_FIELD_EFFECTS, props, config)
+}
+
+// GoopInputOTP: core `attachInputOTP`, OTP_EFFECTS (flood, flow, wobble, pulse) plus speed /
+// preset / renderer.
+
+/** Every GoopInputOTP engine prop. */
+export const INPUT_OTP_PROP_KEYS = effectKeys(_OTP_EFFECTS)
+export type GoopInputOTPEngineProps = GoopEffectProps<_OtpEffect>
+type InputOTPUnhandled = Exclude<keyof _InputOTPOptions, keyof GoopInputOTPEngineProps | 'reducedMotion'>
+const _allInputOTPOptionsHandled: [InputOTPUnhandled] extends [never] ? true : { unhandled: InputOTPUnhandled } = true
+void _allInputOTPOptionsHandled
+
+/** Input OTP options from props, over app config. */
+export function toInputOTPOptions(props: GoopInputOTPEngineProps, config: GoopOptions = {}): _InputOTPOptions {
+  return toEffectOptions(_OTP_EFFECTS, props, config)
+}
+
+import {
+  COMBOBOX_EFFECTS as _COMBOBOX_EFFECTS,
+  COMMAND_EFFECTS as _COMMAND_EFFECTS,
+  INPUT_EFFECTS as _INPUT_EFFECTS,
+  NUMBER_FIELD_EFFECTS as _NUMBER_FIELD_EFFECTS,
+  OTP_EFFECTS as _OTP_EFFECTS,
+  TOASTER_EFFECTS as _TOASTER_EFFECTS,
+  type ComboboxEffect as _ComboboxEffect,
+  type CommandEffect as _CommandEffect,
+  type EmergeFlowStyle as _EmergeFlowStyle,
+  type InputEffect as _InputEffect,
+  type InputOptions as _InputOptions,
+  type InputOTPOptions as _InputOTPOptions,
+  type MenuHighlightOptions as _MenuHighlightOptions,
+  type NumberFieldEffect as _NumberFieldEffect,
+  type NumberFieldOptions as _NumberFieldOptions,
+  type OtpEffect as _OtpEffect,
+  type SelectPlopOptions as _SelectPlopOptions,
+  type ToasterEffect as _ToasterEffect,
+  type ToasterOptions as _ToasterOptions,
+} from '@goopui/core'

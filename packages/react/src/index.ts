@@ -81,3 +81,36 @@ export { seedFrom, useAttached, useGoop, type UseGoopReturn } from './use-goop'
 export { cn } from 'cn'
 // Engine types used in props and refs.
 export type { BackdropHandle, CardHandle, CheckboxHandle, CheckboxState, EmergeHandle, GoopHandle, GoopOptions, GoopPreset, MenuHighlightHandle, SkeletonRevealHandle, SpinnerHandle, SpinnerVariant, SwitchHandle } from '@goopui/core'
+// Bespoke batch 1: Toaster (sonner), Command (cmdk), Combobox (cmdk + Popover), NumberField, InputOTP (input-otp).
+export * from './components/sonner'
+export * from './components/command'
+export * from './components/combobox'
+export * from './components/number-field'
+export * from './components/input-otp'
+export {
+  COMBOBOX_PROP_KEYS,
+  COMMAND_DIALOG_PROP_KEYS,
+  COMMAND_INPUT_PROP_KEYS,
+  COMMAND_PROP_KEYS,
+  INPUT_OTP_PROP_KEYS,
+  NUMBER_FIELD_PROP_KEYS,
+  TOASTER_PROP_KEYS,
+  resolveComboboxProps,
+  resolveCommandProps,
+  toComboboxOptions,
+  toCommandInputOptions,
+  toCommandOptions,
+  toInputOTPOptions,
+  toNumberFieldOptions,
+  toToasterOptions,
+  type GoopComboboxProps,
+  type GoopCommandDialogProps,
+  type GoopCommandInputEngineProps,
+  type GoopCommandProps,
+  type GoopInputOTPEngineProps,
+  type GoopNumberFieldEngineProps,
+  type GoopToasterProps,
+  type ResolvedComboboxProps,
+  type ResolvedCommandProps,
+} from './goop-props'
+export type { InputOTPHandle, NumberFieldHandle, ToasterHandle } from '@goopui/core'

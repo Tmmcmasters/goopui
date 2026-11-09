@@ -402,3 +402,28 @@
       inset 0 1px 2px color-mix(in oklab, var(--sidebar-primary, var(--primary)) 8%, transparent);
   }
 }
+
+/* Command (GoopCommandList): shadcn's selected item is bg-muted, not the menus' accent. The
+   combobox list keeps the menus' accent (shadcn's combobox items use bg-accent). */
+@layer components {
+  [data-slot='command-list'] [data-goop='highlight'] {
+    --goop-color: var(--muted);
+  }
+  /* The OTP fake caret holds still under the site's reduced-motion switch too. */
+  :root[data-reduced-motion='true'] [data-goop-caret] {
+    animation: none;
+  }
+}
+
+/* InputOTP (GoopInputOTPSlot): shadcn's fake caret blink (its `caret-blink` keyframes). */
+@keyframes goop-caret-blink {
+  0%,
+  70%,
+  100% {
+    opacity: 1;
+  }
+  20%,
+  50% {
+    opacity: 0;
+  }
+}
