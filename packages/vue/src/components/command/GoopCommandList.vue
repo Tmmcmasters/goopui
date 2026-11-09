@@ -5,7 +5,8 @@
 // items as the arrow keys or the pointer move reka's highlight, stretches with momentum, and
 // shrinks out when a filter hides the highlighted item (`findCommandHighlight`). The list
 // clips the blob's overshoot (`overflow: clip`), so it never adds scroll overflow. Reduced
-// motion: the blob snaps to the item.
+// motion: the blob snaps to the item. The list is named "Suggestions" (cmdk's default, as in
+// shadcn/ui) unless given an aria-label: a listbox needs a name.
 // With the command's `ignoreFilter`, the parent renders (and reorders) the items itself, maybe
 // after the search changes (async results): any change to the items re-reads the blob's
 // target, and when the highlighted item is removed, the first item is highlighted (reka
@@ -84,6 +85,7 @@ onBeforeUnmount(() => {
 <template>
   <ListboxContent
     data-slot="command-list"
+    aria-label="Suggestions"
     v-bind="delegated"
     :class="cn('max-h-72 scroll-py-1 overflow-x-hidden overflow-y-auto outline-none', props.class)"
   >

@@ -60,7 +60,8 @@ describe('SSR (react-dom/server): display batch', () => {
       expect(a).toContain('data-slot="table-container"')
       expect(a).toContain('data-goop-table')
       expect(a).toContain('data-slot="table-caption"')
-      expect(a).toContain('role="list"')
+      // A link item: the group is a plain <div> of links (no list / listitem roles).
+      expect(a).not.toContain('role="list')
       expect(a).toContain('data-slot="item-description"')
       expect(a).toContain('data-slot="item-separator"')
       expect(a).toContain('data-slot="input-group-goo"')

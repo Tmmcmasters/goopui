@@ -24,12 +24,12 @@ const { isReact } = useFramework()
   </div>
 
   <div v-else-if="set === 'effects'" class="grid gap-4">
-    <GoopInputOTP preset="wild" type="number">
+    <GoopInputOTP preset="wild" type="number" aria-label="Wild code">
       <GoopInputOTPGroup>
         <GoopInputOTPSlot v-for="i in 4" :key="i" :index="i - 1" />
       </GoopInputOTPGroup>
     </GoopInputOTP>
-    <GoopInputOTP :flow="false" :pulse="false" type="number">
+    <GoopInputOTP :flow="false" :pulse="false" type="number" aria-label="Code without flow or pulse">
       <GoopInputOTPGroup>
         <GoopInputOTPSlot v-for="i in 4" :key="i" :index="i - 1" />
       </GoopInputOTPGroup>
@@ -37,12 +37,12 @@ const { isReact } = useFramework()
   </div>
 
   <div v-else class="grid gap-4">
-    <GoopInputOTP disabled :default-value="['1', '2', '3', '4']">
+    <GoopInputOTP disabled :default-value="['1', '2', '3', '4']" aria-label="Disabled code">
       <GoopInputOTPGroup>
         <GoopInputOTPSlot v-for="i in 4" :key="i" :index="i - 1" />
       </GoopInputOTPGroup>
     </GoopInputOTP>
-    <GoopInputOTP :goo="false">
+    <GoopInputOTP :goo="false" aria-label="Code without goo">
       <GoopInputOTPGroup>
         <GoopInputOTPSlot v-for="i in 4" :key="i" :index="i - 1" />
       </GoopInputOTPGroup>

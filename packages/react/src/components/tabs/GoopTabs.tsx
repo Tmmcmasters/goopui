@@ -10,7 +10,7 @@
 import { attachTabsIndicator, type MenuHighlightHandle } from '@goopui/core'
 import { cn } from 'cn'
 import { Tabs as TabsPrimitive } from 'radix-ui'
-import { createContext, forwardRef, useContext, useImperativeHandle, useRef, type ComponentPropsWithoutRef, type MouseEvent, type Ref } from 'react'
+import { createContext, forwardRef, useCallback, useContext, useImperativeHandle, useMemo, useRef, useState, type ComponentPropsWithoutRef, type MouseEvent, type Ref } from 'react'
 import { useGoopConfig } from '../../config'
 import { TABS_PROP_KEYS, splitProps, toTabsOptions, type GoopSoundProps, type GoopTabsProps } from '../../goop-props'
 import { GoopSoundScope, useGoopCue, useGoopSound } from '../../sound'
@@ -23,21 +23,52 @@ const ListContext = createContext<{ blob: boolean } | null>(null)
 
 export type GoopTabsRootProps = ComponentPropsWithoutRef<typeof TabsPrimitive.Root> & GoopSoundProps
 
+/** The selected tab's value and the values that have a GoopTabsContent panel (undefined
+ *  outside a GoopTabs). */
+interface TabsState {
+  value: string | undefined
+  panels: ReadonlySet<string>
+  addPanel: (value: string) => () => void
+}
+const ValueContext = createContext<TabsState | undefined>(undefined)
+
 export const GoopTabs = forwardRef<HTMLDivElement, GoopTabsRootProps>(function GoopTabs(
-  { className, orientation = 'horizontal', sound, ...props },
+  { className, orientation = 'horizontal', sound, value: valueProp, defaultValue, onValueChange, ...props },
   ref,
 ) {
   const on = useGoopSound(sound)
+  // Controlled or not, the selected value is known here so every panel can stay in the DOM.
+  const [inner, setInner] = useState(defaultValue)
+  const value = valueProp !== undefined ? valueProp : inner
+  const onChange = (v: string): void => {
+    if (valueProp === undefined) setInner(v)
+    onValueChange?.(v)
+  }
+  const [panels, setPanels] = useState<ReadonlySet<string>>(() => new Set())
+  const addPanel = useCallback((v: string) => {
+    setPanels((p) => (p.has(v) ? p : new Set(p).add(v)))
+    return () =>
+      setPanels((p) => {
+        const next = new Set(p)
+        next.delete(v)
+        return next
+      })
+  }, [])
+  const ctx = useMemo(() => ({ value, panels, addPanel }), [value, panels, addPanel])
   return (
     <GoopSoundScope sound={sound === undefined ? undefined : on}>
-      <TabsPrimitive.Root
-        ref={ref}
-        data-slot="tabs"
-        data-orientation={orientation}
-        orientation={orientation}
-        className={cn(TABS_ROOT, className)}
-        {...props}
-      />
+      <ValueContext.Provider value={ctx}>
+        <TabsPrimitive.Root
+          ref={ref}
+          data-slot="tabs"
+          data-orientation={orientation}
+          orientation={orientation}
+          className={cn(TABS_ROOT, className)}
+          value={value ?? ''}
+          onValueChange={onChange}
+          {...props}
+        />
+      </ValueContext.Provider>
     </GoopSoundScope>
   )
 })
@@ -120,12 +151,17 @@ function focusWithoutRing(event: MouseEvent<HTMLButtonElement>): void {
 export const GoopTabsTrigger = forwardRef<HTMLButtonElement, GoopTabsTriggerProps>(function GoopTabsTrigger({ className, onMouseDown, ...props }, ref) {
   const list = useContext(ListContext)
   const cue = useGoopCue('tabsTrigger')
+  // Radix always points aria-controls at a panel id; a tab list without panels (a segmented
+  // control) would reference nothing. Like reka-ui, only name a panel that is there.
+  const root = useContext(ValueContext)
+  const noPanel = root && !root.panels.has(props.value) ? { 'aria-controls': undefined } : null
   return (
     <TabsPrimitive.Trigger
       ref={ref}
       data-slot="tabs-trigger"
       className={cn(...(list?.blob ? tabsTriggerGooClass : tabsTriggerClass), className)}
       {...cue}
+      {...noPanel}
       {...props}
       onMouseDown={(event) => {
         onMouseDown?.(event)
@@ -138,7 +174,22 @@ GoopTabsTrigger.displayName = 'GoopTabsTrigger'
 
 export type GoopTabsContentProps = ComponentPropsWithoutRef<typeof TabsPrimitive.Content>
 
-export const GoopTabsContent = forwardRef<HTMLDivElement, GoopTabsContentProps>(function GoopTabsContent({ className, ...props }, ref) {
-  return <TabsPrimitive.Content ref={ref} data-slot="tabs-content" className={cn(TABS_CONTENT, className)} {...props} />
+export const GoopTabsContent = forwardRef<HTMLDivElement, GoopTabsContentProps>(function GoopTabsContent(
+  { className, forceMount, children, ...props },
+  ref,
+) {
+  const root = useContext(ValueContext)
+  const add = root?.addPanel
+  useIsomorphicLayoutEffect(() => add?.(props.value), [add, props.value])
+  if (!root) return <TabsPrimitive.Content ref={ref} data-slot="tabs-content" className={cn(TABS_CONTENT, className)} forceMount={forceMount} {...props}>{children}</TabsPrimitive.Content>
+  // Like reka-ui (GoopTabs in Vue): every panel element stays in the DOM, `hidden` while
+  // inactive, so each trigger's aria-controls points at a real element; an inactive panel's
+  // children still unmount unless `forceMount`.
+  const selected = root.value === props.value
+  return (
+    <TabsPrimitive.Content ref={ref} data-slot="tabs-content" className={cn(TABS_CONTENT, className)} forceMount hidden={!selected} {...props}>
+      {selected || forceMount ? children : null}
+    </TabsPrimitive.Content>
+  )
 })
 GoopTabsContent.displayName = 'GoopTabsContent'

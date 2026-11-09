@@ -246,6 +246,22 @@ describe('attachToggle / attachToggleGroup', () => {
     t.destroy()
   })
 
+  it('group: goo parts that match the item selector (text-follow copies) are not items', () => {
+    const root = document.createElement('div')
+    const items = [button(true), button()]
+    for (const b of items) b.setAttribute('data-slot', 'item')
+    // A text-follow copy clones its item's data-* attributes.
+    const copy = document.createElement('span')
+    copy.setAttribute('data-slot', 'item')
+    copy.setAttribute('data-state', 'on')
+    copy.setAttribute(GOOP_PART_ATTR, 'text')
+    root.append(...items, copy)
+    document.body.append(root)
+    const h = attachToggleGroup(root, { item: '[data-slot="item"]' })
+    expect(h.pose!.levels).toEqual([1, 0])
+    h.destroy()
+  })
+
   it('group: deselecting mid-flow keeps the blob in flight instead of dropping it', () => {
     const root = document.createElement('div')
     const items = [button(true), button(), button()]

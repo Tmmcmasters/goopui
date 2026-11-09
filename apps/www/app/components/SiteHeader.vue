@@ -21,8 +21,9 @@ const links = [
 ]
 const here = computed(() => canonicalPath(route.path))
 const isActive = (match: string) => here.value.startsWith(match)
-const { stars } = useGithubStars()
-const githubLabel = computed(() => (stars.value === null ? 'goopUI on GitHub' : `goopUI on GitHub, ${stars.value} stars`))
+// The name starts from the visible count ("4.3k"), so voice users can say what they see.
+const { stars, label: starsLabel } = useGithubStars()
+const githubLabel = computed(() => (stars.value === null ? 'goopUI on GitHub' : `${starsLabel.value} stars, goopUI on GitHub`))
 // The landing keeps the header quiet: see-through over the lava lamp, just Docs + GitHub + sound + theme.
 const landing = computed(() => route.path === '/')
 // One goo blob is the hover / keyboard-focus background of the header's links and icon

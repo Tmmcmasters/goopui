@@ -411,7 +411,7 @@ export const GoopCarouselDots = forwardRef<HTMLDivElement, GoopCarouselDotsProps
       data-slot="carousel-dots"
       data-goop-carousel-dots={goo.dots ? '' : undefined}
       data-orientation={orientation}
-      className={cn('flex items-center justify-center gap-2.5', orientation === 'vertical' && 'flex-col', className)}
+      className={cn('flex items-center justify-center gap-4', orientation === 'vertical' && 'flex-col', className)}
       {...props}
     >
       {Array.from({ length: snapCount }, (_, i) => (

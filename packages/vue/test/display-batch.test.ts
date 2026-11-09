@@ -18,6 +18,7 @@ import {
   GoopItem,
   GoopItemContent,
   GoopItemGroup,
+  GoopItemSeparator,
   GoopItemTitle,
   GoopTable,
   GoopTableBody,
@@ -53,6 +54,10 @@ const items = (props: Record<string, unknown> = {}, itemProps: Record<string, un
     h(GoopItem, { as: 'a', href: '#a', variant: 'outline', ...itemProps }, () => h(GoopItemContent, null, () => h(GoopItemTitle, null, () => 'A'))),
     h(GoopItem, null, () => 'Plain'),
   ])
+
+// A group of plain items (a list), with a separator.
+const plainItems = (props: Record<string, unknown> = {}) =>
+  h(GoopItemGroup, props, () => [h(GoopItem, null, () => 'One'), h(GoopItemSeparator), h(GoopItem, { variant: 'outline' }, () => 'Two')])
 
 const group = (props: Record<string, unknown> = {}) =>
   h(GoopInputGroup, { class: 'max-w-sm', ...props }, () => [
@@ -119,7 +124,8 @@ describe('GoopItem / GoopItemGroup', () => {
     const w = mount({ render: () => items() }, { attachTo: document.body })
     await nextTick()
     const g = w.find('[data-slot="item-group"]')
-    expect(g.attributes('role')).toBe('list')
+    // A link item: no list semantics (see the list semantics tests).
+    expect(g.attributes('role')).toBeUndefined()
     expect(g.attributes('data-goop-item-group')).toBe('')
     expect(g.find(':scope > [data-goop="highlight"]').exists()).toBe(true)
     const a = w.find('a[data-slot="item"]')
@@ -139,6 +145,68 @@ describe('GoopItem / GoopItemGroup', () => {
     a.element.dispatchEvent(new PointerEvent('pointerdown', { button: 0 }))
     await new Promise((r) => setTimeout(r, 60))
     expect((a.element as HTMLElement).style.scale).toBe('')
+    w.unmount()
+  })
+})
+
+describe('GoopItemGroup list semantics', () => {
+  it('plain items: a role="list" of listitems; the separator and the blob are not items', async () => {
+    const w = mount({ render: () => plainItems() }, { attachTo: document.body })
+    await nextTick()
+    const g = w.find('[data-slot="item-group"]')
+    expect(g.attributes('role')).toBe('list')
+    expect(w.findAll('[data-slot="item"]').map((i) => i.attributes('role'))).toEqual(['listitem', 'listitem'])
+    expect(w.find('[data-slot="item-separator"]').attributes('role')).toBe('none')
+    expect(g.find(':scope > [data-goop="highlight"]').attributes('aria-hidden')).toBe('true')
+    w.unmount()
+  })
+
+  it('an as-child link keeps its link semantics; the group drops role="list"', async () => {
+    const w = mount(
+      {
+        render: () =>
+          h(GoopItemGroup, null, () => [
+            ...['a', 'b'].map((k) => h(GoopItem, { key: k, asChild: true }, () => h('a', { href: `#${k}` }, k))),
+            h(GoopItemSeparator),
+            h(GoopItem, null, () => 'Plain'),
+          ]),
+      },
+      { attachTo: document.body },
+    )
+    await nextTick()
+    expect(w.find('[data-slot="item-group"]').attributes('role')).toBeUndefined()
+    for (const a of w.findAll('a[data-slot="item"]')) expect(a.attributes('role')).toBeUndefined()
+    expect(w.find('div[data-slot="item"]').attributes('role')).toBeUndefined()
+    w.unmount()
+  })
+
+  it('as="button" and v-for fragments count as interactive', async () => {
+    const w = mount({ render: () => h(GoopItemGroup, null, () => [h(GoopItem, null, () => 'x'), [h(GoopItem, { as: 'button' }, () => 'B')]]) })
+    expect(w.find('[data-slot="item-group"]').attributes('role')).toBeUndefined()
+    expect(w.find('button').attributes('role')).toBeUndefined()
+    w.unmount()
+  })
+
+  it('role is overridable on the group and on an item', async () => {
+    const w = mount({ render: () => [plainItems({ role: 'group' }), h(GoopItemGroup, null, () => h(GoopItem, { role: 'note' }, () => 'n'))] })
+    const [a, b] = w.findAll('[data-slot="item-group"]')
+    expect(a!.attributes('role')).toBe('group')
+    expect(a!.find('[data-slot="item"]').attributes('role')).toBeUndefined()
+    expect(b!.attributes('role')).toBe('list')
+    expect(b!.find('[data-slot="item"]').attributes('role')).toBe('note')
+    w.unmount()
+  })
+
+  it('updates when an interactive item is added', async () => {
+    const { ref } = await import('vue')
+    const link = ref(false)
+    const w = mount({ render: () => h(GoopItemGroup, null, () => [h(GoopItem, null, () => 'x'), link.value ? h(GoopItem, { as: 'a', href: '#' }, () => 'L') : null]) })
+    expect(w.find('[data-slot="item-group"]').attributes('role')).toBe('list')
+    link.value = true
+    await nextTick()
+    await nextTick()
+    expect(w.find('[data-slot="item-group"]').attributes('role')).toBeUndefined()
+    expect(w.find('div[data-slot="item"]').attributes('role')).toBeUndefined()
     w.unmount()
   })
 })
@@ -190,8 +258,9 @@ describe('GoopInputGroup', () => {
 
 describe('hydration', () => {
   it('hydrates without mismatch warnings and attaches after mount', async () => {
-    const App = { render: () => [table({ selected: true }), items(), group()] }
+    const App = { render: () => [table({ selected: true }), items(), plainItems(), group()] }
     const html = await renderToString(createSSRApp(App))
+    expect(html).toContain('role="listitem"')
     expect(html).not.toContain('data-goop="highlight"')
     expect(html).not.toContain('data-goop="layer"')
     const root = document.createElement('div')
@@ -209,6 +278,11 @@ describe('hydration', () => {
     expect(root.querySelector('[data-goop="table-stage"] [data-goop="highlight"]')).not.toBeNull()
     expect(root.querySelector('[data-slot="item-group"] > [data-goop="highlight"]')).not.toBeNull()
     expect(root.querySelector('[data-slot="input-group-goo"][data-goop-active]')).not.toBeNull()
+    // The server's roles survive hydration: the link group has none, the plain group is a list.
+    const [links, plain] = root.querySelectorAll('[data-slot="item-group"]')
+    expect(links!.hasAttribute('role')).toBe(false)
+    expect(plain!.getAttribute('role')).toBe('list')
+    expect([...plain!.querySelectorAll('[data-slot="item"]')].map((i) => i.getAttribute('role'))).toEqual(['listitem', 'listitem'])
     app.unmount()
     expect(root.querySelector('[data-goop="highlight"]')).toBeNull()
   })

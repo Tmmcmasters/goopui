@@ -274,17 +274,17 @@ export function ToggleDemo({ set, pg }: { set: string; pg: Pg }) {
     switch (set) {
       case 'basic':
         return (
-          <GoopToggle pressed={bold} onPressedChange={setBold} aria-label="Toggle bold" {...pg.main}>
-            <span className="font-bold">B</span> Bold
+          <GoopToggle pressed={bold} onPressedChange={setBold} {...pg.main}>
+            <span className="font-bold" aria-hidden="true">B</span> Bold
           </GoopToggle>
         )
       case 'variants':
         return (
           <>
-            <GoopToggle aria-label="Default variant" defaultPressed>Default</GoopToggle>
-            <GoopToggle variant="outline" aria-label="Outline variant" defaultPressed>Outline</GoopToggle>
-            <GoopToggle size="sm" aria-label="Small">sm</GoopToggle>
-            <GoopToggle size="lg" aria-label="Large">lg</GoopToggle>
+            <GoopToggle defaultPressed>Default</GoopToggle>
+            <GoopToggle variant="outline" defaultPressed>Outline</GoopToggle>
+            <GoopToggle size="sm">sm</GoopToggle>
+            <GoopToggle size="lg">lg</GoopToggle>
           </>
         )
       case 'single':
@@ -308,10 +308,10 @@ export function ToggleDemo({ set, pg }: { set: string; pg: Pg }) {
       default:
         return (
           <>
-            <GoopToggle disabled aria-label="Disabled">Disabled</GoopToggle>
-            <GoopToggle droplets={false} wobble={false} aria-label="Flood only">Flood only</GoopToggle>
-            <GoopToggle preset="wild" aria-label="Wild">Wild</GoopToggle>
-            <GoopToggle goo={false} aria-label="Plain shadcn">Plain</GoopToggle>
+            <GoopToggle disabled>Disabled</GoopToggle>
+            <GoopToggle droplets={false} wobble={false}>Flood only</GoopToggle>
+            <GoopToggle preset="wild">Wild</GoopToggle>
+            <GoopToggle goo={false}>Plain</GoopToggle>
           </>
         )
     }

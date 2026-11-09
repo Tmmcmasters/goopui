@@ -15,15 +15,15 @@ const { isReact } = useFramework()
   <ReactIsland v-if="isReact" demo="toggle" :set="set" :pg="{ main: pg.props }" />
   <!-- Pressed toggles are Slime: the site sets --goop-toggle-on (assets/css/main.css). -->
   <div v-else class="contents">
-  <GoopToggle v-if="set === 'basic'" v-model="bold" aria-label="Toggle bold" v-bind="pg.props">
-    <span class="font-bold">B</span> Bold
+  <GoopToggle v-if="set === 'basic'" v-model="bold" v-bind="pg.props">
+    <span class="font-bold" aria-hidden="true">B</span> Bold
   </GoopToggle>
 
   <template v-else-if="set === 'variants'">
-    <GoopToggle aria-label="Default variant" default-value>Default</GoopToggle>
-    <GoopToggle variant="outline" aria-label="Outline variant" default-value>Outline</GoopToggle>
-    <GoopToggle size="sm" aria-label="Small">sm</GoopToggle>
-    <GoopToggle size="lg" aria-label="Large">lg</GoopToggle>
+    <GoopToggle default-value>Default</GoopToggle>
+    <GoopToggle variant="outline" default-value>Outline</GoopToggle>
+    <GoopToggle size="sm">sm</GoopToggle>
+    <GoopToggle size="lg">lg</GoopToggle>
   </template>
 
   <GoopToggleGroup v-else-if="set === 'single'" v-model="align" type="single" variant="outline" aria-label="Text alignment">
@@ -41,10 +41,10 @@ const { isReact } = useFramework()
   </GoopToggleGroup>
 
   <template v-else>
-    <GoopToggle disabled aria-label="Disabled">Disabled</GoopToggle>
-    <GoopToggle :droplets="false" :wobble="false" aria-label="Flood only">Flood only</GoopToggle>
-    <GoopToggle preset="wild" aria-label="Wild">Wild</GoopToggle>
-    <GoopToggle :goo="false" aria-label="Plain shadcn">Plain</GoopToggle>
+    <GoopToggle disabled>Disabled</GoopToggle>
+    <GoopToggle :droplets="false" :wobble="false">Flood only</GoopToggle>
+    <GoopToggle preset="wild">Wild</GoopToggle>
+    <GoopToggle :goo="false">Plain</GoopToggle>
   </template>
   </div>
 </template>

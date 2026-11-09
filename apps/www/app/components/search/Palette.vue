@@ -217,9 +217,9 @@ const shortcutAria = 'Meta+K Control+K /'
     aria-haspopup="dialog"
     :aria-expanded="open"
     :aria-keyshortcuts="shortcutAria"
-    aria-label="Search docs"
     @click="show"
   >
+    <!-- Named by its visible text ("Search docs…"), so voice control matches what it shows. -->
     <SiteIcon name="search" :size="15" />
     <span class="flex-1 truncate text-left">Search docs…</span>
     <kbd class="search-kbd" aria-hidden="true">{{ shortcut }}</kbd>

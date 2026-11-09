@@ -2,6 +2,8 @@ name: CI
 
 # check:             build, typecheck, test (every run).
 # hydration:         `pnpm check:hydration` (www `nuxt generate` + every page in headless Chromium).
+# demos:             `pnpm check:demos` (www `nuxt generate`, then drives every component demo in
+#                    Vue and React at desktop + phone width, and runs axe-core on each page).
 # package-managers:  `pnpm check:package-managers` (npm/pnpm/yarn1/yarn4/bun x Vue/React/Next),
 #                    only when the published surface may have changed, or on manual dispatch.
 # registry:          `pnpm check:registry` (shadcn / shadcn-vue CLI installs every registry item
@@ -68,6 +70,37 @@ jobs:
         with:
           name: hydration-log
           path: hydration.log
+          if-no-files-found: ignore
+
+  demos:
+    runs-on: ubuntu-24.04 # Playwright 1.59 has no Chromium for Ubuntu 26 (ubuntu-latest)
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      # Also builds the library packages (their `prepare` scripts), which www links to.
+      - run: pnpm install --frozen-lockfile
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      # No CHROMIUM_PATH: the scripts fall back to playwright-core's own download.
+      - run: pnpm exec playwright-core install --with-deps chromium
+      - name: pnpm check:demos
+        shell: bash # -o pipefail: tee must not hide the exit code
+        run: pnpm check:demos 2>&1 | tee demos.log
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demos-report
+          path: |
+            demos.log
+            demo-report/
           if-no-files-found: ignore
 
   changes:

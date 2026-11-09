@@ -5,7 +5,7 @@
 // drains it. The ring's effects are GoopInput's props; `:goo="false"` drops it. Reduced
 // motion: a static ring.
 import { cn } from 'cn'
-import { ComboboxInput } from 'reka-ui'
+import { ComboboxInput, injectComboboxRootContext } from 'reka-ui'
 import { computed, shallowRef, useTemplateRef, type HTMLAttributes, type PropType } from 'vue'
 import { useGoopConfig } from '../../config'
 import { goopInputProps, toInputOptions } from '../../goop-props'
@@ -48,6 +48,11 @@ const reka = computed(() => {
   return out
 })
 
+// reka keeps aria-activedescendant on the last highlighted item after the list closes and its
+// items unmount (an id that no longer exists); drop it while closed.
+const root = injectComboboxRootContext()
+const closed = computed(() => (root.open.value ? {} : { 'aria-activedescendant': undefined }))
+
 // shadcn/ui's ComboboxInput is an InputGroup: the Input's box (border-input, h-8, rounded-lg).
 const classes = computed(() => cn(inputVariants(), active.value && goopFieldActive, props.class))
 
@@ -74,7 +79,7 @@ defineExpose({
     <ComboboxInput
       :ref="setField"
       data-slot="combobox-input"
-      v-bind="{ ...reka, ...$attrs, ...cue }"
+      v-bind="{ ...reka, ...$attrs, ...cue, ...closed }"
       :class="classes"
       @update:model-value="(v: string) => emits('update:modelValue', v)"
     />

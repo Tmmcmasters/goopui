@@ -275,6 +275,33 @@ export const GoopComboboxInput = forwardRef<HTMLInputElement, GoopComboboxInputP
   useImperativeHandle(goopRef, () => handle as InputHandle, [handle])
   const active = handle !== null
 
+  // cmdk's input always says aria-expanded="true" and points aria-controls (and, after use,
+  // aria-activedescendant) at its list, which this combobox unmounts while closed: keep them true
+  // to the popover. A MutationObserver, since cmdk re-renders the input on its own.
+  const isOpen = useRef(root.open)
+  isOpen.current = root.open
+  const listId = useRef<string | null>(null)
+  const syncAria = useRef<() => void>(() => {})
+  useIsomorphicLayoutEffect(() => {
+    const el = root.input.current
+    if (!el) return
+    listId.current ??= el.getAttribute('aria-controls')
+    const sync = (): void => {
+      const open = isOpen.current
+      if (el.getAttribute('aria-expanded') !== String(open)) el.setAttribute('aria-expanded', String(open))
+      if (!open) {
+        if (el.hasAttribute('aria-controls')) el.removeAttribute('aria-controls')
+        if (el.hasAttribute('aria-activedescendant')) el.removeAttribute('aria-activedescendant')
+      } else if (listId.current && el.getAttribute('aria-controls') !== listId.current) el.setAttribute('aria-controls', listId.current)
+    }
+    syncAria.current = sync
+    sync()
+    const mo = new MutationObserver(sync)
+    mo.observe(el, { attributes: true, attributeFilter: ['aria-expanded', 'aria-controls', 'aria-activedescendant'] })
+    return () => mo.disconnect()
+  }, [root.input])
+  useIsomorphicLayoutEffect(() => syncAria.current(), [root.open])
+
   const shown = root.typed ? root.search : root.multiple ? '' : (root.selected[0] !== undefined ? (displayValue ?? String)(root.selected[0]) : '')
   const keys = (e: KeyboardEvent<HTMLInputElement>) => {
     onKeyDown?.(e)
@@ -496,6 +523,10 @@ export const GoopComboboxList = forwardRef<HTMLDivElement, GoopComboboxListProps
       <PopoverPrimitive.Content
         ref={ref}
         data-slot="combobox-list"
+        // Not a dialog: focus stays in the input and the popup is cmdk's listbox inside (the
+        // input's aria-controls), as in reka-ui's Vue combobox. Radix would add an unnamed
+        // role="dialog" around it.
+        role={undefined}
         side={side}
         align={align}
         sideOffset={sideOffset}

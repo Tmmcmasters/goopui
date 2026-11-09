@@ -222,10 +222,10 @@ export function InputOTPDemo({ set, pg }: { set: string; pg: Pg }) {
     case 'effects':
       return (
         <div className="grid gap-4">
-          <GoopInputOTP maxLength={4} preset="wild" pattern={REGEXP_ONLY_DIGITS} inputMode="numeric">
+          <GoopInputOTP maxLength={4} preset="wild" aria-label="Wild code" pattern={REGEXP_ONLY_DIGITS} inputMode="numeric">
             <GoopInputOTPGroup>{slots(0, 4)}</GoopInputOTPGroup>
           </GoopInputOTP>
-          <GoopInputOTP maxLength={4} flow={false} pulse={false} pattern={REGEXP_ONLY_DIGITS} inputMode="numeric">
+          <GoopInputOTP maxLength={4} flow={false} pulse={false} aria-label="Code without flow or pulse" pattern={REGEXP_ONLY_DIGITS} inputMode="numeric">
             <GoopInputOTPGroup>{slots(0, 4)}</GoopInputOTPGroup>
           </GoopInputOTP>
         </div>
@@ -233,10 +233,10 @@ export function InputOTPDemo({ set, pg }: { set: string; pg: Pg }) {
     case 'states':
       return (
         <div className="grid gap-4">
-          <GoopInputOTP maxLength={4} disabled defaultValue="1234">
+          <GoopInputOTP maxLength={4} disabled defaultValue="1234" aria-label="Disabled code">
             <GoopInputOTPGroup>{slots(0, 4)}</GoopInputOTPGroup>
           </GoopInputOTP>
-          <GoopInputOTP maxLength={4} goo={false}>
+          <GoopInputOTP maxLength={4} goo={false} aria-label="Code without goo">
             <GoopInputOTPGroup>{slots(0, 4)}</GoopInputOTPGroup>
           </GoopInputOTP>
         </div>

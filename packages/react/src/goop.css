@@ -127,7 +127,14 @@
     --accent: color-mix(in oklab, var(--goop-surface-foreground) 16%, var(--goop-surface));
     --accent-foreground: var(--goop-surface-foreground);
     --goop-color: var(--goop-surface);
+    /* Destructive text (menu items) pulled toward the surface's text color, so it stays
+       readable on any surface (the theme's red is 2.5:1 on a light 'trigger' surface in dark
+       mode). Set here, read by the items below (a token can't reference itself). */
+    --goop-destructive-ink: color-mix(in oklab, var(--destructive) 55%, var(--goop-surface-foreground));
     color: var(--goop-surface-foreground);
+  }
+  [data-goop-emerge][data-goop-tint] [data-variant='destructive'] {
+    --destructive: var(--goop-destructive-ink);
   }
   /* Keeps Radix's Presence mounted while the goo closes (it waits for this animation). Off
      under reduced motion (core sets data-goop-still), so close is instant. */

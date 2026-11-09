@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // GoopCommandSeparator: shadcn-vue's CommandSeparator (reka-ui Separator).
+// Always decorative (role none): a listbox may only own groups and options.
 import { cn } from 'cn'
 import type { SeparatorProps } from 'reka-ui'
 import { Separator } from 'reka-ui'
@@ -17,6 +18,7 @@ const delegated = computed(() => {
   <Separator
     data-slot="command-separator"
     v-bind="delegated"
+    decorative
     :class="cn('bg-border -mx-1 h-px', props.class)"
   />
 </template>

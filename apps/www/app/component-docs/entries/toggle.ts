@@ -26,8 +26,8 @@ const bold = ref(false)
 </script>
 
 <template>
-  <GoopToggle v-model="bold" aria-label="Toggle bold"{{main}}>
-    <span class="font-bold">B</span> Bold
+  <GoopToggle v-model="bold"{{main}}>
+    <span class="font-bold" aria-hidden="true">B</span> Bold
   </GoopToggle>
 </template>`,
   controls: [
@@ -46,8 +46,8 @@ import { useState } from 'react'
 export function Bold() {
   const [bold, setBold] = useState(false)
   return (
-    <GoopToggle pressed={bold} onPressedChange={setBold} aria-label="Toggle bold"{{main}}>
-      <span className="font-bold">B</span> Bold
+    <GoopToggle pressed={bold} onPressedChange={setBold}{{main}}>
+      <span className="font-bold" aria-hidden="true">B</span> Bold
     </GoopToggle>
   )
 }`,

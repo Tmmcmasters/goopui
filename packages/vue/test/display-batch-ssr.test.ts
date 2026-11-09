@@ -32,7 +32,8 @@ describe('display batch SSR', () => {
     expect(html).toContain('data-slot="table-container"')
     expect(html).toContain('data-goop-table')
     expect(html).toContain('data-slot="table-caption"')
-    expect(html).toContain('role="list"')
+    // A link item: the group is a plain <div> of links (no list / listitem roles).
+    expect(html).not.toContain('role="list')
     expect(html).toContain('data-slot="item-description"')
     expect(html).toContain('data-slot="item-separator"')
     expect(html).toContain('data-slot="input-group-goo"')

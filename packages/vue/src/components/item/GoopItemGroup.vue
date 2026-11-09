@@ -7,12 +7,15 @@
 // flat hover fill (goop.css). Items inherit `goo`, `press`, `speed` and `preset` from here.
 // Touch never lights an item. Reduced motion: the blob snaps. Browser-only: SSR renders
 // shadcn markup.
+// Semantics (see ./context): a `role="list"` of `listitem`s when no item is a link / button;
+// with one, a plain <div> of real links / buttons (an interactive role can't be a listitem).
+// Decided from the slot's vnodes while rendering, so SSR and hydration agree; `role` wins.
 import { attachItemGroupHighlight, type ListHighlightHandle } from '@goopui/core'
 import { cn } from 'cn'
 import { computed, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch, type HTMLAttributes } from 'vue'
 import { useGoopConfig } from '../../config'
 import { ITEM_GROUP_PROP_KEYS, toItemGroupOptions, type GoopItemGroupProps } from '../../goop-props'
-import { provideGoopItemGroup } from './context'
+import { hasInteractiveItem, provideGoopItemGroup, provideGoopItemList } from './context'
 import { ITEM_GROUP } from './styles'
 
 const props = withDefaults(defineProps<GoopItemGroupProps & { class?: HTMLAttributes['class'] }>(), {
@@ -33,6 +36,15 @@ const own = computed<GoopItemGroupProps>(() => {
   return out
 })
 provideGoopItemGroup(own)
+
+// Set while the group renders (before its items do), read by the items for their own role.
+const list = shallowRef(true)
+provideGoopItemList(list)
+const groupRole = (nodes: unknown, role: unknown): string | undefined => {
+  const isList = role != null ? role === 'list' : !hasInteractiveItem(nodes)
+  if (list.value !== isList) list.value = isList
+  return isList ? 'list' : undefined
+}
 
 const config = useGoopConfig()
 const options = computed(() => toItemGroupOptions(props, config))
@@ -70,7 +82,7 @@ defineExpose({
 </script>
 
 <template>
-  <div ref="el" role="list" data-slot="item-group" :data-goop-item-group="blob ? '' : undefined" :class="cn(ITEM_GROUP, props.class)">
+  <div ref="el" :role="groupRole($slots.default?.(), $attrs.role)" data-slot="item-group" :data-goop-item-group="blob ? '' : undefined" :class="cn(ITEM_GROUP, props.class)">
     <slot />
   </div>
 </template>
