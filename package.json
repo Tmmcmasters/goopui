@@ -28,6 +28,8 @@
     "version-packages": "changeset version",
     "release": "turbo run build --filter=./packages/* && changeset publish",
     "check:package-managers": "bash scripts/check-package-managers.sh",
+    "build:registry": "node scripts/build-registry.mjs",
+    "check:registry": "bash scripts/check-registry.sh",
     "check:exports": "bash scripts/check-exports.sh",
     "release:publish": "bash scripts/publish-release.sh"
   },

@@ -56,6 +56,25 @@ const toc = computed(() => {
   return keep(((page.value?.body as { toc?: { links?: TocLink[] } } | undefined)?.toc?.links ?? []) as TocLink[])
 })
 
+// Component pages get the "shadcn CLI" install option (components/content/ShadcnInstall.vue)
+// at the end of their Installation section (else before Usage, else before the first
+// section), so new pages have it without a markdown edit. It renders nothing when the
+// registry has no item for this framework.
+const rendered = computed(() => {
+  const p = page.value
+  const body = p?.body as { value?: MNode[] } | undefined
+  if (!p || !slug.value || !Array.isArray(body?.value)) return p
+  const nodes = body.value
+  const h2 = (n: MNode, id?: string) => Array.isArray(n) && n[0] === 'h2' && (!id || n[1]?.id === id)
+  const install = nodes.findIndex((n) => h2(n, 'installation'))
+  let at = install >= 0 ? nodes.findIndex((n, i) => i > install && h2(n)) : nodes.findIndex((n) => h2(n, 'usage'))
+  if (install >= 0 && at < 0) at = nodes.length
+  if (at < 0) at = nodes.findIndex((n) => h2(n))
+  if (at < 0) return p
+  const value: MNode[] = [...nodes.slice(0, at), ['shadcn-install', { slug: slug.value }], ...nodes.slice(at)]
+  return { ...p, body: { ...body, value } }
+})
+
 const fwPage = <T extends { path: string }>(item: T | null | undefined): T | null | undefined => (item ? { ...item, path: to(item.path) } : item)
 
 useSeoMeta({
@@ -96,7 +115,7 @@ useSeoMeta({
         </div>
       </header>
 
-      <ContentRenderer :value="page" class="prose" />
+      <ContentRenderer :value="rendered!" class="prose" />
 
       <DocsPager :prev="fwPage(surround?.[0])" :next="fwPage(surround?.[1])" />
     </article>
