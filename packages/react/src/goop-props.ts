@@ -2436,3 +2436,298 @@ import {
   type ToasterEffect as _ToasterEffect,
   type ToasterOptions as _ToasterOptions,
 } from '@goopui/core'
+
+// ---- GoopSidebar ----------------------------------------------------------------------------
+// Core's SIDEBAR_EFFECTS, each a GoopSidebar prop (same as @goopui/vue): `highlight` (the
+// menu's goo blob glides between items under the cursor: core `attachSidebarHighlight`), `pill`
+// (the active item's soft filled pill), `slosh` (the inner edge sloshes as the sidebar
+// collapses / expands: core `attachSidebarEdge`; `true`, `false` or 0..2), `travel` (the
+// collapse / expand has the Drawer's momentum: core `sidebarMotionCurve`), `submenus`
+// (GoopCollapsible sub-menus inside spring open, their row unfilled), `pour` (a sub-menu's
+// guide line pours down behind a goo bead), `tooltips` (icon-mode tooltips are GoopTooltips),
+// `drawer` (the mobile sidebar is a GoopDrawer), `bloom` (with `drawer` off, the mobile
+// GoopSheet blooms from its edge). `goo={false}` is a plain shadcn Sidebar.
+
+/** Every GoopSidebar engine prop. */
+export const SIDEBAR_PROP_KEYS = ['goo', ...SIDEBAR_EFFECTS, 'followPointer', 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopSidebar. */
+export interface GoopSidebarProps {
+  /** Master switch. `false` renders a plain shadcn Sidebar (every effect off). */
+  goo?: boolean
+  /** Hover / focus highlight is a goo blob that glides between items (false: shadcn's flat hover bg). */
+  highlight?: boolean
+  /** The active item gets a soft filled pill (false: shadcn's flat active bg). */
+  pill?: boolean
+  /** The inner edge sloshes in low, wide mounds as the sidebar collapses or expands. `true`, `false` or 0..2. */
+  slosh?: boolean | number
+  /** Collapse / expand with the Drawer's momentum: a fast launch into a small landing overshoot, and a collapse that accelerates away (false: shadcn's 200ms linear). */
+  travel?: boolean
+  /** GoopCollapsible sub-menus inside spring open, their row unfilled (false: plain collapsibles). */
+  submenus?: boolean
+  /** An opening sub-menu's guide line pours down behind a goo bead that melts into it (needs `submenus`). */
+  pour?: boolean
+  /** Icon-mode tooltips bloom as goo (false: shadcn tooltips). */
+  tooltips?: boolean
+  /** The mobile sidebar is a GoopDrawer: panel and goo one body, a fast launch with a small landing overshoot, a close that accelerates away, swipe to close (false: a GoopSheet). */
+  drawer?: boolean
+  /** With `drawer` off, the mobile sheet blooms from its screen edge like GoopSheet (false: shadcn's slide). */
+  bloom?: boolean
+  /** The highlight's soft swell follows the cursor along the item (false: centred). */
+  followPointer?: boolean
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+/** Compile-time guards: every sidebar option core grows must be a prop (or adapter-owned). */
+type SidebarAdapterOwned = 'side' | 'reducedMotion' | 'feel' | 'seed' | 'wobble' | 'momentum' | 'pop'
+type SidebarUnhandled = Exclude<
+  keyof SidebarEdgeOptions | keyof SidebarHighlightOptions | SidebarEffect,
+  keyof GoopSidebarProps | SidebarAdapterOwned
+>
+const _allSidebarOptionsHandled: [SidebarUnhandled] extends [never] ? true : { unhandled: SidebarUnhandled } = true
+void _allSidebarOptionsHandled
+type SidebarPropsListed = Exclude<keyof GoopSidebarProps, (typeof SIDEBAR_PROP_KEYS)[number]>
+const _allSidebarPropsListed: [SidebarPropsListed] extends [never] ? true : { unlisted: SidebarPropsListed } = true
+void _allSidebarPropsListed
+
+/** Resolved sidebar goo: what each part of the sidebar should do. */
+export interface ResolvedSidebarGoo {
+  /** Highlight blob options, or null (shadcn's flat hover bg). */
+  highlight: SidebarHighlightOptions | null
+  /** Edge slosh options, or null (off). */
+  edge: SidebarEdgeOptions | null
+  pill: boolean
+  travel: boolean
+  submenus: boolean
+  pour: boolean
+  tooltips: boolean
+  drawer: boolean
+  bloom: boolean
+  /** App-config reduced motion (true / false force it; else the OS / site switch). */
+  reducedMotion?: boolean | 'auto'
+  speed?: number
+  preset?: GoopPreset
+  renderer?: GoopRendererOption
+}
+
+/** Sidebar goo from props, over app config (`preset`, `renderer`, `reducedMotion`). Same as Vue. */
+export function toSidebarOptions(props: GoopSidebarProps, config: GoopOptions = {}): ResolvedSidebarGoo {
+  const on = props.goo !== false
+  const common = {
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+  const slosh = props.slosh ?? true
+  return {
+    highlight: on && props.highlight !== false ? { ...common, followPointer: props.followPointer !== false } : null,
+    edge: on && slosh !== false && slosh !== 0 ? { ...common, slosh } : null,
+    pill: on && props.pill !== false,
+    travel: on && props.travel !== false,
+    submenus: on && props.submenus !== false,
+    pour: on && props.submenus !== false && props.pour !== false,
+    tooltips: on && props.tooltips !== false,
+    drawer: on && props.drawer !== false,
+    bloom: on && props.bloom !== false,
+    reducedMotion: config.reducedMotion,
+    speed: common.speed,
+    preset: common.preset,
+    renderer: common.renderer,
+  }
+}
+
+import { SIDEBAR_EFFECTS, type SidebarEdgeOptions, type SidebarEffect, type SidebarHighlightOptions } from '@goopui/core'
+
+// ---- GoopCarousel ---------------------------------------------------------------------------
+// Core's CAROUSEL_EFFECTS, each a GoopCarousel prop (same as @goopui/vue; all default on;
+// `true`, `false` or a 0..2 strength for the slide effects): `stretch` (slides stretch along
+// the motion with momentum and wobble when they snap), `slosh` (slide edges slosh in low, wide
+// mounds with the velocity), `rubberBand` (dragging past the first / last slide: its outer edge
+// reaches back as one low, wide mound), all three core `attachCarousel` fed embla's motion;
+// `squish` (Previous / Next are squishy GoopButtons; false: plain shadcn buttons); `dots`
+// (GoopCarouselDots' active blob flows between dots: core `attachCarouselDots`; false: flat
+// dots). `goo={false}` is a plain shadcn Carousel. The parts read every prop from the carousel.
+
+/** Every GoopCarousel engine prop. */
+export const CAROUSEL_PROP_KEYS = ['goo', ...CAROUSEL_EFFECTS, 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopCarousel (its parts read them from the carousel). */
+export interface GoopCarouselProps {
+  /** Master switch. `false` renders a plain shadcn Carousel (every effect off). */
+  goo?: boolean
+  /** Slides stretch a little along the motion with momentum and wobble on the snap. `true`, `false` or 0..2. */
+  stretch?: boolean | number
+  /** Slide edges slosh in low, wide mounds as they scroll and snap. `true`, `false` or 0..2. */
+  slosh?: boolean | number
+  /** Dragging past the first / last slide: its outer edge reaches back as one low, wide mound. `true`, `false` or 0..2. */
+  rubberBand?: boolean | number
+  /** Previous / Next squish like GoopButton (false: plain shadcn buttons). */
+  squish?: boolean
+  /** GoopCarouselDots: the active dot is a goo blob that flows between dots (false: flat dots). */
+  dots?: boolean
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** Renderer of the dots blob: 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+/** Compile-time guards: every carousel option core grows must be a prop (or adapter-owned). */
+type CarouselAdapterOwned = 'axis' | 'overscroll' | 'reducedMotion' | 'feel' | 'seed' | 'wobble' | 'momentum'
+type CarouselUnhandled = Exclude<
+  keyof CarouselOptions | keyof CarouselDotsOptions | CarouselEffect,
+  keyof GoopCarouselProps | CarouselAdapterOwned
+>
+const _allCarouselOptionsHandled: [CarouselUnhandled] extends [never] ? true : { unhandled: CarouselUnhandled } = true
+void _allCarouselOptionsHandled
+type CarouselPropsListed = Exclude<keyof GoopCarouselProps, (typeof CAROUSEL_PROP_KEYS)[number]>
+const _allCarouselPropsListed: [CarouselPropsListed] extends [never] ? true : { unlisted: CarouselPropsListed } = true
+void _allCarouselPropsListed
+
+/** Resolved carousel goo: what each part of the carousel should do. */
+export interface ResolvedCarouselGoo {
+  /** Slide goo options (without `axis` / `overscroll`, the adapter's), or null (all off). */
+  slides: Omit<CarouselOptions, 'axis' | 'overscroll'> | null
+  /** GoopButton props of Previous / Next (`goo: false` when the squish is off). */
+  button: { goo?: boolean; preset?: GoopPreset; timeScale?: number }
+  /** Dots blob options, or null (flat dots). */
+  dots: CarouselDotsOptions | null
+  /** Reduced motion forced by app config (`true` / `false`), else 'auto'. */
+  reducedMotion: boolean | 'auto'
+}
+
+const carouselStrength = (v: boolean | number | undefined): boolean | number => (v === undefined ? true : v)
+const carouselOff = (v: boolean | number): boolean => v === false || v === 0
+
+/** Carousel goo from props, over app config (`preset`, `renderer`, `reducedMotion`). Same as Vue. */
+export function toCarouselOptions(props: GoopCarouselProps, config: GoopOptions = {}): ResolvedCarouselGoo {
+  const on = props.goo !== false
+  const preset = props.preset ?? config.preset
+  const common = { speed: props.speed ?? 1, preset, reducedMotion: config.reducedMotion }
+  const stretch = carouselStrength(props.stretch)
+  const slosh = carouselStrength(props.slosh)
+  const rubberBand = carouselStrength(props.rubberBand)
+  const anySlide = !carouselOff(stretch) || !carouselOff(slosh) || !carouselOff(rubberBand)
+  const button: ResolvedCarouselGoo['button'] = {}
+  if (!on || props.squish === false) button.goo = false
+  if (preset !== undefined) button.preset = preset
+  if (props.speed !== undefined) button.timeScale = props.speed
+  return {
+    slides: on && anySlide ? { ...common, stretch, slosh, rubberBand } : null,
+    button,
+    dots: on && props.dots !== false ? { ...common, feel: CAROUSEL_DOTS_FEEL, wobble: true, momentum: true, renderer: props.renderer ?? config.renderer } : null,
+    reducedMotion: config.reducedMotion ?? 'auto',
+  }
+}
+
+import {
+  CAROUSEL_DOTS_FEEL,
+  CAROUSEL_EFFECTS,
+  type CarouselDotsOptions,
+  type CarouselEffect,
+  type CarouselOptions,
+} from '@goopui/core'
+
+// ---- GoopPageTransition ---------------------------------------------------------------------
+// Core's `createPageTransition` (same as @goopui/vue): a fixed, aria-hidden goo band that pours
+// in from one edge and drains out the other, the seam between the old page and the new one.
+// band is `true` (default), `false` (the wall) or a thickness; bubbles / bulge / wobble / lag
+// are `true` (default), `false` or a 0..2 strength; the rest are core's options as they are.
+// `goo={false}` turns it off: cover() / reveal() resolve at once.
+
+/** Every GoopPageTransition engine prop. */
+export const PAGE_TRANSITION_PROP_KEYS = [
+  'goo',
+  'direction',
+  'color',
+  'accent',
+  'highlight',
+  'duration',
+  'coverDuration',
+  'revealDuration',
+  'speed',
+  'preset',
+  'band',
+  'bubbles',
+  'bulge',
+  'wobble',
+  'lag',
+  'zIndex',
+  'seed',
+  'split',
+] as const
+
+/** Engine props of GoopPageTransition. */
+export interface GoopPageTransitionProps {
+  /** Master switch. `false`: no overlay; cover() / reveal() resolve at once. */
+  goo?: boolean
+  /** Travel direction: 'down' (default) pours from the top and drains out the bottom. */
+  direction?: PageTransitionDirection
+  /** Wall fill, any CSS colour or `var()`. Default `--goop-page-transition`, then `--primary`. */
+  color?: string
+  /** Lip colour on the moving edges and bubble rims, or false. Default
+   *  `--goop-page-transition-accent` if set. */
+  accent?: string | false
+  /** A soft lighter glow through the band, or false. Default `--goop-page-transition-highlight` if set. */
+  highlight?: string | false
+  /** Total cover + reveal time (ms) at speed 1. Default from the preset (~1150). */
+  duration?: number
+  /** Cover / reveal time (ms); override `duration`. */
+  coverDuration?: number
+  revealDuration?: number
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** A band that sweeps through (`true`), the full-screen wall (`false`), or the band's
+   *  thickness as a fraction of the travel length (0.2..1). */
+  band?: boolean | number
+  /** See-through bubbles rising through the goo. `true`, `false` or 0..2 (how many). */
+  bubbles?: boolean | number
+  /** Low, wide mounds on the leading front. `true`, `false` or 0..2. */
+  bulge?: boolean | number
+  /** The mounds wobble and drift while moving. `true`, `false` or 0..2. */
+  wobble?: boolean | number
+  /** The trailing edge stretches back as it drains. `true`, `false` or 0..2. */
+  lag?: boolean | number
+  /** Overlay z-index. Default 2147483000. */
+  zIndex?: number
+  /** Seed for the first transition's mounds (each one re-rolls). */
+  seed?: number
+  /** The band is the seam between the pages (`true`, default with the band): the new page
+   *  behind it, the old one ahead of it, never a visible swap (View Transitions, else a
+   *  clone of the old page). `false`: the page swaps while the band is over the middle. */
+  split?: boolean
+}
+
+/** Compile-time guards: every page-transition option core grows must be a prop (or adapter-owned). */
+type PageTransitionAdapterOwned = 'enabled' | 'reducedMotion'
+type PageTransitionUnhandled = Exclude<keyof PageTransitionOptions, keyof GoopPageTransitionProps | PageTransitionAdapterOwned>
+const _allPageTransitionOptionsHandled: [PageTransitionUnhandled] extends [never] ? true : { unhandled: PageTransitionUnhandled } = true
+void _allPageTransitionOptionsHandled
+type PageTransitionPropsListed = Exclude<keyof GoopPageTransitionProps, (typeof PAGE_TRANSITION_PROP_KEYS)[number]>
+const _allPageTransitionPropsListed: [PageTransitionPropsListed] extends [never] ? true : { unlisted: PageTransitionPropsListed } = true
+void _allPageTransitionPropsListed
+
+/** Page-transition options from props, over app config (`preset`, `reducedMotion`). Same as Vue. */
+export function toPageTransitionOptions(props: GoopPageTransitionProps, config: GoopOptions = {}): PageTransitionOptions {
+  const out: PageTransitionOptions = {
+    enabled: props.goo !== false,
+    preset: props.preset ?? config.preset,
+    reducedMotion: config.reducedMotion,
+  }
+  for (const k of PAGE_TRANSITION_PROP_KEYS) {
+    if (k === 'goo' || k === 'preset') continue
+    if (props[k] !== undefined) (out as Record<string, unknown>)[k] = props[k]
+  }
+  return out
+}
+
+import type { PageTransitionDirection, PageTransitionOptions } from '@goopui/core'

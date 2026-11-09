@@ -144,6 +144,57 @@ describe('hydration', () => {
     await act(async () => r.unmount())
     expect(api.current).toBeNull()
   })
+
+  it('hydrates a sidebar, a carousel and a page transition without mismatch, then attaches the goo', async () => {
+    const m = await import('../src')
+    const App = () =>
+      h(
+        m.GoopPageTransition,
+        { routeKey: '/' },
+        h(
+          m.GoopSidebarProvider,
+          null,
+          h(
+            m.GoopSidebar,
+            { collapsible: 'icon' },
+            h(
+              m.GoopSidebarContent,
+              null,
+              h(
+                m.GoopSidebarMenu,
+                null,
+                h(m.GoopSidebarMenuItem, null, h(m.GoopSidebarMenuButton, { isActive: true, tooltip: 'Home' }, 'Home')),
+                h(m.GoopSidebarMenuItem, null, h(m.GoopSidebarMenuSkeleton, { showIcon: true })),
+              ),
+            ),
+          ),
+          h(
+            m.GoopSidebarInset,
+            null,
+            h(m.GoopSidebarTrigger),
+            h(
+              m.GoopCarousel,
+              { className: 'w-64' },
+              h(m.GoopCarouselContent, null, [1, 2, 3].map((i) => h(m.GoopCarouselItem, { key: i }, h('div', { style: { backgroundColor: 'rgb(255, 255, 255)' } }, String(i))))),
+              h(m.GoopCarouselPrevious),
+              h(m.GoopCarouselNext),
+              h(m.GoopCarouselDots),
+            ),
+          ),
+        ),
+      )
+    const { root, r, messages, recoverable } = await hydrate(App)
+    expect(messages.filter((msg) => /hydrat|mismatch|did not match/i.test(msg))).toEqual([])
+    expect(recoverable).toEqual([])
+    const panel = root.querySelector('[data-sidebar="sidebar"]')!
+    expect(panel.querySelector(':scope > [data-goop="highlight"]')).not.toBeNull()
+    expect(panel.querySelector('[data-goop="sidebar-edge"]')).not.toBeNull()
+    expect(root.querySelectorAll('[data-goop="carousel-slosh"]').length).toBe(3)
+    expect(root.querySelector('[data-slot="carousel-dots"]')!.hasAttribute('data-goop-carousel-dots')).toBe(true)
+    expect(root.querySelector('[data-slot="carousel-next"]')!.hasAttribute('data-goop-active')).toBe(true)
+    await act(async () => r.unmount())
+    expect(document.querySelector('[data-goop]')).toBeNull()
+  })
 })
 
 

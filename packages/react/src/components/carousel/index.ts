@@ -1,0 +1,17 @@
+export {
+  GoopCarousel,
+  GoopCarouselContent,
+  GoopCarouselDots,
+  GoopCarouselItem,
+  GoopCarouselNext,
+  GoopCarouselPrevious,
+  emblaOverscroll,
+  useCarousel,
+  type CarouselApi,
+  type CarouselContextProps,
+  type CarouselEmblaOptions,
+  type CarouselEmblaPlugin,
+  type GoopCarouselButtonProps,
+  type GoopCarouselDotsProps,
+  type GoopCarouselRootProps,
+} from './GoopCarousel'

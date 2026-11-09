@@ -5,10 +5,13 @@ withDefaults(defineProps<{ set?: 'basic' | 'sizes' | 'vertical' | 'plain' }>(), 
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
 const variants = [{ preset: 'wild' }, { stretch: false, slosh: false }, { goo: false }] as const
+// On /react/docs: the same sets, as real @goopui/react carousels (react-demos/carousel.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <div v-if="set === 'basic'" class="flex w-full justify-center px-12">
+  <ReactIsland v-if="isReact" demo="carousel" :set="set" :pg="{ main: pg.props }" />
+  <div v-else-if="set === 'basic'" class="flex w-full justify-center px-12">
     <GoopCarousel class="w-full max-w-56 sm:max-w-xs" v-bind="pg.props">
       <GoopCarouselContent>
         <GoopCarouselItem v-for="i in 5" :key="i">

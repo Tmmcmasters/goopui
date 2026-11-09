@@ -33,6 +33,10 @@ import { AlertDialogDemo, HoverCardDemo, PopoverDemo, SheetDemo, TooltipDemo } f
 import { AccordionDemo, AlertDemo, BreadcrumbDemo, ButtonGroupDemo, EmptyDemo, KbdDemo, PaginationDemo, SimpleTile } from './batch-simple'
 import { ContextMenuDemo, DropdownMenuDemo, MenubarDemo, NavigationMenuDemo } from './menus'
 import { BESPOKE_TILES, BespokeTile, CommandDemo, InputOTPDemo, NumberFieldDemo, ToasterDemo } from './bespoke1'
+import { CarouselDemo } from './carousel'
+import { SidebarDemo } from './sidebar'
+import { PageTransitionDemo } from './page-transition'
+import { Bespoke2Tile } from './bespoke2-tiles'
 
 /** What a Vue demo hands its island. */
 export interface ReactDemoProps {
@@ -133,6 +137,14 @@ export function ReactDemo(props: ReactDemoProps) {
         return <NumberFieldDemo set={props.set} pg={props.pg} />
       case 'input-otp':
         return <InputOTPDemo set={props.set} pg={props.pg} />
+      case 'carousel':
+        return <CarouselDemo set={props.set} pg={props.pg} />
+      case 'sidebar':
+        return <SidebarDemo pg={props.pg} />
+      case 'page-transition':
+        return <PageTransitionDemo pg={props.pg} />
+      case 'tile-bespoke-2':
+        return <Bespoke2Tile slug={props.set} />
       default:
         return null
     }

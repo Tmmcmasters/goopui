@@ -1,0 +1,35 @@
+# @goopui/react
+
+## 0.1.0-alpha.1
+
+### Minor Changes
+
+- 02f6e76: `@goopui/react` is now published to npm. Gooey shadcn/ui components for React 18/19 on Radix UI, versioned together with `@goopui/core`, `@goopui/vue` and `@goopui/nuxt`. Every component file is a client component (`'use client'`), so they render from Next.js App Router Server Components. Setup is one line in your Tailwind entry CSS: `@import "@goopui/react/goop.css";`.
+- 9aac1af: React ports of Alert, Kbd, Breadcrumb, Empty, Button Group, Pagination, Accordion and Collapsible: shadcn/ui React's parts and current `radix-nova` classes (Radix Accordion, Collapsible, Separator and Slot where shadcn uses them) with the same goo as `@goopui/vue`. The alert blooms in, the kbd squishes, breadcrumb links and the current page share one goo blob each, the empty media sits in a breathing puddle, a button group flexes as one body (a `GoopButton` inside a `GoopButtonGroup` drops its own goo unless it sets `goo`), and accordion / collapsible rows flood from the click point while the content opens on a jelly spring. Pagination follows shadcn/ui React (you mark the current `GoopPaginationLink` with `isActive`); `GoopPaginationFirst` / `GoopPaginationLast` are goopUI extras, as in Vue. Engine props go through `goop-props.ts`, `ref` is the DOM node and `goopRef` the engine handle, and the goo attaches after hydration.
+- bc17b88: InputOTP goo: `InputOTPHandle.setActive(index)` puts the goo in a cell (-1: none) as focusing it would (flood, flow from the previous cell, drain), for inputs whose cells aren't focusable themselves, like React's input-otp (one hidden input over render-only slots). Once an adapter drives it, focus on the hidden input no longer clears the cell, and a press over a cell floods it from the press point. Real cell focus (`@goopui/vue`) is unchanged. `@goopui/react` uses it for its new GoopInputOTP, alongside GoopToaster (sonner), GoopCommand (cmdk), GoopCombobox (cmdk + Popover) and GoopNumberField.
+- 16b1371: React bloom overlays: GoopPopover, GoopTooltip, GoopHoverCard, GoopAlertDialog (with `size` and GoopAlertDialogMedia) and GoopSheet, 1:1 mirrors of shadcn/ui's Radix components with the same goo as @goopui/vue. Each panel blooms on its own aria-hidden surface (never on the trigger) after hydration; the sheet blooms from the middle of its screen edge and shrinks back into it. `goo={false}` is plain shadcn; `goopRef` gets the engine handle.
+- 6820b69: New React component: GoopDrawer (shadcn/ui's Drawer API on Radix Dialog, vaul's root props: `direction`, `snapPoints`, `dismissible`, `handleOnly`...) with every part: `GoopDrawerTrigger`, `Portal`, `Overlay`, `Content`, `Header`, `Footer`, `Title`, `Description`, `Close`. Core's `createDrawer` drives the drag, snap points, springs and goo, as in `@goopui/vue`: the same effect props (`DRAWER_PROP_KEYS`, `toDrawerOptions`: lag, slosh, rise, stretch, handle, splash), plus `goopRef` (drawer controller). `goo={false}` is plain shadcn; reduced motion opens and closes plainly.
+- a49923e: React forms batch: `GoopInput`, `GoopTextarea`, `GoopRadioGroup` / `GoopRadioGroupItem`, `GoopSlider`, `GoopProgress`, `GoopToggle` and `GoopToggleGroup` / `GoopToggleGroupItem`. Each is shadcn/ui's React component on its Radix primitive (current `radix-nova` classes) with the same goo, props and defaults as `@goopui/vue`. They server-render shadcn's markup and the goo attaches after hydration; `ref` is the DOM element and `goopRef` the engine handle. React naming where it differs from Vue: `containerClassName` (Vue `containerClass`), `pressed` / `defaultPressed` / `onPressedChange`, `value` / `onValueChange`, and `value={null}` for an indeterminate progress bar.
+- e9ffb28: React menus: GoopDropdownMenu, GoopContextMenu, GoopMenubar and GoopNavigationMenu, 1:1 mirrors of shadcn/ui's React components (Radix, current `radix-nova` classes) with the same goo as `@goopui/vue`. Menu panels bloom open (a context menu from the right-click point), the item highlight is a goo blob that trails a low mound under the pointer and doesn't bump across labels or separators, selecting pops it before the menu closes, and submenus bloom out of their row. The menubar's trigger highlight is one goo body; the navigation menu's highlight flows between items and its viewport blooms out of the active trigger and jelly-slides between triggers, with `openDrips` on by default. Same props as Vue (`goo={false}` is plain shadcn); `ref` is the DOM node, `goopRef` / `highlightRef` the engine handles. Hovered items no longer match `:focus-visible` (Radix focuses them from script).
+- 6fbc35f: New React component: GoopSelect (shadcn/ui's Select on Radix, `radix-nova` classes) with every part: `GoopSelectTrigger` (`size`), `Value`, `Content`, `Group`, `Label`, `Item`, `Separator`, `ScrollUpButton`, `ScrollDownButton`. The goo matches `@goopui/vue`'s GoopSelectContent: the list blooms out of the selected item (item-aligned) or its own center (popper), the highlight is a goo blob, choosing squishes it and holds the close until the pop has played, and the chosen check mark plops in. Same goo props (`SELECT_PROP_KEYS`, `toSelectOptions`), plus `goopRef` (emerge handle) and `highlightRef` (highlight handle). `goo={false}` is plain shadcn; reduced motion opens and closes plainly.
+- 863829e: GoopSidebar, GoopCarousel and GoopPageTransition. Sidebar: shadcn/ui's Sidebar parts (Provider, Trigger, Rail, Inset, Menu*, collapsible modes, `inset` / `floating`) with the goo highlight, active pill, `travel`, edge `slosh` and sub-menu `pour`, and a GoopDrawer on mobile. Carousel: shadcn/ui's Carousel on `embla-carousel-react` (installed with `@goopui/react`) with stretch, slosh, rubber band, squishy Previous / Next and GoopCarouselDots. PageTransition: core's goo page transition with no router dependency: wrap your pages once (Next.js: `routeKey={usePathname()}`), in-app link clicks are held until the page is covered, and `useGoopPageTransition().navigate()` covers programmatic navigation.
+- 2ad5136: GoopSidebar uses goopUI's own parts, as in `@goopui/vue`: icon-mode tooltips are GoopTooltips (`tooltips`), the mobile sidebar with `drawer={false}` is a GoopSheet that blooms from its edge (`bloom`), GoopSidebarInput is a GoopInput, and nested GoopCollapsibles get goo by default with their row unfilled (`submenus`; a collapsible's own `goo` / `flood` wins). GoopCollapsible reads these defaults from a small new context.
+
+### Patch Changes
+
+- Updated dependencies [b8fe131]
+- Updated dependencies [6ba12e7]
+- Updated dependencies [cf54a53]
+- Updated dependencies [4cdbe9c]
+- Updated dependencies [70321d9]
+- Updated dependencies [fb0d737]
+- Updated dependencies [9661ebc]
+- Updated dependencies [d8f02ef]
+- Updated dependencies [161a4ec]
+- Updated dependencies [d3d2893]
+- Updated dependencies [cee3453]
+- Updated dependencies [c1d0536]
+- Updated dependencies [3064ada]
+- Updated dependencies [bc17b88]
+- Updated dependencies [cc9a759]
+  - @goopui/core@0.1.0-alpha.1

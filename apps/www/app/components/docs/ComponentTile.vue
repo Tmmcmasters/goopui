@@ -3,7 +3,7 @@
 // still: the tile is inert); overlays get a quiet sketch. Unknown slugs get a monogram, so a
 // new component's tile works before anyone draws one. Add a case here to give it a preview.
 // On /react/docs the ported components' tiles are React previews (react-demos/batch1.tsx `Tile`).
-import { REACT_FORMS_TILES, REACT_SIMPLE_TILES, REACT_TILES } from '~/react-demos/tiles'
+import { REACT_BESPOKE2_TILES, REACT_FORMS_TILES, REACT_SIMPLE_TILES, REACT_TILES } from '~/react-demos/tiles'
 
 defineProps<{ slug: string; title: string }>()
 const { isReact } = useFramework()
@@ -14,6 +14,7 @@ const { isReact } = useFramework()
     <ReactIsland v-if="isReact && REACT_TILES.has(slug)" demo="tile" :set="slug" />
     <ReactIsland v-else-if="isReact && REACT_FORMS_TILES.has(slug)" demo="forms-tile" :set="slug" />
     <ReactIsland v-else-if="isReact && REACT_SIMPLE_TILES.has(slug)" demo="tile-simple" :set="slug" />
+    <ReactIsland v-else-if="isReact && REACT_BESPOKE2_TILES.has(slug)" demo="tile-bespoke-2" :set="slug" />
     <GoopButton v-else-if="slug === 'button'" size="sm" :resting-drips="[0.3, 0.72]" :interactive="false">Button</GoopButton>
     <GoopSpinner v-else-if="slug === 'spinner'" class="size-9" />
     <GoopToggle v-else-if="slug === 'toggle'" default-value class="[--accent:var(--goo)] [--accent-foreground:var(--goo-foreground)]" aria-label="Bold">
@@ -327,5 +328,29 @@ const { isReact } = useFramework()
 }
 .tile-art [data-react-island] .goo-fill {
   background: color-mix(in oklch, var(--goo) 80%, transparent);
+}
+.tile-art [data-react-island] .sk-panel {
+  border-radius: 0;
+  background: var(--popover);
+  box-shadow:
+    inset 0 0 0 1px var(--border-strong),
+    0 6px 14px -8px rgb(0 0 0 / 0.4);
+}
+.tile-art [data-react-island] .sk-line {
+  display: block;
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--foreground) 18%, transparent);
+}
+.tile-art [data-react-island] .sk-line.goo {
+  background: color-mix(in oklch, var(--goo) 80%, transparent);
+}
+.tile-art [data-react-island] .sk-screen {
+  position: relative;
+  width: 7.5rem;
+  height: 4.75rem;
+  border-radius: 0.5rem;
+  background: color-mix(in oklch, var(--foreground) 5%, transparent);
+  box-shadow: inset 0 0 0 1px var(--border);
 }
 </style>

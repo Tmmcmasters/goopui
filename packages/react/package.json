@@ -1,6 +1,6 @@
 {
   "name": "@goopui/react",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0-alpha.1",
   "description": "goopUI components for React: gooey, dripping shadcn/ui components",
   "type": "module",
   "license": "MIT",
@@ -58,6 +58,8 @@
     "cmdk": "^1.1.1",
     "cn": "^0.5.0",
     "cuelume": "^0.2.8",
+    "embla-carousel": "^8.6.0",
+    "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.5.0",
     "radix-ui": "^1.4.3",
     "sonner": "^2.0.8"

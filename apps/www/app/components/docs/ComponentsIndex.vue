@@ -13,11 +13,15 @@ const groups = computed(() =>
   CATEGORIES.map((title) => ({ title, items: pages.value.filter((p) => categoryOf(slugOf(p.path)) === title) })).filter((g) => g.items.length),
 )
 
-const reactCount = computed(() => pages.value.filter((p) => hasReactVersion(slugOf(p.path))).length)
+// Shipped component pages ('soon' pages, like Blob, have no component in either package yet).
+const shipped = computed(() => pages.value.filter((p) => p.status !== 'soon'))
+const reactCount = computed(() => shipped.value.filter((p) => hasReactVersion(slugOf(p.path))).length)
 const description = computed(() =>
-  isReact.value
-    ? `The shadcn/ui catalog for React, made gooey. ${reactCount.value} components are ported so far; the rest show their Vue version until they land.`
-    : `${componentCount} components from the shadcn catalog, made gooey. Each page has a live demo you can tune.`,
+  !isReact.value
+    ? `${componentCount} components from the shadcn catalog, made gooey. Each page has a live demo you can tune.`
+    : reactCount.value === shipped.value.length
+      ? `The shadcn/ui catalog for React, made gooey. All ${reactCount.value} components are ported.`
+      : `The shadcn/ui catalog for React, made gooey. ${reactCount.value} components are ported so far; the rest show their Vue version until they land.`,
 )
 useSeoMeta({ title: () => (isReact.value ? 'Components (React)' : 'Components'), description })
 </script>
