@@ -251,6 +251,32 @@ describe('GoopContextMenu', () => {
     w.unmount()
   })
 
+  it('hover focus is quiet (focusVisible: false); keyboard focus is untouched', async () => {
+    const w = mount(Demo, { attachTo: document.body })
+    await flushPromises()
+    await rightClick(40, 50)
+    const calls: (FocusOptions | undefined)[] = []
+    const focus = vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (this: HTMLElement, o?: FocusOptions) {
+      if (this.getAttribute('role')?.startsWith('menuitem')) calls.push(o)
+    })
+    // An item, a checkbox item and the sub trigger.
+    for (const sel of ['#back', '[data-slot="context-menu-checkbox-item"]', '[data-slot="context-menu-sub-trigger"]']) {
+      const item = content()!.querySelector<HTMLElement>(sel)!
+      item.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerType: 'mouse' }))
+      await flushPromises()
+      // The per-event override is gone again.
+      expect(Object.prototype.hasOwnProperty.call(item, 'focus')).toBe(false)
+    }
+    expect(calls.length).toBe(3)
+    for (const o of calls) expect(o).toMatchObject({ preventScroll: true, focusVisible: false })
+    // A script / keyboard focus keeps the browser's own heuristics.
+    calls.length = 0
+    document.getElementById('back')!.focus()
+    expect(calls).toEqual([undefined])
+    focus.mockRestore()
+    w.unmount()
+  })
+
   it('honors app config (reducedMotion forced on)', async () => {
     const w = mount(Demo, { global: { plugins: [[GoopPlugin, { reducedMotion: true }]] }, attachTo: document.body })
     await flushPromises()

@@ -254,6 +254,21 @@ export const goopComponents = [
   'GoopCarouselNext',
   'GoopCarouselPrevious',
   'GoopPageTransition',
+  'GoopTagsInput',
+  'GoopTagsInputInput',
+  'GoopTagsInputItem',
+  'GoopTagsInputItemDelete',
+  'GoopTagsInputItemText',
+  'GoopField',
+  'GoopFieldContent',
+  'GoopFieldDescription',
+  'GoopFieldError',
+  'GoopFieldGroup',
+  'GoopFieldLabel',
+  'GoopFieldLegend',
+  'GoopFieldSeparator',
+  'GoopFieldSet',
+  'GoopFieldTitle',
 ] as const
 
 export type GoopComponentName = (typeof goopComponents)[number]

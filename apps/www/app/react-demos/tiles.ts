@@ -10,3 +10,6 @@ export const REACT_SIMPLE_TILES: ReadonlySet<string> = new Set(['alert', 'kbd', 
 
 // Select, Carousel, Drawer, Sidebar, Page transition (react-demos/bespoke2-tiles.tsx `Bespoke2Tile`).
 export const REACT_BESPOKE2_TILES: ReadonlySet<string> = new Set(['select', 'carousel', 'drawer', 'sidebar', 'page-transition'])
+
+// Tags Input and Field (react-demos/forms-2.tsx `Forms2Tile`).
+export const REACT_FORMS2_TILES: ReadonlySet<string> = new Set(['tags-input', 'field'])
