@@ -93,6 +93,10 @@
   --goo-foreground: oklch(0.15 0.02 150);
   /* Readable slime for text on the paper background (#1fa64a itself is ~3:1 there). */
   --goo-ink: oklch(0.5 0.13 148);
+  /* A pressed goo toggle is Slime with its dark ink, in both themes (the library default is
+     --primary / --primary-foreground). */
+  --goop-toggle-on: var(--goo);
+  --goop-toggle-on-foreground: var(--goo-foreground);
   --ring: oklch(0.2 0.012 60);
   --input: oklch(0.88 0.008 85);
   /* Crude-oil ink for the oil-finish button. */

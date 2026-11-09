@@ -187,6 +187,11 @@
   [data-slot='command-list'] [data-goop='highlight'] {
     --goop-color: var(--muted);
   }
+  /* Dark: --muted is nearly the page color there, so the blob is ink mixed into the list's
+     popover color instead (light keeps shadcn's bg-muted). */
+  :where(.dark) [data-slot='command-list'] [data-goop='highlight'] {
+    --goop-color: color-mix(in oklab, var(--foreground) 14%, var(--popover));
+  }
 
   /* Tabs indicator blob (GoopTabsList): the active tab's shadcn bg + shadow-sm. Dark: shadcn's
      translucent bg-input/30 mixed opaque over the list's muted bg, with an input-colored rim. */
@@ -338,11 +343,19 @@
   [data-goop-breadcrumb] > [data-goop='highlight'] {
     --goop-color: var(--muted);
   }
+  /* Dark: ink mixed into the page color (--muted is nearly the page color there). */
+  :where(.dark) [data-goop-breadcrumb] > [data-goop='highlight'] {
+    --goop-color: color-mix(in oklab, var(--foreground) 18%, var(--background));
+  }
 
   /* Empty (GoopEmptyMedia): the media's goo puddle, in the icon tile's muted tone, breathing
      very slowly (~1px; core writes the scales and period). Reduced motion: still. */
   [data-goop='empty-puddle'] {
     fill: var(--muted);
+  }
+  /* Dark: ink mixed into the page color (--muted is nearly the page color there). */
+  :where(.dark) [data-goop='empty-puddle'] {
+    fill: color-mix(in oklab, var(--foreground) 18%, var(--background));
   }
   [data-goop='empty-puddle'][data-goop-breathe] {
     animation: goop-puddle-breathe var(--goop-puddle-period, 6s) ease-in-out infinite;
@@ -364,6 +377,22 @@
 [data-goop-accordion-trigger][data-goop-flooded],
 [data-goop-accordion-trigger][data-goop-flooded] svg {
   color: var(--goop-accordion-text, var(--primary-foreground));
+}
+
+/* A pressed goo toggle (GoopToggle, GoopToggleGroupItem) is the on color, so on / off reads at
+   a glance: --goop-toggle-on / --goop-toggle-on-foreground (set them on :root or any ancestor;
+   they default to the theme's --primary / --primary-foreground). Until the goo attaches (SSR,
+   first paint) the pressed background is that color; once attached the goo is the fill. The
+   label takes the on-goo text color (when text follows the goo, the rule below hands that to
+   the copy). Unlayered on purpose so it beats shadcn's data-[state=on]:bg-muted and the hover
+   utilities; an un-pressed toggle keeps shadcn's grey hover. */
+[data-goop-host='toggle']:not([data-goop-active])[data-state='on'],
+[data-goop-host='toggle-group']:not([data-goop-active]) :where([data-slot='toggle-group-item'])[data-state='on'] {
+  background-color: var(--goop-toggle-fill);
+}
+[data-goop-host='toggle'][data-state='on'],
+[data-goop-host='toggle-group'] :where([data-slot='toggle-group-item'])[data-state='on'] {
+  color: var(--goop-toggle-text);
 }
 
 /* Text that follows the goo (core's textFollow, on by default): while goo is on an item core

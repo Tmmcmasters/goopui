@@ -9,6 +9,7 @@ import { DropdownMenuItem, useForwardPropsEmits } from 'reka-ui'
 import { computed, type HTMLAttributes } from 'vue'
 import { injectGoopMenuContent } from './context'
 import { useGoopCue } from '../../sound'
+import { quietFocus } from './quiet-focus'
 
 /** shadcn's flat highlight, used when the goo blob is off. */
 const FLAT_BG =
@@ -54,6 +55,7 @@ const cue = useGoopCue('menuItem')
     :data-variant="variant"
     v-bind="{ ...forwarded, ...cue }"
     :class="classes"
+    @pointermove="quietFocus"
     @select="onSelect"
   >
     <slot />

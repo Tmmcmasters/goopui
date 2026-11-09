@@ -13,8 +13,8 @@ const { isReact } = useFramework()
 
 <template>
   <ReactIsland v-if="isReact" demo="toggle" :set="set" :pg="{ main: pg.props }" />
-  <!-- The site theme has no shadcn --accent tokens, so the demos set them to Slime. -->
-  <div v-else class="contents [--accent:var(--goo)] [--accent-foreground:var(--goo-foreground)]">
+  <!-- Pressed toggles are Slime: the site sets --goop-toggle-on (assets/css/main.css). -->
+  <div v-else class="contents">
   <GoopToggle v-if="set === 'basic'" v-model="bold" v-bind="pg.props">
     <span class="font-bold" aria-hidden="true">B</span> Bold
   </GoopToggle>

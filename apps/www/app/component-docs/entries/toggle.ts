@@ -32,7 +32,7 @@ const bold = ref(false)
 </template>`,
   controls: [
     preset(),
-    color({ cssVar: '--accent', description: 'Sets --accent, the token a pressed toggle fills with.' }),
+    color({ cssVar: '--goop-toggle-on', description: 'Sets --goop-toggle-on, the color a pressed toggle fills with.' }),
     choice('variant', ['default', 'outline'], 'default'),
     choice('size', ['default', 'sm', 'lg'], 'default'),
     speed(),

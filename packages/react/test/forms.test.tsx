@@ -270,7 +270,7 @@ describe('GoopToggle', () => {
     expect(btn.className).toContain('border-input')
     expect(btn.className).toContain('h-7')
     expect(btn.className).toContain('data-[state=on]:bg-transparent')
-    expect(btn.className).toContain('[--goop-toggle-fill:var(--muted)]')
+    expect(btn.className).toContain('[--goop-toggle-fill:var(--goop-toggle-on,var(--primary))]')
     expect(btn.hasAttribute('data-goop-active')).toBe(true)
     expect(layers(btn)).toHaveLength(1)
     expect(layers(btn)[0]!.getAttribute('aria-hidden')).toBe('true')
