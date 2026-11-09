@@ -81,3 +81,7 @@ export { seedFrom, useAttached, useGoop, type UseGoopReturn } from './use-goop'
 export { cn } from 'cn'
 // Engine types used in props and refs.
 export type { BackdropHandle, CardHandle, CheckboxHandle, CheckboxState, EmergeHandle, GoopHandle, GoopOptions, GoopPreset, MenuHighlightHandle, SkeletonRevealHandle, SpinnerHandle, SpinnerVariant, SwitchHandle } from '@goopui/core'
+// Select.
+export * from './components/select'
+export { SELECT_PROP_KEYS, toSelectOptions, type GoopSelectProps } from './goop-props'
+export type { SelectBloomFrom, SelectPlopOptions } from '@goopui/core'

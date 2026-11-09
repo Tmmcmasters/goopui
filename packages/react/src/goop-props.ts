@@ -691,3 +691,150 @@ import {
   type SpinnerOptions,
   type SpinnerVariant,
 } from '@goopui/core'
+
+// ---- GoopSelect -----------------------------------------------------------------------------
+// The listbox blooms open with core's emerge engine (the bloom flow), its item highlight is the
+// menu highlight blob with the select pop, and core's SELECT_EFFECTS `plop` drops the chosen
+// item's check mark in. `bloomFrom`: an item-aligned list blooms out of the selected item.
+// Same keys, defaults and guards as @goopui/vue's GoopSelectContent.
+import {
+  SELECT_EFFECTS,
+  type EmergeFlowStyle,
+  type MenuHighlightOptions,
+  type SelectBloomFrom,
+  type SelectEffect,
+  type SelectPlopOptions,
+} from '@goopui/core'
+
+/** The emerge toggles a select list takes (@goopui/vue's EMERGE_EFFECT_KEYS). */
+const SELECT_EMERGE_EFFECTS = ['bridge', 'wobble', 'momentum', 'fade', 'openSlosh', 'openDrips', 'closeSlosh'] as const
+
+/** Every GoopSelectContent engine prop. */
+export const SELECT_PROP_KEYS = [
+  'goo',
+  'flow',
+  'flowStyle',
+  'bloomStart',
+  'bloomFrom',
+  ...SELECT_EMERGE_EFFECTS,
+  ...EMERGE_DRIP_KEYS,
+  ...SELECT_EFFECTS,
+  'followPointer',
+  'surface',
+  'speed',
+  'preset',
+  'renderer',
+] as const
+
+/** Engine props of GoopSelectContent. Every toggle defaults on. */
+export interface GoopSelectProps {
+  /** Master switch. `false` renders a plain shadcn SelectContent. */
+  goo?: boolean
+  /** The list opens in `flowStyle`. `false`: it inflates from a bulb at the trigger edge. */
+  flow?: boolean
+  /** 'bloom' (default: pools from a point, spreads with a lobed edge, overshoots, splashes) or
+   *  'neck' (out of the trigger through a thick neck). */
+  flowStyle?: EmergeFlowStyle
+  /** Bloom start: 'single' (default: one droplet swells) or 'merge' (a few drops fuse). */
+  bloomStart?: EmergeBloomStart
+  /** Where the bloom starts: 'auto' (default: the selected item when `position` is
+   *  'item-aligned', the list's own center for 'popper'), 'selected' or 'center'. Close
+   *  shrinks back to the same spot. */
+  bloomFrom?: SelectBloomFrom
+  /** Bulb + lumpy neck between trigger and list (not used by bloom). */
+  bridge?: boolean
+  /** Jelly overshoot: the open overshoot and settle, the highlight overshoot, the plop wobble. */
+  wobble?: boolean
+  /** The panel's launch (not used by bloom), and the highlight's stretch + neck while it travels. */
+  momentum?: boolean
+  /** The items fade in once the goo settles. */
+  fade?: boolean
+  /** On open, every edge overshoots, rebounds and wobbles. */
+  openSlosh?: boolean
+  /** On open, the edges splash (drops kept off the trigger). */
+  openDrips?: boolean
+  /** Splash drop count scale (0..3, default 1). */
+  openDripAmount?: number
+  /** Splash drop size scale (0.3..2.5, default 1). */
+  openDripSize?: number
+  /** How far splash drops are flung (0..3, default 1). */
+  openDripFling?: number
+  /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
+  openDripVariety?: number
+  /** 0..1: how differently each side bulges on open and sloshes on close. Default 1. */
+  sloshVariety?: number
+  /** On close, the list pulls in and wobbles before it shrinks back. */
+  closeSlosh?: boolean
+  /** Item highlight is a goo blob that slides between items (false: shadcn's flat bg). */
+  highlight?: boolean
+  /** Jelly squish of the highlight when an item is chosen, before the list closes. */
+  pop?: boolean
+  /** The chosen item's check mark plops in (falls in small, squashes, jiggles back). */
+  plop?: boolean
+  /** The highlight's swell follows the pointer with a little lag (false, or keyboard: centred). */
+  followPointer?: boolean
+  /** List color: 'popover' (default: shadcn's popover tokens), 'trigger', or any CSS color. */
+  surface?: EmergeSurfaceColor
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+/** Compile-time guards: every emerge / highlight / plop option and select effect core grows
+ *  must be handled here. `bloomOrigin` is set by the adapter from `bloomFrom`. */
+type SelectAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'surfaceColor' | 'find' | 'feel' | 'reducedMotion' | 'detached' | 'bloomOrigin'
+type SelectUnhandled = Exclude<
+  keyof EmergeOptions | keyof MenuHighlightOptions | keyof SelectPlopOptions | SelectEffect,
+  keyof GoopSelectProps | SelectAdapterOwned
+>
+const _allSelectOptionsHandled: [SelectUnhandled] extends [never] ? true : { unhandled: SelectUnhandled } = true
+void _allSelectOptionsHandled
+type SelectPropsListed = Exclude<keyof GoopSelectProps, (typeof SELECT_PROP_KEYS)[number]>
+const _allSelectPropsListed: [SelectPropsListed] extends [never] ? true : { unlisted: SelectPropsListed } = true
+void _allSelectPropsListed
+
+/** Core options for the list (emerge), the highlight blob and the check plop, over app config
+ *  (@goopui/vue's resolveSelectProps + toSelectOptions). `highlight` / `plop` are null when
+ *  off. */
+export function toSelectOptions(
+  props: GoopSelectProps,
+  config: GoopOptions = {},
+): { goo: boolean; emerge: EmergeOptions; highlight: MenuHighlightOptions | null; plop: SelectPlopOptions | null } {
+  const on = (v: boolean | undefined) => v ?? true
+  const goo = on(props.goo)
+  const wobble = on(props.wobble)
+  const momentum = on(props.momentum)
+  const common = {
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+  return {
+    goo,
+    emerge: {
+      ...common,
+      flow: on(props.flow),
+      flowStyle: props.flowStyle ?? 'bloom',
+      bloomStart: props.bloomStart ?? 'single',
+      bridge: on(props.bridge),
+      wobble,
+      momentum,
+      fade: on(props.fade),
+      openSlosh: on(props.openSlosh),
+      openDrips: on(props.openDrips),
+      closeSlosh: on(props.closeSlosh),
+      openDripAmount: props.openDripAmount,
+      openDripSize: props.openDripSize,
+      openDripFling: props.openDripFling,
+      openDripVariety: props.openDripVariety,
+      sloshVariety: props.sloshVariety,
+      surfaceColor: props.surface ?? 'popover',
+    },
+    highlight: goo && on(props.highlight) ? { ...common, wobble, momentum, pop: on(props.pop), followPointer: on(props.followPointer) } : null,
+    plop: goo && on(props.plop) ? { speed: common.speed, preset: common.preset, wobble, reducedMotion: config.reducedMotion } : null,
+  }
+}
