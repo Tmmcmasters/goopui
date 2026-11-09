@@ -150,3 +150,18 @@ describe('batch 1 (skeleton, reveal, badge, avatar, card, spinner) match @goopui
     })
   })
 })
+
+describe('layout batch (scroll area, resizable) matches @goopui/vue', () => {
+  it('lists the same prop keys and sends core the same options', async () => {
+    const r = await import('../src')
+    expect([...r.SCROLL_AREA_PROP_KEYS]).toEqual([...vue.SCROLL_AREA_PROP_KEYS])
+    expect([...r.RESIZABLE_PROP_KEYS]).toEqual([...vue.RESIZABLE_PROP_KEYS])
+    for (const cfg of [{}, { preset: 'subtle' as const, reducedMotion: true as const }]) {
+      for (const p of [{}, { goo: false }, { stretch: false }, { stretch: false, jelly: false }, { jelly: 2, speed: 0.5, preset: 'wild' as const }])
+        expect(r.toScrollAreaOptions(p, cfg)).toEqual(vue.toScrollAreaOptions(p, cfg))
+      for (const p of [{}, { goo: false }, { bulge: false }, { wobble: false }, { bulge: 2, wobble: 0.5, speed: 2, preset: 'wild' as const }])
+        expect(r.toResizableOptions(p, cfg)).toEqual(vue.toResizableOptions(p, cfg))
+    }
+    expect(r.resolveResizableProps({ wobble: false }, { preset: 'wild' })).toEqual(vue.resolveResizableProps({ wobble: false }, { preset: 'wild' }))
+  })
+})
