@@ -1,7 +1,7 @@
 import { EMERGE_CLOSE_VAR, MENU_FEEL, MENU_HIGHLIGHT_CIRCLES, activeTickerCount } from '@goopui/core'
 import { flushPromises, mount } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
-import { defineComponent, h, ref, type PropType } from 'vue'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { defineComponent, h, nextTick, ref, type PropType } from 'vue'
 import {
   GoopPlugin,
   GoopSelect,
@@ -143,15 +143,17 @@ describe('GoopSelect', () => {
     const w = mount(Demo, { attachTo: document.body })
     await flushPromises()
     choose('banana')
-    await flushPromises()
+    // Microtasks only (Vue's re-render), no macrotask: flushPromises' setTimeout let the
+    // POP-length close timer fire first on a loaded machine, so `open` was already false.
+    await nextTick()
+    await nextTick()
     const vm = w.vm as unknown as Vm
     expect(vm.value).toBe('banana')
     expect(vm.open).toBe(true)
     const mark = content()!.querySelector<HTMLElement>('#banana [data-slot="select-item-indicator-mark"]')!
     expect(mark).not.toBeNull()
     expect(mark.getAnimations().length).toBeGreaterThan(0)
-    await wait(POP + 30)
-    expect(vm.open).toBe(false)
+    await vi.waitFor(() => expect(vm.open).toBe(false), { timeout: 5000, interval: 10 })
     w.unmount()
   })
 
