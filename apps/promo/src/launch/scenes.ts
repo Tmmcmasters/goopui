@@ -28,9 +28,9 @@ import type { Click } from '../goo/replay'
 import type { SceneScript } from '../goo/scene'
 import { el, entrance, smooth, svg } from '../v7/dom'
 
-const common = { renderer: 'svg' as const, reducedMotion: false as const }
+export const common = { renderer: 'svg' as const, reducedMotion: false as const }
 
-interface Rt {
+export interface Rt {
   /** Fade-and-rise on entry (translate only). */
   enter: HTMLElement[]
   tick?: (t: number) => void
@@ -45,7 +45,7 @@ const enter = (rt: Rt, t: number) =>
   })
 
 /** Frame 0 of a beat (zero substeps) must already show the entrance pose. */
-const beat = (s: Omit<SceneScript<Rt>, 'step'>): SceneScript<Rt> => ({
+export const beat = (s: Omit<SceneScript<Rt>, 'step'>): SceneScript<Rt> => ({
   ...s,
   build(root, ctx) {
     const rt = s.build(root, ctx)
@@ -59,15 +59,15 @@ const beat = (s: Omit<SceneScript<Rt>, 'step'>): SceneScript<Rt> => ({
   },
 })
 
-const clicksAt = (downs: number[], hold = 0.085): Click[] => downs.map((d) => ({ down: d, up: d + hold }))
+export const clicksAt = (downs: number[], hold = 0.085): Click[] => downs.map((d) => ({ down: d, up: d + hold }))
 
 /** A zero-width anchor at (cx, top) centring its child on cx. */
-const centered = (cx: number, top: number, child: HTMLElement): HTMLElement =>
+export const centered = (cx: number, top: number, child: HTMLElement): HTMLElement =>
   el('div', { style: `position:absolute;left:${cx}px;top:${top}px;width:0;display:flex;justify-content:center;pointer-events:none;` }, [child])
 
-const icon = (d: string, sw = 2) =>
+export const icon = (d: string, sw = 2) =>
   svg(`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`)
-const ICON = {
+export const ICON = {
   chevron: '<path d="m6 9 6 6 6-6"/>',
   minus: '<path d="M5 12h14"/>',
   plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
@@ -79,13 +79,13 @@ const ICON = {
   sheet: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/>',
 }
 
-const surfaceSpan = (radius = 'inherit') =>
+export const surfaceSpan = (radius = 'inherit') =>
   el('span', {
     attrs: { 'data-goop': 'surface', 'aria-hidden': 'true' },
     style: `position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:${radius};`,
   })
 
-const outlineButton = (label: string, iconD?: string): HTMLButtonElement =>
+export const outlineButton = (label: string, iconD?: string): HTMLButtonElement =>
   el('button', { class: 'btn btn-outline', attrs: { tabindex: '-1' } }, [...(iconD ? [icon(iconD)] : []), label])
 
 // ---- 1. Drawer: launch with the edge slosh, click outside, it falls away -------------------
