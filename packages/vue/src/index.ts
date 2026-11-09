@@ -137,6 +137,7 @@ export {
 } from './goop-props'
 export { goopComponents, type GoopComponentName } from './manifest'
 export { seedFrom, useGoop, type UseGoopReturn } from './use-goop'
+export { useGoopListHighlight, type UseGoopListHighlightReturn } from './use-list-highlight'
 export { cn } from 'cn'
 export * from './components/command'
 export * from './components/combobox'

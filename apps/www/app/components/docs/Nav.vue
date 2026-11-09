@@ -38,10 +38,14 @@ const empty = computed(() => !!q.value && !sections.value.length)
 const onKey = (e: KeyboardEvent) => {
   if (e.key === 'Escape') filter.value = ''
 }
+
+// One goo blob is the items' hover / keyboard-focus background, resting on the current page.
+const root = ref<HTMLElement | null>(null)
+useChromeGoo(() => root.value, { active: '[aria-current="page"]' })
 </script>
 
 <template>
-  <nav aria-label="Docs" class="text-sm">
+  <nav ref="root" aria-label="Docs" class="text-sm" data-chrome-goo>
     <div class="filter relative mb-6">
       <SiteIcon name="search" :size="14" class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-subtle" />
       <input
@@ -60,6 +64,7 @@ const onKey = (e: KeyboardEvent) => {
         v-if="section.path === COMPONENTS && !q"
         :to="to(COMPONENTS)"
         class="nav-item mb-1 flex items-center rounded-lg px-2.5 py-1.5"
+        data-chrome-item
         :aria-current="here === COMPONENTS ? 'page' : undefined"
         @click="emit('navigate')"
       >
@@ -72,6 +77,7 @@ const onKey = (e: KeyboardEvent) => {
             <NuxtLink
               :to="to(item.path)"
               class="nav-item flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5"
+              data-chrome-item
               :aria-current="here === item.path ? 'page' : undefined"
               @click="emit('navigate')"
             >
@@ -124,7 +130,16 @@ const onKey = (e: KeyboardEvent) => {
 }
 .nav-item:hover {
   color: var(--foreground);
-  background: var(--muted);
+}
+.nav-item:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+  border-radius: 0.5rem;
+}
+@media (hover: hover) {
+  .nav-item:hover {
+    background: var(--muted);
+  }
 }
 .nav-item[aria-current='page'] {
   color: var(--foreground);

@@ -15,15 +15,21 @@ const current = computed(() => (onDocs.value || mounted.value ? fw.value : null)
 function pick(target: Framework) {
   setPreferred(target)
 }
+
+// The selected pill is the site chrome's goo blob: it slides to the other side on a switch.
+// It only marks the selection (no hover / focus travel: a two-way switch; the focus ring shows).
+const root = ref<HTMLElement | null>(null)
+useChromeGoo(() => root.value, { active: '[data-on]', row: true, follow: false })
 </script>
 
 <template>
-  <div class="fw-switch" role="group" aria-label="Framework">
+  <div ref="root" class="fw-switch" role="group" aria-label="Framework" data-chrome-goo>
     <template v-for="f in FRAMEWORKS" :key="f.id">
       <NuxtLink
         v-if="onDocs"
         :to="counterpart(f.id)!"
         class="fw-option"
+        data-chrome-item
         :aria-current="current === f.id ? 'page' : undefined"
         :data-on="current === f.id || undefined"
         :title="`${f.label} docs`"
@@ -36,6 +42,7 @@ function pick(target: Framework) {
         v-else
         type="button"
         class="fw-option"
+        data-chrome-item
         :aria-pressed="current === f.id"
         :data-on="current === f.id || undefined"
         :title="`Use the ${f.label} docs`"
@@ -80,6 +87,9 @@ function pick(target: Framework) {
   color: var(--foreground);
   background: var(--muted);
   box-shadow: inset 0 0 0 1px var(--border);
+}
+.fw-switch[data-goop-menu] .fw-option[data-on] {
+  box-shadow: none;
 }
 .fw-option:focus-visible {
   outline: 2px solid var(--ring);
