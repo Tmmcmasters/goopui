@@ -40,7 +40,7 @@ const landing = computed(() => route.path === '/')
       Skip to content
     </a>
     <div
-      class="mx-auto flex h-full items-center gap-2 px-4 sm:px-6"
+      class="mx-auto flex h-full items-center gap-2 px-3 min-[360px]:px-4 sm:px-6"
       :class="props.wide ? 'max-w-[1440px]' : 'max-w-6xl'"
     >
       <NuxtLink to="/" class="-ml-1 rounded-md px-1 py-1 [-webkit-user-drag:none]" aria-label="goopUI home" draggable="false">
@@ -60,7 +60,7 @@ const landing = computed(() => route.path === '/')
           :key="l.to"
           :to="to(l.to)"
           class="nav-link hidden rounded-lg px-3 py-2 text-sm"
-          :class="landing ? '' : 'sm:inline-block'"
+          :class="landing ? '' : 'lg:inline-block'"
           :data-active="isActive(l.match) || undefined"
         >
           {{ l.label }}
@@ -79,14 +79,15 @@ const landing = computed(() => route.path === '/')
         </div>
         <a
           :href="GITHUB_URL"
-          class="inline-flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground"
+          class="inline-flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground max-[374.98px]:hidden"
           :aria-label="githubLabel"
           rel="noopener"
           target="_blank"
         >
           <SiteIcon name="github" :size="17" class="shrink-0" />
-          <GithubStars class="text-[13px] font-medium leading-none" />
+          <GithubStars class="text-[13px] font-medium leading-none max-[379.98px]:hidden" />
         </a>
+        <!-- Under 375px the GitHub link (also in the footer) and under 380px the star count give way so sound + theme stay on screen; the desktop links and Vue/React labels wait for `lg`. -->
         <SoundToggle />
         <ThemeToggle />
       </nav>
