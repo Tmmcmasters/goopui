@@ -6,6 +6,8 @@
 //
 // Usage: node scripts/smoke-page.mjs <url> <text> [click-button-name]
 // Env: CHROMIUM_PATH (a Chromium/headless-shell binary; default: playwright-core's own download).
+// NAV="<link name>|<text>": then close the dialog, click that link and wait for the text on
+// the new page (a client navigation through GoopPageTransition: its overlay must have run).
 import { chromium } from 'playwright-core'
 
 const [url, text, click] = process.argv.slice(2)
@@ -37,6 +39,18 @@ try {
     await page.getByRole('dialog').waitFor({ state: 'visible', timeout: 10_000 })
   }
   await page.waitForTimeout(500) // let late effects (goo attach) log anything they would
+  if (process.env.NAV) {
+    const [link, landed] = process.env.NAV.split('|')
+    if (click) {
+      await page.keyboard.press('Escape')
+      await page.getByRole('dialog').waitFor({ state: 'hidden', timeout: 10_000 })
+    }
+    await page.getByRole('link', { name: link }).click()
+    await page.getByText(landed, { exact: false }).first().waitFor({ timeout: 10_000 })
+    if (!(await page.locator('svg[data-goop-page-transition]').count())) throw new Error('the page transition never ran')
+    await page.locator('svg[data-goop-page-transition="idle"]').waitFor({ state: 'attached', timeout: 10_000 })
+    await page.waitForTimeout(300)
+  }
 } catch (e) {
   errors.push(String(e?.message ?? e))
 } finally {

@@ -7,7 +7,8 @@
 #   next   Next.js 16 App Router + Tailwind v4: a Server Component page renders Button, Tabs,
 #          Dialog, Sidebar and Carousel (embla; checked in the prerendered HTML) inside a
 #          GoopPageTransition layout, `next build` type-checks against the shipped .d.mts, then
-#          `next start` is smoke-tested (hydration, dialog opens)
+#          `next start` is smoke-tested (hydration, dialog opens, a <Link> navigates through
+#          the page transition)
 # Catches what only shows up for consumers: workspace:* left in a manifest, peers a manager
 # won't auto-install (yarn), missing files in the tarball, a dropped 'use client'.
 # Run after `pnpm build`: `pnpm check:package-managers`. Managers that aren't installed run
@@ -217,12 +218,21 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 }
 EOF
   # A Server Component (no 'use client'): the goopUI components are client boundaries.
+  # A next/link to a second page: the smoke test navigates through GoopPageTransition.
   cat > "$dir/app/page.tsx" <<'EOF'
+import Link from 'next/link'
 import { Demo } from './demo'
 export default function Page() {
-  return <Demo />
+  return (
+    <>
+      <Demo />
+      <Link href="/about" style={{ position: "fixed", top: 8, right: 8, zIndex: 50 }}>About page</Link>
+    </>
+  )
 }
 EOF
+  mkdir -p "$dir/app/about"
+  printf 'export default function About() {\n  return <p>About goo</p>\n}\n' > "$dir/app/about/page.tsx"
   printf '@import "tailwindcss";\n@import "@goopui/react/goop.css";\n' > "$dir/app/globals.css"
   printf 'export default { plugins: { "@tailwindcss/postcss": {} } }\n' > "$dir/postcss.config.mjs"
   cat > "$dir/next.config.mjs" <<EOF
@@ -264,7 +274,9 @@ smoke() { # $1 = app, $2 = dir
   if [ "$1" = next ]; then (cd "$2" && exec "$bin/next" start -p "$PORT" > serve.log 2>&1) & pid=$!
   else (cd "$2" && exec "$bin/vite" preview --port "$PORT" --strictPort > serve.log 2>&1) & pid=$!
   fi
-  (cd "$ROOT" && node scripts/smoke-page.mjs "http://localhost:$PORT/" 'Hello goo' 'Open dialog' > "$2/smoke.log" 2>&1) || ok=1
+  local nav=''
+  [ "$1" = next ] && nav='About page|About goo'
+  (cd "$ROOT" && NAV="$nav" node scripts/smoke-page.mjs "http://localhost:$PORT/" 'Hello goo' 'Open dialog' > "$2/smoke.log" 2>&1) || ok=1
   kill "$pid" 2>/dev/null; pkill -f "$2/node_modules" 2>/dev/null; wait "$pid" 2>/dev/null
   return $ok
 }
