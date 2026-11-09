@@ -42,10 +42,11 @@ REACT="$(ls "$TGZ"/goopui-react-*.tgz)"
 
 fail=0
 for t in "$TGZ"/*.tgz; do
-  if tar -xOzf "$t" package/package.json | grep -q '"workspace:'; then
+  # No `tar | grep -q`: under pipefail an early grep exit fails the pipeline, hiding a match.
+  if grep -q '"workspace:' <<< "$(tar -xOzf "$t" package/package.json)"; then
     echo "FAIL  $(basename "$t") has workspace: in its package.json"; fail=1
   fi
-  if tar -tzf "$t" | grep -qE '(^|/)\._'; then
+  if grep -qE '(^|\/)\._' <<< "$(tar -tzf "$t")"; then
     echo "FAIL  $(basename "$t") contains AppleDouble ._* files"; fail=1
   fi
 done
@@ -527,7 +528,8 @@ check_nuxt() { # $1 = dir
   html="$dir/.output/public/index.html"
   grep -q 'Hello goo' "$html" 2>/dev/null || { echo "generate: GoopButton not prerendered"; return 1; }
   grep -q 'data-slot="select-trigger"' "$html" || { echo "generate: GoopSelect not prerendered"; return 1; }
-  cat "$html" "$dir"/.output/public/_nuxt/*.css 2>/dev/null | grep -qF -- "$CSS_MARKER" || { echo "goop.css missing from the generated CSS"; return 1; }
+  # grep the files directly: `cat ... | grep -q` under pipefail fails when grep exits early.
+  grep -qF -- "$CSS_MARKER" "$html" "$dir"/.output/public/_nuxt/*.css 2>/dev/null || { echo "goop.css missing from the generated CSS"; return 1; }
 }
 # Nuxt 3.13.0 itself can no longer `nuxt generate` with the nitropack/unstorage a fresh install
 # pulls today (a bare 3.13.0 app with no modules fails the same way: 500 in unstorage itemKey

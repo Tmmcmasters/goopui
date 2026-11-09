@@ -108,8 +108,9 @@ for p in "${PKGS[@]}"; do
   (cd "packages/$p" && pnpm pack --pack-destination "$OUT" >/dev/null) || die "pnpm pack failed for @goopui/$p"
   t="$OUT/goopui-$p-$VER.tgz"
   [ -f "$t" ] || die "expected $t"
-  tar -xOzf "$t" package/package.json | grep -q '"workspace:' && die "$(basename "$t") still has workspace: in package.json"
-  tar -tzf "$t" | grep -qE '(^|/)\._' && die "$(basename "$t") contains AppleDouble ._* files (pnpm clean:dot)"
+  # Not `tar | grep -q`: under pipefail an early grep exit fails the pipeline and hides the match.
+  grep -q '"workspace:' <<< "$(tar -xOzf "$t" package/package.json)" && die "$(basename "$t") still has workspace: in package.json"
+  grep -qE '(^|\/)\._' <<< "$(tar -tzf "$t")" && die "$(basename "$t") contains AppleDouble ._* files (pnpm clean:dot)"
   echo "  $(basename "$t")  $(( $(wc -c < "$t") / 1024 )) KB"
 done
 
