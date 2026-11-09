@@ -3,7 +3,7 @@
 // still: the tile is inert); overlays get a quiet sketch. Unknown slugs get a monogram, so a
 // new component's tile works before anyone draws one. Add a case here to give it a preview.
 // On /react/docs the ported components' tiles are React previews (react-demos/batch1.tsx `Tile`).
-import { REACT_BESPOKE2_TILES, REACT_FORMS_TILES, REACT_SIMPLE_TILES, REACT_TILES } from '~/react-demos/tiles'
+import { REACT_BESPOKE2_TILES, REACT_FORMS2_TILES, REACT_FORMS_TILES, REACT_SIMPLE_TILES, REACT_TILES } from '~/react-demos/tiles'
 
 defineProps<{ slug: string; title: string }>()
 const { isReact } = useFramework()
@@ -15,6 +15,7 @@ const { isReact } = useFramework()
     <ReactIsland v-else-if="isReact && REACT_FORMS_TILES.has(slug)" demo="forms-tile" :set="slug" />
     <ReactIsland v-else-if="isReact && REACT_SIMPLE_TILES.has(slug)" demo="tile-simple" :set="slug" />
     <ReactIsland v-else-if="isReact && REACT_BESPOKE2_TILES.has(slug)" demo="tile-bespoke-2" :set="slug" />
+    <ReactIsland v-else-if="isReact && REACT_FORMS2_TILES.has(slug)" demo="tile-forms-2" :set="slug" />
     <GoopButton v-else-if="slug === 'button'" size="sm" :resting-drips="[0.3, 0.72]" :interactive="false">Button</GoopButton>
     <GoopSpinner v-else-if="slug === 'spinner'" class="size-9" />
     <GoopToggle v-else-if="slug === 'toggle'" default-value aria-label="Bold">
@@ -251,6 +252,18 @@ const { isReact } = useFramework()
         <GoopMenubarTrigger>{{ m }}</GoopMenubarTrigger>
       </GoopMenubarMenu>
     </GoopMenubar>
+    <GoopTagsInput v-else-if="slug === 'tags-input'" :default-value="['vue', 'react']" container-class="w-auto" class="w-44 text-xs" aria-label="Tags">
+      <GoopTagsInputItem v-for="t in ['vue', 'react']" :key="t" :value="t">
+        <GoopTagsInputItemText class="text-xs" />
+        <GoopTagsInputItemDelete />
+      </GoopTagsInputItem>
+      <GoopTagsInputInput class="w-8 text-xs" aria-label="Add a tag" />
+    </GoopTagsInput>
+    <GoopField v-else-if="slug === 'field'" data-invalid="true" class="w-40 gap-1.5">
+      <GoopFieldLabel class="text-xs">Email</GoopFieldLabel>
+      <GoopInput class="h-7 text-xs" default-value="nope" aria-invalid="true" aria-label="Email" />
+      <GoopFieldError class="text-[11px]" :goo="false">Enter a valid email.</GoopFieldError>
+    </GoopField>
     <span v-else class="monogram">{{ title.charAt(0) }}</span>
   </div>
 </template>
