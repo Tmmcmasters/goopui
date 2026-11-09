@@ -3,7 +3,7 @@
 // server markup hydrating with no mismatch before the goo attaches.
 import type { InputHandle, ItemPressHandle, ListHighlightHandle, TableHighlightHandle } from '@goopui/core'
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
-import { createElement as h, createRef, type ReactElement } from 'react'
+import { createElement as h, createRef, Fragment, type ReactElement } from 'react'
 import { hydrateRoot } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -17,6 +17,7 @@ import {
   GoopItem,
   GoopItemContent,
   GoopItemGroup,
+  GoopItemSeparator,
   GoopItemTitle,
   GoopTable,
   GoopTableBody,
@@ -65,6 +66,10 @@ const items = (props: Record<string, unknown> = {}) =>
     h(GoopItem, { asChild: true, variant: 'outline' }, h('a', { href: '#a' }, h(GoopItemContent, null, h(GoopItemTitle, null, 'A')))),
     h(GoopItem, null, 'Plain'),
   )
+
+// A group of plain items (a list), with a separator.
+const plainItems = (props: Record<string, unknown> = {}) =>
+  h(GoopItemGroup, props, h(GoopItem, null, 'One'), h(GoopItemSeparator), h(GoopItem, { variant: 'outline' }, 'Two'))
 
 const group = (props: Record<string, unknown> = {}) =>
   h(
@@ -137,7 +142,8 @@ describe('GoopItem / GoopItemGroup', () => {
     const goopRef = createRef<ListHighlightHandle>()
     const { container } = render(items({ goopRef }))
     const g = container.querySelector('[data-slot="item-group"]')!
-    expect(g.getAttribute('role')).toBe('list')
+    // A link item: no list semantics (see the list semantics tests).
+    expect(g.hasAttribute('role')).toBe(false)
     expect(g.getAttribute('data-goop-item-group')).toBe('')
     expect(goopRef.current?.element.parentElement).toBe(g)
     const a = container.querySelector<HTMLElement>('a[data-slot="item"]')!
@@ -159,6 +165,47 @@ describe('GoopItem / GoopItemGroup', () => {
     cleanup()
     const { container } = render(items({ goo: false }))
     expect(container.querySelector('[data-goop]')).toBeNull()
+  })
+})
+
+describe('GoopItemGroup list semantics', () => {
+  it('plain items: a role="list" of listitems; the separator and the blob are not items', () => {
+    const { container } = render(plainItems())
+    const g = container.querySelector('[data-slot="item-group"]')!
+    expect(g.getAttribute('role')).toBe('list')
+    expect([...g.querySelectorAll('[data-slot="item"]')].map((i) => i.getAttribute('role'))).toEqual(['listitem', 'listitem'])
+    expect(g.querySelector('[data-slot="item-separator"]')!.getAttribute('role')).toBe('none')
+    expect(g.querySelector(':scope > [data-goop="highlight"]')!.getAttribute('aria-hidden')).toBe('true')
+  })
+
+  it('an asChild link keeps its link semantics; the group drops role="list"', () => {
+    const { container } = render(
+      h(
+        GoopItemGroup,
+        null,
+        ['a', 'b'].map((k) => h(GoopItem, { key: k, asChild: true }, h('a', { href: `#${k}` }, k))),
+        h(GoopItemSeparator),
+        h(GoopItem, null, 'Plain'),
+      ),
+    )
+    expect(container.querySelector('[data-slot="item-group"]')!.hasAttribute('role')).toBe(false)
+    for (const a of container.querySelectorAll('a[data-slot="item"]')) expect(a.hasAttribute('role')).toBe(false)
+    expect(container.querySelector('div[data-slot="item"]')!.hasAttribute('role')).toBe(false)
+  })
+
+  it('fragments are looked through; a bare <button> child counts as interactive', () => {
+    const { container } = render(h(GoopItemGroup, null, h(Fragment, null, h(GoopItem, null, 'x'), h('button', null, 'B'))))
+    expect(container.querySelector('[data-slot="item-group"]')!.hasAttribute('role')).toBe(false)
+    expect(container.querySelector('[data-slot="item"]')!.hasAttribute('role')).toBe(false)
+  })
+
+  it('role is overridable on the group and on an item', () => {
+    const { container } = render(h('div', null, plainItems({ role: 'group' }), h(GoopItemGroup, null, h(GoopItem, { role: 'note' }, 'n'))))
+    const [a, b] = container.querySelectorAll('[data-slot="item-group"]')
+    expect(a!.getAttribute('role')).toBe('group')
+    expect(a!.querySelector('[data-slot="item"]')!.hasAttribute('role')).toBe(false)
+    expect(b!.getAttribute('role')).toBe('list')
+    expect(b!.querySelector('[data-slot="item"]')!.getAttribute('role')).toBe('note')
   })
 })
 
@@ -194,7 +241,7 @@ describe('GoopInputGroup', () => {
 
 describe('hydration', () => {
   it('hydrates without mismatch, then the goo attaches', async () => {
-    const App = (): ReactElement => h('div', null, table({ selected: true }), items(), group())
+    const App = (): ReactElement => h('div', null, table({ selected: true }), items(), plainItems(), group())
     const html = renderToString(App())
     const root = document.createElement('div')
     root.innerHTML = html
@@ -214,6 +261,12 @@ describe('hydration', () => {
     expect(root.querySelector('[data-goop="table-stage"] [data-goop="highlight"]')).not.toBeNull()
     expect(root.querySelector('[data-slot="item-group"] > [data-goop="highlight"]')).not.toBeNull()
     expect(root.querySelector('[data-slot="input-group-goo"][data-goop-active]')).not.toBeNull()
+    // The server's roles survive hydration: the link group has none, the plain group is a list.
+    expect(html).toContain('role="listitem"')
+    const [links, plain] = root.querySelectorAll('[data-slot="item-group"]')
+    expect(links!.hasAttribute('role')).toBe(false)
+    expect(plain!.getAttribute('role')).toBe('list')
+    expect([...plain!.querySelectorAll('[data-slot="item"]')].map((i) => i.getAttribute('role'))).toEqual(['listitem', 'listitem'])
     act(() => r.unmount())
     expect(root.querySelector('[data-goop="highlight"]')).toBeNull()
   })

@@ -15,10 +15,19 @@
 //
 // Touch never lights an item. Reduced motion: the blob snaps, no squish. SSR renders shadcn
 // markup; the goo attaches after hydration. The other parts are server-safe (./parts).
+//
+// List semantics. shadcn's ItemGroup is a `role="list"` whose children aren't `listitem`s (axe
+// `aria-required-children`), and an interactive item can't be one: `role="listitem"` on an <a>
+// or <button> would replace its link / button role. So the group is a list only when none of
+// its items is interactive, and then each item is a `listitem`. A group with a link or button
+// item (`asChild`, or a bare <a> / <button> child) is a plain <div> of real links / buttons (no
+// list role, no item roles). The group decides while it renders, from its children's props, so
+// the server and the client agree (no hydration mismatch). A `role` on the group (or an item)
+// wins. Separators are decorative (`role="none"`), the blob is `aria-hidden`.
 import { attachItemGroupHighlight, attachItemPress, type ItemPressHandle, type ListHighlightHandle } from '@goopui/core'
 import { cn } from 'cn'
 import { Slot } from 'radix-ui'
-import { createContext, forwardRef, useContext, useImperativeHandle, useRef, type ComponentPropsWithoutRef, type Ref } from 'react'
+import { Children, createContext, forwardRef, Fragment, isValidElement, useContext, useImperativeHandle, useRef, type ComponentPropsWithoutRef, type ReactNode, type Ref } from 'react'
 import { useGoopConfig } from '../../config'
 import {
   ITEM_GROUP_PROP_KEYS,
@@ -36,6 +45,20 @@ import { ITEM_GROUP, itemVariants, type ItemSize, type ItemVariant } from './sty
 
 /** Provided by GoopItemGroup: its engine props, inherited by its items. */
 const GroupContext = createContext<GoopItemGroupProps | null>(null)
+/** Provided by GoopItemGroup: true while the group is a `role="list"` (its plain items are listitems). */
+const ListContext = createContext(false)
+
+/** Whether any direct child (through fragments and arrays) is a link / button item. */
+function hasInteractiveItem(children: ReactNode): boolean {
+  let found = false
+  Children.forEach(children, (c) => {
+    if (found || !isValidElement<{ asChild?: unknown; children?: ReactNode }>(c)) return
+    if (c.type === Fragment) found = hasInteractiveItem(c.props.children)
+    else if (c.type === 'a' || c.type === 'button') found = true
+    else if (typeof c.type !== 'string' && c.props.asChild) found = true
+  })
+  return found
+}
 
 export type GoopItemGroupRootProps = Omit<ComponentPropsWithoutRef<'div'>, keyof GoopItemGroupProps> &
   GoopItemGroupProps & {
@@ -45,7 +68,8 @@ export type GoopItemGroupRootProps = Omit<ComponentPropsWithoutRef<'div'>, keyof
 
 export const GoopItemGroup = forwardRef<HTMLDivElement, GoopItemGroupRootProps>(function GoopItemGroup(allProps, ref) {
   const [engine, props] = splitProps(allProps, ITEM_GROUP_PROP_KEYS)
-  const { className, goopRef, ...rest } = props
+  const { className, goopRef, role, ...rest } = props
+  const list = role != null ? role === 'list' : !hasInteractiveItem(rest.children)
   const own = useStableValue(engine as GoopItemGroupProps)
   const options = useStableValue(toItemGroupOptions(own, useGoopConfig()))
   const blob = options !== null
@@ -75,7 +99,9 @@ export const GoopItemGroup = forwardRef<HTMLDivElement, GoopItemGroupRootProps>(
 
   return (
     <GroupContext.Provider value={own}>
-      <div ref={composed} role="list" data-slot="item-group" data-goop-item-group={blob ? '' : undefined} className={cn(ITEM_GROUP, className)} {...rest} />
+      <ListContext.Provider value={list}>
+        <div ref={composed} role={role ?? (list ? 'list' : undefined)} data-slot="item-group" data-goop-item-group={blob ? '' : undefined} className={cn(ITEM_GROUP, className)} {...rest} />
+      </ListContext.Provider>
     </GroupContext.Provider>
   )
 })
@@ -95,6 +121,8 @@ export const GoopItem = forwardRef<HTMLDivElement, GoopItemRootProps>(function G
   const [engine, props] = splitProps(allProps, ITEM_PROP_KEYS)
   const { className, variant = 'default', size = 'default', asChild = false, goopRef, ...rest } = props
   const group = useContext(GroupContext)
+  // In a list group a plain item is a listitem; an `asChild` (link / button) item keeps its role.
+  const list = useContext(ListContext)
   const options = useStableValue(toItemPressOptions(resolveItemProps(engine, group), useGoopConfig()))
 
   const el = useRef<HTMLDivElement | null>(null)
@@ -106,6 +134,7 @@ export const GoopItem = forwardRef<HTMLDivElement, GoopItemRootProps>(function G
   return (
     <Comp
       ref={composed}
+      role={list && !asChild ? 'listitem' : undefined}
       data-slot="item"
       data-variant={variant ?? 'default'}
       data-size={size ?? 'default'}

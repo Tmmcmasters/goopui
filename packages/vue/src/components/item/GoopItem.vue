@@ -6,13 +6,15 @@
 // A plain <div> item never squishes. In a GoopItemGroup its hover fill is the group's goo blob,
 // and it inherits `goo`, `press`, `speed` and `preset` from the group (its own win). Reduced
 // motion: no squish. Browser-only: SSR renders shadcn markup.
+// In a list group (see ./context) a non-interactive item is a `role="listitem"`; a link /
+// button item keeps its own role (never listitem). A `role` attr wins.
 import { attachItemPress, type ItemPressHandle } from '@goopui/core'
 import { cn } from 'cn'
 import { Primitive, type PrimitiveProps } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch, type HTMLAttributes } from 'vue'
 import { useGoopConfig } from '../../config'
 import { resolveItemProps, toItemPressOptions, type GoopItemProps } from '../../goop-props'
-import { injectGoopItemGroup } from './context'
+import { injectGoopItemGroup, injectGoopItemList, isInteractiveItem } from './context'
 import { itemVariants, type ItemSize, type ItemVariant } from './styles'
 
 const props = withDefaults(
@@ -36,6 +38,8 @@ const props = withDefaults(
 )
 
 const group = injectGoopItemGroup()
+const list = injectGoopItemList()
+const role = computed(() => (list?.value && !isInteractiveItem(props.as, props.asChild) ? { role: 'listitem' } : {}))
 const config = useGoopConfig()
 const options = computed(() => toItemPressOptions(resolveItemProps(props, group?.value), config))
 
@@ -78,6 +82,7 @@ defineExpose({
 <template>
   <Primitive
     ref="primitive"
+    v-bind="role"
     data-slot="item"
     :data-variant="variant"
     :data-size="size"
