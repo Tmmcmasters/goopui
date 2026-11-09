@@ -691,3 +691,113 @@ import {
   type SpinnerOptions,
   type SpinnerVariant,
 } from '@goopui/core'
+
+// ---- GoopInput / GoopTextarea / GoopRadioGroup / GoopSlider / GoopProgress / GoopToggle /
+// GoopToggleGroup (the forms batch) ---------------------------------------------------------
+// Each has its own small engine in core, so its props come from core's *_EFFECTS plus speed /
+// preset / renderer (same keys and defaults as @goopui/vue). Progress adds `seed`; Toggle and
+// ToggleGroup add `textFollow`.
+
+/** Every engine prop, per component (what splitProps takes off the DOM / Radix props). */
+export const INPUT_PROP_KEYS = effectKeys(INPUT_EFFECTS)
+export const RADIO_PROP_KEYS = effectKeys(RADIO_EFFECTS)
+export const SLIDER_PROP_KEYS = effectKeys(SLIDER_EFFECTS)
+export const PROGRESS_PROP_KEYS = Object.freeze([...effectKeys(PROGRESS_EFFECTS), 'seed'] as const)
+export const TOGGLE_PROP_KEYS = Object.freeze([...effectKeys(TOGGLE_EFFECTS), 'textFollow'] as const)
+export const TOGGLE_GROUP_PROP_KEYS = Object.freeze([...effectKeys(TOGGLE_GROUP_EFFECTS), 'textFollow'] as const)
+
+export type GoopInputEngineProps = GoopEffectProps<InputEffect>
+export type GoopRadioEngineProps = GoopEffectProps<RadioEffect>
+export type GoopSliderEngineProps = GoopEffectProps<SliderEffect>
+export type GoopProgressEngineProps = GoopEffectProps<ProgressEffect> & {
+  /** Varies drip timing and sizes. Default: app config, then 0. */
+  seed?: number
+}
+/** `textFollow`: the label's color follows the goo's edge (default on; `false` = the color
+ *  flips all at once). */
+type TextFollowProp = { textFollow?: boolean }
+export type GoopToggleEngineProps = GoopEffectProps<ToggleEffect> & TextFollowProp
+export type GoopToggleGroupEngineProps = GoopEffectProps<ToggleGroupEffect> & TextFollowProp
+
+/** Compile-time guards: every option core grows must be a prop (or set by the component). */
+type InputUnhandled = Exclude<keyof InputOptions, keyof GoopInputEngineProps | 'invalid' | 'reducedMotion'>
+const _allInputOptionsHandled: [InputUnhandled] extends [never] ? true : { unhandled: InputUnhandled } = true
+void _allInputOptionsHandled
+type RadioUnhandled = Exclude<keyof RadioGroupOptions, keyof GoopRadioEngineProps | 'value' | 'item' | 'reducedMotion'>
+const _allRadioOptionsHandled: [RadioUnhandled] extends [never] ? true : { unhandled: RadioUnhandled } = true
+void _allRadioOptionsHandled
+type SliderAdapterOwned = 'orientation' | 'reducedMotion' | 'thumbSelector' | 'rangeSelector' | 'trackSelector'
+type SliderUnhandled = Exclude<keyof SliderOptions, keyof GoopSliderEngineProps | SliderAdapterOwned>
+const _allSliderOptionsHandled: [SliderUnhandled] extends [never] ? true : { unhandled: SliderUnhandled } = true
+void _allSliderOptionsHandled
+type ProgressUnhandled = Exclude<keyof ProgressOptions, keyof GoopProgressEngineProps | 'value' | 'max' | 'reducedMotion'>
+const _allProgressOptionsHandled: [ProgressUnhandled] extends [never] ? true : { unhandled: ProgressUnhandled } = true
+void _allProgressOptionsHandled
+type ToggleUnhandled = Exclude<keyof ToggleOptions, keyof GoopToggleEngineProps | 'pressed' | 'reducedMotion'>
+const _allToggleOptionsHandled: [ToggleUnhandled] extends [never] ? true : { unhandled: ToggleUnhandled } = true
+void _allToggleOptionsHandled
+type ToggleGroupUnhandled = Exclude<keyof ToggleGroupOptions, keyof GoopToggleGroupEngineProps | 'value' | 'item' | 'reducedMotion'>
+const _allToggleGroupOptionsHandled: [ToggleGroupUnhandled] extends [never] ? true : { unhandled: ToggleGroupUnhandled } = true
+void _allToggleGroupOptionsHandled
+// And every listed key is a prop.
+const _formsPropsListed: [
+  | StaticListed<typeof INPUT_PROP_KEYS, GoopInputEngineProps>
+  | StaticListed<typeof RADIO_PROP_KEYS, GoopRadioEngineProps>
+  | StaticListed<typeof SLIDER_PROP_KEYS, GoopSliderEngineProps>
+  | StaticListed<typeof PROGRESS_PROP_KEYS, GoopProgressEngineProps>
+  | StaticListed<typeof TOGGLE_PROP_KEYS, GoopToggleEngineProps>
+  | StaticListed<typeof TOGGLE_GROUP_PROP_KEYS, GoopToggleGroupEngineProps>,
+] extends [never]
+  ? true
+  : false = true
+void _formsPropsListed
+
+/** Input / textarea options from props, over app config (same as Vue). */
+export const toInputOptions = (props: GoopInputEngineProps, config: GoopOptions = {}): InputOptions => toEffectOptions(INPUT_EFFECTS, props, config)
+/** Radio group options from props, over app config. */
+export const toRadioOptions = (props: GoopRadioEngineProps, config: GoopOptions = {}): RadioGroupOptions => toEffectOptions(RADIO_EFFECTS, props, config)
+/** Slider options from props, over app config. */
+export const toSliderOptions = (props: GoopSliderEngineProps, config: GoopOptions = {}): SliderOptions => toEffectOptions(SLIDER_EFFECTS, props, config)
+
+/** Progress options from props, over app config (`seed` falls back to the app's). */
+export function toProgressOptions(props: GoopProgressEngineProps, config: GoopOptions = {}): ProgressOptions {
+  const out: ProgressOptions = toEffectOptions(PROGRESS_EFFECTS, props, config)
+  const seed = props.seed ?? config.seed
+  if (seed !== undefined) out.seed = seed
+  return out
+}
+
+/** Toggle options from props, over app config. */
+export function toToggleOptions(props: GoopToggleEngineProps, config: GoopOptions = {}): ToggleOptions {
+  const out: ToggleOptions = toEffectOptions(TOGGLE_EFFECTS, props, config)
+  if (props.textFollow !== undefined) out.textFollow = props.textFollow
+  return out
+}
+
+/** Toggle group options from props, over app config. */
+export function toToggleGroupOptions(props: GoopToggleGroupEngineProps, config: GoopOptions = {}): ToggleGroupOptions {
+  const out: ToggleGroupOptions = toEffectOptions(TOGGLE_GROUP_EFFECTS, props, config)
+  if (props.textFollow !== undefined) out.textFollow = props.textFollow
+  return out
+}
+
+import {
+  INPUT_EFFECTS,
+  PROGRESS_EFFECTS,
+  RADIO_EFFECTS,
+  SLIDER_EFFECTS,
+  TOGGLE_EFFECTS,
+  TOGGLE_GROUP_EFFECTS,
+  type InputEffect,
+  type InputOptions,
+  type ProgressEffect,
+  type ProgressOptions,
+  type RadioEffect,
+  type RadioGroupOptions,
+  type SliderEffect,
+  type SliderOptions,
+  type ToggleEffect,
+  type ToggleGroupEffect,
+  type ToggleGroupOptions,
+  type ToggleOptions,
+} from '@goopui/core'

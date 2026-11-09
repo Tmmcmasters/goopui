@@ -7,10 +7,13 @@ const invalidEmail = ref('not-an-email')
 const bio = ref('')
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react components (react-demos/forms.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <div v-if="set === 'basic'" class="grid w-full max-w-sm gap-2">
+  <ReactIsland v-if="isReact" demo="input" :set="set" :pg="{ main: pg.props }" />
+  <div v-else-if="set === 'basic'" class="grid w-full max-w-sm gap-2">
     <label for="demo-input-email" class="text-sm font-medium">Email</label>
     <GoopInput id="demo-input-email" v-model="email" type="email" placeholder="you@example.com" v-bind="pg.props" />
   </div>
