@@ -1,5 +1,44 @@
 # @goopui/core
 
+## 0.1.0-alpha.2
+
+### Minor Changes
+
+- 776ac37: Button Group: every GoopButton inside a GoopButtonGroup now keeps its own goo body (lean, momentum, drips, press squish and splash), exactly like a standalone button. The group marks each button's joined sides and the goo is cut clean at the seams: nothing crosses onto a neighbour, the body reaches under the seam so the strip never opens, and the outer edges bulge, drip and splash as usual. Outline buttons share one 1px seam line.
+
+  - core: new `seams` option on `attachGoop` (`true` follows the host's `data-goop-seams`, or pass the sides), plus `GOOP_SEAMS_ATTR`, `parseGoopSeams`, `goopSeamClip`, `buttonGroupSeams` and the optional renderer method `setBodyBleed`. `attachButtonGroup` gains the `seams` effect (default on) and its `press` / `tug` whole-button flex is now opt-in (default off).
+  - vue / react: `GoopButtonGroup` takes `seams`; its `goo={false}` now also makes its buttons plain. `press` and `tug` default to off.
+
+- 365aeba: Table, Item and Input Group, in `@goopui/vue` (shadcn-vue parts, reka-nova classes) and `@goopui/react` (shadcn/ui parts, radix-nova classes).
+
+  - **Table** (`GoopTable` + Header, Body, Footer, Row, Head, Cell, Caption, Empty): the body rows' hover fill is one goo blob that glides from row to row (a calm menu highlight with the pointer swell). It lives in a clipping stage beside the table, on a pill inset into the row, so it never changes the container's scroll size. Opt-in `selected`: the blob rests on the selected row and is its fill. Toggles `highlight`, `wobble`, `momentum`, `followPointer`, `selected`.
+  - **Item** (`GoopItem`, `GoopItemGroup` + Media, Content, Title, Description, Actions, Header, Footer, Separator): in a group the interactive items' hover / focus fill is one goo blob; an interactive item squishes a little when pressed and settles with a small jelly bounce (`press`, never past full size). Items inherit `goo`, `press`, `speed`, `preset` from the group.
+  - **Input Group** (`GoopInputGroup` + Addon, Button, Text, Input, Textarea): GoopInput's goo focus ring around the whole group; the buttons inside are GoopButtons. Same toggles as GoopInput.
+  - core: `attachTableHighlight`, `attachItemGroupHighlight`, `attachItemPress`, `attachInputGroup` (and their feels / constants). `attachMenuHighlight` / `attachListHighlight` take an optional third `layout` argument (`layer`, `rect`, `radius`).
+
+- 2623a5f: Tags Input and Field. `GoopTagsInput` (+ `Item`, `ItemText`, `ItemDelete`, `Input`): shadcn-vue's TagsInput on reka-ui in Vue, and goopUI's own React TagsInput with the same parts and keyboard (shadcn/ui has none). It keeps GoopInput's goo focus ring around the whole box; a new tag plops in like a droplet joining (`merge`), a removed one drains away (`melt`). Core: `attachTagsInput`, `tagMergePose`, `tagMeltPose`, `TAGS_INPUT_EFFECTS`; `attachInput` takes an optional `frame` (the element the ring follows). `GoopField` and its parts (`FieldSet`, `FieldLegend`, `FieldGroup`, `FieldContent`, `FieldLabel`, `FieldTitle`, `FieldDescription`, `FieldSeparator`, `FieldError`): shadcn's Field family, the controls inside keep their own goo, and `GoopFieldError` drips in when it appears (`drip`, `reveal`; core `attachFieldError`, `fieldErrorPose`).
+- b859252: New components in Vue and React: Aspect Ratio, Scroll Area and Resizable (shadcn parts and radix-nova classes; reka-ui in Vue, Radix and `react-resizable-panels` in React, which `@goopui/react` now depends on).
+
+  - **GoopAspectRatio**: a plain port, no goo (it only sizes a box).
+  - **GoopScrollArea / GoopScrollBar**: the scrollbar thumb is a goo body. It stretches a little with the scroll speed (`stretch`) and, pushed past an end by wheel, trackpad or touch, squashes against it and springs back with a small jelly wobble (`jelly`). Transforms on the thumb's body only: no layout shift, no scroll-size change, and the stretch stays inside the track. Core: `attachScrollArea`, `SCROLL_AREA_EFFECTS`, `SCROLL_AREA_FEEL`, `scrollStretch`, `scrollSquash`, `scrollThumbTransform`.
+  - **GoopResizablePanelGroup / GoopResizablePanel / GoopResizableHandle**: the handle's grip (`withHandle`) is a goo bead that swells a little and bulges toward the drag direction in a low, wide mound (`bulge`), then wobbles back like jelly on release (`wobble`). Without a grip the mound rises on the line under the pointer. Props set on the group are inherited by its handles. Core: `attachResizableHandle`, `RESIZABLE_EFFECTS`, `RESIZABLE_FEEL`, `resizableBeadPath`.
+
+  Every effect takes a boolean or a multiplier, plus `speed` and `preset` (`subtle | playful | wild`); `goo: false` renders plain shadcn. Reduced motion: static, no sim.
+
+- 578195e: The menu highlight blob over any list of links or buttons: core `attachListHighlight(list, { items, active, hover })` and Vue `useGoopListHighlight(el, options, enabled)`. The blob follows hover (mouse / pen, never touch) and keyboard focus, and rests on the `active` item (the current page, the section in view) otherwise. Reduced motion: it snaps.
+
+### Patch Changes
+
+- 3cf30ef: Fixes found by the new demo smoke + axe check:
+
+  - Core `attachToggleGroup` no longer counts its own text-follow copies as items. With an item selector like `[data-slot="toggle-group-item"]` (React's GoopToggleGroup) un-pressing a pressed item froze the page in a MutationObserver loop.
+  - A one-thumb GoopSlider's `aria-label` / `aria-labelledby` also names its thumb (the focusable `role="slider"`).
+  - GoopCarouselDots space the dots 16px apart, so each dot's target is 24px (WCAG 2.2 target size).
+  - GoopCommandSeparator is decorative (`role="none"`): a listbox may only own groups and options. Vue's GoopCommandList is named "Suggestions" by default, like cmdk's.
+  - Destructive menu items on a tinted goo surface (`surface="trigger"`) mix toward the surface's text color, so they stay readable.
+  - Vue: GoopComboboxInput drops reka's stale `aria-activedescendant` while the list is closed; GoopDrawer no longer leaves the page `aria-hidden` after a second drawer closes (reka's aria-hidden cleanup ran twice).
+  - React: GoopComboboxInput's `aria-expanded` / `aria-controls` follow the popover (cmdk hardcodes them); GoopTabs keeps every panel element in the DOM (hidden while inactive, children still unmounted), and a trigger without a panel names no `aria-controls`, as in reka-ui. GoopPopoverContent's dialog is named by its trigger (as in reka-ui), and GoopComboboxList's popup is no longer an unnamed `role="dialog"` around the listbox. GoopScrollArea's viewport is focusable (`tabIndex={0}`, as reka-ui's is), so keyboard users can scroll it.
+
 ## 0.1.0-alpha.1
 
 ### Minor Changes
