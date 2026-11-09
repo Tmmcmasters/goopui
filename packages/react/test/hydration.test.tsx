@@ -88,5 +88,34 @@ describe('hydration', () => {
     await act(async () => r.unmount())
     expect(document.querySelector('[data-goop]')).toBeNull()
   })
+
+  it('hydrates GoopSelect without mismatch; opening it then blooms the goo list', async () => {
+    const m = await import('../src')
+    const App = () =>
+      h(
+        GoopProvider,
+        { sound: true },
+        h(
+          m.GoopSelect,
+          { defaultValue: 'Banana' },
+          h(m.GoopSelectTrigger, { className: 'w-44' }, h(m.GoopSelectValue, { placeholder: 'Pick a fruit' })),
+          h(m.GoopSelectContent, null, h(m.GoopSelectItem, { value: 'Apple' }, 'Apple'), h(m.GoopSelectItem, { value: 'Banana' }, 'Banana')),
+        ),
+      )
+    const { root, r, messages, recoverable } = await hydrate(App)
+    expect(messages.filter((msg) => /hydrat|mismatch|did not match/i.test(msg))).toEqual([])
+    expect(recoverable).toEqual([])
+    const trigger = root.querySelector<HTMLElement>('[data-slot="select-trigger"]')!
+    expect(trigger.textContent).toContain('Banana')
+    await act(async () => {
+      trigger.focus()
+      trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    })
+    const content = document.querySelector('[data-slot="select-content"]')
+    expect(content).not.toBeNull()
+    expect(content!.hasAttribute('data-goop-emerge')).toBe(true)
+    await act(async () => r.unmount())
+    expect(document.querySelector('[data-goop]')).toBeNull()
+  })
 })
 

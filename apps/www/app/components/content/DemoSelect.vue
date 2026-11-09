@@ -8,6 +8,8 @@ const placed = ref('Blueberry')
 const popper = ref('Blueberry')
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react selects (react-demos/select.tsx).
+const { isReact } = useFramework()
 const surfaces = [
   { label: 'popover (default)', value: 'popover' },
   { label: 'trigger', value: 'trigger' },
@@ -16,7 +18,8 @@ const surfaces = [
 </script>
 
 <template>
-  <GoopSelect v-if="set === 'basic'" v-model="fruit">
+  <ReactIsland v-if="isReact" demo="select" :set="set" :pg="{ content: pg.part('content') }" />
+  <GoopSelect v-else-if="set === 'basic'" v-model="fruit">
     <GoopSelectTrigger class="w-44">
       <GoopSelectValue placeholder="Pick a fruit" />
     </GoopSelectTrigger>

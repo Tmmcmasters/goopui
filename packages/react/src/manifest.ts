@@ -38,6 +38,16 @@ export const goopComponents = [
   'GoopSeparator',
   'GoopLabel',
   'GoopSpinner',
+  'GoopSelect',
+  'GoopSelectContent',
+  'GoopSelectGroup',
+  'GoopSelectItem',
+  'GoopSelectLabel',
+  'GoopSelectScrollDownButton',
+  'GoopSelectScrollUpButton',
+  'GoopSelectSeparator',
+  'GoopSelectTrigger',
+  'GoopSelectValue',
 ] as const
 
 export type GoopComponentName = (typeof goopComponents)[number]

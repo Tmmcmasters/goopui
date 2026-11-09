@@ -169,5 +169,28 @@ describe('SSR (react-dom/server)', () => {
     for (const f of ['card/parts.tsx', 'avatar/parts.tsx', 'separator/GoopSeparator.tsx', 'label/GoopLabel.tsx', 'skeleton/variants.ts', 'badge/variants.ts'])
       expect(client(f), f).toBe(false)
   })
+
+  it("GoopSelect renders shadcn's trigger with the value (the list is client-only)", async () => {
+    const { GoopSelect, GoopSelectTrigger, GoopSelectValue, GoopSelectContent, GoopSelectItem, GoopProvider } = await import('../src')
+    const html = await render(() =>
+      h(
+        GoopProvider,
+        { sound: true },
+        h(
+          GoopSelect,
+          { defaultValue: 'b' },
+          h(GoopSelectTrigger, { className: 'w-44', size: 'sm' }, h(GoopSelectValue, { placeholder: 'Pick' })),
+          h(GoopSelectContent, { plop: false, openDrips: false }, h(GoopSelectItem, { value: 'a' }, 'Apple'), h(GoopSelectItem, { value: 'b' }, 'Banana')),
+        ),
+      ),
+    )
+    expect(html).toContain('role="combobox"')
+    expect(html).toContain('data-slot="select-trigger"')
+    expect(html).toContain('data-size="sm"')
+    expect(html).toContain('data-cuelume-open')
+    expect(html).not.toContain('data-slot="select-content"')
+    expect(html).not.toContain('data-goop="surface"')
+    expect(html).not.toContain('plop')
+  })
 })
 
