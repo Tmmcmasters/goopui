@@ -110,6 +110,10 @@ export function attachListHighlight(container: HTMLElement, options: ListHighlig
 
   const onOver = (e: PointerEvent): void => {
     if (e.pointerType === 'touch' || opts.hover === false) return
+    // Over a nested highlight list (its own blob takes over): this one lets go.
+    const t = El && e.target instanceof El ? e.target : null
+    const nest = t?.closest(`[${MENU_CONTAINER_ATTR}]`)
+    if (nest && nest !== container) return light(null)
     const b = itemOf(e.target)
     // Between items (a gap, a heading) the blob stays where it is until the pointer leaves.
     if (b) light(b)

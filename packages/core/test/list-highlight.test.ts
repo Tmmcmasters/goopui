@@ -71,6 +71,20 @@ describe('attachListHighlight', () => {
     h.destroy()
   })
 
+  it('lets go when the pointer moves onto a nested highlight list', () => {
+    const nav = list(`<a href="/a" id="a">A</a><div id="sub"><button id="v" data-on>V</button><button id="r">R</button></div>`)
+    const sub = nav.querySelector<HTMLElement>('#sub')!
+    const inner = attachListHighlight(sub, { active: '[data-on]', hover: false, reducedMotion: true })
+    const h = attachListHighlight(nav, { reducedMotion: true })
+    over(nav.querySelector('#a')!)
+    expect(h.target?.id).toBe('a')
+    over(nav.querySelector('#r')!)
+    expect(h.target).toBeNull()
+    expect(inner.target?.id).toBe('v')
+    h.destroy()
+    inner.destroy()
+  })
+
   it('only rides matching items of its own list', () => {
     const nav = list(`<a href="/a" id="a" aria-current="page">A</a><span id="s" aria-current="page">S</span>`)
     nav.setAttribute(MENU_CONTAINER_ATTR, '')

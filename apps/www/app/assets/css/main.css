@@ -414,3 +414,9 @@ html[data-reduced-motion='true'] [data-reveal] {
 .fw-switch > [data-goop='highlight'] {
   filter: drop-shadow(0 0 0.5px var(--border-strong));
 }
+/* The search palette's highlight is the same blob on the popover: --muted is within a hair of
+   --popover on dark, so it takes --accent (the same step up from its surface as the chrome's
+   --muted is from the page). */
+.search-palette [data-slot='command-list'] [data-goop='highlight'] {
+  --goop-color: var(--accent);
+}
