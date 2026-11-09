@@ -523,3 +523,111 @@
     opacity: 0;
   }
 }
+
+/* Sidebar sub-menu pour (GoopSidebar `pour`, around a goo Collapsible; same rules as
+   @goopui/vue). */
+@layer components {
+  /* Sub-menu pour (`pour`): while a GoopSidebar sub-menu's content springs open (core's jelly
+     timing on the collapsible), its guide line is a thick goo stream with a bead at the
+     opening edge (the content's bottom, so it rides the overshoot), and both melt into the
+     hairline as it settles. Closing draws the bead back up. Never under reduced motion
+     (core marks the collapsible data-goop-still; the media query covers the OS setting). */
+  [data-goop-accordion]:not([data-goop-still]) [data-goop-accordion-content]:has(> [data-goop-pour]) {
+    position: relative;
+  }
+  [data-goop-accordion]:not([data-goop-still]) [data-goop-accordion-content]:has(> [data-goop-pour])::after {
+    content: '';
+    position: absolute;
+    bottom: 1px;
+    left: calc(0.875rem - 1.5px);
+    width: 6px;
+    height: 10px;
+    border-radius: 999px;
+    background: var(--goop-sidebar-pour, color-mix(in oklab, var(--sidebar-primary, var(--primary)) 45%, var(--sidebar-border, var(--border))));
+    pointer-events: none;
+    opacity: 0;
+    transform-origin: 50% 100%;
+  }
+  [data-goop-accordion]:not([data-goop-still]) [data-goop-accordion-content][data-state='open']:has(> [data-goop-pour])::after {
+    animation: goop-pour-bead var(--goop-accordion-open, 0.5s) ease-out both;
+  }
+  [data-goop-accordion]:not([data-goop-still]) [data-goop-accordion-content][data-state='closed']:has(> [data-goop-pour])::after {
+    animation: goop-pour-bead-up var(--goop-accordion-close, 0.25s) ease-out both;
+  }
+  [data-goop-accordion]:not([data-goop-still]) [data-goop-accordion-content][data-state='open'] > [data-goop-pour] {
+    animation: goop-pour-line var(--goop-accordion-open, 0.5s) ease-out both;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-goop-accordion] [data-goop-accordion-content]:has(> [data-goop-pour])::after {
+      display: none;
+    }
+    [data-goop-accordion] [data-goop-accordion-content] > [data-goop-pour] {
+      animation: none !important;
+    }
+  }
+  html[data-reduced-motion='true'] [data-goop-accordion] [data-goop-accordion-content]:has(> [data-goop-pour])::after {
+    display: none;
+  }
+  html[data-reduced-motion='true'] [data-goop-accordion] [data-goop-accordion-content] > [data-goop-pour] {
+    animation: none !important;
+  }
+}
+
+/* GoopSidebar sub-menu pour (see the Sidebar rules above). The bead swells as it leads the
+   opening edge down, then melts up into the line; the line starts as a 3px stream in the
+   bead's color and thins to the hairline. */
+@keyframes goop-pour-bead {
+  0% {
+    opacity: 1;
+    transform: scale(0.7, 0.9);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(1, 1.25);
+  }
+  80% {
+    opacity: 0.85;
+    transform: scale(0.55, 0.7);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.2, 0.3);
+  }
+}
+@keyframes goop-pour-bead-up {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  35%,
+  100% {
+    opacity: 1;
+    transform: scale(0.85, 1.1);
+  }
+}
+@keyframes goop-pour-line {
+  0% {
+    border-left-color: var(--goop-sidebar-pour, color-mix(in oklab, var(--sidebar-primary, var(--primary)) 45%, var(--sidebar-border, var(--border))));
+    box-shadow:
+      -1px 0 0 0 var(--goop-sidebar-pour, color-mix(in oklab, var(--sidebar-primary, var(--primary)) 45%, var(--sidebar-border, var(--border)))),
+      inset 1px 0 0 0 var(--goop-sidebar-pour, color-mix(in oklab, var(--sidebar-primary, var(--primary)) 45%, var(--sidebar-border, var(--border))));
+  }
+  100% {
+    border-left-color: var(--sidebar-border, var(--border));
+    box-shadow:
+      -1px 0 0 0 transparent,
+      inset 1px 0 0 0 transparent;
+  }
+}
+
+/* Carousel dots (GoopCarouselDots): the active dot's fill is ONE goo blob in the primary
+   colour. Once it is attached (core marks the list data-goop-menu) the active dot drops its
+   own flat fill so only the blob shows; before that (SSR, first paint) it keeps it. */
+@layer components {
+  [data-goop-carousel-dots] > [data-goop='highlight'] {
+    --goop-color: var(--primary);
+  }
+  [data-goop-carousel-dots][data-goop-menu] > [data-goop-carousel-dot][data-state='active'] {
+    background-color: transparent !important;
+  }
+}

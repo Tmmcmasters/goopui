@@ -239,3 +239,13 @@ export {
   type ResolvedCommandProps,
 } from './goop-props'
 export type { InputOTPHandle, NumberFieldHandle, ToasterHandle } from '@goopui/core'
+// Sidebar, Carousel, PageTransition.
+export * from './components/sidebar'
+export { SIDEBAR_PROP_KEYS, toSidebarOptions, type GoopSidebarProps, type ResolvedSidebarGoo } from './goop-props'
+export type { SidebarEdgeHandle, SidebarSide } from '@goopui/core'
+export * from './components/carousel'
+export { CAROUSEL_PROP_KEYS, toCarouselOptions, type GoopCarouselProps, type ResolvedCarouselGoo } from './goop-props'
+export type { CarouselHandle } from '@goopui/core'
+export * from './components/page-transition'
+export { PAGE_TRANSITION_PROP_KEYS, toPageTransitionOptions, type GoopPageTransitionProps } from './goop-props'
+export type { PageTransitionDirection, PageTransitionHandle } from '@goopui/core'

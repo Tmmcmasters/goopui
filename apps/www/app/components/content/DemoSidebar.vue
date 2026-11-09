@@ -23,11 +23,14 @@ const nav = [
 ]
 const docs = ['Introduction', 'Get started', 'Theming']
 const active = ref('Dashboard')
+// On /react/docs: the same sidebar in a React root (react-demos/sidebar.tsx), in this frame.
+const { isReact } = useFramework()
 </script>
 
 <template>
   <div class="sidebar-demo relative h-[420px] w-full overflow-hidden rounded-lg border border-border bg-background text-left [transform:translateZ(0)]">
-    <GoopSidebarProvider class="h-full min-h-0">
+    <ReactIsland v-if="isReact" demo="sidebar" :pg="{ main: { collapsible: props.collapsible, variant: props.variant, ...pg.props } }" />
+    <GoopSidebarProvider v-else class="h-full min-h-0">
       <GoopSidebar :collapsible="props.collapsible" :variant="props.variant" class="h-full" v-bind="pg.props">
         <GoopSidebarHeader>
           <GoopSidebarMenu>
