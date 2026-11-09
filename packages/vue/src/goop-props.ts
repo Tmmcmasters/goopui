@@ -2752,3 +2752,85 @@ export function toEmptyOptions(props: GoopEmptyProps, config: GoopOptions = {}):
 }
 
 import { EMPTY_EFFECTS, type EmptyPuddleOptions } from '@goopui/core'
+
+// ---- GoopTagsInput --------------------------------------------------------------------------
+// Core `attachTagsInput`: the Input's goo focus ring around the whole box (INPUT_EFFECTS), plus
+// the tags' own `merge` (a new tag plops in like a droplet joining) and `melt` (a removed tag
+// drains away), and speed / preset / renderer. `goo: false` renders a plain shadcn TagsInput.
+
+/** Every GoopTagsInput engine prop (besides `goo`). */
+export const TAGS_INPUT_PROP_KEYS = [...TAGS_INPUT_EFFECTS, 'speed', 'preset', 'renderer'] as const
+
+type TagsInputAdapterOwned = 'invalid' | 'reducedMotion'
+export type GoopTagsInputEngineKey = TagsInputEffect | 'speed' | 'preset' | 'renderer'
+type TagsInputUnhandled = Exclude<keyof TagsInputOptions, GoopTagsInputEngineKey | TagsInputAdapterOwned>
+const _allTagsInputOptionsHandled: [TagsInputUnhandled] extends [never] ? true : { unhandled: TagsInputUnhandled } = true
+void _allTagsInputOptionsHandled
+
+export type GoopTagsInputPropsDefinition = EffectPropsDefinition<TagsInputEffect>
+export type GoopTagsInputPropsInput = InputOf<GoopTagsInputPropsDefinition>
+/** Spread into `defineProps({ ...goopTagsInputProps, ... })`. */
+export const goopTagsInputProps = effectEngineProps(TAGS_INPUT_EFFECTS) as unknown as GoopTagsInputPropsDefinition
+
+/** Engine options for core over app config. */
+export function toTagsInputOptions(props: GoopTagsInputPropsInput, config: GoopOptions = {}): TagsInputOptions {
+  return toEffectOptions(TAGS_INPUT_EFFECTS, props, config)
+}
+
+import { TAGS_INPUT_EFFECTS, type TagsInputEffect, type TagsInputOptions } from '@goopui/core'
+
+// ---- GoopField ------------------------------------------------------------------------------
+// The Field parts are shadcn's; the controls inside keep their own goo (a GoopInput's ring,
+// a GoopCheckbox's fill, ...). The one new motion: GoopFieldError drips in when it appears
+// (core `attachFieldError`: a small `drip` of the destructive colour falls from under the
+// control into the message, which `reveal`s top-down behind it). Props can sit on GoopField
+// (the error inherits them) or on GoopFieldError (wins).
+
+/** Every GoopField engine prop. */
+export const FIELD_PROP_KEYS = ['goo', ...FIELD_ERROR_EFFECTS, 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopField (inherited) and GoopFieldError. */
+export interface GoopFieldProps {
+  /** Master switch. `false` renders plain shadcn Field parts. */
+  goo?: boolean
+  /** The error's drop: falls from under the control into the message. A number scales it. */
+  drip?: boolean | number
+  /** The error message unrolls top-down behind the drop (false: it just shows). */
+  reveal?: boolean | number
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+type FieldAdapterOwned = 'reducedMotion'
+type FieldUnhandled = Exclude<keyof FieldErrorOptions, keyof GoopFieldProps | FieldAdapterOwned>
+const _allFieldOptionsHandled: [FieldUnhandled] extends [never] ? true : { unhandled: FieldUnhandled } = true
+void _allFieldOptionsHandled
+type FieldPropsListed = Exclude<keyof GoopFieldProps, (typeof FIELD_PROP_KEYS)[number]>
+const _allFieldPropsListed: [FieldPropsListed] extends [never] ? true : { unlisted: FieldPropsListed } = true
+void _allFieldPropsListed
+
+/** The error's props over the field's: each prop the error sets wins, the rest are inherited. */
+export function resolveFieldProps(own: GoopFieldProps, parent?: GoopFieldProps | null): GoopFieldProps {
+  const out: GoopFieldProps = {}
+  for (const k of FIELD_PROP_KEYS) {
+    const v = own[k] ?? parent?.[k]
+    if (v !== undefined) (out as Record<string, unknown>)[k] = v
+  }
+  return out
+}
+
+/** Drip-in options for core over app config, or null when the goo is off. */
+export function toFieldErrorOptions(props: GoopFieldProps, config: GoopOptions = {}): FieldErrorOptions | null {
+  if (props.goo === false) return null
+  const out: FieldErrorOptions = { preset: props.preset ?? config.preset, renderer: props.renderer ?? config.renderer, reducedMotion: config.reducedMotion }
+  if (props.drip !== undefined) out.drip = props.drip
+  if (props.reveal !== undefined) out.reveal = props.reveal
+  if (props.speed !== undefined) out.speed = props.speed
+  return out
+}
+
+import { FIELD_ERROR_EFFECTS, type FieldErrorOptions } from '@goopui/core'

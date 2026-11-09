@@ -515,11 +515,15 @@ const effectsOf = (o: InputOptions): InputEffects => {
 /**
  * Attach the goo focus ring. `host` wraps `field` (it gets the goo layer and must be the
  * field's positioned ancestor; core makes it `position: relative` if static).
+ * `frame` (optional): the element whose border box the ring follows when it isn't the field
+ * itself, e.g. a tags input's bordered box around its borderless <input>. Its aria-invalid
+ * counts too. Default: the field.
  */
 export function attachInput(
   host: HTMLElement,
   field: HTMLInputElement | HTMLTextAreaElement,
   options: InputOptions = {},
+  frame: HTMLElement = field,
 ): InputHandle {
   const doc = host.ownerDocument
   const win = doc.defaultView
@@ -544,22 +548,25 @@ export function attachInput(
 
   const readInvalid = (): boolean => {
     if (opts.invalid === true || opts.invalid === false) return opts.invalid
-    const v = field.getAttribute('aria-invalid')
-    return v !== null && v !== 'false'
+    const on = (el: Element): boolean => {
+      const v = el.getAttribute('aria-invalid')
+      return v !== null && v !== 'false'
+    }
+    return on(field) || (frame !== field && on(frame))
   }
 
   const measure = (): InputGeometry => {
-    const cs = win?.getComputedStyle(field)
+    const cs = win?.getComputedStyle(frame)
     const radius = parseFloat(cs?.borderTopLeftRadius ?? '') || 0
     // offsetLeft/Top are relative to the host when the host is the offset parent.
     const hr = host.getBoundingClientRect()
-    const fr = field.getBoundingClientRect()
-    const viaRect = field.offsetParent !== host
+    const fr = frame.getBoundingClientRect()
+    const viaRect = frame.offsetParent !== host
     return {
-      x: viaRect ? fr.left - hr.left : field.offsetLeft,
-      y: viaRect ? fr.top - hr.top : field.offsetTop,
-      width: field.offsetWidth || fr.width,
-      height: field.offsetHeight || fr.height,
+      x: viaRect ? fr.left - hr.left : frame.offsetLeft,
+      y: viaRect ? fr.top - hr.top : frame.offsetTop,
+      width: frame.offsetWidth || fr.width,
+      height: frame.offsetHeight || fr.height,
       radius,
     }
   }
@@ -686,7 +693,9 @@ export function attachInput(
     if (reduced || effects.ripple <= 0) return
     const c = caretOffset(field)
     const below = field.tagName === 'INPUT' || c.y >= field.offsetHeight / 2
-    const px = geom.x + c.x
+    // With a separate frame the field sits somewhere inside it: start from the field's left.
+    const fx = frame === field ? geom.x : field.getBoundingClientRect().left - host.getBoundingClientRect().left
+    const px = fx + c.x
     const py = below ? geom.y + geom.height : geom.y
     addInputRipple(st, ringArcAt(geom, feel.offset, px, py), amp)
     kick()
@@ -719,6 +728,7 @@ export function attachInput(
   const ro = RO ? new RO(() => relayout()) : undefined
   ro?.observe(host)
   ro?.observe(field)
+  if (frame !== field) ro?.observe(frame)
   const MO = win?.MutationObserver
   const mo = MO
     ? new MO(() => {
@@ -733,6 +743,7 @@ export function attachInput(
       })
     : undefined
   mo?.observe(field, { attributes: true, attributeFilter: ['aria-invalid'] })
+  if (frame !== field) mo?.observe(frame, { attributes: true, attributeFilter: ['aria-invalid'] })
   const unwatch = watchReducedMotion(doc, () => {
     reduced = readReduced()
     kick()
