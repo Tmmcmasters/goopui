@@ -53,7 +53,7 @@ const table = (props: Record<string, unknown> = {}) =>
       GoopTableBody,
       null,
       h(GoopTableRow, null, h(GoopTableCell, null, 'A')),
-      h(GoopTableRow, { 'data-state': 'selected' }, h(GoopTableCell, null, 'B')),
+      h(GoopTableRow, { 'data-state': 'selected' } as Record<string, string>, h(GoopTableCell, null, 'B')),
       h(GoopTableEmpty, { colSpan: 1 }, 'Nothing'),
     ),
   )

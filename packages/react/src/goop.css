@@ -684,13 +684,20 @@
   [data-goop-table] [data-goop='highlight'] {
     --goop-color: color-mix(in oklab, var(--muted) 50%, var(--background));
   }
+  /* Dark: muted at 50% is the page's own tone (invisible on a card); the full muted tone. */
+  :where(.dark) [data-goop-table] [data-goop='highlight'] {
+    --goop-color: var(--muted);
+  }
   [data-goop-table][data-goop-menu] > table > [data-slot='table-body'] > [data-slot='table-row']:hover,
   [data-goop-table][data-goop-menu] > table > [data-slot='table-body'] > [data-slot='table-row'][data-goop-rest] {
-    background-color: transparent;
+    background-color: transparent !important;
   }
   /* While the blob rests on the selected row it takes shadcn's selected tone. */
   [data-goop-table]:has([data-goop-rest]) [data-goop='highlight'] {
     --goop-color: var(--muted);
+  }
+  :where(.dark) [data-goop-table]:has([data-goop-rest]) [data-goop='highlight'] {
+    --goop-color: var(--accent);
   }
 
   /* Item group: one goo blob is the interactive items' hover fill (shadcn's [a]:hover:bg-muted).
@@ -699,9 +706,9 @@
     --goop-color: var(--muted);
   }
   [data-goop-item-group][data-goop-menu] > [data-slot='item']:hover {
-    background-color: transparent;
+    background-color: transparent !important;
   }
   [data-goop-item-group][data-goop-menu] > [data-slot='item'][data-variant='muted']:hover {
-    background-color: color-mix(in oklab, var(--muted) 50%, transparent);
+    background-color: color-mix(in oklab, var(--muted) 50%, transparent) !important;
   }
 }

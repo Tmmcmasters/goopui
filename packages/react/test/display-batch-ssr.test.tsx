@@ -32,7 +32,7 @@ describe('SSR (react-dom/server): display batch', () => {
           { selected: true },
           h(m.GoopTableCaption, null, 'Invoices'),
           h(m.GoopTableHeader, null, h(m.GoopTableRow, null, h(m.GoopTableHead, null, 'Invoice'))),
-          h(m.GoopTableBody, null, h(m.GoopTableRow, { 'data-state': 'selected' }, h(m.GoopTableCell, null, 'INV001'))),
+          h(m.GoopTableBody, null, h(m.GoopTableRow, { 'data-state': 'selected' } as Record<string, string>, h(m.GoopTableCell, null, 'INV001'))),
           h(m.GoopTableFooter, null, h(m.GoopTableRow, null, h(m.GoopTableCell, null, 'Total'))),
         ),
         h(
