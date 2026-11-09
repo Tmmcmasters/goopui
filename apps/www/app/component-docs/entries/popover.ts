@@ -18,6 +18,17 @@ export default defineComponentDoc({
     </GoopPopoverHeader>
   </GoopPopoverContent>
 </GoopPopover>`,
+  reactCode: `<GoopPopover>
+  <GoopPopoverTrigger asChild>
+    <GoopButton variant="outline">Open popover</GoopButton>
+  </GoopPopoverTrigger>
+  <GoopPopoverContent{{content}}>
+    <GoopPopoverHeader>
+      <GoopPopoverTitle>Dimensions</GoopPopoverTitle>
+      <GoopPopoverDescription>Set the dimensions for the layer.</GoopPopoverDescription>
+    </GoopPopoverHeader>
+  </GoopPopoverContent>
+</GoopPopover>`,
   controls: [
     preset({ part: 'content' }),
     speed({ part: 'content' }),

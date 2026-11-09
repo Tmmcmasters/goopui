@@ -29,6 +29,7 @@ import { SkeletonRevealDemo, SpinnerDemo, StaticSet, Tile } from './batch1'
 import { SelectDemo } from './select'
 import { DrawerDemo } from './drawer'
 import { FormsTile, InputDemo, ProgressDemo, RadioGroupDemo, SliderDemo, ToggleDemo } from './forms'
+import { AlertDialogDemo, HoverCardDemo, PopoverDemo, SheetDemo, TooltipDemo } from './overlays'
 
 /** What a Vue demo hands its island. */
 export interface ReactDemoProps {
@@ -84,6 +85,16 @@ export function ReactDemo(props: ReactDemoProps) {
         return <ToggleDemo set={props.set} pg={props.pg} />
       case 'forms-tile':
         return <FormsTile slug={props.set} />
+      case 'popover':
+        return <PopoverDemo set={props.set} pg={props.pg} />
+      case 'tooltip':
+        return <TooltipDemo set={props.set} pg={props.pg} />
+      case 'hover-card':
+        return <HoverCardDemo set={props.set} pg={props.pg} />
+      case 'alert-dialog':
+        return <AlertDialogDemo set={props.set} pg={props.pg} />
+      case 'sheet':
+        return <SheetDemo set={props.set} pg={props.pg} />
       default:
         return null
     }

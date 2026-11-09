@@ -4,10 +4,13 @@
 withDefaults(defineProps<{ set?: 'basic' | 'from' }>(), { set: 'basic' })
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react components (react-demos/overlays.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <div class="flex flex-wrap items-start justify-center gap-10 pb-40">
+  <ReactIsland v-if="isReact" demo="hover-card" :set="set" :pg="{ content: pg.part('content') }" />
+  <div v-else class="flex flex-wrap items-start justify-center gap-10 pb-40">
     <GoopHoverCard v-if="set === 'basic'" :open-delay="200">
       <GoopHoverCardTrigger href="https://nuxt.com" target="_blank" rel="noreferrer" class="text-sm font-medium underline underline-offset-4">
         @nuxt

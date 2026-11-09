@@ -4,10 +4,13 @@
 withDefaults(defineProps<{ set?: 'basic' | 'louder' }>(), { set: 'basic' })
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react components (react-demos/overlays.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <GoopAlertDialog v-if="set === 'basic'">
+  <ReactIsland v-if="isReact" demo="alert-dialog" :set="set" :pg="{ content: pg.part('content') }" />
+  <GoopAlertDialog v-else-if="set === 'basic'">
     <GoopAlertDialogTrigger as-child>
       <GoopButton variant="outline">Delete account</GoopButton>
     </GoopAlertDialogTrigger>

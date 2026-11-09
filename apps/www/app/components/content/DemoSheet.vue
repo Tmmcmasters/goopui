@@ -5,10 +5,13 @@ withDefaults(defineProps<{ set?: 'basic' | 'sides' | 'splash' }>(), { set: 'basi
 const sides = ['top', 'right', 'bottom', 'left'] as const
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react components (react-demos/overlays.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <GoopSheet v-if="set === 'basic'">
+  <ReactIsland v-if="isReact" demo="sheet" :set="set" :pg="{ content: pg.part('content') }" />
+  <GoopSheet v-else-if="set === 'basic'">
     <GoopSheetTrigger as-child>
       <GoopButton variant="outline">Open sheet</GoopButton>
     </GoopSheetTrigger>
