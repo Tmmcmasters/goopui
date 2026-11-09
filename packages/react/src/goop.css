@@ -748,3 +748,39 @@
     background-color: color-mix(in oklab, var(--muted) 50%, transparent) !important;
   }
 }
+
+/* Calendar (GoopCalendar, GoopRangeCalendar on react-day-picker). Same idea as @goopui/vue's
+   rules with shadcn/ui React's markup: once core's goo is attached (it marks the root
+   data-goop-calendar; data-goop-band / data-goop-focus while those layers are on) the goo is the
+   selection, the range band and the hover wash, so shadcn's flat fills step aside: the selected
+   day's / the caps' bg-primary, the range cells' bg-muted (and their ::after connectors), the
+   range middle's bg-muted, and the ghost hover bg. Until then (SSR, first paint, goo off) it is
+   plain shadcn. Unlayered on purpose so it beats the data-[...]: utilities. */
+[data-goop-calendar] td[data-day][data-selected='true'],
+[data-goop-calendar] td[data-day][data-selected='true']::after {
+  background-color: transparent;
+}
+[data-goop-calendar] td[data-day] > button:is([data-selected-single='true'], [data-range-start='true'], [data-range-end='true']),
+[data-goop-calendar][data-goop-band] td[data-day] > button[data-range-middle='true'],
+[data-goop-calendar][data-goop-focus] td[data-day] > button:hover {
+  background-color: transparent;
+}
+/* The range band paints with shadcn React's range fill (bg-muted). */
+[data-goop-calendar] {
+  --goop-calendar-range: var(--muted);
+}
+/* The hover / focus wash: shadcn's ghost hover (bg-muted). */
+[data-goop-calendar] > [data-goop='highlight'] {
+  --goop-color: var(--muted);
+}
+/* The month slosh moves the days by `translate` every frame: no transition may smooth it. */
+[data-goop-calendar] [data-goop-slosh] {
+  transition: none;
+}
+/* Labels. While text follows the goo core lays an on-goo copy (--goop-calendar-text, default
+   --primary-foreground) exactly where the selection goo is, so the real label keeps the colour
+   of what is under it: the page's text, the band's foreground, or muted outside the month.
+   Without text-follow (reduced motion) a filled cap keeps shadcn's primary-foreground. */
+[data-goop-calendar] td[data-day] > [data-goop-text-follow]:is([data-selected-single='true'], [data-range-start='true'], [data-range-end='true']) {
+  color: inherit;
+}

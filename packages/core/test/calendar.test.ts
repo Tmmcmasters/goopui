@@ -3,10 +3,12 @@ import {
   CALENDAR_ATTR,
   CALENDAR_BANDED_ATTR,
   CALENDAR_BAND_ATTR,
+  CALENDAR_DAYPICKER_DAYS,
   CALENDAR_EFFECTS,
   CALENDAR_FEEL,
   CALENDAR_FILLED_ATTR,
   CALENDAR_FOCUS_ATTR,
+  CALENDAR_PREVIEW_ATTR,
   CALENDAR_SLOSH_ATTR,
   TOGGLE_FLIGHT_CIRCLES,
   activeTickerCount,
@@ -275,5 +277,85 @@ describe('attachCalendar', () => {
     expect(h.running).toBe(true)
     expect(h.selection!.pose!.circles.length).toBe(n + TOGGLE_FLIGHT_CIRCLES)
     h.destroy()
+  })
+})
+
+/** A react-day-picker month as shadcn's Calendar renders it: tr > td[data-day] > button, the
+ *  state on the td ("true"), the range caps / preview on shadcn's CalendarDayButton. */
+function dayPickerMonth(root: HTMLElement, key = '2026-11', weeks = 5): HTMLButtonElement[] {
+  const buttons = month(root, key, weeks, 'data-slot')
+  for (const b of buttons) {
+    b.setAttribute('data-slot', 'button')
+    b.parentElement!.setAttribute('data-day', b.getAttribute('data-value')!)
+    b.removeAttribute('data-value')
+    b.setAttribute('data-range-start', 'false')
+    b.setAttribute('data-range-end', 'false')
+  }
+  // The first week's first day belongs to the month before (an outside day).
+  buttons[0]!.parentElement!.setAttribute('data-day', `${key}-00`)
+  buttons[0]!.parentElement!.setAttribute('data-outside', 'true')
+  return buttons
+}
+const td = (b: Element) => b.parentElement!
+
+describe('CALENDAR_DAYPICKER_DAYS (react-day-picker)', () => {
+  it('reads selection, caps, preview, disabled and the month', () => {
+    const root = document.createElement('div')
+    document.body.append(root)
+    const days = dayPickerMonth(root)
+    const d = CALENDAR_DAYPICKER_DAYS
+    expect(days.every((b) => b.matches(d.cell))).toBe(true)
+    td(days[3]!).setAttribute('data-selected', 'true')
+    days[3]!.setAttribute('data-range-start', 'true')
+    expect(d.isSelected(days[3]!)).toBe(true)
+    expect(d.isSelected(days[4]!)).toBe(false)
+    expect(d.isCap(days[3]!)).toBe(true)
+    expect(d.isCap(days[4]!)).toBe(false)
+    days[5]!.setAttribute(CALENDAR_PREVIEW_ATTR, 'true')
+    expect(d.isPreview(days[5]!)).toBe(true)
+    days[5]!.setAttribute(CALENDAR_PREVIEW_ATTR, 'false')
+    expect(d.isPreview(days[5]!)).toBe(false)
+    days[6]!.disabled = true
+    expect(d.isDisabled(days[6]!)).toBe(true)
+    td(days[7]!).setAttribute('data-disabled', 'true')
+    expect(d.isDisabled(days[7]!)).toBe(true)
+    expect(d.isDisabled(days[8]!)).toBe(false)
+    // The month key skips the outside day: the first day of the month in view.
+    expect(d.month(root)).toBe('2026-11-02')
+    expect(calendarPageDirection(d.month(root), '2026-12-01')).toBe(1)
+  })
+
+  it('drives the engine: flow, range band + caps, month slosh', async () => {
+    const root = document.createElement('div')
+    root.getBoundingClientRect = () => rect(0, 0, 7 * CELL, 5 * CELL)
+    document.body.append(root)
+    let days = dayPickerMonth(root)
+    td(days[3]!).setAttribute('data-selected', 'true')
+    const h = attachCalendar(root, { reducedMotion: false, days: CALENDAR_DAYPICKER_DAYS })
+    expect(days[3]!.hasAttribute(CALENDAR_FILLED_ATTR)).toBe(true)
+    const n = h.selection!.pose!.circles.length
+    td(days[3]!).removeAttribute('data-selected')
+    td(days[17]!).setAttribute('data-selected', 'true')
+    h.update({ value: '2026-11-18' })
+    expect(h.selection!.pose!.circles.length).toBe(n + TOGGLE_FLIGHT_CIRCLES)
+    h.destroy()
+
+    days = dayPickerMonth(root)
+    for (let i = 2; i <= 5; i++) td(days[i]!).setAttribute('data-selected', 'true')
+    days[2]!.setAttribute('data-range-start', 'true')
+    days[5]!.setAttribute('data-range-end', 'true')
+    // The hover preview while the end is picked joins the band too.
+    days[6]!.setAttribute(CALENDAR_PREVIEW_ATTR, 'true')
+    const r = attachCalendar(root, { range: true, reducedMotion: false, days: CALENDAR_DAYPICKER_DAYS })
+    for (let i = 2; i <= 6; i++) expect(days[i]!.hasAttribute(CALENDAR_BANDED_ATTR), `day ${i}`).toBe(true)
+    expect(days[7]!.hasAttribute(CALENDAR_BANDED_ATTR)).toBe(false)
+    expect(days[2]!.hasAttribute(CALENDAR_FILLED_ATTR)).toBe(true)
+    expect(days[5]!.hasAttribute(CALENDAR_FILLED_ATTR)).toBe(true)
+    expect(days[4]!.hasAttribute(CALENDAR_FILLED_ATTR)).toBe(false)
+    dayPickerMonth(root, '2026-12')
+    await Promise.resolve()
+    expect(r.sloshing).toBe(true)
+    r.destroy()
+    expect(activeTickerCount()).toBe(0)
   })
 })

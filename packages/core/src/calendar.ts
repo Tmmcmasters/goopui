@@ -17,8 +17,9 @@
 // days a gentle slosh in the paging direction: each column swings a few px the way the
 // month moved and springs back, in a wave from the leading side (`calendarSloshOffset`).
 //
-// The grid is read through `CalendarDays` (default: reka-ui's data attributes), so another
-// headless calendar (react-day-picker) can drive the same engine.
+// The grid is read through `CalendarDays` (default: reka-ui's data attributes;
+// `CALENDAR_DAYPICKER_DAYS` reads react-day-picker's), so either headless calendar drives the
+// same engine.
 //
 // Every shape is the toggle / menu engines' pure poses; the slosh is a pure function of time.
 // Reduced motion: static fills, the highlight snaps, no slosh. No DOM access until
@@ -92,6 +93,34 @@ export const CALENDAR_REKA_DAYS: Readonly<CalendarDays> = Object.freeze({
   month: (host: HTMLElement) =>
     host.querySelector(`${CALENDAR_CELL}:not([${GOOP_PART_ATTR}]):not([data-outside-view])`)?.getAttribute('data-value') ?? null,
   attrs: Object.freeze(['data-selected', 'data-selection-start', 'data-selection-end', 'data-highlighted']),
+})
+
+/** Selector of react-day-picker's day buttons: the `<button>` in each day cell (`<td data-day>`). */
+export const CALENDAR_DAYPICKER_CELL = 'td[data-day] > button'
+/** Set (by the adapter's day button) on a day in the range's hover preview while the end is
+ *  being picked; react-day-picker has no preview of its own. */
+export const CALENDAR_PREVIEW_ATTR = 'data-range-preview'
+const isTrue = (el: Element | null | undefined, attr: string): boolean => el?.getAttribute(attr) === 'true'
+
+/**
+ * react-day-picker's day grid (v9 / v10) as shadcn/ui's Calendar renders it: the day `<td>`
+ * carries `data-day` (ISO date), `data-selected`, `data-disabled` and `data-outside`; shadcn's
+ * `CalendarDayButton` marks the range caps `data-range-start` / `data-range-end`; the adapter
+ * marks the hover preview `data-range-preview`. Booleans are React's "true" / "false".
+ */
+export const CALENDAR_DAYPICKER_DAYS: Readonly<CalendarDays> = Object.freeze({
+  cell: CALENDAR_DAYPICKER_CELL,
+  isSelected: (el: Element) => isTrue(el.parentElement, 'data-selected'),
+  isCap: (el: Element) => isTrue(el, 'data-range-start') || isTrue(el, 'data-range-end'),
+  isPreview: (el: Element) => isTrue(el, CALENDAR_PREVIEW_ATTR),
+  isDisabled: (el: Element) => (el as HTMLButtonElement).disabled === true || isTrue(el.parentElement, 'data-disabled'),
+  month: (host: HTMLElement) => {
+    for (const td of Array.from(host.querySelectorAll('td[data-day]:not([data-outside])'))) {
+      if (!td.closest(`[${GOOP_PART_ATTR}]`)) return td.getAttribute('data-day')
+    }
+    return null
+  },
+  attrs: Object.freeze(['data-selected', 'data-range-start', 'data-range-end', CALENDAR_PREVIEW_ATTR]),
 })
 
 export interface CalendarFeel {

@@ -29,6 +29,13 @@ const date = shallowRef<DateValue>(today(getLocalTimeZone()))
 <template>
   <GoopCalendar v-model="date" class="rounded-lg border"{{main}} />
 </template>`,
+  reactCode: `import { GoopCalendar } from '@goopui/react'
+import { useState } from 'react'
+
+export function DatePicker() {
+  const [date, setDate] = useState<Date | undefined>(new Date())
+  return <GoopCalendar mode="single" selected={date} onSelect={setDate} className="rounded-lg border"{{main}} />
+}`,
   controls: [preset(), speed(), effect('flow'), strength('pulse'), strength('slosh'), effect('focus'), effect('textFollow', { advanced: true })],
   tables: {
     main: {
@@ -38,6 +45,23 @@ const date = shallowRef<DateValue>(today(getLocalTimeZone()))
         { prop: 'placeholder', type: 'DateValue', def: 'today', note: 'The month in view (v-model:placeholder).' },
         { prop: 'locale, weekStartsOn, numberOfMonths, minValue, maxValue, isDateDisabled, fixedWeeks, ...', type: '', def: '', note: "reka-ui's CalendarRoot props, forwarded as they are." },
         { prop: 'class', type: 'string | array | object', def: '', note: 'Merged onto the root, like shadcn.' },
+        { prop: 'flow', type: fx, def: 'true', note: 'Picking a new day makes the goo flow there: it gathers, necks out, pinches off, travels and floods the new day from the side it arrives on. false: the old day drains and the new one floods in place.' },
+        ...calendarGoo,
+      ],
+    },
+  },
+  reactTables: {
+    main: {
+      caption: 'GoopCalendar props',
+      rows: [
+        { prop: 'mode', type: `'single' | 'multiple' | 'range'`, def: '', note: "react-day-picker's selection mode. mode=\"range\" is GoopRangeCalendar." },
+        { prop: 'selected, onSelect', type: 'Date | Date[] | DateRange', def: '', note: 'The selection, controlled with onSelect (without it, selected is only the initial value), as in react-day-picker.' },
+        { prop: 'month, defaultMonth, onMonthChange', type: 'Date', def: 'today', note: 'The month in view.' },
+        { prop: 'locale, weekStartsOn, numberOfMonths, disabled, captionLayout, showOutsideDays, ...', type: '', def: '', note: "react-day-picker's DayPicker props, forwarded as they are (showOutsideDays defaults to true, captionLayout to 'label', like shadcn/ui)." },
+        { prop: 'buttonVariant', type: 'ButtonVariant', def: `'ghost'`, note: 'The prev / next buttons\' variant, like shadcn/ui.' },
+        { prop: 'className, classNames, components', type: '', def: '', note: "Merged over shadcn/ui's, like shadcn/ui. GoopCalendarDayButton is shadcn's CalendarDayButton." },
+        { prop: 'ref', type: 'Ref<HTMLDivElement>', def: '', note: 'The calendar root.' },
+        { prop: 'goopRef', type: 'Ref<CalendarHandle>', def: '', note: 'The live engine handle (null before mount or with goo off).' },
         { prop: 'flow', type: fx, def: 'true', note: 'Picking a new day makes the goo flow there: it gathers, necks out, pinches off, travels and floods the new day from the side it arrives on. false: the old day drains and the new one floods in place.' },
         ...calendarGoo,
       ],

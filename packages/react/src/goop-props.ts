@@ -3072,3 +3072,68 @@ export function toInputGroupOptions(props: GoopInputGroupProps, config: GoopOpti
   if (props.goo === false) return null
   return toEffectOptions(INPUT_EFFECTS, props, config)
 }
+
+// ---- GoopCalendar / GoopRangeCalendar -------------------------------------------------------
+// Same as @goopui/vue. Core `attachCalendar` on react-day-picker's Calendar root (read through
+// CALENDAR_DAYPICKER_DAYS): the selection fill `flow`s from the old day to the new one and
+// lands with a `pulse`; the range `band` fills the days between start and end as one gooey
+// body; paging the month gives the days a gentle `slosh`; the hover / keyboard-focus highlight
+// is a goo `focus` wash gliding between days. Plus textFollow and speed / preset / renderer.
+// `goo={false}` renders a plain shadcn Calendar.
+
+/** Every GoopCalendar / GoopRangeCalendar engine prop. */
+export const CALENDAR_PROP_KEYS = ['goo', ..._CALENDAR_EFFECTS, 'textFollow', 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopCalendar and GoopRangeCalendar. */
+export interface GoopCalendarProps {
+  /** Master switch. `false` renders a plain shadcn Calendar. */
+  goo?: boolean
+  /** Picking a new day: the goo flows from the old day to the new one (off: the old day drains
+   *  and the new one floods in place). Single calendar only. `true`, `false` or 0..2. */
+  flow?: boolean | number
+  /** A small jelly pulse as the selection lands. `true`, `false` or 0..2. */
+  pulse?: boolean | number
+  /** Range: the days in the range fill as one gooey band that grows and drains day by day
+   *  (off: shadcn's flat range background). `true`, `false` or 0..2. */
+  band?: boolean | number
+  /** Paging the month gives the days a gentle slosh in the paging direction. `true`, `false`
+   *  or 0..2. */
+  slosh?: boolean | number
+  /** The hover / keyboard-focus highlight is a goo wash gliding between days (off: shadcn's
+   *  flat hover). `true`, `false` or 0..2. */
+  focus?: boolean | number
+  /** A selected day's label colour follows the goo's edge (default true). */
+  textFollow?: boolean
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+/** Compile-time guards: every calendar option core grows must be a prop (or adapter-owned). */
+type CalendarAdapterOwned = 'range' | 'value' | 'days' | 'reducedMotion'
+type CalendarUnhandled = Exclude<keyof _CalendarOptions | _CalendarEffect, keyof GoopCalendarProps | CalendarAdapterOwned>
+const _allCalendarOptionsHandled: [CalendarUnhandled] extends [never] ? true : { unhandled: CalendarUnhandled } = true
+void _allCalendarOptionsHandled
+type CalendarPropsListed = Exclude<keyof GoopCalendarProps, (typeof CALENDAR_PROP_KEYS)[number]>
+const _allCalendarPropsListed: [CalendarPropsListed] extends [never] ? true : { unlisted: CalendarPropsListed } = true
+void _allCalendarPropsListed
+
+/** Calendar options from props, over app config, or null when the goo is off (the component
+ *  adds `range`, `value` and `days`). Same as Vue. */
+export function toCalendarOptions(props: GoopCalendarProps, config: GoopOptions = {}): _CalendarOptions | null {
+  if (props.goo === false) return null
+  const out: _CalendarOptions = {
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+  if (props.speed !== undefined) out.speed = props.speed
+  if (props.textFollow !== undefined) out.textFollow = props.textFollow
+  for (const k of _CALENDAR_EFFECTS) if (props[k] !== undefined) out[k] = props[k]
+  return out
+}
+
+import { CALENDAR_EFFECTS as _CALENDAR_EFFECTS, type CalendarEffect as _CalendarEffect, type CalendarOptions as _CalendarOptions } from '@goopui/core'

@@ -40,6 +40,7 @@ import { Bespoke2Tile } from './bespoke2-tiles'
 import { FieldDemo, Forms2Tile, TagsInputDemo } from './forms-2'
 import { AspectRatioDemo, LayoutTile, ResizableDemo, ScrollAreaDemo } from './layout'
 import { DisplayTile, InputGroupDemo, ItemDemo, TableDemo } from './display'
+import { CalendarDemo, RangeCalendarDemo } from './calendar'
 
 /** What a Vue demo hands its island. */
 export interface ReactDemoProps {
@@ -171,6 +172,11 @@ export function ReactDemo(props: ReactDemoProps) {
         return <ItemDemo set={props.set} pg={props.pg} />
       case 'input-group':
         return <InputGroupDemo set={props.set} pg={props.pg} />
+      // Calendar and Range Calendar (./calendar).
+      case 'calendar':
+        return <CalendarDemo set={props.set} pg={props.pg} />
+      case 'range-calendar':
+        return <RangeCalendarDemo set={props.set} pg={props.pg} />
       case 'tile-display':
         return <DisplayTile slug={props.set} />
       default:

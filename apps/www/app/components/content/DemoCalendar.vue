@@ -14,10 +14,13 @@ const other = shallowRef<DateValue>(now.add({ days: 2 }))
 const plain = shallowRef<DateValue>(now)
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react components (react-demos/calendar.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <ClientOnly>
+  <ReactIsland v-if="isReact" demo="calendar" :set="set" :pg="{ main: pg.props }" />
+  <ClientOnly v-else>
     <GoopCalendar v-if="set === 'basic'" v-model="date" class="rounded-lg border" v-bind="pg.props" />
     <div v-else class="flex flex-wrap items-start justify-center gap-4">
       <GoopCalendar v-model="other" class="rounded-lg border" preset="wild" :is-date-disabled="(d) => d.day % 7 === 0" />
