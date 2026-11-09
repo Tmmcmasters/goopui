@@ -59,7 +59,9 @@ export const GoopScrollArea = forwardRef<HTMLDivElement, GoopScrollAreaRootProps
         className={cn(SCROLL_AREA, className)}
         {...rest}
       >
-        <ScrollAreaPrimitive.Viewport data-slot="scroll-area-viewport" {...viewportAttrs} className={SCROLL_AREA_VIEWPORT}>
+        {/* Focusable (tabIndex 0, as reka-ui's viewport is), so keyboard users can scroll it; the
+            classes already carry shadcn's focus-visible ring. */}
+        <ScrollAreaPrimitive.Viewport data-slot="scroll-area-viewport" tabIndex={0} {...viewportAttrs} className={SCROLL_AREA_VIEWPORT}>
           {children}
         </ScrollAreaPrimitive.Viewport>
         <GoopScrollBar />

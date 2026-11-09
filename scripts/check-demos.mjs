@@ -232,6 +232,9 @@ const OPEN_OVERLAYS = () => {
     return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'
   }
   return [...document.querySelectorAll(sel)]
+    // A closing overlay (data-state="closed", still animating out) has closed: slow CI runners
+    // can take a few seconds to finish a drawer's exit.
+    .filter((el) => !el.closest('[data-state=closed]'))
     .filter((el) => !el.closest('.stage') && !el.closest('header') && !el.closest('[data-smoke-ignore]') && visible(el))
     .filter((el) => el.getAttribute('role') !== 'tooltip') // tooltips close on pointer leave, not Escape alone
     .map((el) => `${el.getAttribute('role') ?? el.dataset.slot}${el.getAttribute('aria-label') ? ` "${el.getAttribute('aria-label')}"` : ''}`)

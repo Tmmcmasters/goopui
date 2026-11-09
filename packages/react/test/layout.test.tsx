@@ -63,6 +63,8 @@ describe('layout batch', () => {
     expect(root.hasAttribute('preset')).toBe(false)
     expect(root.hasAttribute('data-goop-scroll-root')).toBe(true)
     expect(document.querySelector('[data-slot="scroll-area-viewport"]')?.hasAttribute('data-goop-scroll-viewport')).toBe(true)
+    // Keyboard users can focus the viewport to scroll it (as reka-ui's is).
+    expect(document.querySelector('[data-slot="scroll-area-viewport"]')?.getAttribute('tabindex')).toBe('0')
   })
 
   it('GoopScrollArea goo={false} is plain shadcn; a horizontal GoopScrollBar follows its root', async () => {
