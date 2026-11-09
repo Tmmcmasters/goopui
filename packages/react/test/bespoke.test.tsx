@@ -430,6 +430,16 @@ describe('GoopInputOTP', () => {
     expect(document.querySelector('[data-slot="input-otp-slot"]')!.className).toContain('data-[active=true]:ring-0')
   })
 
+  it('defaultValue fills the slots without a controlled / uncontrolled warning', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    render(otpView({ defaultValue: '42' }))
+    const slots = document.querySelectorAll('[data-slot="input-otp-slot"]')
+    expect(slots[0]!.textContent).toBe('4')
+    expect(slots[1]!.textContent).toBe('2')
+    expect(error.mock.calls.map((c) => String(c[0])).filter((m) => /value and defaultValue/.test(m))).toEqual([])
+    error.mockRestore()
+  })
+
   it('goo={false} is plain shadcn InputOTP', () => {
     const api = createRef<InputOTPHandle>()
     render(otpView({ goo: false, goopRef: api }))
