@@ -19,6 +19,7 @@
     "@goopui/nuxt": "workspace:*",
     "@goopui/react": "workspace:*",
     "@goopui/vue": "workspace:*",
+    "@internationalized/date": "^3.12.4",
     "@nuxt/content": "^3.16.2",
     "cuelume": "^0.2.8",
     "lenis": "^1.3.27",

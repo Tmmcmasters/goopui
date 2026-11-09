@@ -287,3 +287,7 @@ export {
 export type { ItemPressHandle } from '@goopui/core'
 export * from './components/input-group'
 export { INPUT_GROUP_PROP_KEYS, goopInputGroupProps, toInputGroupOptions, type GoopInputGroupProps } from './goop-props'
+export * from './components/calendar'
+export * from './components/range-calendar'
+export { CALENDAR_PROP_KEYS, toCalendarOptions, type GoopCalendarProps } from './goop-props'
+export type { CalendarHandle } from '@goopui/core'

@@ -545,6 +545,14 @@ export interface ToggleFillConfig {
    *  `ToggleAnim.away`) instead of receding into the press point, which could leave the last
    *  of the goo sitting on the label after its text color had flipped back. */
   drainAway?: boolean
+  /** Attribute marking an item while its goo shows (group engines). Default
+   *  `TOGGLE_FILLED_ATTR`. Two engines on the same items need different ones. */
+  filledAttr?: string
+  /** Grow, don't pop: without a flow, items that turn on flood one after another out of the
+   *  nearest item that was already on (from the side facing it), `grow` seconds apart per item
+   *  of distance (DOM order); items that turn off drain farthest first toward the nearest one
+   *  still on. 0 / absent: every change starts at once from its press point. */
+  grow?: number
 }
 
 const effectsOf = (o: ToggleGroupOptions): ToggleEffects => ({
@@ -570,6 +578,7 @@ function attachEngine(
   cfg: ToggleFillConfig = {},
 ): ToggleHandle {
   const isOn = cfg.isOn ?? isPressed
+  const FILLED = cfg.filledAttr ?? TOGGLE_FILLED_ATTR
   const bleed = cfg.bleed ?? { x: 0, y: 0 }
   const doc = host.ownerDocument
   const textColor = cfg.textColor === undefined ? `var(${TOGGLE_TEXT_VAR}, var(--accent-foreground, currentColor))` : cfg.textColor
@@ -676,7 +685,7 @@ function attachEngine(
       // background, which paints above the group's goo layer, can step aside until it is gone.
       els.forEach((el, i) => {
         const filled = (last!.levels[i] ?? 0) > 0.001
-        if (filled !== el.hasAttribute(TOGGLE_FILLED_ATTR)) el.toggleAttribute(TOGGLE_FILLED_ATTR, filled)
+        if (filled !== el.hasAttribute(FILLED)) el.toggleAttribute(FILLED, filled)
       })
     }
     // Text follows the goo: every item the goo reaches gets its clipped on-goo copy (one clip
@@ -787,7 +796,7 @@ function attachEngine(
     // Drop anims of removed items.
     for (const el of anims.keys()) if (!els.includes(el)) {
       anims.delete(el)
-      if (markFill) el.removeAttribute(TOGGLE_FILLED_ATTR)
+      if (markFill) el.removeAttribute(FILLED)
     }
     if (!turnedOn.length && !turnedOff.length) return
     reduced = readReduced()
@@ -830,10 +839,42 @@ function attachEngine(
       restart(ia, false, exit)
       restart(ib, true, entry, toggleFlightLand(fl))
     } else {
-      // A blob still in flight keeps going and soaks away where it lands (that item now drains
-      // or floods from its own press), instead of vanishing in one frame.
-      for (const i of turnedOff) restart(i, false, pressAt(i))
-      for (const i of turnedOn) restart(i, true, pressAt(i))
+      const grow = !reduced && cfg.grow !== undefined && cfg.grow > 0 ? cfg.grow : 0
+      if (grow > 0) {
+        // Grow out of (and drain back toward) the nearest item that stays on, one after another.
+        const wasOn = els.map((el, i) => animOf(el, i).on && !turnedOff.includes(i))
+        const stays = (j: number): boolean => wasOn[j]!
+        const nearest = (i: number): number => {
+          let best = -1
+          for (let j = 0; j < els.length; j++) if (j !== i && stays(j) && (best < 0 || Math.abs(j - i) < Math.abs(best - i))) best = j
+          return best
+        }
+        // The side of item i facing item j when they share a row, else its center.
+        const facing = (i: number, j: number): TogglePoint => {
+          const a = rects[i]!
+          const b = rects[j]!
+          if (Math.abs(a.y - b.y) > a.h / 2) return center(a)
+          return { x: b.x < a.x ? a.x : a.x + a.w, y: a.y + a.h / 2 }
+        }
+        const offD = turnedOff.map((i) => {
+          const j = nearest(i)
+          return j < 0 ? 0 : Math.abs(i - j)
+        })
+        const far = Math.max(0, ...offD)
+        turnedOff.forEach((i, k) => {
+          const j = nearest(i)
+          restart(i, false, j < 0 ? pressAt(i) : facing(i, j), grow * (far - offD[k]!))
+        })
+        for (const i of turnedOn) {
+          const j = nearest(i)
+          restart(i, true, j < 0 ? pressAt(i) : facing(i, j), j < 0 ? 0 : grow * (Math.abs(i - j) - 1))
+        }
+      } else {
+        // A blob still in flight keeps going and soaks away where it lands (that item now drains
+        // or floods from its own press), instead of vanishing in one frame.
+        for (const i of turnedOff) restart(i, false, pressAt(i))
+        for (const i of turnedOn) restart(i, true, pressAt(i))
+      }
     }
     press = null
     draw()
@@ -905,7 +946,7 @@ function attachEngine(
       clearCopies()
       copies = new Map()
       for (const el of anims.keys()) {
-        if (markFill) el.removeAttribute(TOGGLE_FILLED_ATTR)
+        if (markFill) el.removeAttribute(FILLED)
         if (cfg.fullAttr) el.removeAttribute(cfg.fullAttr)
       }
       anims = new Map()
@@ -962,4 +1003,20 @@ export function attachToggleGroup(host: HTMLElement, options: ToggleGroupOptions
       return h.pose
     },
   }
+}
+
+/**
+ * The toggle group engine over any set of items (GoopCalendar's selected days and range band).
+ * `getItems` is re-read on every change and should return every item, on or off: an item first
+ * seen already on starts full (so a re-rendered month shows its selection at once), and only an
+ * item known while off floods when it turns on. Items with no goo draw nothing; the engine marks
+ * the ones whose goo shows with `config.filledAttr`. Reads and draws as `config` says.
+ */
+export function attachToggleSet(
+  host: HTMLElement,
+  getItems: () => HTMLElement[],
+  options: ToggleGroupOptions = {},
+  config: ToggleFillConfig = {},
+): ToggleHandle {
+  return attachEngine(host, getItems, options, config.part ?? 'toggle-set', true, config)
 }

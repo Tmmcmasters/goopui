@@ -406,6 +406,44 @@
   color: inherit;
 }
 
+/* Calendar (GoopCalendar, GoopRangeCalendar). Once core's goo is attached (it marks the root
+   data-goop-calendar; data-goop-band / data-goop-focus while those layers are on) the goo is the
+   selection, the range band and the hover wash, so shadcn's flat fills step aside: the selected
+   day's / the caps' bg-primary, the cells' bg-accent behind a selection or range, and the ghost
+   hover bg. Until then (SSR, first paint, goo off) it is plain shadcn. Unlayered on purpose so
+   it beats the data-[selected]:hover: utilities. */
+[data-goop-calendar] [data-slot='calendar-cell'],
+[data-goop-calendar][data-goop-band] [data-slot='range-calendar-cell'] {
+  background-color: transparent;
+}
+[data-goop-calendar] [data-slot='calendar-cell-trigger'][data-selected],
+[data-goop-calendar] [data-slot='range-calendar-trigger']:is([data-selection-start], [data-selection-end]),
+[data-goop-calendar][data-goop-band] [data-slot='range-calendar-trigger'][data-selected],
+[data-goop-calendar][data-goop-focus] :is([data-slot='calendar-cell-trigger'], [data-slot='range-calendar-trigger']):not([data-today]):hover {
+  background-color: transparent;
+}
+/* The hover / focus wash: shadcn's ghost hover (bg-muted). */
+[data-goop-calendar] > [data-goop='highlight'] {
+  --goop-color: var(--muted);
+}
+/* The month slosh moves the days by `translate` every frame: no transition may smooth it. */
+[data-goop-calendar] [data-goop-slosh] {
+  transition: none;
+}
+/* Labels. While text follows the goo core lays an on-goo copy (--goop-calendar-text, default
+   --primary-foreground) exactly where the selection goo is, so the real label keeps the colour
+   of what is under it: the page's text, the band's --accent-foreground, or muted outside the
+   month. Without text-follow (reduced motion) a filled cap keeps shadcn's primary-foreground. */
+[data-goop-calendar] [data-goop-text-follow]:is([data-selected], [data-selection-start], [data-selection-end]) {
+  color: inherit;
+}
+[data-goop-calendar][data-goop-band] [data-goop-banded]:is([data-goop-text-follow], :not([data-goop-filled])) {
+  color: var(--accent-foreground);
+}
+[data-goop-calendar] [data-goop-text-follow][data-outside-view]:is([data-selected], [data-selection-start], [data-selection-end]) {
+  color: var(--muted-foreground);
+}
+
 @keyframes goop-accordion-down {
   from {
     height: 0;
