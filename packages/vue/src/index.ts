@@ -256,3 +256,8 @@ export {
 } from './goop-props'
 export * from './components/empty'
 export { EMPTY_PROP_KEYS, resolveEmptyProps, toEmptyOptions, type GoopEmptyProps } from './goop-props'
+export * from './components/aspect-ratio'
+export * from './components/scroll-area'
+export { SCROLL_AREA_PROP_KEYS, toScrollAreaOptions, type GoopScrollAreaProps } from './goop-props'
+export * from './components/resizable'
+export { RESIZABLE_PROP_KEYS, resolveResizableProps, toResizableOptions, type GoopResizableProps } from './goop-props'

@@ -254,6 +254,13 @@ export const goopComponents = [
   'GoopCarouselNext',
   'GoopCarouselPrevious',
   'GoopPageTransition',
+  // Layout batch: AspectRatio, ScrollArea, Resizable
+  'GoopAspectRatio',
+  'GoopScrollArea',
+  'GoopScrollBar',
+  'GoopResizablePanelGroup',
+  'GoopResizablePanel',
+  'GoopResizableHandle',
 ] as const
 
 export type GoopComponentName = (typeof goopComponents)[number]
