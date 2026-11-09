@@ -1,7 +1,22 @@
 import { choice, preset, speed, strength } from '../controls'
-import { defineComponentDoc } from '../types'
+import { defineComponentDoc, type PropRow } from '../types'
 
 const fx = 'boolean | number'
+
+const gooRows: PropRow[] = [
+  { prop: 'goo', type: 'boolean', def: 'true', note: `Master switch. false renders exactly shadcn's Sonner.` },
+  { prop: 'dropIn', type: fx, def: 'true', note: 'New toasts drop in as a blob, overshoot, and slosh.' },
+  { prop: 'merge', type: fx, def: 'true', note: 'Stacked toasts merge with goo necks that stretch and snap as the stack expands.' },
+  { prop: 'drips', type: fx, def: 'true', note: `Leaving toasts drip off. Swipe-out flings the goo the swipe's way.` },
+  { prop: 'speed', type: 'number', def: '1', note: 'Animation speed multiplier.' },
+  { prop: 'preset', type: `'subtle' | 'playful' | 'wild'`, def: `'playful'`, note: 'The feel. Falls back to the app config, then --goop-preset.' },
+]
+const position = (lib: string): PropRow => ({
+  prop: 'position',
+  type: `'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right'`,
+  def: `'bottom-right'`,
+  note: `${lib}'s Toaster prop: where the stack sits.`,
+})
 
 export default defineComponentDoc({
   slug: 'toaster',
@@ -17,6 +32,17 @@ import { toast } from 'vue-sonner'
   <GoopToaster{{main}} />
   <GoopButton @click="toast('Event has been created')">Show toast</GoopButton>
 </template>`,
+  reactCode: `import { GoopButton, GoopToaster } from '@goopui/react'
+import { toast } from 'sonner'
+
+export function App() {
+  return (
+    <>
+      <GoopToaster{{main}} />
+      <GoopButton onClick={() => toast('Event has been created')}>Show toast</GoopButton>
+    </>
+  )
+}`,
   controls: [
     preset(),
     speed(),
@@ -28,14 +54,16 @@ import { toast } from 'vue-sonner'
   tables: {
     main: {
       caption: 'GoopToaster goo props',
+      rows: [...gooRows, position('vue-sonner')],
+    },
+  },
+  reactTables: {
+    main: {
+      caption: 'GoopToaster goo props',
       rows: [
-        { prop: 'goo', type: 'boolean', def: 'true', note: `Master switch. false renders exactly shadcn's Sonner.` },
-        { prop: 'dropIn', type: fx, def: 'true', note: 'New toasts drop in as a blob, overshoot, and slosh.' },
-        { prop: 'merge', type: fx, def: 'true', note: 'Stacked toasts merge with goo necks that stretch and snap as the stack expands.' },
-        { prop: 'drips', type: fx, def: 'true', note: `Leaving toasts drip off. Swipe-out flings the goo the swipe's way.` },
-        { prop: 'speed', type: 'number', def: '1', note: 'Animation speed multiplier.' },
-        { prop: 'preset', type: `'subtle' | 'playful' | 'wild'`, def: `'playful'`, note: 'The feel. Falls back to the app config, then --goop-preset.' },
-        { prop: 'position', type: `'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right'`, def: `'bottom-right'`, note: `vue-sonner's Toaster prop: where the stack sits.` },
+        ...gooRows,
+        position('sonner'),
+        { prop: 'goopRef', type: 'Ref<ToasterHandle>', def: '', note: 'The live engine handle (null before mount or with goo off).' },
       ],
     },
   },

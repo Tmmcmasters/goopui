@@ -124,4 +124,33 @@ describe('attachInputOTP', () => {
     expect(h.running).toBe(false)
     h.destroy()
   })
+
+  it('setActive drives the goo for render-only cells (one hidden input, like input-otp)', () => {
+    const host = document.createElement('div')
+    const cells = Array.from({ length: 4 }, () => {
+      const c = document.createElement('div')
+      c.dataset.slot = 'input-otp-slot'
+      host.append(c)
+      return c
+    })
+    const input = document.createElement('input')
+    host.append(input)
+    document.body.append(host)
+    const h = attachInputOTP(host)
+    input.focus()
+    expect(h.active).toBe(-1)
+    h.setActive(0)
+    expect(h.active).toBe(0)
+    expect(h.running).toBe(true)
+    h.setActive(1)
+    expect(h.active).toBe(1)
+    // Focus events on the hidden input don't clear an adapter-driven cell.
+    input.blur()
+    input.focus()
+    expect(h.active).toBe(1)
+    h.setActive(-1)
+    expect(h.active).toBe(-1)
+    expect(cells.length).toBe(4)
+    h.destroy()
+  })
 })

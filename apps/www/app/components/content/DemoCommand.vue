@@ -19,10 +19,13 @@ const open = ref(false)
 const framework = ref<(typeof frameworks)[number]>()
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react components (react-demos/bespoke1.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <GoopCommand v-if="set === 'basic'" class="w-full max-w-sm rounded-lg border shadow-md" v-bind="pg.props">
+  <ReactIsland v-if="isReact" demo="command" :set="set" :pg="{ main: pg.props, list: pg.part('list') }" />
+  <GoopCommand v-else-if="set === 'basic'" class="w-full max-w-sm rounded-lg border shadow-md" v-bind="pg.props">
     <GoopCommandInput placeholder="Type a command or search..." />
     <GoopCommandList>
       <GoopCommandEmpty>No results found.</GoopCommandEmpty>

@@ -22,6 +22,23 @@ export default defineComponentDoc({
     </GoopComboboxGroup>
   </GoopComboboxList>
 </GoopCombobox>`,
+  reactCode: `<GoopCombobox value={framework} onValueChange={setFramework}>
+  <GoopComboboxAnchor className="relative w-56">
+    <GoopComboboxInput className="pr-8" placeholder="Select framework..." displayValue={(v) => labels[v] ?? ''} />
+    <GoopComboboxTrigger className="absolute inset-y-0 right-0" aria-label="Show frameworks" />
+  </GoopComboboxAnchor>
+  <GoopComboboxList className="w-(--radix-popover-trigger-width)"{{list}}>
+    <GoopComboboxEmpty>No framework found.</GoopComboboxEmpty>
+    <GoopComboboxGroup>
+      {frameworks.map((f) => (
+        <GoopComboboxItem key={f.value} value={f.value} keywords={[f.label]}>
+          {f.label}
+          <GoopComboboxItemIndicator />
+        </GoopComboboxItem>
+      ))}
+    </GoopComboboxGroup>
+  </GoopComboboxList>
+</GoopCombobox>`,
   controls: [
     preset({ part: 'list' }),
     speed({ part: 'list' }),

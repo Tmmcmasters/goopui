@@ -32,6 +32,7 @@ import { FormsTile, InputDemo, ProgressDemo, RadioGroupDemo, SliderDemo, ToggleD
 import { AlertDialogDemo, HoverCardDemo, PopoverDemo, SheetDemo, TooltipDemo } from './overlays'
 import { AccordionDemo, AlertDemo, BreadcrumbDemo, ButtonGroupDemo, EmptyDemo, KbdDemo, PaginationDemo, SimpleTile } from './batch-simple'
 import { ContextMenuDemo, DropdownMenuDemo, MenubarDemo, NavigationMenuDemo } from './menus'
+import { BESPOKE_TILES, BespokeTile, CommandDemo, InputOTPDemo, NumberFieldDemo, ToasterDemo } from './bespoke1'
 
 /** What a Vue demo hands its island. */
 export interface ReactDemoProps {
@@ -71,7 +72,7 @@ export function ReactDemo(props: ReactDemoProps) {
       case 'spinner':
         return <SpinnerDemo set={props.set} pg={props.pg} />
       case 'tile':
-        return <Tile slug={props.set} />
+        return BESPOKE_TILES.has(props.set) ? <BespokeTile slug={props.set} /> : <Tile slug={props.set} />
       case 'select':
         return <SelectDemo set={props.set} pg={props.pg} />
       case 'drawer':
@@ -124,6 +125,14 @@ export function ReactDemo(props: ReactDemoProps) {
         return <MenubarDemo pg={props.pg} />
       case 'navigation-menu':
         return <NavigationMenuDemo set={props.set} pg={props.pg} />
+      case 'toaster':
+        return <ToasterDemo pg={props.pg} />
+      case 'command':
+        return <CommandDemo set={props.set} pg={props.pg} />
+      case 'number-field':
+        return <NumberFieldDemo set={props.set} pg={props.pg} />
+      case 'input-otp':
+        return <InputOTPDemo set={props.set} pg={props.pg} />
       default:
         return null
     }

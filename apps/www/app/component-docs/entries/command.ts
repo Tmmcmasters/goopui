@@ -24,6 +24,24 @@ export default defineComponentDoc({
     </GoopCommandGroup>
   </GoopCommandList>
 </GoopCommand>`,
+  reactCode: `<GoopCommand className="max-w-sm rounded-lg border shadow-md"{{main}}>
+  <GoopCommandInput placeholder="Type a command or search..." />
+  <GoopCommandList>
+    <GoopCommandEmpty>No results found.</GoopCommandEmpty>
+    <GoopCommandGroup heading="Suggestions">
+      <GoopCommandItem value="Calendar">Calendar</GoopCommandItem>
+      <GoopCommandItem value="Search Emoji">Search Emoji</GoopCommandItem>
+      <GoopCommandItem value="Calculator">Calculator</GoopCommandItem>
+    </GoopCommandGroup>
+    <GoopCommandSeparator />
+    <GoopCommandGroup heading="Settings">
+      <GoopCommandItem value="Profile">
+        Profile
+        <GoopCommandShortcut>⌘P</GoopCommandShortcut>
+      </GoopCommandItem>
+    </GoopCommandGroup>
+  </GoopCommandList>
+</GoopCommand>`,
   controls: [
     preset(),
     speed(),

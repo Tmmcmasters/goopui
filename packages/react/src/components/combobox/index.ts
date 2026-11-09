@@ -1,0 +1,17 @@
+export {
+  GoopCombobox,
+  GoopComboboxAnchor,
+  GoopComboboxCancel,
+  GoopComboboxEmpty,
+  GoopComboboxGroup,
+  GoopComboboxInput,
+  GoopComboboxItem,
+  GoopComboboxItemIndicator,
+  GoopComboboxList,
+  GoopComboboxSeparator,
+  GoopComboboxTrigger,
+  type GoopComboboxInputProps,
+  type GoopComboboxItemProps,
+  type GoopComboboxListProps,
+  type GoopComboboxRootProps,
+} from './GoopCombobox'

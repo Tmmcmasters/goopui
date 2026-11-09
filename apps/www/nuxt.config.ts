@@ -53,7 +53,7 @@ export default defineNuxtConfig({
     plugins: [tailwindcss(), reactDemos],
     // Keep Vue's JSX transform off the React demos (see `reactDemos` above).
     vueJsx: { exclude: [/react-demos/] },
-    optimizeDeps: { include: ['lenis', 'cuelume', 'react', 'react-dom', 'react-dom/client', 'react/jsx-runtime', 'radix-ui'] },
+    optimizeDeps: { include: ['lenis', 'cuelume', 'react', 'react-dom', 'react-dom/client', 'react/jsx-runtime', 'radix-ui', 'sonner', 'cmdk', 'input-otp'] },
   },
   app: {
     head: {
