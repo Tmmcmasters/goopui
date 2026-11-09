@@ -81,3 +81,24 @@ export { seedFrom, useAttached, useGoop, type UseGoopReturn } from './use-goop'
 export { cn } from 'cn'
 // Engine types used in props and refs.
 export type { BackdropHandle, CardHandle, CheckboxHandle, CheckboxState, EmergeHandle, GoopHandle, GoopOptions, GoopPreset, MenuHighlightHandle, SkeletonRevealHandle, SpinnerHandle, SpinnerVariant, SwitchHandle } from '@goopui/core'
+// Bloom overlays: Popover, Tooltip, HoverCard, AlertDialog, Sheet.
+export * from './components/popover'
+export * from './components/tooltip'
+export * from './components/hover-card'
+export * from './components/alert-dialog'
+export * from './components/sheet'
+export {
+  HOVER_CARD_PROP_KEYS,
+  POPOVER_PROP_KEYS,
+  SHEET_PROP_KEYS,
+  TOOLTIP_PROP_KEYS,
+  toHoverCardOptions,
+  toPopoverOptions,
+  toSheetOptions,
+  toTooltipOptions,
+  type GoopHoverCardProps,
+  type GoopPopoverProps,
+  type GoopSheetProps,
+  type GoopTooltipProps,
+} from './goop-props'
+export type { HoverCardBloomFrom, SheetHandle, SheetOptions } from '@goopui/core'

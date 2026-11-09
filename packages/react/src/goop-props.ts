@@ -691,3 +691,262 @@ import {
   type SpinnerOptions,
   type SpinnerVariant,
 } from '@goopui/core'
+
+// ---- Overlays: GoopPopover, GoopTooltip, GoopHoverCard, GoopSheet -----------------------------
+// Bloom overlays on core's emerge engine (mirrors the Vue adapter's GoopPopoverContent props
+// and its TOOLTIP / HOVER_CARD / SHEET sections). The goo blooms from the panel itself.
+
+import {
+  TOOLTIP_BLOOM_SPLASH,
+  TOOLTIP_FEEL,
+  TOOLTIP_MOMENTUM,
+  type EmergeFlowStyle,
+  type HoverCardBloomFrom,
+  type SheetOptions,
+} from '@goopui/core'
+
+/** Every GoopPopoverContent engine prop. */
+export const POPOVER_PROP_KEYS = [
+  'goo',
+  'flow',
+  'flowStyle',
+  'bloomStart',
+  'bridge',
+  'wobble',
+  'momentum',
+  'fade',
+  'openSlosh',
+  'openDrips',
+  'closeSlosh',
+  ...EMERGE_DRIP_KEYS,
+  'surface',
+  'speed',
+  'preset',
+  'renderer',
+] as const
+
+/** Engine props of GoopPopoverContent. Every toggle defaults on. */
+export interface GoopPopoverProps {
+  /** Master switch. `false` renders a plain shadcn PopoverContent. */
+  goo?: boolean
+  /** Flow open (default true) in `flowStyle`. `false`: the panel inflates from a bulb at the
+   *  trigger edge (`bridge` / `momentum` apply). */
+  flow?: boolean
+  /** 'bloom' (default: the panel pools from its own center, spreads with a lobed edge,
+   *  overshoots and splashes all around, keeping drops off the trigger; close shrinks it back
+   *  to the center) or 'neck' (out of the trigger through a thick neck). */
+  flowStyle?: EmergeFlowStyle
+  /** Bloom start: 'single' (default: one droplet swells) or 'merge' (a few drops fuse). */
+  bloomStart?: EmergeBloomStart
+  /** Bulb + lumpy neck between trigger and panel (not used by bloom). */
+  bridge?: boolean
+  /** Jelly overshoot and wobble (bloom: the open overshoot and settle). */
+  wobble?: boolean
+  /** Momentum launch away from the trigger (not used by bloom). */
+  momentum?: boolean
+  /** Content fades in once the goo settles. */
+  fade?: boolean
+  /** Open: the far edge (bloom: every edge) bulges past rest, rebounds and wobbles. `true`,
+   *  `false` or a 0..2 strength. */
+  openSlosh?: boolean | number
+  /** Open: the burst (bloom: all around, drops kept off the trigger). `true`, `false` or 0..2. */
+  openDrips?: boolean | number
+  /** Burst drop count scale (0..3, default 1). */
+  openDripAmount?: number
+  /** Burst drop size scale (0.3..2.5, default 1). */
+  openDripSize?: number
+  /** How far burst drops are flung (0..3, default 1). */
+  openDripFling?: number
+  /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
+  openDripVariety?: number
+  /** 0..1: how differently each side bulges (re-rolled every open). Default 1. */
+  sloshVariety?: number
+  /** Close: the near edge sloshes against the trigger (bloom: the panel pulls in and wobbles
+   *  before it shrinks to the center). `true`, `false` or 0..2. */
+  closeSlosh?: boolean | number
+  /** Panel color: 'trigger' (default: the trigger's background and text color, theme primary
+   *  when the trigger has none), 'popover' (shadcn's popover tokens), or a CSS color. */
+  surface?: EmergeSurfaceColor
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+type PopoverAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'surfaceColor' | 'feel' | 'reducedMotion' | 'detached' | 'bloomOrigin'
+type PopoverUnhandled = Exclude<keyof EmergeOptions, keyof GoopPopoverProps | PopoverAdapterOwned>
+const _allPopoverOptionsHandled: [PopoverUnhandled] extends [never] ? true : { unhandled: PopoverUnhandled } = true
+void _allPopoverOptionsHandled
+type PopoverPropsListed = Exclude<keyof GoopPopoverProps, (typeof POPOVER_PROP_KEYS)[number]>
+const _allPopoverPropsListed: [PopoverPropsListed] extends [never] ? true : { unlisted: PopoverPropsListed } = true
+void _allPopoverPropsListed
+
+/** Emerge options for a popover over app config (GoopPopoverContent.vue's defaults). */
+export function toPopoverOptions(props: GoopPopoverProps, config: GoopOptions = {}): EmergeOptions {
+  return {
+    flow: props.flow ?? true,
+    flowStyle: props.flowStyle ?? 'bloom',
+    bloomStart: props.bloomStart ?? 'single',
+    bridge: props.bridge ?? true,
+    wobble: props.wobble ?? true,
+    momentum: props.momentum ?? true,
+    fade: props.fade ?? true,
+    openSlosh: props.openSlosh ?? true,
+    openDrips: props.openDrips ?? true,
+    openDripAmount: props.openDripAmount,
+    openDripSize: props.openDripSize,
+    openDripFling: props.openDripFling,
+    openDripVariety: props.openDripVariety,
+    sloshVariety: props.sloshVariety,
+    closeSlosh: props.closeSlosh ?? true,
+    surfaceColor: props.surface ?? 'trigger',
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+}
+
+/** Every GoopTooltipContent engine prop (the popover's). */
+export const TOOLTIP_PROP_KEYS = POPOVER_PROP_KEYS
+
+/** Engine props of GoopTooltipContent: the popover's, with tooltip defaults (TOOLTIP_FEEL, a
+ *  light slosh, a light bloom splash, `surface` 'popover': shadcn's inverted tooltip). */
+export type GoopTooltipProps = GoopPopoverProps
+
+/** Slosh toggle: `true` / absent = the tooltip's light default strength, else as given. */
+const lightSlosh = (v: boolean | number | undefined, def: boolean | number): boolean | number =>
+  v === undefined || v === true ? def : v
+
+/** Emerge options for a tooltip over app config. */
+export function toTooltipOptions(props: GoopTooltipProps, config: GoopOptions = {}): EmergeOptions {
+  const M = TOOLTIP_MOMENTUM
+  const flow = props.flow !== false
+  const flowStyle = props.flowStyle ?? 'bloom'
+  // Bloom: a light splash by default; the knobs only pick up its light defaults when the
+  // splash strength is left to us.
+  const S = flow && flowStyle === 'bloom' ? TOOLTIP_BLOOM_SPLASH : null
+  return {
+    feel: TOOLTIP_FEEL,
+    flow,
+    flowStyle,
+    bloomStart: props.bloomStart ?? 'single',
+    bridge: props.bridge !== false,
+    wobble: props.wobble !== false,
+    momentum: props.momentum !== false,
+    fade: props.fade !== false,
+    openSlosh: lightSlosh(props.openSlosh, M.openSlosh),
+    openDrips: props.openDrips ?? S?.openDrips ?? M.openDrips,
+    closeSlosh: lightSlosh(props.closeSlosh, M.closeSlosh),
+    openDripAmount: props.openDripAmount ?? S?.openDripAmount,
+    openDripSize: props.openDripSize ?? S?.openDripSize,
+    openDripFling: props.openDripFling ?? S?.openDripFling,
+    openDripVariety: props.openDripVariety,
+    sloshVariety: props.sloshVariety,
+    surfaceColor: props.surface ?? 'popover',
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+}
+
+/** Every GoopHoverCardContent engine prop. */
+export const HOVER_CARD_PROP_KEYS = [...POPOVER_PROP_KEYS, 'bloomFrom'] as const
+
+/** Engine props of GoopHoverCardContent: the popover's plus `bloomFrom`; `surface` defaults to
+ *  'popover' (a hover card's trigger is usually a link with no background of its own). */
+export interface GoopHoverCardProps extends GoopPopoverProps {
+  /** Where the bloom starts: 'trigger' (default: the card's edge facing the trigger) or
+   *  'center' (the card's own center, like GoopPopoverContent). */
+  bloomFrom?: HoverCardBloomFrom
+}
+
+type HoverCardPropsListed = Exclude<keyof GoopHoverCardProps, (typeof HOVER_CARD_PROP_KEYS)[number]>
+const _allHoverCardPropsListed: [HoverCardPropsListed] extends [never] ? true : { unlisted: HoverCardPropsListed } = true
+void _allHoverCardPropsListed
+
+/** Emerge options for a hover card over app config (`bloomOrigin` comes from the adapter). */
+export function toHoverCardOptions(props: GoopHoverCardProps, config: GoopOptions = {}): EmergeOptions {
+  return { ...toPopoverOptions(props, config), surfaceColor: props.surface ?? 'popover' }
+}
+
+/** Every GoopSheetContent engine prop. */
+export const SHEET_PROP_KEYS = [
+  'goo',
+  'bloomStart',
+  'wobble',
+  'fade',
+  'openSlosh',
+  'openDrips',
+  'closeSlosh',
+  ...EMERGE_DRIP_KEYS,
+  'speed',
+  'preset',
+  'renderer',
+] as const
+
+/** Engine props of GoopSheetContent. */
+export interface GoopSheetProps {
+  /** Master switch. `false` renders a plain shadcn SheetContent (slide in / out). */
+  goo?: boolean
+  /** Bloom start: 'single' (default: one droplet swells at the edge) or 'merge' (a few drops fuse). */
+  bloomStart?: EmergeBloomStart
+  /** The open overshoot past the inner edge and its jelly settle. */
+  wobble?: boolean
+  /** Content fades in once the goo has mostly spread (and out first on close). */
+  fade?: boolean
+  /** Open: the edges bulge past rest, rebound and wobble. `true`, `false` or a 0..2 strength. */
+  openSlosh?: boolean | number
+  /** Open: the big splash off the inner edge and sides (none off-screen). `true`, `false` or 0..2. */
+  openDrips?: boolean | number
+  /** Splash drop count scale (0..3; default 1). */
+  openDripAmount?: number
+  /** Splash drop size scale (0.3..2.5; default 1). */
+  openDripSize?: number
+  /** How far splash drops are flung (0..3; default 1). */
+  openDripFling?: number
+  /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
+  openDripVariety?: number
+  /** 0..1: how differently each side bulges (re-rolled every open). Default 1. */
+  sloshVariety?: number
+  /** Close: the goo pulls in and wobbles before it shrinks back into the edge. `true`, `false` or 0..2. */
+  closeSlosh?: boolean | number
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'canvas' (default for the sheet) | 'svg' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+type SheetAdapterOwned = 'side' | 'surface' | 'feel' | 'reducedMotion'
+type SheetUnhandled = Exclude<keyof SheetOptions, keyof GoopSheetProps | SheetAdapterOwned>
+const _allSheetOptionsHandled: [SheetUnhandled] extends [never] ? true : { unhandled: SheetUnhandled } = true
+void _allSheetOptionsHandled
+type SheetPropsListed = Exclude<keyof GoopSheetProps, (typeof SHEET_PROP_KEYS)[number]>
+const _allSheetPropsListed: [SheetPropsListed] extends [never] ? true : { unlisted: SheetPropsListed } = true
+void _allSheetPropsListed
+
+/** Sheet options over app config (renderer: prop, then config, then canvas). */
+export function toSheetOptions(props: GoopSheetProps, config: GoopOptions = {}): SheetOptions {
+  return {
+    bloomStart: props.bloomStart ?? 'single',
+    wobble: props.wobble !== false,
+    fade: props.fade !== false,
+    openSlosh: props.openSlosh ?? true,
+    openDrips: props.openDrips ?? true,
+    closeSlosh: props.closeSlosh ?? true,
+    openDripAmount: props.openDripAmount,
+    openDripSize: props.openDripSize,
+    openDripFling: props.openDripFling,
+    openDripVariety: props.openDripVariety,
+    sloshVariety: props.sloshVariety,
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer ?? 'canvas',
+    reducedMotion: config.reducedMotion,
+  }
+}

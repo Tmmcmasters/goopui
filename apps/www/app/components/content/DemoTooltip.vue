@@ -5,10 +5,13 @@ withDefaults(defineProps<{ set?: 'basic' | 'sides' | 'surface' }>(), { set: 'bas
 const sides = ['top', 'right', 'bottom', 'left'] as const
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react components (react-demos/overlays.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <GoopTooltipProvider>
+  <ReactIsland v-if="isReact" demo="tooltip" :set="set" :pg="{ content: pg.part('content') }" />
+  <GoopTooltipProvider v-else>
     <GoopTooltip v-if="set === 'basic'">
       <GoopTooltipTrigger as-child>
         <GoopButton variant="outline">Hover me</GoopButton>

@@ -10,10 +10,13 @@ const surfaces = [
 ] as const
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react components (react-demos/overlays.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <GoopPopover v-if="set === 'basic'">
+  <ReactIsland v-if="isReact" demo="popover" :set="set" :pg="{ content: pg.part('content') }" />
+  <GoopPopover v-else-if="set === 'basic'">
     <GoopPopoverTrigger as-child>
       <GoopButton variant="outline">Open popover</GoopButton>
     </GoopPopoverTrigger>

@@ -25,6 +25,22 @@ export default defineComponentDoc({
     </GoopSheetFooter>
   </GoopSheetContent>
 </GoopSheet>`,
+  reactCode: `<GoopSheet>
+  <GoopSheetTrigger asChild>
+    <GoopButton variant="outline">Open sheet</GoopButton>
+  </GoopSheetTrigger>
+  <GoopSheetContent{{content}}>
+    <GoopSheetHeader>
+      <GoopSheetTitle>Edit profile</GoopSheetTitle>
+      <GoopSheetDescription>Make changes to your profile here.</GoopSheetDescription>
+    </GoopSheetHeader>
+    <GoopSheetFooter>
+      <GoopSheetClose asChild>
+        <GoopButton>Save changes</GoopButton>
+      </GoopSheetClose>
+    </GoopSheetFooter>
+  </GoopSheetContent>
+</GoopSheet>`,
   controls: [
     choice('side', ['top', 'right', 'bottom', 'left'], 'right', content),
     preset(content),

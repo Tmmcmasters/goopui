@@ -26,6 +26,21 @@ export default defineComponentDoc({
     </GoopAlertDialogFooter>
   </GoopAlertDialogContent>
 </GoopAlertDialog>`,
+  reactCode: `<GoopAlertDialog>
+  <GoopAlertDialogTrigger asChild>
+    <GoopButton variant="outline">Delete account</GoopButton>
+  </GoopAlertDialogTrigger>
+  <GoopAlertDialogContent{{content}}>
+    <GoopAlertDialogHeader>
+      <GoopAlertDialogTitle>Are you absolutely sure?</GoopAlertDialogTitle>
+      <GoopAlertDialogDescription>This action cannot be undone.</GoopAlertDialogDescription>
+    </GoopAlertDialogHeader>
+    <GoopAlertDialogFooter>
+      <GoopAlertDialogCancel>Cancel</GoopAlertDialogCancel>
+      <GoopAlertDialogAction>Continue</GoopAlertDialogAction>
+    </GoopAlertDialogFooter>
+  </GoopAlertDialogContent>
+</GoopAlertDialog>`,
   controls: [
     preset(content),
     speed(content),
@@ -41,4 +56,14 @@ export default defineComponentDoc({
     effect('fade', { ...content, type: 'boolean', advanced: true }),
   ],
   tables: { content: { caption: 'GoopAlertDialogContent goo props', rows: dialogRows(true) } },
+  reactTables: {
+    content: {
+      caption: 'GoopAlertDialogContent props',
+      rows: [
+        { prop: 'size', type: `'default' | 'sm'`, def: `'default'`, note: "Same as shadcn/ui: 'sm' is narrower, with a two-column footer." },
+        { prop: 'goopRef', type: 'Ref<EmergeHandle>', def: '', note: 'Receives the live engine handle (null before it mounts, or when goo is off). ref is the panel element.' },
+        ...dialogRows(true),
+      ],
+    },
+  },
 })

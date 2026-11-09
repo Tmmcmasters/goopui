@@ -26,6 +26,7 @@ import {
 import { useState, type MouseEvent, type ReactNode } from 'react'
 import type { CheckboxState } from '@goopui/core'
 import { SkeletonRevealDemo, SpinnerDemo, StaticSet, Tile } from './batch1'
+import { AlertDialogDemo, HoverCardDemo, PopoverDemo, SheetDemo, TooltipDemo } from './overlays'
 
 /** What a Vue demo hands its island. */
 export interface ReactDemoProps {
@@ -65,6 +66,16 @@ export function ReactDemo(props: ReactDemoProps) {
         return <SpinnerDemo set={props.set} pg={props.pg} />
       case 'tile':
         return <Tile slug={props.set} />
+      case 'popover':
+        return <PopoverDemo set={props.set} pg={props.pg} />
+      case 'tooltip':
+        return <TooltipDemo set={props.set} pg={props.pg} />
+      case 'hover-card':
+        return <HoverCardDemo set={props.set} pg={props.pg} />
+      case 'alert-dialog':
+        return <AlertDialogDemo set={props.set} pg={props.pg} />
+      case 'sheet':
+        return <SheetDemo set={props.set} pg={props.pg} />
       default:
         return null
     }

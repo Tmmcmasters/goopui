@@ -15,6 +15,15 @@ export default defineComponentDoc({
     <p class="text-sm">The intuitive Vue framework, created and maintained by the Nuxt team.</p>
   </GoopHoverCardContent>
 </GoopHoverCard>`,
+  reactCode: `<GoopHoverCard openDelay={200}>
+  <GoopHoverCardTrigger href="https://nextjs.org" className="text-sm font-medium underline underline-offset-4">
+    @nextjs
+  </GoopHoverCardTrigger>
+  <GoopHoverCardContent{{content}}>
+    <p className="text-sm font-semibold">@nextjs</p>
+    <p className="text-sm">The React Framework, created and maintained by @vercel.</p>
+  </GoopHoverCardContent>
+</GoopHoverCard>`,
   controls: [
     preset({ part: 'content' }),
     speed({ part: 'content' }),

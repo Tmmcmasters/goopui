@@ -14,6 +14,14 @@ export default defineComponentDoc({
     <GoopTooltipContent{{content}}>Add to library</GoopTooltipContent>
   </GoopTooltip>
 </GoopTooltipProvider>`,
+  reactCode: `<GoopTooltipProvider>
+  <GoopTooltip>
+    <GoopTooltipTrigger asChild>
+      <GoopButton variant="outline">Hover me</GoopButton>
+    </GoopTooltipTrigger>
+    <GoopTooltipContent{{content}}>Add to library</GoopTooltipContent>
+  </GoopTooltip>
+</GoopTooltipProvider>`,
   controls: [
     preset({ part: 'content' }),
     speed({ part: 'content' }),
