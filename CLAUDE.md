@@ -26,6 +26,14 @@ All product and architecture decisions are in `HANDOFF.md`. Read it before build
 - Changesets for versioning; all `@goopui/*` packages are versioned together.
 - TypeScript is pinned to 5.9 on purpose: vue-tsc / svelte-check tooling may not be ready for TS 7 yet.
 
+## Verification
+
+- Locally, agents run `pnpm build --concurrency=1`, `pnpm typecheck`, the tests of the packages they touched (`pnpm --filter @goopui/<pkg> test`), and a headless look at the pages they changed.
+- `pnpm check:hydration` and `pnpm check:package-managers` run in CI on every push and PR ([`.github/workflows/ci.yml`](.github/workflows/ci.yml); package-managers only when package manifests, entry points, build configs or the lockfile change). Run them locally only to debug a CI failure; the failing run uploads its logs as artifacts.
+- Each worktree needs its own Nuxt Content database: `CONTENT_DB_DIR=$PWD/.data/content` when two worktrees build www at once.
+- On an exFAT `ENOENT ... chmod .../._*` error: delete the app's `.nuxt`, `.output` and `node_modules/.cache/nuxt`, run `pnpm clean:dot`, rebuild.
+- Don't run a dev server while `check:package-managers` runs locally (it serves the consumer apps on port 4317 and needs the whole machine).
+
 ## Gotchas
 
 - The parent folder `codeProjects/` has its own `package.json` and `node_modules`. `shamefullyHoist: true` in `pnpm-workspace.yaml` stops Node/Nitro from resolving stale packages from there. Don't remove it unless that parent `node_modules` is gone.

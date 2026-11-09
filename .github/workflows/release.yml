@@ -37,6 +37,24 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
       - run: pnpm turbo run build typecheck test --filter=./packages/core --filter=./packages/vue --filter=./packages/react --filter=./packages/nuxt
+      # The packed tarballs must install and build with every package manager before publish.
+      - uses: oven-sh/setup-bun@v2
+      - run: pnpm exec playwright-core install --with-deps chromium
+      - name: pnpm check:package-managers
+        run: pnpm check:package-managers 2>&1 | tee package-managers.log
+        env:
+          TMPDIR: ${{ runner.temp }}
+          NEXT_TELEMETRY_DISABLED: 1
+          # Not setup-node's publish .npmrc (a placeholder token): the consumer installs read anonymously.
+          NPM_CONFIG_USERCONFIG: ${{ runner.temp }}/pm-check.npmrc
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-managers-logs
+          path: |
+            package-managers.log
+            ${{ runner.temp }}/goop-pm.*/*/*.log
+          if-no-files-found: ignore
       - name: Publish
         run: >-
           pnpm publish -r --filter "./packages/*"
