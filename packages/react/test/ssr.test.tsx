@@ -160,13 +160,31 @@ describe('SSR (react-dom/server)', () => {
     expect(html).not.toContain('blobs')
   })
 
+  it('GoopDrawer renders its trigger; defaultOpen renders no panel on the server (portalled, client-only)', async () => {
+    const { GoopDrawer, GoopDrawerTrigger, GoopDrawerContent, GoopDrawerTitle, GoopButton } = await import('../src')
+    for (const defaultOpen of [false, true]) {
+      const html = await render(() =>
+        h(
+          GoopDrawer,
+          { defaultOpen, snapPoints: [0.5, 1] },
+          h(GoopDrawerTrigger, { asChild: true }, h(GoopButton, { variant: 'outline' }, 'Open drawer')),
+          h(GoopDrawerContent, { lag: false }, h(GoopDrawerTitle, null, 'Move goal')),
+        ),
+      )
+      expect(html).toContain('data-slot="drawer-trigger"')
+      expect(html).toContain('aria-haspopup="dialog"')
+      expect(html).not.toContain('data-slot="drawer-content"')
+      expect(html).not.toContain('lag')
+    }
+  })
+
   it("'use client' only where a component needs the client (goo or React context)", async () => {
     const { readFileSync } = await import('node:fs')
     const { join } = await import('node:path')
     const client = (f: string) => /^\s*['"]use client['"]/.test(readFileSync(join(__dirname, '../src/components', f), 'utf8'))
-    for (const f of ['skeleton/GoopSkeleton.tsx', 'skeleton/GoopSkeletonReveal.tsx', 'badge/GoopBadge.tsx', 'card/GoopCard.tsx', 'avatar/GoopAvatar.tsx', 'spinner/GoopSpinner.tsx'])
+    for (const f of ['skeleton/GoopSkeleton.tsx', 'skeleton/GoopSkeletonReveal.tsx', 'badge/GoopBadge.tsx', 'card/GoopCard.tsx', 'avatar/GoopAvatar.tsx', 'spinner/GoopSpinner.tsx', 'drawer/GoopDrawer.tsx'])
       expect(client(f), f).toBe(true)
-    for (const f of ['card/parts.tsx', 'avatar/parts.tsx', 'separator/GoopSeparator.tsx', 'label/GoopLabel.tsx', 'skeleton/variants.ts', 'badge/variants.ts'])
+    for (const f of ['card/parts.tsx', 'avatar/parts.tsx', 'separator/GoopSeparator.tsx', 'label/GoopLabel.tsx', 'skeleton/variants.ts', 'badge/variants.ts', 'drawer/styles.ts'])
       expect(client(f), f).toBe(false)
   })
 

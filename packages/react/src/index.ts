@@ -85,3 +85,6 @@ export type { BackdropHandle, CardHandle, CheckboxHandle, CheckboxState, EmergeH
 export * from './components/select'
 export { SELECT_PROP_KEYS, toSelectOptions, type GoopSelectProps } from './goop-props'
 export type { SelectBloomFrom, SelectPlopOptions } from '@goopui/core'
+export * from './components/drawer'
+export { DRAWER_PROP_KEYS, toDrawerOptions, type GoopDrawerProps } from './goop-props'
+export type { DrawerController, DrawerDirection, DrawerSnapPoint } from '@goopui/core'

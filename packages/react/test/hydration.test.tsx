@@ -1,6 +1,6 @@
 // Server markup hydrates on the client with no mismatch, then the goo attaches (like the Vue
 // hydration test). Uses react-dom/server + hydrateRoot, the same path as Next.js.
-import type { SkeletonRevealHandle } from '@goopui/core'
+import type { DrawerController, SkeletonRevealHandle } from '@goopui/core'
 import { act, createElement as h, createRef, type ReactElement } from 'react'
 import { hydrateRoot } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
@@ -116,6 +116,33 @@ describe('hydration', () => {
     expect(content!.hasAttribute('data-goop-emerge')).toBe(true)
     await act(async () => r.unmount())
     expect(document.querySelector('[data-goop]')).toBeNull()
+  })
+
+  it('hydrates a drawer without mismatch; opening it attaches the engine to the panel', async () => {
+    const m = await import('../src')
+    const api = createRef<DrawerController>()
+    const App = () =>
+      h(
+        m.GoopProvider,
+        { sound: true },
+        h(
+          m.GoopDrawer,
+          null,
+          h(m.GoopDrawerTrigger, { asChild: true }, h(m.GoopButton, { variant: 'outline' }, 'Open drawer')),
+          h(m.GoopDrawerContent, { goopRef: api, renderer: 'svg' }, h(m.GoopDrawerHeader, null, h(m.GoopDrawerTitle, null, 'Move goal'), h(m.GoopDrawerDescription, null, 'Goal'))),
+        ),
+      )
+    const { root, r, messages, recoverable } = await hydrate(App)
+    expect(messages.filter((msg) => /hydrat|mismatch|did not match/i.test(msg))).toEqual([])
+    expect(recoverable).toEqual([])
+    const trigger = root.querySelector<HTMLElement>('[data-slot="drawer-trigger"]')!
+    expect(trigger.hasAttribute('data-goop-active')).toBe(true)
+    await act(async () => trigger.click())
+    const panel = document.querySelector('[data-slot="drawer-content"]')!
+    expect(panel.hasAttribute('data-goop-drawer')).toBe(true)
+    expect(api.current).not.toBeNull()
+    await act(async () => r.unmount())
+    expect(api.current).toBeNull()
   })
 })
 
