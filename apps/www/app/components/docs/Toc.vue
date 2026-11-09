@@ -1,6 +1,8 @@
 <script setup lang="ts">
-// On-page TOC with a sliding active marker. Links are plain #anchors; the Lenis plugin
-// intercepts them (smooth + header offset), or the browser jumps natively under reduced motion.
+// On-page TOC. The section in view is marked by the site chrome's goo blob (useChromeGoo),
+// which also follows hover / keyboard focus and slides back to it. Links are plain #anchors;
+// the Lenis plugin intercepts them (smooth + header offset), or the browser jumps natively
+// under reduced motion.
 import type { TocLink } from '@nuxt/content'
 
 const props = defineProps<{ links: TocLink[] }>()
@@ -19,7 +21,7 @@ const flat = computed(() => {
 
 const active = ref<string | null>(null)
 const list = ref<HTMLElement | null>(null)
-const marker = reactive({ y: 0, h: 0, show: false })
+useChromeGoo(() => list.value, { active: '[aria-current]' })
 
 let raf = 0
 const measure = () => {
@@ -40,18 +42,6 @@ const onScroll = () => {
   if (!raf) raf = requestAnimationFrame(measure)
 }
 
-watch(active, async (id) => {
-  await nextTick()
-  const a = id ? list.value?.querySelector<HTMLElement>(`a[data-id="${CSS.escape(id)}"]`) : null
-  if (!a) {
-    marker.show = false
-    return
-  }
-  marker.y = a.offsetTop
-  marker.h = a.offsetHeight
-  marker.show = true
-})
-
 onMounted(() => {
   measure()
   window.addEventListener('scroll', onScroll, { passive: true })
@@ -68,19 +58,15 @@ onUnmounted(() => {
 <template>
   <nav v-if="flat.length" aria-label="On this page" class="text-[13px]">
     <p class="mb-3 font-mono text-[11px] uppercase tracking-[0.1em] text-subtle">On this page</p>
-    <div ref="list" class="relative border-l border-border">
-      <span
-        class="marker"
-        aria-hidden="true"
-        :style="{ transform: `translateY(${marker.y}px)`, height: `${marker.h}px`, opacity: marker.show ? 1 : 0 }"
-      />
-      <ul>
+    <div class="border-l border-border pl-1.5">
+      <ul ref="list" class="toc-list" data-chrome-goo>
         <li v-for="l in flat" :key="l.id">
           <a
             :href="`#${l.id}`"
             :data-id="l.id"
-            class="toc-link block py-1 leading-snug"
-            :class="l.depth > 2 ? 'pl-7' : 'pl-4'"
+            class="toc-link block rounded-md py-1 pr-2 leading-snug"
+            :class="l.depth > 2 ? 'pl-6' : 'pl-2.5'"
+            data-chrome-item
             :aria-current="active === l.id ? 'location' : undefined"
           >
             {{ l.text }}
@@ -92,34 +78,21 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.marker {
-  position: absolute;
-  left: -1px;
-  top: 0;
-  width: 2px;
-  border-radius: 2px;
-  background: var(--foreground);
-  transition:
-    transform 260ms var(--ease-out-strong),
-    height 260ms var(--ease-out-strong),
-    opacity 150ms ease;
-}
 .toc-link {
   color: var(--muted-foreground);
-  transition: color 150ms ease;
+  transition:
+    color 150ms ease,
+    background-color 150ms ease;
 }
 .toc-link:hover {
   color: var(--foreground);
 }
+.toc-link:focus-visible {
+  outline-offset: -2px;
+  border-radius: 0.375rem;
+}
 .toc-link[aria-current] {
   color: var(--foreground);
-}
-@media (prefers-reduced-motion: reduce) {
-  .marker {
-    transition: opacity 150ms ease;
-  }
-}
-html[data-reduced-motion='true'] .marker {
-  transition: opacity 150ms ease;
+  background: var(--muted);
 }
 </style>

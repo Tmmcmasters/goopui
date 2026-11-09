@@ -25,6 +25,10 @@ const { stars } = useGithubStars()
 const githubLabel = computed(() => (stars.value === null ? 'goopUI on GitHub' : `goopUI on GitHub, ${stars.value} stars`))
 // The landing keeps the header quiet: see-through over the lava lamp, just Docs + GitHub + sound + theme.
 const landing = computed(() => route.path === '/')
+// One goo blob is the hover / keyboard-focus background of the header's links and icon
+// buttons (hover only: the current section is marked by its text colour, not a pill).
+const navEl = ref<HTMLElement | null>(null)
+useChromeGoo(() => navEl.value, { row: true })
 </script>
 
 <template>
@@ -53,7 +57,7 @@ const landing = computed(() => route.path === '/')
         alpha
       </span>
 
-      <nav class="ml-auto flex items-center gap-0.5" aria-label="Main">
+      <nav ref="navEl" class="ml-auto flex items-center gap-0.5" aria-label="Main" data-chrome-goo>
         <SearchPalette :wide="landing" />
         <NuxtLink
           v-for="l in links"
@@ -61,6 +65,7 @@ const landing = computed(() => route.path === '/')
           :to="to(l.to)"
           class="nav-link hidden rounded-lg px-3 py-2 text-sm"
           :class="landing ? '' : 'lg:inline-block'"
+          data-chrome-item
           :data-active="isActive(l.match) || undefined"
         >
           {{ l.label }}
@@ -69,6 +74,7 @@ const landing = computed(() => route.path === '/')
           :to="to('/docs/getting-started/introduction')"
           class="nav-link rounded-lg px-3 py-2 text-sm"
           :class="landing ? '' : 'hidden'"
+          data-chrome-item
           :data-active="here.startsWith('/docs') || undefined"
         >
           Docs
@@ -81,6 +87,7 @@ const landing = computed(() => route.path === '/')
           :href="GITHUB_URL"
           class="inline-flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground max-[374.98px]:hidden"
           :aria-label="githubLabel"
+          data-chrome-item
           rel="noopener"
           target="_blank"
         >
@@ -88,8 +95,8 @@ const landing = computed(() => route.path === '/')
           <GithubStars class="text-[13px] font-medium leading-none max-[379.98px]:hidden" />
         </a>
         <!-- Under 375px the GitHub link (also in the footer) and under 380px the star count give way so sound + theme stay on screen; the desktop links and Vue/React labels wait for `lg`. -->
-        <SoundToggle />
-        <ThemeToggle />
+        <SoundToggle data-chrome-item />
+        <ThemeToggle data-chrome-item />
       </nav>
     </div>
   </header>
@@ -119,7 +126,11 @@ const landing = computed(() => route.path === '/')
 }
 .nav-link:hover {
   color: var(--foreground);
-  background: var(--muted);
+}
+@media (hover: hover) {
+  .nav-link:hover {
+    background: var(--muted);
+  }
 }
 .nav-link[data-active] {
   color: var(--foreground);

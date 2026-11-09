@@ -234,6 +234,7 @@ const shortcutAria = 'Meta+K Control+K /'
     :aria-keyshortcuts="shortcutAria"
     aria-label="Search docs"
     title="Search docs"
+    data-chrome-item
     @click="show"
   >
     <SiteIcon name="search" :size="17" />

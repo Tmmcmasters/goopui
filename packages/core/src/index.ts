@@ -1022,6 +1022,14 @@ export {
   type NavigationMenuViewportOptions,
 } from './navigation-menu'
 export {
+  LIST_HIGHLIGHT_ACTIVE_ATTRS,
+  LIST_HIGHLIGHT_ITEMS,
+  attachListHighlight,
+  findListHighlight,
+  type ListHighlightHandle,
+  type ListHighlightOptions,
+} from './list-highlight'
+export {
   CAROUSEL_DOTS_FEEL,
   CAROUSEL_DOT_SELECTOR,
   CAROUSEL_EFFECTS,

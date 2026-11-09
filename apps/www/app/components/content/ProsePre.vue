@@ -49,37 +49,27 @@ function choose(pm: Manager) {
 </script>
 
 <template>
-  <CodeFrame v-if="commands" :code="commands[manager]" language="bash">
-    <template #tabs>
-      <div class="-ml-1 flex h-full items-stretch gap-0.5" role="group" aria-label="Package manager">
-        <button
-          v-for="pm in MANAGERS"
-          :key="pm"
-          type="button"
-          class="pm-tab relative px-2 transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-          :class="pm === manager ? 'text-foreground' : ''"
-          :aria-pressed="pm === manager"
-          @click="choose(pm)"
-        >
-          {{ pm }}
-        </button>
-      </div>
-    </template>
-    <pre class="pm-pre"><code><span class="text-muted-foreground select-none">$ </span>{{ commands[manager] }}</code></pre>
-  </CodeFrame>
+  <!-- The package-manager tabs are GoopTabs: the selected manager's pill is the goo blob. -->
+  <GoopTabs
+    v-if="commands"
+    :model-value="manager"
+    class="pm-tabs my-5 gap-0"
+    @update:model-value="(v) => choose(v as Manager)"
+  >
+    <CodeFrame :code="commands[manager]" language="bash" class="!my-0">
+      <template #tabs>
+        <GoopTabsList aria-label="Package manager" class="-ml-2">
+          <GoopTabsTrigger v-for="pm in MANAGERS" :key="pm" :value="pm" class="px-2 font-mono text-xs font-normal">
+            {{ pm }}
+          </GoopTabsTrigger>
+        </GoopTabsList>
+      </template>
+      <GoopTabsContent v-for="pm in MANAGERS" :key="pm" :value="pm" as-child tabindex="-1">
+        <pre class="pm-pre"><code><span class="text-muted-foreground select-none">$ </span>{{ commands[pm] }}</code></pre>
+      </GoopTabsContent>
+    </CodeFrame>
+  </GoopTabs>
   <CodeFrame v-else :code="code ?? ''" :filename="filename ?? undefined" :language="language ?? undefined">
     <pre :class="$props.class"><slot /></pre>
   </CodeFrame>
 </template>
-
-<style scoped>
-.pm-tab[aria-pressed='true']::after {
-  content: '';
-  position: absolute;
-  inset-inline: 0.5rem;
-  bottom: -1px;
-  height: 2px;
-  border-radius: 1px;
-  background: var(--goo, currentColor);
-}
-</style>

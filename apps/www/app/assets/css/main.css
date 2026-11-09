@@ -397,3 +397,26 @@ html[data-reduced-motion='true'] [data-reveal] {
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
 }
+
+/* Site chrome highlight (useGoopListHighlight on the docs nav, the TOC, the header and the
+   framework switch): ONE goo blob is the items' hover / "you are here" background, in the
+   flat --muted the items used before. Lists carry data-chrome-goo and items data-chrome-item
+   (see useChromeGoo). Until the blob attaches (SSR, first paint, JS off) the items keep their
+   own flat hover / active background; once core marks the list data-goop-menu, only the goo
+   paints it. */
+[data-chrome-goo] > [data-goop='highlight'] {
+  --goop-color: var(--muted);
+}
+[data-chrome-goo][data-goop-menu] [data-chrome-item] {
+  background-color: transparent !important;
+}
+/* The framework switch's selected pill keeps its hairline rim on the goo. */
+.fw-switch > [data-goop='highlight'] {
+  filter: drop-shadow(0 0 0.5px var(--border-strong));
+}
+/* The search palette's highlight is the same blob on the popover: --muted is within a hair of
+   --popover on dark, so it takes --accent (the same step up from its surface as the chrome's
+   --muted is from the page). */
+.search-palette [data-slot='command-list'] [data-goop='highlight'] {
+  --goop-color: var(--accent);
+}

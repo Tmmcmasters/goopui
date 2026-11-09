@@ -26,7 +26,6 @@ provide(PLAYGROUND_KEY, {
 const stage = createGoopStage()
 
 const tab = ref<'preview' | 'code'>('preview')
-const id = useId()
 const { fw } = useFramework()
 // The React page shows React code when the entry has it (the component is in @goopui/react).
 const reactCode = computed(() => fw.value === 'react' && !!doc?.reactCode)
@@ -63,89 +62,47 @@ const replayLabel = computed(() => doc?.replay?.label ?? 'Replay')
 
 <template>
   <section class="playground not-prose my-6" :aria-label="doc ? `${doc.title} demo` : 'Demo'">
-    <div class="mb-3 flex items-center justify-between gap-2">
-      <div role="tablist" aria-label="Demo view" class="tabs">
-        <button
-          :id="`${id}-tab-preview`"
-          type="button"
-          role="tab"
-          :aria-selected="tab === 'preview'"
-          :aria-controls="`${id}-preview`"
-          @click="tab = 'preview'"
-        >
+    <!-- GoopTabs: the selected tab's pill is the library's goo blob. unmount-on-hide off keeps
+         the live demo mounted (and its state) while the Code tab is showing. -->
+    <GoopTabs v-model="tab" :unmount-on-hide="false" class="gap-3">
+      <GoopTabsList aria-label="Demo view" class="self-start">
+        <GoopTabsTrigger value="preview" class="px-3 text-[13px]">
           <SiteIcon name="eye" :size="15" />
           Preview
-        </button>
-        <button
-          :id="`${id}-tab-code`"
-          type="button"
-          role="tab"
-          :aria-selected="tab === 'code'"
-          :aria-controls="`${id}-code`"
-          @click="tab = 'code'"
-        >
+        </GoopTabsTrigger>
+        <GoopTabsTrigger value="code" class="px-3 text-[13px]">
           <SiteIcon name="code" :size="15" />
           Code
-        </button>
-      </div>
-    </div>
+        </GoopTabsTrigger>
+      </GoopTabsList>
 
-    <div
-      v-show="tab === 'preview'"
-      :id="`${id}-preview`"
-      role="tabpanel"
-      :aria-labelledby="`${id}-tab-preview`"
-      class="frame overflow-hidden rounded-xl border border-border bg-card"
-    >
-      <div ref="stageEl" class="stage relative">
-        <button v-if="doc?.replay" type="button" class="replay" :aria-label="replayLabel" :title="replayLabel" @click="replay">
-          <SiteIcon name="rotate" :size="15" />
-        </button>
-        <div :key="mountKey" class="demo flex min-h-56 w-full sm:min-h-72 flex-wrap items-center justify-center gap-4 px-4 pb-14 pt-12">
-          <slot />
+      <GoopTabsContent value="preview" class="frame overflow-hidden rounded-xl border border-border bg-card">
+        <div ref="stageEl" class="stage relative">
+          <button v-if="doc?.replay" type="button" class="replay" :aria-label="replayLabel" :title="replayLabel" @click="replay">
+            <SiteIcon name="rotate" :size="15" />
+          </button>
+          <div :key="mountKey" class="demo flex min-h-56 w-full sm:min-h-72 flex-wrap items-center justify-center gap-4 px-4 pb-14 pt-12">
+            <slot />
+          </div>
         </div>
-      </div>
-      <div v-if="caption || doc?.stageControls" class="flex flex-wrap items-center justify-between gap-3 border-t border-border px-3 py-2">
-        <span class="pl-1 text-xs text-muted-foreground">{{ caption }}</span>
-        <StageControls v-if="doc?.stageControls" :stage="stage" />
-      </div>
-    </div>
+        <div v-if="caption || doc?.stageControls" class="flex flex-wrap items-center justify-between gap-3 border-t border-border px-3 py-2">
+          <span class="pl-1 text-xs text-muted-foreground">{{ caption }}</span>
+          <StageControls v-if="doc?.stageControls" :stage="stage" />
+        </div>
+      </GoopTabsContent>
 
-    <div v-show="tab === 'code'" :id="`${id}-code`" role="tabpanel" :aria-labelledby="`${id}-tab-code`" class="code-panel">
-      <CodeSnippet :code="code" :lang="reactCode ? 'tsx' : 'vue'" />
-    </div>
+      <GoopTabsContent value="code" class="code-panel">
+        <CodeSnippet :code="code" :lang="reactCode ? 'tsx' : 'vue'" />
+      </GoopTabsContent>
+    </GoopTabs>
 
     <DocsCustomize v-if="doc?.controls.length" v-model="values" :doc="doc" class="mt-4" />
   </section>
 </template>
 
 <style scoped>
-.tabs {
-  display: flex;
-  gap: 0.25rem;
-}
-.tabs button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  height: 2.125rem;
-  padding: 0 0.85rem;
-  border-radius: 0.55rem;
-  font-size: 0.8125rem;
-  color: var(--muted-foreground);
-  transition:
-    background-color 150ms ease,
-    color 150ms ease;
-}
-.tabs button:hover {
-  color: var(--foreground);
-}
-.tabs button[aria-selected='true'] {
-  color: var(--foreground);
-  background: var(--muted);
-  box-shadow: inset 0 0 0 1px var(--border);
-}
-.tabs button[aria-selected='true'] :deep(svg) {
+/* The selected tab's icon in the goo ink (the blob is the library's GoopTabs indicator). */
+.playground :deep([role='tab'][data-state='active'] svg) {
   color: var(--goo);
 }
 .stage {
