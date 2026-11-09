@@ -256,3 +256,19 @@ export {
 } from './goop-props'
 export * from './components/empty'
 export { EMPTY_PROP_KEYS, resolveEmptyProps, toEmptyOptions, type GoopEmptyProps } from './goop-props'
+export * from './components/table'
+export { TABLE_PROP_KEYS, toTableOptions, type GoopTableProps } from './goop-props'
+export type { TableHighlightHandle } from '@goopui/core'
+export * from './components/item'
+export {
+  ITEM_GROUP_PROP_KEYS,
+  ITEM_PROP_KEYS,
+  resolveItemProps,
+  toItemGroupOptions,
+  toItemPressOptions,
+  type GoopItemGroupProps,
+  type GoopItemProps,
+} from './goop-props'
+export type { ItemPressHandle } from '@goopui/core'
+export * from './components/input-group'
+export { INPUT_GROUP_PROP_KEYS, goopInputGroupProps, toInputGroupOptions, type GoopInputGroupProps } from './goop-props'

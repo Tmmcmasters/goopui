@@ -490,6 +490,19 @@ export interface MenuHighlightOptions extends MenuHighlightEffects {
   feel?: Readonly<Record<GoopPreset, Readonly<MenuFeel>>>
 }
 
+/** Layout hooks for a highlight whose blob can't sit straight in its container (a table's
+ *  rows: the blob goes in a clipping stage beside the table, on a rect inset into the row).
+ *  Not options (no adapter prop maps to them): the third argument of attachMenuHighlight. */
+export interface MenuHighlightLayout {
+  /** The element the blob goes in (default the container). It must share the container's
+   *  coordinate origin: absolutely positioned at the top-left of the container's content. */
+  layer?: HTMLElement
+  /** Adjust the item's measured rect (container coordinates), e.g. inset it. */
+  rect?: (r: EmergeRect, item: Element) => EmergeRect
+  /** The blob's corner radius (a CSS length). Default the item's own border-radius. */
+  radius?: (item: Element) => string
+}
+
 export interface MenuHighlightHandle {
   /** Play the select pop. Returns its duration in ms (0 when off or under reduced motion). */
   pop(): number
@@ -510,7 +523,11 @@ export interface MenuHighlightHandle {
  * `data-variant` mirrors the item's). Makes the container `position: relative` and isolated.
  * Reduced motion: the blob snaps to the item, no travel, no pop.
  */
-export function attachMenuHighlight(container: HTMLElement, options: MenuHighlightOptions = {}): MenuHighlightHandle {
+export function attachMenuHighlight(
+  container: HTMLElement,
+  options: MenuHighlightOptions = {},
+  layout: MenuHighlightLayout = {},
+): MenuHighlightHandle {
   const doc = container.ownerDocument
   const win = doc.defaultView
   let opts: MenuHighlightOptions = { ...options }
@@ -540,7 +557,7 @@ export function attachMenuHighlight(container: HTMLElement, options: MenuHighlig
   el.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;z-index:-1;pointer-events:none;'
   // It rides the active item every frame: its goo layer re-cuts at the page edge per frame.
   markMovingGooHost(el)
-  container.prepend(el)
+  ;(layout.layer ?? container).prepend(el)
   container.setAttribute(MENU_CONTAINER_ATTR, '')
   const prevPosition = container.style.position
   const prevIsolation = container.style.isolation
@@ -555,12 +572,13 @@ export function attachMenuHighlight(container: HTMLElement, options: MenuHighlig
     const r = item.getBoundingClientRect()
     aim = pointerX === null ? null : pointerX - c.left - container.clientLeft + container.scrollLeft
     box = { w: container.clientWidth || Infinity, h: container.clientHeight || Infinity }
-    return {
+    const out: EmergeRect = {
       x: r.left - c.left - container.clientLeft + container.scrollLeft,
       y: r.top - c.top - container.clientTop + container.scrollTop,
       width: r.width,
       height: r.height,
     }
+    return layout.rect ? layout.rect(out, item) : out
   }
 
   const draw = (): void => {
@@ -627,7 +645,7 @@ export function attachMenuHighlight(container: HTMLElement, options: MenuHighlig
       target = next
       if (target) {
         el.setAttribute('data-variant', target.getAttribute('data-variant') ?? 'default')
-        const radius = win?.getComputedStyle(target).borderRadius
+        const radius = layout.radius ? layout.radius(target) : win?.getComputedStyle(target).borderRadius
         el.style.borderRadius = radius || ''
       }
     }

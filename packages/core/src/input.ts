@@ -512,15 +512,115 @@ const effectsOf = (o: InputOptions): InputEffects => {
   return out
 }
 
+type TextControl = HTMLInputElement | HTMLTextAreaElement
+
+/** Where a ring's focus, typing and invalid state come from: one field (attachInput) or the
+ *  controls of an input group (attachInputGroup). */
+interface RingSource {
+  /** The control typing ripples from (its caret). */
+  control(): TextControl | null
+  /** A control has focus now. */
+  focused(): boolean
+  /** aria-invalid says invalid (used when `invalid` is 'auto'). */
+  invalid(): boolean
+  /** Listen for focus / blur / edits; returns the unlisten. */
+  listen(onFocus: () => void, onBlur: () => void, onInput: (e: Event) => void): () => void
+  /** Elements whose aria-invalid to watch, and whether their subtree too. */
+  watch: { el: HTMLElement; subtree: boolean }
+}
+
 /**
  * Attach the goo focus ring. `host` wraps `field` (it gets the goo layer and must be the
  * field's positioned ancestor; core makes it `position: relative` if static).
  */
-export function attachInput(
-  host: HTMLElement,
-  field: HTMLInputElement | HTMLTextAreaElement,
-  options: InputOptions = {},
-): InputHandle {
+export function attachInput(host: HTMLElement, field: TextControl, options: InputOptions = {}): InputHandle {
+  const ariaInvalid = (el: Element): boolean => {
+    const v = el.getAttribute('aria-invalid')
+    return v !== null && v !== 'false'
+  }
+  return attachRing(
+    host,
+    field,
+    {
+      control: () => field,
+      focused: () => field.ownerDocument.activeElement === field,
+      invalid: () => ariaInvalid(field),
+      listen(onFocus, onBlur, onInput) {
+        field.addEventListener('focus', onFocus)
+        field.addEventListener('blur', onBlur)
+        field.addEventListener('input', onInput)
+        return () => {
+          field.removeEventListener('focus', onFocus)
+          field.removeEventListener('blur', onBlur)
+          field.removeEventListener('input', onInput)
+        }
+      },
+      watch: { el: field, subtree: false },
+    },
+    options,
+  )
+}
+
+/** The text controls of an input group (shadcn's InputGroupInput / InputGroupTextarea). */
+export const INPUT_GROUP_CONTROL = '[data-slot="input-group-control"]'
+
+/**
+ * Attach the goo focus ring to a whole input group (shadcn's InputGroup: addons, buttons and a
+ * text control in one bordered box). The ring is GoopInput's, drawn around `group`'s border box:
+ * it flows in from the click point when a control inside takes focus, ripples from that
+ * control's caret as you type, wobbles while focused and drains when focus leaves the group's
+ * controls (moving between two controls keeps it). Invalid when any part inside carries
+ * aria-invalid (shadcn's `[data-slot][aria-invalid=true]`). `host` wraps `group` and gets the
+ * goo layer (as attachInput's host), so the group's own background paints over the goo.
+ */
+export function attachInputGroup(host: HTMLElement, group: HTMLElement, options: InputOptions = {}): InputHandle {
+  const doc = host.ownerDocument
+  const win = doc.defaultView
+  const isControl = (t: EventTarget | null): t is TextControl =>
+    !!win && t instanceof win.Element && t.matches(INPUT_GROUP_CONTROL) && group.contains(t)
+  const controls = (): TextControl[] => Array.from(group.querySelectorAll<TextControl>(INPUT_GROUP_CONTROL))
+  return attachRing(
+    host,
+    group,
+    {
+      control: () => {
+        const a = doc.activeElement
+        return isControl(a) ? a : (controls()[0] ?? null)
+      },
+      focused: () => isControl(doc.activeElement),
+      invalid: () => {
+        for (const el of group.querySelectorAll('[data-slot][aria-invalid]')) {
+          const v = el.getAttribute('aria-invalid')
+          if (v !== null && v !== 'false') return true
+        }
+        return false
+      },
+      listen(onFocus, onBlur, onInput) {
+        const focusIn = (e: FocusEvent): void => {
+          if (isControl(e.target) && !isControl(e.relatedTarget)) onFocus()
+        }
+        const focusOut = (e: FocusEvent): void => {
+          if (isControl(e.target) && !isControl(e.relatedTarget)) onBlur()
+        }
+        const edit = (e: Event): void => {
+          if (isControl(e.target)) onInput(e)
+        }
+        group.addEventListener('focusin', focusIn)
+        group.addEventListener('focusout', focusOut)
+        group.addEventListener('input', edit)
+        return () => {
+          group.removeEventListener('focusin', focusIn)
+          group.removeEventListener('focusout', focusOut)
+          group.removeEventListener('input', edit)
+        }
+      },
+      watch: { el: group, subtree: true },
+    },
+    options,
+  )
+}
+
+function attachRing(host: HTMLElement, field: HTMLElement, src: RingSource, options: InputOptions): InputHandle {
   const doc = host.ownerDocument
   const win = doc.defaultView
   let opts: InputOptions = { ...options }
@@ -544,8 +644,7 @@ export function attachInput(
 
   const readInvalid = (): boolean => {
     if (opts.invalid === true || opts.invalid === false) return opts.invalid
-    const v = field.getAttribute('aria-invalid')
-    return v !== null && v !== 'false'
+    return src.invalid()
   }
 
   const measure = (): InputGeometry => {
@@ -684,9 +783,18 @@ export function attachInput(
   }
   const ripple = (amp = 1): void => {
     if (reduced || effects.ripple <= 0) return
-    const c = caretOffset(field)
-    const below = field.tagName === 'INPUT' || c.y >= field.offsetHeight / 2
-    const px = geom.x + c.x
+    const ctl = src.control()
+    if (!ctl) return
+    const c = caretOffset(ctl)
+    const below = ctl.tagName === 'INPUT' || c.y >= ctl.offsetHeight / 2
+    // The control's offset inside the ring's box (0 when the control is the ring's own field).
+    let dx = 0
+    if (ctl !== field) {
+      const fr = field.getBoundingClientRect()
+      const cr = ctl.getBoundingClientRect()
+      dx = cr.left - fr.left
+    }
+    const px = geom.x + dx + c.x
     const py = below ? geom.y + geom.height : geom.y
     addInputRipple(st, ringArcAt(geom, feel.offset, px, py), amp)
     kick()
@@ -704,11 +812,9 @@ export function attachInput(
   // On the host (capture), so a press on a control inside it (GoopNumberField's +/- buttons,
   // which focus the field themselves) starts the flow from that control.
   host.addEventListener('pointerdown', onPointerDown, true)
-  field.addEventListener('focus', onFocus)
-  field.addEventListener('blur', onBlur)
-  field.addEventListener('input', onInput)
+  const unlisten = src.listen(onFocus, onBlur, onInput)
 
-  st.focused = doc.activeElement === field
+  st.focused = src.focused()
   syncShown()
   build()
   // Already focused/invalid at attach: show the settled ring (no flow on first paint).
@@ -732,7 +838,7 @@ export function attachInput(
         }
       })
     : undefined
-  mo?.observe(field, { attributes: true, attributeFilter: ['aria-invalid'] })
+  mo?.observe(src.watch.el, { attributes: true, attributeFilter: ['aria-invalid'], subtree: src.watch.subtree })
   const unwatch = watchReducedMotion(doc, () => {
     reduced = readReduced()
     kick()
@@ -785,9 +891,7 @@ export function attachInput(
       mo?.disconnect()
       unwatch()
       host.removeEventListener('pointerdown', onPointerDown, true)
-      field.removeEventListener('focus', onFocus)
-      field.removeEventListener('blur', onBlur)
-      field.removeEventListener('input', onInput)
+      unlisten()
       teardown()
       host.style.isolation = prevIsolation
       host.style.position = prevPosition

@@ -14,6 +14,7 @@ import {
   MENU_CONTAINER_ATTR,
   attachMenuHighlight,
   type MenuHighlightHandle,
+  type MenuHighlightLayout,
   type MenuHighlightOptions,
 } from './menu'
 
@@ -73,7 +74,11 @@ export function findListHighlight(
  * hover / active background. Default feel MENU_FEEL (vertical lists); pass `feel: TABS_FEEL`
  * for a row. Reduced motion: the blob snaps, no travel.
  */
-export function attachListHighlight(container: HTMLElement, options: ListHighlightOptions = {}): ListHighlightHandle {
+export function attachListHighlight(
+  container: HTMLElement,
+  options: ListHighlightOptions = {},
+  layout: MenuHighlightLayout = {},
+): ListHighlightHandle {
   const doc = container.ownerDocument
   const win = doc.defaultView
   const El = win?.Element
@@ -149,7 +154,7 @@ export function attachListHighlight(container: HTMLElement, options: ListHighlig
       }
       return findListHighlight(c, itemsSel(), opts.active)
     },
-  })
+  }, layout)
   const h = handle
 
   // The resting item moves when the list re-renders (route change, scroll spy, filter).

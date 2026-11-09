@@ -1068,3 +1068,37 @@ export {
   type CarouselSpring,
   type CarouselSurfaceBox,
 } from './carousel'
+export { type MenuHighlightLayout } from './menu'
+export {
+  TABLE_EFFECTS,
+  TABLE_FEEL,
+  TABLE_INSET,
+  TABLE_RADIUS,
+  TABLE_REST_ATTR,
+  TABLE_ROWS,
+  TABLE_SELECTED,
+  TABLE_STAGE_PART,
+  attachTableHighlight,
+  findTableSelected,
+  tableRowRect,
+  type TableEffect,
+  type TableHighlightHandle,
+  type TableHighlightOptions,
+} from './table'
+export {
+  ITEM_EFFECTS,
+  ITEM_FEEL,
+  ITEM_GROUP_EFFECTS,
+  ITEM_INTERACTIVE,
+  ITEM_PRESS_FEEL,
+  attachItemGroupHighlight,
+  attachItemPress,
+  itemPressScale,
+  type ItemEffect,
+  type ItemGroupEffect,
+  type ItemGroupHighlightOptions,
+  type ItemPressFeel,
+  type ItemPressHandle,
+  type ItemPressOptions,
+} from './item'
+export { INPUT_GROUP_CONTROL, attachInputGroup } from './input'
