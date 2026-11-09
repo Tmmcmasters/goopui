@@ -26,6 +26,7 @@ import {
 import { useState, type MouseEvent, type ReactNode } from 'react'
 import type { CheckboxState } from '@goopui/core'
 import { SkeletonRevealDemo, SpinnerDemo, StaticSet, Tile } from './batch1'
+import { AccordionDemo, AlertDemo, BreadcrumbDemo, ButtonGroupDemo, EmptyDemo, KbdDemo, PaginationDemo, SimpleTile } from './batch-simple'
 
 /** What a Vue demo hands its island. */
 export interface ReactDemoProps {
@@ -65,6 +66,24 @@ export function ReactDemo(props: ReactDemoProps) {
         return <SpinnerDemo set={props.set} pg={props.pg} />
       case 'tile':
         return <Tile slug={props.set} />
+      // Simple batch (./batch-simple): 'alert' | 'kbd' | 'breadcrumb' | 'empty' | 'button-group' |
+      // 'pagination' | 'accordion' (also the collapsible set) | 'tile-simple'.
+      case 'alert':
+        return <AlertDemo set={props.set} pg={props.pg} />
+      case 'kbd':
+        return <KbdDemo set={props.set} pg={props.pg} />
+      case 'breadcrumb':
+        return <BreadcrumbDemo set={props.set} pg={props.pg} />
+      case 'empty':
+        return <EmptyDemo set={props.set} pg={props.pg} />
+      case 'button-group':
+        return <ButtonGroupDemo set={props.set} pg={props.pg} />
+      case 'pagination':
+        return <PaginationDemo set={props.set} pg={props.pg} />
+      case 'accordion':
+        return <AccordionDemo set={props.set} pg={props.pg} />
+      case 'tile-simple':
+        return <SimpleTile slug={props.set} />
       default:
         return null
     }

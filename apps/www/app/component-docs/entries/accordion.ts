@@ -18,6 +18,34 @@ export default defineComponentDoc({
     <GoopAccordionContent>Yes. The open row becomes a still fill.</GoopAccordionContent>
   </GoopAccordionItem>
 </GoopAccordion>`,
+  reactCode: `<GoopAccordion type="single" collapsible defaultValue="what"{{main}}>
+  <GoopAccordionItem value="what">
+    <GoopAccordionTrigger>What is goopUI?</GoopAccordionTrigger>
+    <GoopAccordionContent>shadcn/ui components with gooey, dripping motion.</GoopAccordionContent>
+  </GoopAccordionItem>
+  <GoopAccordionItem value="motion">
+    <GoopAccordionTrigger>Does it respect reduced motion?</GoopAccordionTrigger>
+    <GoopAccordionContent>Yes. The open row becomes a still fill.</GoopAccordionContent>
+  </GoopAccordionItem>
+</GoopAccordion>`,
+  reactTables: {
+    main: {
+      caption: 'GoopAccordion and GoopCollapsible goo props',
+      rows: [
+        { prop: 'goo', type: 'boolean', def: 'true', note: 'Master switch. false renders a plain shadcn Accordion / Collapsible.' },
+        { prop: 'flood', type: fx, def: 'true', note: 'The trigger row floods with goo from the click point on open; on close it peels off the label and drains away from it. Off, the fill snaps.' },
+        { prop: 'wobble', type: fx, def: 'true', note: 'The crest of the flood front, and a jelly wobble of the row once it is full.' },
+        { prop: 'droplets', type: fx, def: 'true', note: `A few droplets splash off the row's top edge as it floods.` },
+        { prop: 'jelly', type: fx, def: 'true', note: 'The content opens on a jelly spring: overshoot, then settle.' },
+        { prop: 'textFollow', type: 'boolean', def: 'true', note: "The trigger's text color follows the goo's edge. false flips it all at once when the goo crosses the label." },
+        { prop: 'speed', type: 'number', def: '1', note: 'Animation speed multiplier.' },
+        { prop: 'preset', type: `'subtle' | 'playful' | 'wild'`, def: 'app config, then playful', note: 'The overall feel.' },
+        { prop: 'renderer', type: `'svg' | 'canvas'`, def: `'svg'`, note: 'How the goo is drawn.' },
+        { prop: 'className', type: 'string', def: '', note: 'Merged onto the root (GoopAccordion: shadcn\'s flex w-full flex-col).' },
+        { prop: 'goopRef', type: 'Ref<AccordionHandle>', def: '', note: 'On GoopAccordionItem and GoopCollapsible: the live goo handle (null before mount or with goo off). ref is the DOM element.' },
+      ],
+    },
+  },
   controls: [
     preset(),
     speed(),

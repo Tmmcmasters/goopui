@@ -5,10 +5,13 @@ withDefaults(defineProps<{ set?: 'basic' | 'edges' | 'plain' }>(), { set: 'basic
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
 const variants = [{ preset: 'wild' }, { wobble: false, momentum: false }, { goo: false }] as const
+// On /react/docs: the same sets, as real @goopui/react components (react-demos/batch-simple.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <GoopPagination v-if="set === 'basic'" v-slot="{ page }" :items-per-page="10" :total="100" :default-page="2" v-bind="pg.props">
+  <ReactIsland v-if="isReact" demo="pagination" :set="set" :pg="{ main: pg.props }" />
+  <GoopPagination v-else-if="set === 'basic'" v-slot="{ page }" :items-per-page="10" :total="100" :default-page="2" v-bind="pg.props">
     <GoopPaginationContent v-slot="{ items }">
       <GoopPaginationPrevious />
       <template v-for="(item, index) in items" :key="index">

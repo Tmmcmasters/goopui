@@ -4,10 +4,13 @@
 withDefaults(defineProps<{ set?: 'basic' | 'slash' }>(), { set: 'basic' })
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react components (react-demos/batch-simple.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <div class="breadcrumb-demo">
+  <ReactIsland v-if="isReact" demo="breadcrumb" :set="set" :pg="{ main: pg.props }" />
+  <div v-else class="breadcrumb-demo">
     <GoopBreadcrumb v-if="set === 'basic'" v-bind="pg.props">
       <GoopBreadcrumbList>
         <GoopBreadcrumbItem>
