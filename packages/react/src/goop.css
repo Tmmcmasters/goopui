@@ -523,3 +523,36 @@
     opacity: 0;
   }
 }
+
+/* ---- Button group (GoopButtonGroup): one goo body behind the buttons ---- */
+@layer components {
+  /* The hover / focus blob and the press goo share one layer (core appends it as the group's
+     last child). Ink, not green: a foreground tint mixed opaque over the page background, a
+     little stronger than shadcn's bg-muted hover so it reads on light and dark. */
+  [data-slot='button-group'] > [data-goop='highlight'] {
+    --goop-color: var(--goop-button-group-color, color-mix(in oklab, var(--foreground) 9%, var(--background)));
+  }
+  :where(.dark) [data-slot='button-group'] > [data-goop='highlight'] {
+    --goop-color: var(--goop-button-group-color, color-mix(in oklab, var(--foreground) 16%, var(--background)));
+  }
+  /* While the blob is on (core sets data-goop-group-highlight), it IS the hover background:
+     outline and ghost buttons drop their own (opaque) bg and hover bg so it shows through.
+     Dark outline keeps shadcn's translucent bg-input/30 (the blob shows through it) without
+     the hover step. An open menu trigger keeps shadcn's aria-expanded look. */
+  [data-slot='button-group'][data-goop-group-highlight] > :is([data-variant='outline'], [data-variant='ghost']):not([aria-expanded='true']) {
+    background-color: transparent !important;
+  }
+  :where(.dark) [data-slot='button-group'][data-goop-group-highlight] > [data-variant='outline']:not([aria-expanded='true']) {
+    background-color: color-mix(in oklab, var(--input) 30%, transparent) !important;
+  }
+  /* The goo layer is the last child, so shadcn's `:not(:last-child)` corner rule also squares
+     the real last member: give it back the group's outer corners. */
+  [data-slot='button-group'][data-goop-menu]:not([data-orientation='vertical']) > :nth-last-child(1 of :not([data-goop])) {
+    border-top-right-radius: var(--radius-lg) !important;
+    border-bottom-right-radius: var(--radius-lg) !important;
+  }
+  [data-slot='button-group'][data-goop-menu][data-orientation='vertical'] > :nth-last-child(1 of :not([data-goop])) {
+    border-bottom-left-radius: var(--radius-lg) !important;
+    border-bottom-right-radius: var(--radius-lg) !important;
+  }
+}

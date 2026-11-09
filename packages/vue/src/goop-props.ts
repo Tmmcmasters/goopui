@@ -2652,9 +2652,12 @@ export function toBreadcrumbOptions(props: GoopBreadcrumbProps, config: GoopOpti
 import { BREADCRUMB_EFFECTS, BREADCRUMB_FEEL, type BreadcrumbEffect, type BreadcrumbHighlightOptions } from '@goopui/core'
 
 // ---- GoopButtonGroup ------------------------------------------------------------------------
-// The group flexes as one goo body (core `attachButtonGroup`): pressing a button squishes it
-// (`press`) and tugs its neighbours toward it from their far edges (`tug`); joined edges only
-// ever overlap, so no gap or seam opens. Each takes a boolean or a multiplier, plus speed /
+// The group is one goo body (core `attachButtonGroup`): one goo layer behind the buttons is
+// the hover / focus `highlight` blob (with `wobble`, `momentum`, `followPointer`) and, on a
+// press, swells past the pressed button (`bulge`) and sends goo into its neighbours
+// (`ripple`). The buttons flex too: the pressed one squishes (`press`) and its neighbours are
+// tugged toward it from their far edges (`tug`); joined edges only ever overlap, so no gap or
+// seam opens. Each takes a boolean or a multiplier, plus speed /
 // preset; `goo: false` renders a plain shadcn ButtonGroup. Inside a group, GoopButtons leave
 // their own goo off unless they set `goo` (the group's joined corners are shadcn's).
 
@@ -2671,7 +2674,7 @@ export const goopButtonGroupProps = Object.freeze({
   goo: { type: Boolean, default: true },
 }) as GoopButtonGroupPropsDefinition
 
-type ButtonGroupAdapterOwned = StaticAdapterOwned | 'orientation'
+type ButtonGroupAdapterOwned = StaticAdapterOwned | 'orientation' | 'renderer'
 type ButtonGroupUnhandled = Exclude<keyof ButtonGroupOptions, keyof GoopButtonGroupPropsDefinition | ButtonGroupAdapterOwned>
 const _allButtonGroupOptionsHandled: [ButtonGroupUnhandled] extends [never] ? true : { unhandled: ButtonGroupUnhandled } = true
 void _allButtonGroupOptionsHandled
@@ -2689,6 +2692,7 @@ export function toButtonGroupOptions(
   if (props.goo === false) return null
   const out: ButtonGroupOptions = toStaticOptions(BUTTON_GROUP_EFFECTS, props, config)
   if (orientation) out.orientation = orientation
+  if (config.renderer) out.renderer = config.renderer
   return out
 }
 

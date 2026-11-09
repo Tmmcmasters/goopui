@@ -1283,8 +1283,10 @@ export function toSheetOptions(props: GoopSheetProps, config: GoopOptions = {}):
 // ---- GoopAlert / GoopKbd / GoopButtonGroup (static set, goo on by default) -------------------
 // Same as @goopui/vue. Alert: core `attachAlert` (the entrance: `bloom`, icon `wobble`). Kbd:
 // core `attachKbd` (the key-press squish: `press`, plus opt-in `keys`). ButtonGroup: core
-// `attachButtonGroup` (`press` squish + neighbour `tug`); GoopButtons inside a group leave
-// their own goo off unless they set `goo`. Each effect takes a boolean or a multiplier, plus
+// `attachButtonGroup`: one goo layer behind the buttons (the hover / focus `highlight` blob
+// with `wobble` / `momentum` / `followPointer`, the press `bulge` and `ripple`) plus the
+// buttons' own flex (`press` squish + neighbour `tug`); GoopButtons inside a group leave their
+// own goo off unless they set `goo`. Each effect takes a boolean or a multiplier, plus
 // speed / preset; `goo={false}` renders plain shadcn.
 
 /** Every GoopAlert engine prop. */
@@ -1315,7 +1317,7 @@ void _allAlertOptionsHandled
 type KbdUnhandled = Exclude<keyof KbdOptions, keyof GoopKbdEngineProps | StaticAdapterOwned>
 const _allKbdOptionsHandled: [KbdUnhandled] extends [never] ? true : { unhandled: KbdUnhandled } = true
 void _allKbdOptionsHandled
-type ButtonGroupUnhandled = Exclude<keyof ButtonGroupOptions, keyof GoopButtonGroupEngineProps | StaticAdapterOwned | 'orientation'>
+type ButtonGroupUnhandled = Exclude<keyof ButtonGroupOptions, keyof GoopButtonGroupEngineProps | StaticAdapterOwned | 'orientation' | 'renderer'>
 const _allButtonGroupOptionsHandled: [ButtonGroupUnhandled] extends [never] ? true : { unhandled: ButtonGroupUnhandled } = true
 void _allButtonGroupOptionsHandled
 const _simpleStaticPropsListed: [
@@ -1349,6 +1351,7 @@ export function toButtonGroupOptions(
   if (props.goo === false) return null
   const out: ButtonGroupOptions = toStaticOptions(BUTTON_GROUP_EFFECTS, props, config)
   if (orientation) out.orientation = orientation
+  if (config.renderer) out.renderer = config.renderer
   return out
 }
 

@@ -490,6 +490,24 @@ export interface MenuHighlightOptions extends MenuHighlightEffects {
   feel?: Readonly<Record<GoopPreset, Readonly<MenuFeel>>>
 }
 
+/** Extra goo circles drawn with the highlight (one goo body), in container coordinates,
+ *  redrawn every frame the highlight ticks. `count`: fixed number of circles. `moving()`:
+ *  keep ticking while they animate. */
+export interface MenuHighlightExtra {
+  count: number
+  circles(): readonly EmergeCircle[]
+  moving(): boolean
+}
+
+/** Host-only setup of a highlight (GoopButtonGroup), fixed at attach; not adapter props. */
+export interface MenuHighlightHost {
+  /** Where the highlight element goes: the container's first child (default) or its last
+   *  (shadcn's ButtonGroup `:first-child` corner rules must still see the first button). */
+  placement?: 'first' | 'last'
+  /** Extra goo merged into the highlight's body. */
+  extra?: MenuHighlightExtra
+}
+
 export interface MenuHighlightHandle {
   /** Play the select pop. Returns its duration in ms (0 when off or under reduced motion). */
   pop(): number
@@ -510,7 +528,11 @@ export interface MenuHighlightHandle {
  * `data-variant` mirrors the item's). Makes the container `position: relative` and isolated.
  * Reduced motion: the blob snaps to the item, no travel, no pop.
  */
-export function attachMenuHighlight(container: HTMLElement, options: MenuHighlightOptions = {}): MenuHighlightHandle {
+export function attachMenuHighlight(
+  container: HTMLElement,
+  options: MenuHighlightOptions = {},
+  host: MenuHighlightHost = {},
+): MenuHighlightHandle {
   const doc = container.ownerDocument
   const win = doc.defaultView
   let opts: MenuHighlightOptions = { ...options }
@@ -540,7 +562,9 @@ export function attachMenuHighlight(container: HTMLElement, options: MenuHighlig
   el.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;z-index:-1;pointer-events:none;'
   // It rides the active item every frame: its goo layer re-cuts at the page edge per frame.
   markMovingGooHost(el)
-  container.prepend(el)
+  if (host.placement === 'last') container.append(el)
+  else container.prepend(el)
+  const extra = host.extra ?? null
   container.setAttribute(MENU_CONTAINER_ATTR, '')
   const prevPosition = container.style.position
   const prevIsolation = container.style.isolation
@@ -590,7 +614,8 @@ export function attachMenuHighlight(container: HTMLElement, options: MenuHighlig
       : { tx: body.cx - ox - W / 2, ty: body.cy - oy - H / 2, skew: 0, sx: body.w / W, sy: body.h / H }
     if (renderer.setBodyTransform) renderer.setBodyTransform(t)
     else renderer.setBodyScale(t.sx, t.sy)
-    const local = pose.circles.map((c) => ({ x: c.x - ox, y: c.y - oy, r: c.r }))
+    const all = extra ? [...pose.circles, ...extra.circles().slice(0, extra.count)] : pose.circles
+    const local = all.map((c) => ({ x: c.x - ox, y: c.y - oy, r: c.r }))
     for (let i = 0; i < blobs.length; i++) {
       const c = local[i]
       if (c && c.r > 0) blobs[i]!.set(c.x, c.y, c.r)
@@ -617,7 +642,7 @@ export function attachMenuHighlight(container: HTMLElement, options: MenuHighlig
     renderer?.destroy()
     renderer = resolveRenderer(opts.renderer)(el, menuGooParams(feel))
     pad = -1
-    blobs = Array.from({ length: MENU_HIGHLIGHT_CIRCLES }, () => renderer!.createBlob())
+    blobs = Array.from({ length: MENU_HIGHLIGHT_CIRCLES + (extra?.count ?? 0) }, () => renderer!.createBlob())
     draw()
   }
 
@@ -647,7 +672,7 @@ export function attachMenuHighlight(container: HTMLElement, options: MenuHighlig
     }
     menuHighlightStep(s, rect, dt * speed(), feel, opts, aim)
     draw()
-    return !menuHighlightSettled(s, rect)
+    return !menuHighlightSettled(s, rect) || (extra?.moving() ?? false)
   }
 
   const kick = (): void => {

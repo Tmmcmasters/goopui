@@ -1,11 +1,14 @@
 <script setup lang="ts">
 // GoopButtonGroup: shadcn-vue's ButtonGroup (a div role="group", `orientation`, `class`
-// merge). The buttons flex as one goo body (core `attachButtonGroup`): pressing one squishes it
-// (`press`) and tugs its neighbours toward it (`tug`), then everything springs back with a
-// small jelly rebound. Joined edges only ever overlap, so no gap or seam opens, and nothing
-// shifts layout (transforms). GoopButtons inside leave their own goo off unless they set
-// `goo`. Before mount, during SSR, with `:goo="false"` or under reduced motion it is a plain
-// shadcn ButtonGroup.
+// merge) as one goo body (core `attachButtonGroup`). One aria-hidden goo layer behind the
+// buttons: the hover / focus `highlight` blob slides between them (trailing a low mound,
+// swelling under the pointer; on touch only while pressed), and a press swells the goo past
+// the pressed button (`bulge`) and sends it into the neighbours (`ripple`). The buttons flex
+// too: the pressed one squishes (`press`), its neighbours are tugged toward it (`tug`), then a
+// jelly settle. Joined edges only ever overlap, so no gap or seam opens, and nothing shifts
+// layout. GoopButtons inside leave their own goo off unless they set `goo`. Before mount,
+// during SSR or with `:goo="false"` it is a plain shadcn ButtonGroup; reduced motion: a static
+// highlight, no press motion.
 import { attachButtonGroup, type ButtonGroupHandle } from '@goopui/core'
 import { cn } from 'cn'
 import { computed, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch, type HTMLAttributes, type PropType } from 'vue'

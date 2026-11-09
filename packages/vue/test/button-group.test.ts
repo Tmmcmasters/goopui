@@ -23,6 +23,8 @@ describe('GoopButtonGroup', () => {
     for (const k of BUTTON_GROUP_PROP_KEYS) expect(goopButtonGroupProps).toHaveProperty(k)
     expect(toButtonGroupOptions({ goo: false })).toBeNull()
     expect(toButtonGroupOptions({ tug: false, press: 2 }, { preset: 'wild' }, 'vertical')).toMatchObject({ tug: false, press: 2, preset: 'wild', orientation: 'vertical' })
+    for (const k of ['highlight', 'wobble', 'momentum', 'followPointer', 'bulge', 'ripple']) expect(BUTTON_GROUP_PROP_KEYS).toContain(k)
+    expect(toButtonGroupOptions({ highlight: false, bulge: 0.5, ripple: false }, { renderer: 'canvas' })).toMatchObject({ highlight: false, bulge: 0.5, ripple: false, renderer: 'canvas' })
   })
 
   it("renders shadcn's markup; GoopButtons inside keep their own goo off unless they set it", async () => {
@@ -54,6 +56,27 @@ describe('GoopButtonGroup', () => {
     expect(w.vm.handle).not.toBeNull()
     await w.setProps({ goo: false })
     expect(w.vm.handle).toBeNull()
+    w.unmount()
+  })
+
+  it('one goo layer appended after the buttons lights the hovered one; effects are props', async () => {
+    const w = mount(GoopButtonGroup, {
+      attachTo: document.body,
+      slots: { default: () => [h(GoopButton, { variant: 'outline' }, () => 'A'), h(GoopButton, { variant: 'outline' }, () => 'B')] },
+    })
+    await nextTick()
+    const g = w.get('[data-slot="button-group"]').element as HTMLElement
+    const layer = g.lastElementChild!
+    expect(layer.getAttribute('data-goop')).toBe('highlight')
+    expect(layer.getAttribute('aria-hidden')).toBe('true')
+    expect(g.firstElementChild!.getAttribute('data-slot')).toBe('button')
+    expect(g.hasAttribute('data-goop-group-highlight')).toBe(true)
+    g.querySelectorAll('button')[1]!.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' }))
+    expect(w.vm.handle!.lit).toBe(1)
+    await w.setProps({ highlight: false })
+    expect(g.hasAttribute('data-goop-group-highlight')).toBe(false)
+    await w.setProps({ goo: false })
+    expect(g.querySelector('[data-goop]')).toBeNull()
     w.unmount()
   })
 })

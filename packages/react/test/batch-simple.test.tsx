@@ -251,6 +251,33 @@ describe('GoopButtonGroup', () => {
     render(h(GoopButton, { variant: 'outline', 'data-testid': 'c' } as never, 'C'))
     expect(screen.getByTestId('c').hasAttribute('data-goop-host')).toBe(true)
   })
+
+  it('one goo layer appended after the buttons lights the hovered one; goo={false} is plain shadcn', () => {
+    const api = createRef<ButtonGroupHandle>()
+    const view = (props: Record<string, unknown>) =>
+      h(
+        GoopButtonGroup,
+        { goopRef: api, ...props } as never,
+        h(GoopButton, { variant: 'outline', 'data-testid': 'a' } as never, 'A'),
+        h(GoopButton, { variant: 'outline', 'data-testid': 'b' } as never, 'B'),
+      )
+    const r = render(view({}))
+    const g = document.querySelector('[data-slot="button-group"]')!
+    const layer = g.lastElementChild!
+    expect(layer.getAttribute('data-goop')).toBe('highlight')
+    expect(layer.getAttribute('aria-hidden')).toBe('true')
+    expect(g.firstElementChild).toBe(screen.getByTestId('a'))
+    expect(g.hasAttribute('data-goop-group-highlight')).toBe(true)
+    screen.getByTestId('b').dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' }))
+    expect(api.current!.lit).toBe(1)
+    // Effects are props: the highlight off keeps the press goo layer but drops the blob.
+    r.rerender(view({ highlight: false }))
+    expect(g.hasAttribute('data-goop-group-highlight')).toBe(false)
+    r.rerender(view({ goo: false }))
+    expect(g.querySelector('[data-goop]')).toBeNull()
+    expect(api.current).toBeNull()
+    r.unmount()
+  })
 })
 
 describe('GoopPagination', () => {
@@ -508,7 +535,7 @@ describe('props -> core options match @goopui/vue (simple batch)', () => {
     for (const cfg of [{}, { preset: 'subtle' as const, renderer: 'canvas' as const, reducedMotion: true as const }]) {
       for (const p of [{}, { goo: false }, { bloom: false, wobble: 0.5, speed: 2, preset: 'wild' as const }]) expect(m.toAlertOptions(p, cfg)).toEqual(vue.toAlertOptions(p, cfg))
       for (const p of [{}, { goo: false }, { press: false }, { press: 0 }, { keys: ['Meta', 'K'], press: 2 }]) expect(m.toKbdOptions(p, cfg)).toEqual(vue.toKbdOptions(p, cfg))
-      for (const p of [{}, { goo: false }, { tug: false, press: 2 }]) for (const o of [undefined, 'vertical' as const]) expect(m.toButtonGroupOptions(p, cfg, o)).toEqual(vue.toButtonGroupOptions(p, cfg, o))
+      for (const p of [{}, { goo: false }, { tug: false, press: 2 }, { highlight: false, bulge: 0.5, ripple: false, followPointer: false, wobble: false, momentum: 2 }]) for (const o of [undefined, 'vertical' as const]) expect(m.toButtonGroupOptions(p, cfg, o)).toEqual(vue.toButtonGroupOptions(p, cfg, o))
       for (const p of [{}, { goo: false }, { puddle: false }, { puddle: 0 }, { breathe: 0.5, speed: 2 }]) expect(m.toEmptyOptions(p, cfg)).toEqual(vue.toEmptyOptions(p, cfg))
       for (const p of [{}, { goo: false }, { highlight: false }, { followPointer: false, momentum: false, speed: 2 }])
         expect(m.toBreadcrumbOptions(p, cfg)).toEqual(vue.toBreadcrumbOptions(p, cfg))
