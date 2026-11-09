@@ -28,7 +28,7 @@ jobs:
   publish:
     runs-on: ubuntu-24.04 # check:package-managers: Playwright 1.59 has no Chromium for Ubuntu 26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:

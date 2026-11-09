@@ -32,7 +32,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-24.04 # Playwright 1.59 has no Chromium for Ubuntu 26 (ubuntu-latest)
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -76,7 +76,7 @@ jobs:
     runs-on: ubuntu-24.04 # Playwright 1.59 has no Chromium for Ubuntu 26 (ubuntu-latest)
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -109,7 +109,7 @@ jobs:
       package-managers: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.package-managers == 'true' }}
       registry: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.registry == 'true' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v3
         id: filter
         if: github.event_name != 'workflow_dispatch'
@@ -148,7 +148,7 @@ jobs:
     runs-on: ubuntu-24.04 # Playwright 1.59 has no Chromium for Ubuntu 26 (ubuntu-latest)
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Installing builds core/vue/react/nuxt (their `prepare` scripts): all the check packs.
       - uses: ./.github/actions/setup-package-managers
       - name: pnpm check:package-managers
@@ -171,7 +171,7 @@ jobs:
     runs-on: ubuntu-24.04 # Playwright 1.59 has no Chromium for Ubuntu 26 (ubuntu-latest)
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
