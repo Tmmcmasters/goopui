@@ -40,7 +40,9 @@ pnpm clean:dot
 pnpm build --concurrency=1
 pnpm typecheck
 pnpm turbo run test --filter=./packages/core --filter=./packages/vue --filter=./packages/react --filter=./packages/nuxt
-pnpm check:package-managers   # npm, pnpm, yarn 1, yarn 4, bun x Vite Vue, Vite React, Next.js 16
+# check:package-managers (npm, pnpm, yarn 1, yarn 4, bun x Vite Vue, Vite React, Next.js 16)
+# and check:hydration run in CI: confirm the CI run for this commit is green
+# (`gh run list --branch main --workflow ci.yml`) instead of running them here.
 
 # 2. Pack each package into a scratch dir and inspect the tarballs.
 OUT="$(mktemp -d)"
@@ -85,6 +87,6 @@ pnpm changeset version         # -> 0.1.0
 
 ## GitHub Actions
 
-`.github/workflows/release.yml` runs on manual dispatch only (Actions -> Release -> Run workflow). It installs, builds, typechecks, tests and runs `pnpm publish -r` for the public packages (core, vue, react, nuxt, in dependency order) with npm provenance. Inputs: `tag` (dist-tag, default `latest`) and `dry_run` (default `true`).
+`.github/workflows/release.yml` runs on manual dispatch only (Actions -> Release -> Run workflow). It installs, builds, typechecks, tests, runs `pnpm check:package-managers` and then `pnpm publish -r` for the public packages (core, vue, react, nuxt, in dependency order) with npm provenance. Inputs: `tag` (dist-tag, default `latest`) and `dry_run` (default `true`).
 
 Setup: create an npm **automation** (or granular, publish-enabled for `@goopui/*`) token and save it as the `NPM_TOKEN` repository secret. A token skips the browser 2FA, so this is the only way to publish without the owner at a terminal. The workflow publishes whatever versions are committed, so run `changeset version` and push first.
