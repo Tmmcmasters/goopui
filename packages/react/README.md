@@ -2,7 +2,7 @@
 
 Gooey, dripping [shadcn/ui](https://ui.shadcn.com) components for React, built on [Radix UI](https://www.radix-ui.com) with the [`@goopui/core`](https://www.npmjs.com/package/@goopui/core) engine attached. Same names, parts, props and classes as shadcn/ui (cva variants, `className`, `asChild`), plus goo. Every component honors `prefers-reduced-motion`.
 
-> **Alpha, not published yet.** The React port has five components so far: Button, Switch, Checkbox, Tabs and Dialog. Docs and demos: https://goop.timmcmasters.work/react/docs · Source: https://github.com/Tmmcmasters/goopui
+> **Alpha.** APIs may change between `0.x` releases, and the React port is still catching up with [`@goopui/vue`](https://www.npmjs.com/package/@goopui/vue): the docs say which components are ported. Docs and demos: https://goop.timmcmasters.work/react/docs · Source: https://github.com/Tmmcmasters/goopui
 
 ## Install
 
@@ -10,7 +10,7 @@ Gooey, dripping [shadcn/ui](https://ui.shadcn.com) components for React, built o
 npm install @goopui/react
 ```
 
-Requires React 18 or 19 and Tailwind CSS v4. Interaction sounds ([Cuelume](https://www.npmjs.com/package/cuelume)) come installed: Next.js' Turbopack can't build an optional dynamic import that isn't there, and Cuelume only loads when a component has `sound` on. The components use shadcn theme tokens (`--primary`, `--background`, `--popover`, `--border`, ...), so set up a shadcn/ui theme or define those CSS variables yourself.
+Requires React 18 or 19 (with `react-dom`) and Tailwind CSS v4. Radix UI (`radix-ui`) and the `@goopui/core` engine are installed with it. Interaction sounds ([Cuelume](https://www.npmjs.com/package/cuelume)) come installed: Next.js' Turbopack can't build an optional dynamic import that isn't there, and Cuelume only loads when a component has `sound` on. The components use shadcn theme tokens (`--primary`, `--background`, `--popover`, `--border`, ...), so set up a [shadcn/ui](https://ui.shadcn.com/docs/theming) theme (with shadcn's base layer, `* { @apply border-border outline-ring/50 }`) or define those CSS variables yourself.
 
 Import the styles once from your Tailwind entry CSS, after Tailwind. That one line also adds the `@source` that lets Tailwind see the components' classes:
 
@@ -45,7 +45,7 @@ import { GoopProvider } from '@goopui/react'
 
 ### Next.js (App Router)
 
-Every component file is a client component (`'use client'`), so you can render them from Server Components. They server-render shadcn's exact markup, and the goo attaches after hydration, so there's nothing to mismatch. Put the optional `GoopProvider` in `app/layout.tsx`.
+Every component file is a client component (`'use client'`), so you can render them from Server Components. They server-render shadcn's exact markup, and the goo attaches after hydration, so there's nothing to mismatch. Put the optional `GoopProvider` in `app/layout.tsx` and the two `@import` lines in `app/globals.css` (Next.js' Tailwind v4 setup, via `@tailwindcss/postcss`).
 
 ## Props
 

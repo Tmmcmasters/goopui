@@ -1,7 +1,7 @@
 name: Release
 
 # Manual only. Publishes the committed versions of the public @goopui/* packages
-# (core, vue, nuxt). Version bumps happen beforehand with `pnpm changeset version`.
+# (core, vue, react, nuxt). Version bumps happen beforehand with `pnpm changeset version`.
 on:
   workflow_dispatch:
     inputs:
@@ -36,7 +36,7 @@ jobs:
           cache: pnpm
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
-      - run: pnpm turbo run build typecheck test --filter=./packages/core --filter=./packages/vue --filter=./packages/nuxt
+      - run: pnpm turbo run build typecheck test --filter=./packages/core --filter=./packages/vue --filter=./packages/react --filter=./packages/nuxt
       - name: Publish
         run: >-
           pnpm publish -r --filter "./packages/*"

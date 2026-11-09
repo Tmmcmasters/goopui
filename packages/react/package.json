@@ -1,7 +1,6 @@
 {
   "name": "@goopui/react",
   "version": "0.1.0-alpha.0",
-  "private": true,
   "description": "goopUI components for React: gooey, dripping shadcn/ui components",
   "type": "module",
   "license": "MIT",
