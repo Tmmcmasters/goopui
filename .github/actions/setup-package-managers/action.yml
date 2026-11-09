@@ -1,0 +1,20 @@
+name: Set up for check:package-managers
+description: Node, pnpm, bun and Playwright's Chromium, then `pnpm install` (which builds the library packages through their `prepare` scripts). yarn 1 and 4 run through npx inside the script.
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version-file: .nvmrc
+        cache: pnpm
+    - uses: oven-sh/setup-bun@v2
+    - shell: bash
+      run: pnpm install --frozen-lockfile
+    - uses: actions/cache@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+    # No CHROMIUM_PATH: smoke-page.mjs falls back to playwright-core's own download.
+    - shell: bash
+      run: pnpm exec playwright-core install --with-deps chromium

@@ -602,7 +602,7 @@ for m in "${MANAGERS[@]}"; do
     fi
     echo "$line"; results+=("$line")
     case "$line" in FAIL*)
-      grep -iE 'error|could not resolve|failed' "$dir/build.log" "$dir/smoke.log" 2>/dev/null | head -5 ;;
+      grep -iE 'error|could not resolve|failed' "$dir/install.log" "$dir/build.log" "$dir/smoke.log" 2>/dev/null | head -8 ;;
     esac
   done
 done

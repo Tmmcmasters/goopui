@@ -49,6 +49,8 @@ pnpm check:package-managers     # npm, pnpm, yarn 1, yarn 4, bun x vue, react, r
 APPS="vue-min react-min nuxt-min" pnpm check:package-managers npm pnpm   # lowest claimed peers
 ```
 
+`check:package-managers` (the default apps) and `check:hydration` also run in CI on every push to `main`: if the CI run for this commit is green (`gh run list --branch main --workflow ci.yml`), the local `check:package-managers` run can be skipped; the `-min` run is local only.
+
 What they cover:
 
 - **`check:exports`** (`scripts/check-exports.sh`) packs the four packages and runs [publint](https://publint.dev) (`--strict`: `exports`, `main`, `types` and `files` agree and every path exists) and [`@arethetypeswrong/cli`](https://github.com/arethetypeswrong/arethetypeswrong.github.io) on each tarball. All four are **ESM-only by design** (`"type": "module"`, `import` conditions, no `require`), so attw runs with `--profile esm-only`: the `node16` (from ESM) and `bundler` resolutions must be clean; the CommonJS `require()` rows can't work for an ESM-only package and are ignored. `./goop.css` is excluded from attw (a stylesheet, not a module TypeScript resolves; publint still checks it exists).
@@ -117,6 +119,6 @@ pnpm changeset version         # -> 0.1.0
 
 ## GitHub Actions
 
-`.github/workflows/release.yml` runs on manual dispatch only (Actions -> Release -> Run workflow). It installs, builds, typechecks, tests and runs `pnpm publish -r` for the public packages (core, vue, react, nuxt, in dependency order) with npm provenance. Inputs: `tag` (dist-tag, default `latest`) and `dry_run` (default `true`).
+`.github/workflows/release.yml` runs on manual dispatch only (Actions -> Release -> Run workflow). It installs, builds, typechecks, tests, runs `pnpm check:package-managers` and then `pnpm publish -r` for the public packages (core, vue, react, nuxt, in dependency order) with npm provenance. Inputs: `tag` (dist-tag, default `latest`) and `dry_run` (default `true`).
 
 Setup: create an npm **automation** (or granular, publish-enabled for `@goopui/*`) token and save it as the `NPM_TOKEN` repository secret. A token skips the browser 2FA, so this is the only way to publish without the owner at a terminal. The workflow publishes whatever versions are committed, so run `changeset version` and push first.

@@ -261,7 +261,7 @@ describe('GoopCombobox', () => {
       },
       { timeout: 5000 },
     )
-    const ms = vi.spyOn(hl.current!, 'pop').mockReturnValue(30)
+    const ms = vi.spyOn(hl.current!, 'pop').mockReturnValue(300) // the value/check assertions below run before the close
     await act(async () => {
       fireEvent.click(screen.getByText('Next.js'))
     })
@@ -270,7 +270,7 @@ describe('GoopCombobox', () => {
     // The value is set at once (its check mark shows), the list closes once the pop has played.
     expect(screen.getByText('Next.js').closest('[cmdk-item]')!.querySelector('[data-slot="combobox-item-indicator"]')).not.toBeNull()
     expect((screen.getByPlaceholderText('Select framework...') as HTMLInputElement).value).toBe('Next.js')
-    // Closes after the (mocked, 30ms) pop. Poll rather than sleep a fixed 60ms, which raced
+    // Closes after the (mocked, 300ms) pop. Poll rather than sleep a fixed 60ms, which raced
     // under parallel load.
     await waitFor(() => expect(document.querySelector('[data-slot="combobox-list"][data-state="open"]')).toBeNull(), {
       timeout: 5000,
