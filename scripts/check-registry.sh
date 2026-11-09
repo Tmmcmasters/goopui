@@ -77,16 +77,24 @@ namespace() {
   grep -q 'goop-lib' "$1/list.log" || { echo "list shows no goop-lib (list.log)"; return 1; }
 }
 
+# Kills a process and all its descendants (npx -> next start -> next-server, ...).
+killtree() {
+  local c
+  for c in $(pgrep -P "$1" 2>/dev/null); do killtree "$c"; done
+  kill "$1" 2>/dev/null
+}
+
 # Serves a built app ($2 = command) on APP_PORT and smoke-tests it. $1 = app dir.
 smoke() {
   local dir="$1" cmd="$2" pid ok=0
+  # A server left on the port would answer for this app (and fail its smoke test).
+  if curl -s -o /dev/null "http://localhost:$APP_PORT/"; then echo "port $APP_PORT is already in use"; return 1; fi
   (cd "$dir" && exec bash -c "$cmd" > serve.log 2>&1) &
   pid=$!
-  pids+=($pid)
   (cd "$ROOT" && EXPECT='[data-goop-active]' node scripts/smoke-page.mjs "http://localhost:$APP_PORT/" 'Hello goo' 'Open dialog' > "$dir/smoke.log" 2>&1) || ok=1
-  pkill -P "$pid" 2>/dev/null
-  kill "$pid" 2>/dev/null
+  killtree "$pid"
   wait "$pid" 2>/dev/null
+  for _ in $(seq 1 50); do curl -s -o /dev/null "http://localhost:$APP_PORT/" || break; sleep 0.2; done
   return $ok
 }
 
