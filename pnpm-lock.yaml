@@ -361,6 +361,9 @@ importers:
       react-dom:
         specifier: ^19.2.0
         version: 19.3.1(react@19.3.1)
+      sonner:
+        specifier: ^2.0.8
+        version: 2.0.8(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       vue:
         specifier: ^3.5.44
         version: 3.5.44(typescript@5.9.3)

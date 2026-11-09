@@ -5,10 +5,13 @@ withDefaults(defineProps<{ set?: 'basic' | 'effects' | 'states' }>(), { set: 'ba
 const code = ref<string[]>([])
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react components (react-demos/bespoke1.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <div v-if="set === 'basic'" class="grid gap-2">
+  <ReactIsland v-if="isReact" demo="input-otp" :set="set" :pg="{ main: pg.props }" />
+  <div v-else-if="set === 'basic'" class="grid gap-2">
     <GoopInputOTP v-model="code" aria-label="Verification code" v-bind="pg.props">
       <GoopInputOTPGroup>
         <GoopInputOTPSlot v-for="i in 3" :key="i" :index="i - 1" />

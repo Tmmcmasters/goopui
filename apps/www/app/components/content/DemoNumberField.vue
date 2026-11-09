@@ -6,10 +6,13 @@ const qty = ref(3)
 const price = ref(24.5)
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react components (react-demos/bespoke1.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <div v-if="set === 'basic'" class="grid w-full max-w-40 gap-2">
+  <ReactIsland v-if="isReact" demo="number-field" :set="set" :pg="{ main: pg.props }" />
+  <div v-else-if="set === 'basic'" class="grid w-full max-w-40 gap-2">
     <label for="demo-nf-qty" class="text-sm font-medium">Quantity</label>
     <GoopNumberField id="demo-nf-qty" v-model="qty" :min="0" :max="20" v-bind="pg.props">
       <GoopNumberFieldContent>

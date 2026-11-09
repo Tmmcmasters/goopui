@@ -18,6 +18,7 @@ import {
   useContext,
   useImperativeHandle,
   useRef,
+  useState,
   type ComponentPropsWithoutRef,
   type ReactNode,
   type Ref,
@@ -72,7 +73,18 @@ function OTPGoo({ handle }: { handle: InputOTPHandle | null }) {
 
 export const GoopInputOTP = forwardRef<HTMLInputElement, GoopInputOTPProps>(function GoopInputOTP(allProps, ref) {
   const [engine, props] = splitProps(allProps, INPUT_OTP_PROP_KEYS)
-  const { className, containerClassName, goo = true, sound, goopRef, children, ...rest } = props
+  const { className, containerClassName, goo = true, sound, goopRef, children, value, defaultValue, onChange, ...rest } = props
+  // input-otp keeps `defaultValue` as its initial state but also hands it to its controlled
+  // <input> (React warns about value + defaultValue): hold the uncontrolled value here instead.
+  const [inner, setInner] = useState(typeof defaultValue === 'string' ? defaultValue : '')
+  const controlled = value !== undefined
+  const change = useCallback(
+    (v: string) => {
+      if (!controlled) setInner(v)
+      onChange?.(v)
+    },
+    [controlled, onChange],
+  )
 
   // The goo host is input-otp's container (the hidden input's grandparent).
   const host = useRef<HTMLElement | null>(null)
@@ -109,6 +121,8 @@ export const GoopInputOTP = forwardRef<HTMLInputElement, GoopInputOTPProps>(func
       className={cn(inputOTPInputVariants(), className)}
       {...cue}
       {...(rest as Omit<OTPInputProps, 'render' | 'children'>)}
+      value={controlled ? value : inner}
+      onChange={change}
     >
       <OTPGooContext.Provider value={active}>
         {children}

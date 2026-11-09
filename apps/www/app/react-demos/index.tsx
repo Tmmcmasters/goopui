@@ -26,6 +26,7 @@ import {
 import { useState, type MouseEvent, type ReactNode } from 'react'
 import type { CheckboxState } from '@goopui/core'
 import { SkeletonRevealDemo, SpinnerDemo, StaticSet, Tile } from './batch1'
+import { BESPOKE_TILES, BespokeTile, CommandDemo, InputOTPDemo, NumberFieldDemo, ToasterDemo } from './bespoke1'
 
 /** What a Vue demo hands its island. */
 export interface ReactDemoProps {
@@ -64,7 +65,15 @@ export function ReactDemo(props: ReactDemoProps) {
       case 'spinner':
         return <SpinnerDemo set={props.set} pg={props.pg} />
       case 'tile':
-        return <Tile slug={props.set} />
+        return BESPOKE_TILES.has(props.set) ? <BespokeTile slug={props.set} /> : <Tile slug={props.set} />
+      case 'toaster':
+        return <ToasterDemo pg={props.pg} />
+      case 'command':
+        return <CommandDemo set={props.set} pg={props.pg} />
+      case 'number-field':
+        return <NumberFieldDemo set={props.set} pg={props.pg} />
+      case 'input-otp':
+        return <InputOTPDemo set={props.set} pg={props.pg} />
       default:
         return null
     }

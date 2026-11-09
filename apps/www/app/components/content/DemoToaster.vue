@@ -15,11 +15,14 @@ const showPromise = () =>
   })
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react components (react-demos/bespoke1.tsx).
+const { isReact } = useFramework()
 const showFive = () => [showDefault, showSuccess, showError, showAction, showPromise].forEach((fire, i) => setTimeout(fire, i * 180))
 </script>
 
 <template>
-  <div class="flex flex-wrap items-center justify-center gap-3">
+  <ReactIsland v-if="isReact" demo="toaster" :pg="{ main: pg.props }" />
+  <div v-else class="flex flex-wrap items-center justify-center gap-3">
     <GoopButton variant="outline" @click="showDefault">Default</GoopButton>
     <GoopButton variant="outline" @click="showSuccess">Success</GoopButton>
     <GoopButton variant="outline" @click="showError">Error</GoopButton>
