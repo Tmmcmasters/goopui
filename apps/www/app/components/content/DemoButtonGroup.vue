@@ -4,10 +4,13 @@
 withDefaults(defineProps<{ set?: 'basic' | 'vertical' | 'separator' }>(), { set: 'basic' })
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react components (react-demos/batch-simple.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <GoopButtonGroup v-if="set === 'basic'" v-bind="pg.props">
+  <ReactIsland v-if="isReact" demo="button-group" :set="set" :pg="{ main: pg.props }" />
+  <GoopButtonGroup v-else-if="set === 'basic'" v-bind="pg.props">
     <GoopButton variant="outline">Archive</GoopButton>
     <GoopButton variant="outline">Report</GoopButton>
     <GoopButton variant="outline">Snooze</GoopButton>

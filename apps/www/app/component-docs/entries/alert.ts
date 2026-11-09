@@ -14,6 +14,26 @@ export default defineComponentDoc({
   <GoopAlertTitle>Success! Your changes have been saved</GoopAlertTitle>
   <GoopAlertDescription>This is an alert with icon, title and description.</GoopAlertDescription>
 </GoopAlert>`,
+  reactCode: `<GoopAlert{{main}}>
+  <CircleCheckIcon />
+  <GoopAlertTitle>Success! Your changes have been saved</GoopAlertTitle>
+  <GoopAlertDescription>This is an alert with icon, title and description.</GoopAlertDescription>
+</GoopAlert>`,
+  reactTables: {
+    main: {
+      caption: 'GoopAlert props',
+      rows: [
+        { prop: 'variant', type: `'default' | 'destructive'`, def: `'default'`, note: 'Same as shadcn/ui.' },
+        { prop: 'className', type: 'string', def: '', note: 'Merged onto the root.' },
+        { prop: 'goo', type: 'boolean', def: 'true', note: 'Master switch. false renders a plain shadcn Alert.' },
+        { prop: 'bloom', type: fx, def: 'true', note: 'When it mounts or appears, the body blooms out of its top edge in a low, wide mound, overshoots a couple of px and settles. A number scales it.' },
+        { prop: 'wobble', type: fx, def: 'true', note: 'The icon wobbles once, gently, as it arrives. A number scales it.' },
+        { prop: 'speed', type: 'number', def: '1', note: 'Animation speed multiplier.' },
+        { prop: 'preset', type: `'subtle' | 'playful' | 'wild'`, def: 'app config, then playful', note: 'The feel.' },
+        { prop: 'goopRef', type: 'Ref<AlertHandle>', def: '', note: 'The live entrance handle: replay() plays it again. null before mount or with goo off. ref is the alert div.' },
+      ],
+    },
+  },
   controls: [
     preset(),
     choice('variant', ['default', 'destructive'], 'default'),

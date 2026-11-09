@@ -4,10 +4,13 @@
 withDefaults(defineProps<{ set?: 'basic' | 'media' }>(), { set: 'basic' })
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react components (react-demos/batch-simple.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <GoopEmpty v-if="set === 'basic'" class="empty-demo p-2" v-bind="pg.props">
+  <ReactIsland v-if="isReact" demo="empty" :set="set" :pg="{ main: pg.props }" />
+  <GoopEmpty v-else-if="set === 'basic'" class="empty-demo p-2" v-bind="pg.props">
     <GoopEmptyHeader>
       <GoopEmptyMedia variant="icon">
         <SiteIcon name="folder" />

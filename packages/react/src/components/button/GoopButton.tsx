@@ -18,6 +18,7 @@ import { GOOP_PROP_KEYS, splitProps, toGoopOptions, toGoopStyle, type GoopEngine
 import { useGoopCue } from '../../sound'
 import { seedFrom, useGoop } from '../../use-goop'
 import { useComposedRefs, useIsomorphicLayoutEffect } from '../../utils'
+import { useInGoopButtonGroup } from '../button-group/context'
 import { buttonVariants, goopButtonGooVariants, goopButtonStyles, type ButtonSize, type ButtonVariant } from './variants'
 
 /** What `goopRef` receives: the engine handle and its methods (mirrors the Vue expose). */
@@ -46,7 +47,8 @@ export type GoopButtonProps = Omit<ComponentPropsWithoutRef<'button'>, keyof Goo
     size?: ButtonSize | null
     /** Render the single child instead, merging classes, props and the goo onto it (Radix Slot). */
     asChild?: boolean
-    /** Master switch. `false` renders a plain shadcn Button. Default: on, except `link`. */
+    /** Master switch. `false` renders a plain shadcn Button. Default: on, except `link` and
+     *  inside a GoopButtonGroup (the group flexes its buttons). */
     goo?: boolean
     /** Receives the engine API (`drip()`, `press()`, `handle`, ...). */
     goopRef?: Ref<GoopButtonApi>
@@ -76,7 +78,9 @@ export const GoopButton = forwardRef<HTMLButtonElement, GoopButtonProps>(functio
 
   const variantKey: ButtonVariant = variant ?? 'default'
   const gooStyle = goopButtonStyles[variantKey]
-  const enabled = goo ?? gooStyle !== 'none'
+  // Inside a GoopButtonGroup the group flexes the buttons; their own goo stays off unless set.
+  const grouped = useInGoopButtonGroup()
+  const enabled = goo ?? (!grouped && gooStyle !== 'none')
 
   const options: GoopOptions = toGoopOptions(engine, {
     ...config,

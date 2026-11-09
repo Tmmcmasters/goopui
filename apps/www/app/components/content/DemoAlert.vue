@@ -5,10 +5,13 @@ withDefaults(defineProps<{ set?: 'basic' | 'destructive' | 'plain' }>(), { set: 
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
 const replay = ref(0)
+// On /react/docs: the same sets, as real @goopui/react components (react-demos/batch-simple.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <GoopAlert v-if="set === 'basic'" class="max-w-md" v-bind="pg.props">
+  <ReactIsland v-if="isReact" demo="alert" :set="set" :pg="{ main: pg.props }" />
+  <GoopAlert v-else-if="set === 'basic'" class="max-w-md" v-bind="pg.props">
     <SiteIcon :name="pg.props.variant === 'destructive' ? 'circleAlert' : 'circleCheck'" />
     <GoopAlertTitle>Success! Your changes have been saved</GoopAlertTitle>
     <GoopAlertDescription>This is an alert with icon, title and description.</GoopAlertDescription>

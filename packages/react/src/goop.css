@@ -402,3 +402,61 @@
       inset 0 1px 2px color-mix(in oklab, var(--sidebar-primary, var(--primary)) 8%, transparent);
   }
 }
+
+/* ---- Pagination, Breadcrumb, Empty (same as @goopui/vue's goop.css) ---- */
+@layer components {
+  /* Pagination blob (GoopPaginationContent): the current page's shadcn outline button
+     (bg-background with a border-colored rim). Dark: shadcn's translucent bg-input/30 mixed
+     opaque over the page background, with an input-colored rim. */
+  [data-goop-pagination] > [data-goop='highlight'] {
+    --goop-color: var(--background);
+    filter: drop-shadow(0 0 0.5px var(--border)) drop-shadow(0 0 0.5px var(--border));
+  }
+  :where(.dark) [data-goop-pagination] > [data-goop='highlight'] {
+    --goop-color: color-mix(in oklab, var(--input) 30%, var(--background));
+    filter: drop-shadow(0 0 0.5px var(--input)) drop-shadow(0 0 0.5px var(--input));
+  }
+  /* Until the blob attaches (SSR, first paint), the current page keeps shadcn's look. shadcn/ui
+     React nests each link in a PaginationItem <li>. */
+  [data-goop-pagination]:not([data-goop-menu]) [data-slot='pagination-link']:is([data-active]:not([data-active='false'])) {
+    border-color: var(--border);
+    background-color: var(--background);
+  }
+  :where(.dark) [data-goop-pagination]:not([data-goop-menu]) [data-slot='pagination-link']:is([data-active]:not([data-active='false'])) {
+    border-color: var(--input);
+    background-color: color-mix(in oklab, var(--input) 30%, transparent);
+  }
+
+  /* Breadcrumb (GoopBreadcrumbList): one goo blob is the links' hover / focus background, in
+     shadcn's muted tone (shadcn's own hover only changes the text colour). */
+  [data-goop-breadcrumb] > [data-goop='highlight'] {
+    --goop-color: var(--muted);
+  }
+
+  /* Empty (GoopEmptyMedia): the media's goo puddle, in the icon tile's muted tone, breathing
+     very slowly (~1px; core writes the scales and period). Reduced motion: still. */
+  [data-goop='empty-puddle'] {
+    fill: var(--muted);
+  }
+  [data-goop='empty-puddle'][data-goop-breathe] {
+    animation: goop-puddle-breathe var(--goop-puddle-period, 6s) ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-goop='empty-puddle'][data-goop-breathe] {
+      animation: none;
+    }
+  }
+  [data-reduced-motion='true'] [data-goop='empty-puddle'] {
+    animation: none;
+  }
+}
+
+@keyframes goop-puddle-breathe {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  50% {
+    transform: scale(var(--goop-puddle-sx, 1), var(--goop-puddle-sy, 1));
+  }
+}

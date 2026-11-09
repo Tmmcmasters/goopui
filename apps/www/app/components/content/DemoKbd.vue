@@ -4,10 +4,13 @@
 withDefaults(defineProps<{ set?: 'basic' | 'text' }>(), { set: 'basic' })
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react components (react-demos/batch-simple.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <div v-if="set === 'basic'" class="flex flex-col items-center gap-4">
+  <ReactIsland v-if="isReact" demo="kbd" :set="set" :pg="{ main: pg.props }" />
+  <div v-else-if="set === 'basic'" class="flex flex-col items-center gap-4">
     <GoopKbdGroup>
       <GoopKbd :keys="['Meta']" v-bind="pg.props">⌘</GoopKbd>
       <GoopKbd :keys="['Meta', 'K']" v-bind="pg.props">K</GoopKbd>

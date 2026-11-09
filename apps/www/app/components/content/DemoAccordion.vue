@@ -10,10 +10,13 @@ const items = [
 const open = ref(false)
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react components (react-demos/batch-simple.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <GoopAccordion v-if="set === 'basic'" type="single" collapsible default-value="what" class="w-full max-w-md" v-bind="pg.props">
+  <ReactIsland v-if="isReact" demo="accordion" :set="set" :pg="{ main: pg.props }" />
+  <GoopAccordion v-else-if="set === 'basic'" type="single" collapsible default-value="what" class="w-full max-w-md" v-bind="pg.props">
     <GoopAccordionItem v-for="i in items" :key="i.value" :value="i.value">
       <GoopAccordionTrigger>{{ i.title }}</GoopAccordionTrigger>
       <GoopAccordionContent>{{ i.body }}</GoopAccordionContent>

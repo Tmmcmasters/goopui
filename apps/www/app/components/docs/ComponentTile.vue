@@ -3,8 +3,7 @@
 // still: the tile is inert); overlays get a quiet sketch. Unknown slugs get a monogram, so a
 // new component's tile works before anyone draws one. Add a case here to give it a preview.
 // On /react/docs the ported components' tiles are React previews (react-demos/batch1.tsx `Tile`).
-import { REACT_TILES } from '~/react-demos/tiles'
-import { REACT_FORMS_TILES } from '~/react-demos/tiles'
+import { REACT_FORMS_TILES, REACT_SIMPLE_TILES, REACT_TILES } from '~/react-demos/tiles'
 
 defineProps<{ slug: string; title: string }>()
 const { isReact } = useFramework()
@@ -14,6 +13,7 @@ const { isReact } = useFramework()
   <div class="tile-art flex size-full items-center justify-center" inert>
     <ReactIsland v-if="isReact && REACT_TILES.has(slug)" demo="tile" :set="slug" />
     <ReactIsland v-else-if="isReact && REACT_FORMS_TILES.has(slug)" demo="forms-tile" :set="slug" />
+    <ReactIsland v-else-if="isReact && REACT_SIMPLE_TILES.has(slug)" demo="tile-simple" :set="slug" />
     <GoopButton v-else-if="slug === 'button'" size="sm" :resting-drips="[0.3, 0.72]" :interactive="false">Button</GoopButton>
     <GoopSpinner v-else-if="slug === 'spinner'" class="size-9" />
     <GoopToggle v-else-if="slug === 'toggle'" default-value class="[--accent:var(--goo)] [--accent-foreground:var(--goo-foreground)]" aria-label="Bold">

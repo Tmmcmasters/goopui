@@ -1,0 +1,21 @@
+export {
+  GoopPagination,
+  GoopPaginationContent,
+  GoopPaginationEllipsis,
+  GoopPaginationFirst,
+  GoopPaginationItem,
+  GoopPaginationLast,
+  GoopPaginationLink,
+  GoopPaginationNext,
+  GoopPaginationPrevious,
+  type GoopPaginationContentProps,
+  type GoopPaginationEllipsisProps,
+  type GoopPaginationFirstProps,
+  type GoopPaginationItemProps,
+  type GoopPaginationLastProps,
+  type GoopPaginationLinkProps,
+  type GoopPaginationNextProps,
+  type GoopPaginationPreviousProps,
+  type GoopPaginationRootProps,
+} from './GoopPagination'
+export { PAGINATION, PAGINATION_CONTENT, PAGINATION_ELLIPSIS, paginationItemClass } from './variants'
