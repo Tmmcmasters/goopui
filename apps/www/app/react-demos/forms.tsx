@@ -316,8 +316,8 @@ export function ToggleDemo({ set, pg }: { set: string; pg: Pg }) {
         )
     }
   })()
-  // The site theme has no shadcn --accent tokens, so the demos set them to Slime (as in Vue).
-  return <div className="contents [--accent:var(--goo)] [--accent-foreground:var(--goo-foreground)]">{body}</div>
+  // Pressed toggles are Slime: the site sets --goop-toggle-on (assets/css/main.css).
+  return <div className="contents">{body}</div>
 }
 
 // ---- Tiles on /react/docs/components (ComponentTile.vue) --------------------------------------
@@ -327,7 +327,7 @@ export function FormsTile({ slug }: { slug: string }) {
   switch (slug) {
     case 'toggle':
       return (
-        <GoopToggle defaultPressed className="[--accent:var(--goo)] [--accent-foreground:var(--goo-foreground)]" aria-label="Bold">
+        <GoopToggle defaultPressed aria-label="Bold">
           <span className="font-bold">B</span>
         </GoopToggle>
       )

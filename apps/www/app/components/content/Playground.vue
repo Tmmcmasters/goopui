@@ -51,12 +51,25 @@ async function replay() {
   if (action !== 'toggle') mountKey.value++
   if (action !== 'click' && action !== 'toggle') return
   await nextTick()
-  // Let the closing overlay's portal unmount before opening a fresh one.
-  requestAnimationFrame(() => {
+  // Let the closing overlay's portal unmount before opening a fresh one, then press the new
+  // demo's trigger. A React demo (ReactIsland) paints only after its async mount, a frame or
+  // more after the remount, so wait for the trigger to exist instead of looking once.
+  const started = performance.now()
+  const find = () => {
     const el = stageEl.value?.querySelector('.demo')
     const trigger = el?.querySelector<HTMLElement>('[data-replay]') ?? el?.querySelector<HTMLElement>('button')
-    trigger?.click()
-  })
+    if (trigger) return pressTrigger(trigger)
+    if (performance.now() - started < 3000) requestAnimationFrame(find)
+  }
+  requestAnimationFrame(find)
+}
+/** Click a demo's trigger. Radix menu triggers (React DropdownMenu) open on a primary-button
+ *  pointerdown, not on click (reka's open on click), so those get the pointerdown first. */
+function pressTrigger(trigger: HTMLElement) {
+  if (trigger.closest('[data-react-island]') && trigger.getAttribute('aria-haspopup') === 'menu') {
+    trigger.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0, pointerType: 'mouse', isPrimary: true }))
+  }
+  trigger.click()
 }
 const replayLabel = computed(() => doc?.replay?.label ?? 'Replay')
 </script>

@@ -7,6 +7,7 @@ import { ContextMenuSubTrigger, useForwardProps } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, useTemplateRef, type HTMLAttributes } from 'vue'
 import { injectGoopMenuContent, injectGoopMenuSub } from '../dropdown-menu/context'
 import { useGoopCue } from '../../sound'
+import { quietFocus } from '../dropdown-menu/quiet-focus'
 
 const props = defineProps<ContextMenuSubTriggerProps & { class?: HTMLAttributes['class']; inset?: boolean }>()
 
@@ -44,6 +45,7 @@ const cue = useGoopCue('menuSubTrigger')
     :data-inset="inset ? '' : undefined"
     v-bind="{ ...forwardedProps, ...cue }"
     :class="classes"
+    @pointermove="quietFocus"
   >
     <slot />
     <svg

@@ -17,7 +17,7 @@ const { isReact } = useFramework()
     <ReactIsland v-else-if="isReact && REACT_BESPOKE2_TILES.has(slug)" demo="tile-bespoke-2" :set="slug" />
     <GoopButton v-else-if="slug === 'button'" size="sm" :resting-drips="[0.3, 0.72]" :interactive="false">Button</GoopButton>
     <GoopSpinner v-else-if="slug === 'spinner'" class="size-9" />
-    <GoopToggle v-else-if="slug === 'toggle'" default-value class="[--accent:var(--goo)] [--accent-foreground:var(--goo-foreground)]" aria-label="Bold">
+    <GoopToggle v-else-if="slug === 'toggle'" default-value aria-label="Bold">
       <span class="font-bold">B</span>
     </GoopToggle>
     <GoopSwitch v-else-if="slug === 'switch'" default-value aria-label="On" />
