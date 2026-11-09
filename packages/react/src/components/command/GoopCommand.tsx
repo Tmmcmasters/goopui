@@ -245,12 +245,16 @@ export const GoopCommandGroup = forwardRef<HTMLDivElement, ComponentPropsWithout
 })
 GoopCommandGroup.displayName = 'GoopCommandGroup'
 
-/** shadcn's CommandSeparator (cmdk hides it while searching unless `alwaysRender`). */
+/** shadcn's CommandSeparator (hidden while searching unless `alwaysRender`, like cmdk's). It is
+ *  cmdk's separator with role="none" instead of "separator": a listbox may only own groups and
+ *  options (GoopCommandSeparator in Vue is reka's decorative Separator, also role="none"). */
 export const GoopCommandSeparator = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof CommandPrimitive.Separator>>(function GoopCommandSeparator(
-  { className, ...props },
+  { className, alwaysRender, ...props },
   ref,
 ) {
-  return <CommandPrimitive.Separator ref={ref} data-slot="command-separator" className={cn(COMMAND_SEPARATOR, className)} {...props} />
+  const idle = useCommandState((state) => !state.search)
+  if (!alwaysRender && !idle) return null
+  return <div ref={ref} cmdk-separator="" role="none" data-slot="command-separator" className={cn(COMMAND_SEPARATOR, className)} {...props} />
 })
 GoopCommandSeparator.displayName = 'GoopCommandSeparator'
 

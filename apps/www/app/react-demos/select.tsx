@@ -58,7 +58,7 @@ export function SelectDemo({ set, pg }: { set: string; pg: Record<string, Record
     default:
       return (
         <GoopSelect value={fruit} onValueChange={setFruit}>
-          <GoopSelectTrigger className="w-44">
+          <GoopSelectTrigger className="w-44" aria-label="Fruit">
             <GoopSelectValue placeholder="Pick a fruit" />
           </GoopSelectTrigger>
           <GoopSelectContent {...pg.content}>

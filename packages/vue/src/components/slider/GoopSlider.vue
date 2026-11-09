@@ -57,6 +57,8 @@ const forwarded = computed(() => {
 })
 
 const vertical = computed(() => props.orientation === 'vertical')
+// The thumb is the focusable slider (the role): a one-thumb slider's aria-label / -labelledby go
+// on it too (reka names only range thumbs, "Minimum" / "Maximum"). See the template.
 const root = useTemplateRef<{ $el: unknown }>('root')
 const config = useGoopConfig()
 const options = computed(() => ({
@@ -136,6 +138,8 @@ defineExpose({
       v-for="(_, key) in values"
       :key="key"
       data-slot="slider-thumb"
+      :aria-label="values?.length === 1 ? ($attrs['aria-label'] as string | undefined) : undefined"
+      :aria-labelledby="values?.length === 1 ? ($attrs['aria-labelledby'] as string | undefined) : undefined"
       :data-vertical="vertical ? '' : undefined"
       :class="sliderThumbClass"
       :style="active ? goopSliderThumbStyle : undefined"

@@ -20,7 +20,7 @@ const surfaces = [
 <template>
   <ReactIsland v-if="isReact" demo="select" :set="set" :pg="{ content: pg.part('content') }" />
   <GoopSelect v-else-if="set === 'basic'" v-model="fruit">
-    <GoopSelectTrigger class="w-44">
+    <GoopSelectTrigger class="w-44" aria-label="Fruit">
       <GoopSelectValue placeholder="Pick a fruit" />
     </GoopSelectTrigger>
     <GoopSelectContent v-bind="pg.part('content')">

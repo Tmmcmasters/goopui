@@ -24,7 +24,7 @@ import { gooVanishRadius, type GooFilterParams } from './filter'
 import { decayWobble, noCircle, smooth01, type GooCircle } from './liquid'
 import { removeTicker, wakeTicker, type Ticker } from './loop'
 import { isReducedMotion, watchReducedMotion } from './reduced-motion'
-import type { GoopBlob, GoopRenderer } from './renderer'
+import { GOOP_PART_ATTR, type GoopBlob, type GoopRenderer } from './renderer'
 import { resolveRenderer, type GoopRendererOption } from './renderers/resolve'
 import { GOO_BRIDGE_NECKS, GOO_SPLASH_MAX, gooBridge, gooEffectValue, splashDrops } from './splat'
 import { TEXT_FOLLOW_ATTR, createTextCopy, gooClipPath, textFollowSupported, type TextBox, type TextCopy } from './text-follow'
@@ -940,7 +940,11 @@ export function attachToggleFill(host: HTMLElement, options: ToggleOptions = {},
  */
 export function attachToggleGroup(host: HTMLElement, options: ToggleGroupOptions = {}): ToggleHandle {
   let selector = options.item ?? '[aria-pressed]'
-  const items = (): HTMLElement[] => Array.from(host.querySelectorAll<HTMLElement>(selector))
+  // Never the goo's own parts: a text-follow copy clones its item's data-* attributes (so an
+  // item selector like `[data-slot=...]` matches it too), and counting it as an item would copy
+  // it again on every sync, a MutationObserver loop that freezes the page.
+  const items = (): HTMLElement[] =>
+    Array.from(host.querySelectorAll<HTMLElement>(selector)).filter((el) => !el.closest(`[${GOOP_PART_ATTR}]`))
   const h = attachEngine(host, items, options, 'toggle-group', true)
   return {
     ...h,

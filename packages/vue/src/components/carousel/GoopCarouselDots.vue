@@ -54,7 +54,7 @@ defineExpose({
     data-slot="carousel-dots"
     :data-goop-carousel-dots="goo.dots ? '' : undefined"
     :data-orientation="orientation"
-    :class="cn('flex items-center justify-center gap-2.5', orientation === 'vertical' && 'flex-col', props.class)"
+    :class="cn('flex items-center justify-center gap-4', orientation === 'vertical' && 'flex-col', props.class)"
   >
     <button
       v-for="i in snapCount"

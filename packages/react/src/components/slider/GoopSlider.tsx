@@ -38,6 +38,9 @@ export const GoopSlider = forwardRef<HTMLSpanElement, GoopSliderProps>(function 
   const handle = useAttached(el, attachSlider, { ...toSliderOptions(engine, config), orientation: vertical ? 'vertical' : 'horizontal' }, goo)
   useImperativeHandle(goopRef, () => handle as SliderHandle, [handle])
   const active = handle !== null
+  // The thumb is the focusable role="slider": a one-thumb slider's label goes on it too (Radix
+  // names only range thumbs, "Minimum" / "Maximum").
+  const thumbName = values.length === 1 ? { 'aria-label': rest['aria-label'], 'aria-labelledby': rest['aria-labelledby'] } : {}
 
   // Core also watches the parts' inline styles; this covers controlled changes it might miss.
   const key = value?.join(',')
@@ -63,7 +66,7 @@ export const GoopSlider = forwardRef<HTMLSpanElement, GoopSliderProps>(function 
         <SliderPrimitive.Range data-slot="slider-range" className={sliderRangeClass} style={active ? goopSliderRangeStyle : undefined} />
       </SliderPrimitive.Track>
       {Array.from({ length: values.length }, (_, index) => (
-        <SliderPrimitive.Thumb key={index} data-slot="slider-thumb" className={sliderThumbClass} style={active ? goopSliderThumbStyle : undefined} />
+        <SliderPrimitive.Thumb key={index} data-slot="slider-thumb" {...thumbName} className={sliderThumbClass} style={active ? goopSliderThumbStyle : undefined} />
       ))}
     </SliderPrimitive.Root>
   )

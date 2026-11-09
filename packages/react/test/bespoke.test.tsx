@@ -237,6 +237,19 @@ function ComboboxApp(props: { list?: Record<string, unknown>; onValueChange?: (v
 }
 
 describe('GoopCombobox', () => {
+  it("the input's aria-expanded / aria-controls follow the popover (cmdk hardcodes them)", async () => {
+    render(h(ComboboxApp, {}))
+    const input = screen.getByPlaceholderText('Select framework...')
+    expect(input.getAttribute('aria-expanded')).toBe('false')
+    expect(input.hasAttribute('aria-controls')).toBe(false)
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Show frameworks'))
+    })
+    await flush()
+    expect(input.getAttribute('aria-expanded')).toBe('true')
+    expect(document.getElementById(input.getAttribute('aria-controls')!)).not.toBeNull()
+  })
+
   it('the chevron opens a goo list under the anchor; choosing sets the value, plops the check and closes after the pop', async () => {
     const onValueChange = vi.fn()
     const emerge = createRef<EmergeHandle>()

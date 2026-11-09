@@ -123,7 +123,14 @@
     --accent: color-mix(in oklab, var(--goop-surface-foreground) 16%, var(--goop-surface));
     --accent-foreground: var(--goop-surface-foreground);
     --goop-color: var(--goop-surface);
+    /* Destructive text (menu items) pulled toward the surface's text color, so it stays
+       readable on any surface (the theme's red is 2.5:1 on a light 'trigger' surface in dark
+       mode). Set here, read by the items below (a token can't reference itself). */
+    --goop-destructive-ink: color-mix(in oklab, var(--destructive) 55%, var(--goop-surface-foreground));
     color: var(--goop-surface-foreground);
+  }
+  [data-goop-emerge][data-goop-tint] [data-variant='destructive'] {
+    --destructive: var(--goop-destructive-ink);
   }
   /* Keeps reka's Presence mounted while the goo closes (it waits for this animation). Off
      under reduced motion (core sets data-goop-still), so close is instant. */
@@ -135,6 +142,15 @@
      GoopSelectContent mirrors --goop-emerge-close onto the wrapper as the list closes. */
   :has(> [data-slot='select-content'][data-align-trigger='true'][data-goop-emerge][data-state='closed']:not([data-goop-still])) {
     animation: goop-emerge-hold var(--goop-emerge-close, 0ms) linear both;
+  }
+
+  /* Drawer (GoopDrawerContent): core's drawer, not reka's Presence, decides when the panel
+     unmounts (it v-ifs it out once the close settles). Without an animation reka's Presence
+     drops `present` the moment the drawer starts closing, and reka's aria-hidden cleanup then
+     runs twice (once on that, once on unmount), which leaves the next drawer's page aria-hidden
+     after it closes. Holding Presence until the unmount keeps it to one. */
+  [data-slot='drawer-content'][data-state='closed'] {
+    animation: goop-emerge-hold 3600s linear both;
   }
 
   /* Dialog overlay (GoopDialogOverlay): core pours an opaque goo sheet; the surface's opacity

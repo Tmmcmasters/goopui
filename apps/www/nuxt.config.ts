@@ -94,7 +94,9 @@ export default defineNuxtConfig({
       markdown: {
         toc: { depth: 3, searchDepth: 3 },
         highlight: {
-          theme: { default: 'github-light', dark: 'github-dark' },
+          // GitHub's "-default" palettes: every token reads at 4.5:1+ on the code backgrounds
+          // (github-light's orange and github-dark's comment grey don't).
+          theme: { default: 'github-light-default', dark: 'github-dark-default' },
           langs: ['ts', 'tsx', 'js', 'jsx', 'vue', 'html', 'css', 'shell', 'bash', 'json'],
         },
       },

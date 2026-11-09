@@ -75,14 +75,16 @@
   --accent-foreground: var(--foreground);
   --muted: oklch(0.955 0.006 88);
   --muted-foreground: oklch(0.47 0.012 70);
-  --subtle: oklch(0.6 0.01 75);
+  /* 4.5:1 on the paper background (0.6 was 3.8:1 for the sidebar's small group labels). */
+  --subtle: oklch(0.54 0.01 75);
   --border: oklch(0.905 0.008 85);
   --border-strong: oklch(0.84 0.01 80);
   --primary: oklch(0.2 0.012 60);
   --primary-foreground: oklch(0.985 0.005 90);
   --secondary: oklch(0.93 0.008 85);
   --secondary-foreground: oklch(0.2 0.012 60);
-  --destructive: oklch(0.57 0.21 27);
+  /* 4.5:1 for destructive text (alerts) on the paper background. */
+  --destructive: oklch(0.55 0.21 27);
   --destructive-foreground: oklch(0.985 0.005 90);
   /* Brand: Slime, the logo's drip color. */
   --slime: #1fa64a;
@@ -124,7 +126,8 @@
   --primary-foreground: oklch(0.18 0.008 60);
   --secondary: oklch(0.27 0.008 60);
   --secondary-foreground: oklch(0.955 0.006 88);
-  --destructive: oklch(0.62 0.2 25);
+  /* shadcn's dark destructive: destructive text (alerts) reads at 4.5:1 on the dark card. */
+  --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: oklch(0.985 0.005 90);
   --slime: #1fa64a;
   /* The big hero panel and goo accents are Slime itself; ink on it is ~6:1. */

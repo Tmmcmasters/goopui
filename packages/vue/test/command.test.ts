@@ -104,7 +104,8 @@ describe('GoopCommand', () => {
     expect(document.querySelector('[data-slot="command-list"]')!.getAttribute('role')).toBe('listbox')
     expect(document.querySelectorAll('[role="option"]')).toHaveLength(4)
     expect(document.querySelectorAll('[role="group"]')).toHaveLength(2)
-    expect(document.querySelector('[role="separator"]')).not.toBeNull()
+    // Decorative: a listbox may only own groups and options.
+    expect(document.querySelector('[data-slot="command-separator"]')!.getAttribute('role')).toBe('none')
     expect(input().tagName).toBe('INPUT')
     const blob = items().firstElementChild as HTMLElement
     expect(blob.getAttribute('data-goop')).toBe('highlight')

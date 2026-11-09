@@ -154,6 +154,25 @@ describe('GoopTabs', () => {
     expect(screen.getByText('Panel B')).toBeTruthy()
   })
 
+  it('every trigger controls a panel in the DOM; inactive panels are hidden and empty', () => {
+    render(tabs())
+    for (const t of screen.getAllByRole('tab')) expect(document.getElementById(t.getAttribute('aria-controls')!)).toBeTruthy()
+    const b = document.getElementById(screen.getByRole('tab', { name: 'B' }).getAttribute('aria-controls')!)!
+    expect(b.hidden).toBe(true)
+    expect(b.textContent).toBe('')
+    act(() => {
+      fireEvent.mouseDown(screen.getByRole('tab', { name: 'B' }), { button: 0 })
+    })
+    expect(b.hidden).toBe(false)
+    expect(b.textContent).toBe('Panel B')
+    expect(screen.queryByText('Panel A')).toBeNull()
+  })
+
+  it('a tab list without panels names no aria-controls', () => {
+    render(h(GoopTabs, { defaultValue: 'a' }, h(GoopTabsList, null, h(GoopTabsTrigger, { value: 'a' }, 'A'), h(GoopTabsTrigger, { value: 'b' }, 'B'))))
+    for (const t of screen.getAllByRole('tab')) expect(t.hasAttribute('aria-controls')).toBe(false)
+  })
+
   it('a mouse click focuses the trigger without the focus-visible ring (keyboard still shows it)', () => {
     const onMouseDown = vi.fn()
     render(

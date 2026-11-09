@@ -117,7 +117,7 @@ const wide = (c: Control) => (c.kind === 'segment' && c.options.length > 3) || (
             {{ labelOf(c) }}
             <span v-if="changed(c)" class="dot" aria-hidden="true" />
           </span>
-          <span class="flex items-center gap-1.5">
+          <span class="flex items-center">
             <button
               type="button"
               role="radio"
@@ -133,7 +133,7 @@ const wide = (c: Control) => (c.kind === 'segment' && c.options.length > 3) || (
               type="button"
               role="radio"
               class="sw"
-              :style="{ background: s.value }"
+              :style="{ '--sw': s.value }"
               :aria-checked="val(c) === s.value"
               :aria-label="s.label"
               :title="s.label"
@@ -283,32 +283,42 @@ const wide = (c: Control) => (c.kind === 'segment' && c.options.length > 3) || (
 
 /* Swatches */
 .sw {
+  /* A 24px target (WCAG 2.2 target size) around a 16px dot. */
+  display: grid;
+  width: 1.5rem;
+  height: 1.5rem;
+  place-items: center;
+  border-radius: 999px;
+}
+.sw::before {
+  content: '';
   width: 1rem;
   height: 1rem;
   border-radius: 999px;
+  background: var(--sw);
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.15);
   transition: transform 140ms var(--ease-out-strong);
 }
-.sw:hover {
+.sw:hover::before {
   transform: scale(1.12);
 }
-.sw[aria-checked='true'] {
+.sw[aria-checked='true']::before {
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
 }
-.sw.theme {
+.sw.theme::before {
   background: linear-gradient(135deg, var(--foreground) 50%, var(--background) 50%);
   box-shadow: inset 0 0 0 1px var(--border-strong);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .knob,
-  .sw {
+  .sw::before {
     transition: none;
   }
 }
 :global(html[data-reduced-motion='true']) .knob,
-:global(html[data-reduced-motion='true']) .sw {
+:global(html[data-reduced-motion='true']) .sw::before {
   transition: none;
 }
 </style>

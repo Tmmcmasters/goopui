@@ -30,6 +30,7 @@ All product and architecture decisions are in `HANDOFF.md`. Read it before build
 
 - Locally, agents run `pnpm build --concurrency=1`, `pnpm typecheck`, the tests of the packages they touched (`pnpm --filter @goopui/<pkg> test`), and a headless look at the pages they changed.
 - `pnpm check:hydration` and `pnpm check:package-managers` run in CI on every push and PR ([`.github/workflows/ci.yml`](.github/workflows/ci.yml); package-managers only when package manifests, entry points, build configs or the lockfile change). Run them locally only to debug a CI failure; the failing run uploads its logs as artifacts.
+- `pnpm check:demos` also runs in CI on every push and PR (the `demos` job): it drives every component demo in Vue and React (desktop + 390px touch) and fails on console errors, empty demos, overlays stuck open after Escape, and serious/critical axe-core violations (light + dark). Locally: `pnpm check:demos --no-build <slug>...`.
 - Each worktree needs its own Nuxt Content database: `CONTENT_DB_DIR=$PWD/.data/content` when two worktrees build www at once.
 - On an exFAT `ENOENT ... chmod .../._*` error: delete the app's `.nuxt`, `.output` and `node_modules/.cache/nuxt`, run `pnpm clean:dot`, rebuild.
 - Don't run a dev server while `check:package-managers` runs locally (it serves the consumer apps on port 4317 and needs the whole machine).
