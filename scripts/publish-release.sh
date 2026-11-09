@@ -110,7 +110,7 @@ for p in "${PKGS[@]}"; do
   [ -f "$t" ] || die "expected $t"
   tar -xOzf "$t" package/package.json | grep -q '"workspace:' && die "$(basename "$t") still has workspace: in package.json"
   tar -tzf "$t" | grep -qE '(^|/)\._' && die "$(basename "$t") contains AppleDouble ._* files (pnpm clean:dot)"
-  echo "  $(basename "$t")  $(du -h "$t" | cut -f1)"
+  echo "  $(basename "$t")  $(( $(wc -c < "$t") / 1024 )) KB"
 done
 
 say "check:exports (publint + attw)"
