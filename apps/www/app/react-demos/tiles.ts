@@ -15,3 +15,5 @@ export const REACT_BESPOKE2_TILES: ReadonlySet<string> = new Set(['select', 'car
 export const REACT_FORMS2_TILES: ReadonlySet<string> = new Set(['tags-input', 'field'])
 // Layout batch (react-demos/layout.tsx `LayoutTile`): Aspect Ratio, Scroll Area, Resizable.
 export const REACT_LAYOUT_TILES: ReadonlySet<string> = new Set(['aspect-ratio', 'scroll-area', 'resizable'])
+// Table, Item, Input Group (react-demos/display.tsx `DisplayTile`).
+export const REACT_DISPLAY_TILES: ReadonlySet<string> = new Set(['table', 'item', 'input-group'])

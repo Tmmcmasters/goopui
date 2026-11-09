@@ -55,7 +55,7 @@ export const categoryOf = (slug: string): Category => bySlug.get(slug)?.category
  * Roots whose name happens to start with another root's name (ToggleGroup starts with
  * Toggle). Add a new component here if its name extends an existing one.
  */
-const STANDALONE = new Set(['GoopToggleGroup', 'GoopInputOTP', 'GoopInputOtp', 'GoopAlertDialog', 'GoopButtonGroup'])
+const STANDALONE = new Set(['GoopToggleGroup', 'GoopInputOTP', 'GoopInputOtp', 'GoopAlertDialog', 'GoopButtonGroup', 'GoopInputGroup'])
 /** Parts whose name doesn't extend their root's (ScrollBar of ScrollArea; Resizable's panel and
  *  handle, whose root is the group). */
 const PARTS = new Set(['GoopScrollBar', 'GoopResizablePanel', 'GoopResizableHandle'])

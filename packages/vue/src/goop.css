@@ -662,3 +662,42 @@
     transform: scale(var(--goop-puddle-sx, 1), var(--goop-puddle-sy, 1));
   }
 }
+
+/* Table, Item, Input Group (GoopTable, GoopItemGroup / GoopItem, GoopInputGroup). Same rules in
+   @goopui/vue and @goopui/react. */
+@layer components {
+  /* Table: one goo blob is the body rows' hover fill, in shadcn's hover tone (muted at 50%,
+     mixed opaque over the page; core's alpha filter makes translucent goo opaque). Once it is
+     attached (core marks the container data-goop-menu) the body rows drop their flat hover
+     fill; the selected row keeps shadcn's bg-muted unless the blob rests on it (selected). */
+  [data-goop-table] [data-goop='highlight'] {
+    --goop-color: color-mix(in oklab, var(--muted) 50%, var(--background));
+  }
+  /* Dark: muted at 50% is the page's own tone (invisible on a card); the full muted tone. */
+  :where(.dark) [data-goop-table] [data-goop='highlight'] {
+    --goop-color: var(--muted);
+  }
+  [data-goop-table][data-goop-menu] > table > [data-slot='table-body'] > [data-slot='table-row']:hover,
+  [data-goop-table][data-goop-menu] > table > [data-slot='table-body'] > [data-slot='table-row'][data-goop-rest] {
+    background-color: transparent !important;
+  }
+  /* While the blob rests on the selected row it takes shadcn's selected tone. */
+  [data-goop-table]:has([data-goop-rest]) [data-goop='highlight'] {
+    --goop-color: var(--muted);
+  }
+  :where(.dark) [data-goop-table]:has([data-goop-rest]) [data-goop='highlight'] {
+    --goop-color: var(--accent);
+  }
+
+  /* Item group: one goo blob is the interactive items' hover fill (shadcn's [a]:hover:bg-muted).
+     Once it is attached the items drop their own flat hover fill. */
+  [data-goop-item-group] > [data-goop='highlight'] {
+    --goop-color: var(--muted);
+  }
+  [data-goop-item-group][data-goop-menu] > [data-slot='item']:hover {
+    background-color: transparent !important;
+  }
+  [data-goop-item-group][data-goop-menu] > [data-slot='item'][data-variant='muted']:hover {
+    background-color: color-mix(in oklab, var(--muted) 50%, transparent) !important;
+  }
+}
