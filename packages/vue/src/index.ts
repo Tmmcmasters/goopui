@@ -266,3 +266,8 @@ export {
 } from './goop-props'
 export * from './components/field'
 export { FIELD_PROP_KEYS, resolveFieldProps, toFieldErrorOptions, type GoopFieldProps } from './goop-props'
+export * from './components/aspect-ratio'
+export * from './components/scroll-area'
+export { SCROLL_AREA_PROP_KEYS, toScrollAreaOptions, type GoopScrollAreaProps } from './goop-props'
+export * from './components/resizable'
+export { RESIZABLE_PROP_KEYS, resolveResizableProps, toResizableOptions, type GoopResizableProps } from './goop-props'
