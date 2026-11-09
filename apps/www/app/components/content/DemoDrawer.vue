@@ -9,10 +9,13 @@ const goal = ref(350)
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
 const bump = (d: number) => (goal.value = Math.min(400, Math.max(200, goal.value + d)))
+// On /react/docs: the same sets, as real @goopui/react drawers (react-demos/drawer.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <GoopDrawer v-if="set === 'basic'" v-bind="pg.part('root')">
+  <ReactIsland v-if="isReact" demo="drawer" :set="set" :pg="{ root: pg.part('root'), content: pg.part('content') }" />
+  <GoopDrawer v-else-if="set === 'basic'" v-bind="pg.part('root')">
     <GoopDrawerTrigger as-child>
       <GoopButton variant="outline">Open drawer</GoopButton>
     </GoopDrawerTrigger>

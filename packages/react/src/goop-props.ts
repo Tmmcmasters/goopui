@@ -691,3 +691,76 @@ import {
   type SpinnerOptions,
   type SpinnerVariant,
 } from '@goopui/core'
+
+// ---- GoopDrawerContent ----------------------------------------------------------------------
+// Core's `createDrawer` drives the whole drawer (drag, snap points, springs) and its goo, as in
+// @goopui/vue: DRAWER_EFFECTS (lag, slosh, rise, stretch, handle, splash), each `true`
+// (default), `false`, or a 0..2 strength, plus goo / speed / preset / renderer. `goo: false` is
+// a plain shadcn DrawerContent look. The drawer's behaviour options (direction, snap points,
+// dismissible...) are GoopDrawer root props (vaul's API), passed through by the adapter.
+
+/** Every GoopDrawerContent engine prop. */
+export const DRAWER_PROP_KEYS = ['goo', ...DRAWER_EFFECTS, 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopDrawerContent. */
+export interface GoopDrawerProps {
+  /** Master switch. `false` renders a plain shadcn DrawerContent. */
+  goo?: boolean
+  /** The leading edge trails behind fast motion: a fast pull in stretches it out behind the panel. `true`, `false` or 0..2. */
+  lag?: boolean | number
+  /** The edge overshoots and wobbles when motion stops (release, snap points, landing). `true`, `false` or 0..2. */
+  slosh?: boolean | number
+  /** Opening lands with an extra jelly overshoot of the edge. `true`, `false` or 0..2. */
+  rise?: boolean | number
+  /** Dragging past full open pulls a globby bump toward the finger. `true`, `false` or 0..2. */
+  stretch?: boolean | number
+  /** The drag handle is a goo blob: swells, stretches along the drag, trails a droplet. `true`, `false` or 0..2. */
+  handle?: boolean | number
+  /** Fling-dismiss: a splash of drops tears off the leading edge, flies, falls and fades. `true`, `false` or 0..2. */
+  splash?: boolean | number
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'canvas' (default for this big surface) | 'svg' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+/** Compile-time guards: every drawer option core grows must be a prop (or adapter-owned). */
+type DrawerAdapterOwned =
+  | 'reducedMotion'
+  | 'grip'
+  | 'surface'
+  | 'overlay'
+  | 'wrapper'
+  // GoopDrawer root props (vaul's API), passed through by GoopDrawerContent:
+  | 'direction'
+  | 'snapPoints'
+  | 'activeSnapPoint'
+  | 'fadeFromIndex'
+  | 'dismissible'
+  | 'closeThreshold'
+  | 'handleOnly'
+  | 'scaleBackground'
+  | 'setBackgroundColorOnScale'
+type DrawerUnhandled = Exclude<keyof DrawerOptions | DrawerEffect, keyof GoopDrawerProps | DrawerAdapterOwned>
+const _allDrawerOptionsHandled: [DrawerUnhandled] extends [never] ? true : { unhandled: DrawerUnhandled } = true
+void _allDrawerOptionsHandled
+type DrawerPropsListed = Exclude<keyof GoopDrawerProps, (typeof DRAWER_PROP_KEYS)[number]>
+const _allDrawerPropsListed: [DrawerPropsListed] extends [never] ? true : { unlisted: DrawerPropsListed } = true
+void _allDrawerPropsListed
+
+/** Drawer options from props, over app config (`preset`, `renderer`, `reducedMotion`). Same as Vue. */
+export function toDrawerOptions(props: GoopDrawerProps, config: GoopOptions = {}): DrawerOptions {
+  const out: DrawerOptions = {
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer ?? 'canvas',
+    reducedMotion: config.reducedMotion,
+  }
+  if (props.goo !== undefined) out.goo = props.goo
+  if (props.speed !== undefined) out.speed = props.speed
+  for (const k of DRAWER_EFFECTS) if (props[k] !== undefined) out[k] = props[k]
+  return out
+}
+
+import { DRAWER_EFFECTS, type DrawerEffect, type DrawerOptions } from '@goopui/core'

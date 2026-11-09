@@ -78,8 +78,12 @@ const GOO = `group/drawer-content fixed z-50 flex h-auto flex-col text-sm text-p
 const classes = computed(() => cn(props.goo ? GOO : SHADCN, props.class))
 
 const HANDLE = 'mx-auto mt-4 hidden h-1 w-[100px] shrink-0 rounded-full group-data-[vaul-drawer-direction=bottom]/drawer-content:block'
+// On dark, shadcn's bg-muted all but vanishes on the popover, so the handle is the muted text
+// color mixed into the panel (spelled out in full so Tailwind's scanner sees each class).
 const handleClasses = computed(() =>
-  props.goo && props.handle !== false ? `${HANDLE} [--goop-color:var(--muted)]` : `${HANDLE} bg-muted`,
+  props.goo && props.handle !== false
+    ? `${HANDLE} [--goop-color:var(--muted)] dark:[--goop-color:color-mix(in_oklab,var(--muted-foreground)_50%,var(--popover))]`
+    : `${HANDLE} bg-muted dark:bg-[color-mix(in_oklab,var(--muted-foreground)_50%,var(--popover))]`,
 )
 
 // ---- engine ----
