@@ -37,6 +37,7 @@ import { CarouselDemo } from './carousel'
 import { SidebarDemo } from './sidebar'
 import { PageTransitionDemo } from './page-transition'
 import { Bespoke2Tile } from './bespoke2-tiles'
+import { DisplayTile, InputGroupDemo, ItemDemo, TableDemo } from './display'
 
 /** What a Vue demo hands its island. */
 export interface ReactDemoProps {
@@ -145,6 +146,15 @@ export function ReactDemo(props: ReactDemoProps) {
         return <PageTransitionDemo pg={props.pg} />
       case 'tile-bespoke-2':
         return <Bespoke2Tile slug={props.set} />
+      // Table, Item, Input Group (./display).
+      case 'table':
+        return <TableDemo set={props.set} pg={props.pg} />
+      case 'item':
+        return <ItemDemo set={props.set} pg={props.pg} />
+      case 'input-group':
+        return <InputGroupDemo set={props.set} pg={props.pg} />
+      case 'tile-display':
+        return <DisplayTile slug={props.set} />
       default:
         return null
     }

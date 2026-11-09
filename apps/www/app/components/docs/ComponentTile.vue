@@ -4,6 +4,7 @@
 // new component's tile works before anyone draws one. Add a case here to give it a preview.
 // On /react/docs the ported components' tiles are React previews (react-demos/batch1.tsx `Tile`).
 import { REACT_BESPOKE2_TILES, REACT_FORMS_TILES, REACT_SIMPLE_TILES, REACT_TILES } from '~/react-demos/tiles'
+import { REACT_DISPLAY_TILES } from '~/react-demos/tiles'
 
 defineProps<{ slug: string; title: string }>()
 const { isReact } = useFramework()
@@ -15,6 +16,7 @@ const { isReact } = useFramework()
     <ReactIsland v-else-if="isReact && REACT_FORMS_TILES.has(slug)" demo="forms-tile" :set="slug" />
     <ReactIsland v-else-if="isReact && REACT_SIMPLE_TILES.has(slug)" demo="tile-simple" :set="slug" />
     <ReactIsland v-else-if="isReact && REACT_BESPOKE2_TILES.has(slug)" demo="tile-bespoke-2" :set="slug" />
+    <ReactIsland v-else-if="isReact && REACT_DISPLAY_TILES.has(slug)" demo="tile-display" :set="slug" />
     <GoopButton v-else-if="slug === 'button'" size="sm" :resting-drips="[0.3, 0.72]" :interactive="false">Button</GoopButton>
     <GoopSpinner v-else-if="slug === 'spinner'" class="size-9" />
     <GoopToggle v-else-if="slug === 'toggle'" default-value class="[--accent:var(--goo)] [--accent-foreground:var(--goo-foreground)]" aria-label="Bold">
@@ -127,6 +129,24 @@ const { isReact } = useFramework()
         <GoopEmptyTitle class="text-[11px]">No projects</GoopEmptyTitle>
       </GoopEmptyHeader>
     </GoopEmpty>
+    <GoopTable v-else-if="slug === 'table'" class="w-36 text-[10px]">
+      <GoopTableBody>
+        <GoopTableRow v-for="(id, i) in ['INV001', 'INV002', 'INV003']" :key="id" :data-state="i === 1 ? 'selected' : undefined">
+          <GoopTableCell class="px-1.5 py-1 font-medium">{{ id }}</GoopTableCell>
+          <GoopTableCell class="px-1.5 py-1 text-right">${{ (i + 2) * 50 }}</GoopTableCell>
+        </GoopTableRow>
+      </GoopTableBody>
+    </GoopTable>
+    <GoopItem v-else-if="slug === 'item'" variant="outline" size="xs" class="w-36">
+      <GoopItemMedia variant="icon"><SiteIcon name="circleCheck" :size="12" /></GoopItemMedia>
+      <GoopItemContent>
+        <GoopItemTitle class="text-[11px]">Verified</GoopItemTitle>
+      </GoopItemContent>
+    </GoopItem>
+    <GoopInputGroup v-else-if="slug === 'input-group'" container-class="w-36" class="h-8">
+      <GoopInputGroupInput placeholder="Search" aria-label="Search" class="text-xs" />
+      <GoopInputGroupAddon><SiteIcon name="search" :size="14" /></GoopInputGroupAddon>
+    </GoopInputGroup>
 
     <!-- Sketches: overlays and the rest. Ink, with the goo colour as the accent. -->
     <div v-else-if="slug === 'select'" class="sk-card flex h-8 w-32 items-center justify-between px-2.5 text-[11px] text-muted-foreground">
