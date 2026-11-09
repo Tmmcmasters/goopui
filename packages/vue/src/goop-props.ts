@@ -2932,3 +2932,194 @@ export function toResizableOptions(props: GoopResizableProps, config: GoopOption
 }
 
 import { RESIZABLE_EFFECTS, type ResizableOptions } from '@goopui/core'
+
+// ---- GoopTable ------------------------------------------------------------------------------
+// The body rows' hover background is ONE goo blob (core `attachTableHighlight`: the list
+// highlight fed TABLE_FEEL, a calm menu feel with the pointer swell) that glides from row to
+// row. It lives in a clipping stage beside the <table> on a pill inset into the row, so it
+// never changes the container's scroll size. `selected` (opt-in) lets it rest on the selected
+// row. Props go on GoopTable. Toggles from core's TABLE_EFFECTS.
+
+/** Every GoopTable engine prop. */
+export const TABLE_PROP_KEYS = ['goo', ...TABLE_EFFECTS, 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopTable. */
+export interface GoopTableProps {
+  /** Master switch. `false` renders plain shadcn Table parts. */
+  goo?: boolean
+  /** The body rows' hover background is one goo blob that glides between them (false:
+   *  shadcn's flat hover fill). */
+  highlight?: boolean
+  /** Soft jelly landing when the blob reaches a row. */
+  wobble?: boolean
+  /** Momentum: the blob stretches gently and trails a short tail while it travels. */
+  momentum?: boolean
+  /** A low, wide swell of the blob sits under the pointer (false: centred). */
+  followPointer?: boolean
+  /** When nothing is hovered the blob rests on the selected row (`data-state="selected"`) and
+   *  is its fill. Default false. */
+  selected?: boolean
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+type TableAdapterOwned = 'feel' | 'reducedMotion'
+type TableUnhandled = Exclude<keyof TableHighlightOptions | TableEffect, keyof GoopTableProps | TableAdapterOwned>
+const _allTableOptionsHandled: [TableUnhandled] extends [never] ? true : { unhandled: TableUnhandled } = true
+void _allTableOptionsHandled
+type TablePropsListed = Exclude<keyof GoopTableProps, (typeof TABLE_PROP_KEYS)[number]>
+const _allTablePropsListed: [TablePropsListed] extends [never] ? true : { unlisted: TablePropsListed } = true
+void _allTablePropsListed
+
+/** Row highlight options for core over app config, or null when the blob is off. */
+export function toTableOptions(props: GoopTableProps, config: GoopOptions = {}): TableHighlightOptions | null {
+  if (props.goo === false || props.highlight === false) return null
+  return {
+    feel: TABLE_FEEL,
+    wobble: props.wobble !== false,
+    momentum: props.momentum !== false,
+    followPointer: props.followPointer !== false,
+    selected: props.selected === true,
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+}
+
+import { TABLE_EFFECTS, TABLE_FEEL, type TableEffect, type TableHighlightOptions } from '@goopui/core'
+
+// ---- GoopItem / GoopItemGroup ---------------------------------------------------------------
+// In a GoopItemGroup the interactive items' hover / keyboard-focus background is ONE goo blob
+// (core `attachItemGroupHighlight`: the list highlight fed ITEM_FEEL) that glides between
+// them. Each interactive GoopItem (a link or button, e.g. `as-child` with an <a>) squishes a
+// little when pressed and settles with a small jelly bounce (core `attachItemPress`, the
+// `press` toggle). Items inherit `goo`, `press`, `speed` and `preset` from their group (their
+// own win). Toggles from core's ITEM_GROUP_EFFECTS and ITEM_EFFECTS.
+
+/** Every GoopItemGroup engine prop (the blob's, plus the items' `press`). */
+export const ITEM_GROUP_PROP_KEYS = ['goo', ...ITEM_GROUP_EFFECTS, ...ITEM_EFFECTS, 'speed', 'preset', 'renderer'] as const
+/** Every GoopItem engine prop. */
+export const ITEM_PROP_KEYS = ['goo', ...ITEM_EFFECTS, 'speed', 'preset'] as const
+
+/** Engine props of GoopItem (own) and the ones it inherits from GoopItemGroup. */
+export interface GoopItemProps {
+  /** Master switch. `false` renders a plain shadcn Item. */
+  goo?: boolean
+  /** An interactive item squishes a little when pressed and settles with a small jelly
+   *  bounce. A number scales it. */
+  press?: boolean | number
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+}
+
+/** Engine props of GoopItemGroup. */
+export interface GoopItemGroupProps extends GoopItemProps {
+  /** The interactive items' hover / focus background is one goo blob that glides between them
+   *  (false: shadcn's flat hover fill). */
+  highlight?: boolean
+  /** Soft jelly landing when the blob reaches an item. */
+  wobble?: boolean
+  /** Momentum: the blob stretches gently and trails a short tail while it travels. */
+  momentum?: boolean
+  /** A low, wide swell of the blob sits under the pointer (false: centred). */
+  followPointer?: boolean
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+type ItemGroupAdapterOwned = 'feel' | 'reducedMotion'
+type ItemGroupUnhandled = Exclude<keyof ItemGroupHighlightOptions | ItemGroupEffect, keyof GoopItemGroupProps | ItemGroupAdapterOwned>
+const _allItemGroupOptionsHandled: [ItemGroupUnhandled] extends [never] ? true : { unhandled: ItemGroupUnhandled } = true
+void _allItemGroupOptionsHandled
+type ItemUnhandled = Exclude<keyof ItemPressOptions | ItemEffect, keyof GoopItemProps | 'reducedMotion'>
+const _allItemOptionsHandled: [ItemUnhandled] extends [never] ? true : { unhandled: ItemUnhandled } = true
+void _allItemOptionsHandled
+type ItemGroupPropsListed = Exclude<keyof GoopItemGroupProps, (typeof ITEM_GROUP_PROP_KEYS)[number]>
+const _allItemGroupPropsListed: [ItemGroupPropsListed] extends [never] ? true : { unlisted: ItemGroupPropsListed } = true
+void _allItemGroupPropsListed
+type ItemPropsListed = Exclude<keyof GoopItemProps, (typeof ITEM_PROP_KEYS)[number]>
+const _allItemPropsListed: [ItemPropsListed] extends [never] ? true : { unlisted: ItemPropsListed } = true
+void _allItemPropsListed
+
+/** An item's props over its group's: each prop the item sets wins, the rest are inherited. */
+export function resolveItemProps(own: GoopItemProps, group?: GoopItemGroupProps | null): GoopItemProps {
+  const out: GoopItemProps = {}
+  for (const k of ITEM_PROP_KEYS) {
+    const v = own[k] ?? group?.[k]
+    if (v !== undefined) (out as Record<string, unknown>)[k] = v
+  }
+  return out
+}
+
+/** Group highlight options for core over app config, or null when the blob is off. */
+export function toItemGroupOptions(props: GoopItemGroupProps, config: GoopOptions = {}): ItemGroupHighlightOptions | null {
+  if (props.goo === false || props.highlight === false) return null
+  return {
+    feel: ITEM_FEEL,
+    wobble: props.wobble !== false,
+    momentum: props.momentum !== false,
+    followPointer: props.followPointer !== false,
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+}
+
+/** Press options for core over app config, or null when the squish is off. */
+export function toItemPressOptions(props: GoopItemProps, config: GoopOptions = {}): ItemPressOptions | null {
+  if (props.goo === false || props.press === false || props.press === 0) return null
+  const out: ItemPressOptions = { preset: props.preset ?? config.preset, reducedMotion: config.reducedMotion }
+  if (props.press !== undefined) out.press = props.press
+  if (props.speed !== undefined) out.speed = props.speed
+  return out
+}
+
+import {
+  ITEM_EFFECTS,
+  ITEM_FEEL,
+  ITEM_GROUP_EFFECTS,
+  type ItemEffect,
+  type ItemGroupEffect,
+  type ItemGroupHighlightOptions,
+  type ItemPressOptions,
+} from '@goopui/core'
+
+// ---- GoopInputGroup -------------------------------------------------------------------------
+// GoopInput's goo focus ring around the whole group (core `attachInputGroup`): it flows in from
+// the click point when a control inside takes focus, ripples from the caret as you type and
+// drains when focus leaves the controls. Same toggles as GoopInput (INPUT_EFFECTS) plus speed /
+// preset / renderer. Buttons inside are GoopButtons with their own goo; the text controls are
+// plain (the group's ring is theirs). Props go on GoopInputGroup.
+
+/** Every GoopInputGroup engine prop. */
+export const INPUT_GROUP_PROP_KEYS = ['goo', ...INPUT_EFFECTS, 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopInputGroup (GoopInput's). */
+export type GoopInputGroupProps = GoopInputPropsInput & {
+  /** Master switch. `false` renders a plain shadcn InputGroup (no wrapper). */
+  goo?: boolean
+}
+
+type InputGroupUnhandled = Exclude<keyof InputOptions, keyof GoopInputGroupProps | 'invalid' | 'reducedMotion'>
+const _allInputGroupOptionsHandled: [InputGroupUnhandled] extends [never] ? true : { unhandled: InputGroupUnhandled } = true
+void _allInputGroupOptionsHandled
+type InputGroupPropsListed = Exclude<keyof GoopInputGroupProps, (typeof INPUT_GROUP_PROP_KEYS)[number]>
+const _allInputGroupPropsListed: [InputGroupPropsListed] extends [never] ? true : { unlisted: InputGroupPropsListed } = true
+void _allInputGroupPropsListed
+
+/** Spread into `defineProps({ ...goopInputGroupProps, ... })` (GoopInput's engine props). */
+export const goopInputGroupProps = goopInputProps
+
+/** Ring options for core over app config, or null when the goo is off. */
+export function toInputGroupOptions(props: GoopInputGroupProps, config: GoopOptions = {}): InputOptions | null {
+  if (props.goo === false) return null
+  return toEffectOptions(INPUT_EFFECTS, props, config)
+}
