@@ -150,6 +150,21 @@ const { isReact } = useFramework()
     </GoopInputGroup>
 
     <!-- Sketches: overlays and the rest. Ink, with the goo colour as the accent. -->
+    <!-- Calendars: a static month sketch (a live one would depend on today's date). -->
+    <div v-else-if="slug === 'calendar' || slug === 'range-calendar'" class="sk-card grid grid-cols-7 gap-0.5 p-1.5">
+      <span
+        v-for="d in 21"
+        :key="d"
+        class="size-3 rounded-[3px]"
+        :class="
+          slug === 'calendar'
+            ? d === 10 ? 'goo-fill' : ''
+            : d === 9 || d === 13 ? 'goo-fill' : d > 9 && d < 13 ? 'bg-[color-mix(in_oklch,var(--goo)_28%,transparent)]' : ''
+        "
+      >
+        <span v-if="!(slug === 'calendar' ? d === 10 : d >= 9 && d <= 13)" class="m-auto mt-[5px] block size-0.5 rounded-full bg-[color-mix(in_oklch,var(--foreground)_35%,transparent)]" />
+      </span>
+    </div>
     <div v-else-if="slug === 'select'" class="sk-card flex h-8 w-32 items-center justify-between px-2.5 text-[11px] text-muted-foreground">
       Pick a fruit <SiteIcon name="chevronDown" :size="12" />
     </div>
