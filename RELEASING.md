@@ -28,46 +28,78 @@ git commit -am "chore: release 0.1.0-alpha.N" && git push
 
 ## Publishing (browser 2FA)
 
-The npm account uses **browser 2FA** (no OTP codes), so `pnpm publish` / `npm publish` can't finish from a non-interactive shell (an agent, or a script). The flow: pack the tarballs (pnpm rewrites `workspace:*` to real versions while packing), check them, then the owner publishes each tarball from their own terminal.
+The npm account uses **browser 2FA** (no OTP codes), so `npm publish` can't finish from a non-interactive shell (an agent, or a script running without the owner). Three hands, in this order:
 
-Run from the repo root on an up-to-date `main` with a clean tree, after the version commit:
+1. **Claude prepares the version**: `pnpm changeset version`, `pnpm install`, the checks below, the version commit, pushed to `main`.
+2. **The owner runs `pnpm release:publish`** from their own terminal, on that `main`.
+3. **Claude tags** the release with the commands `release:publish` prints at the end.
+
+### 1. Checks (Claude, before the version commit is pushed)
+
+From the repo root. On an exFAT drive clear AppleDouble files first (the `files` field also keeps them out of the tarballs).
 
 ```sh
-# 1. Fresh build and checks. On an exFAT drive, clear AppleDouble files first
-#    (the `files` field also excludes them from the tarballs).
 pnpm install
 pnpm clean:dot
 pnpm build --concurrency=1
 pnpm typecheck
-pnpm turbo run test --filter=./packages/core --filter=./packages/vue --filter=./packages/react --filter=./packages/nuxt
-pnpm check:package-managers   # npm, pnpm, yarn 1, yarn 4, bun x Vite Vue, Vite React, Next.js 16
+pnpm test                       # core, vue, react (vitest)
+pnpm check:exports              # publint + attw on the packed tarballs
+pnpm check:package-managers     # npm, pnpm, yarn 1, yarn 4, bun x vue, react, react18, next, nuxt
+APPS="vue-min react-min nuxt-min" pnpm check:package-managers npm pnpm   # lowest claimed peers
+```
 
-# 2. Pack each package into a scratch dir and inspect the tarballs.
+What they cover:
+
+- **`check:exports`** (`scripts/check-exports.sh`) packs the four packages and runs [publint](https://publint.dev) (`--strict`: `exports`, `main`, `types` and `files` agree and every path exists) and [`@arethetypeswrong/cli`](https://github.com/arethetypeswrong/arethetypeswrong.github.io) on each tarball. All four are **ESM-only by design** (`"type": "module"`, `import` conditions, no `require`), so attw runs with `--profile esm-only`: the `node16` (from ESM) and `bundler` resolutions must be clean; the CommonJS `require()` rows can't work for an ESM-only package and are ignored. `./goop.css` is excluded from attw (a stylesheet, not a module TypeScript resolves; publint still checks it exists).
+- **`check:package-managers`** installs the tarballs into fresh apps with every package manager: Vite Vue (`vue-tsc` on typed usage), Vite React 19 and React 18 (smoke-tested in Chromium; React 18 is also type-checked against `@types/react` 18), Next.js 16 (`next build` type-checks typed usage, `next start` is smoke-tested) and Nuxt 4 with `modules: ['@goopui/nuxt']` and Tailwind v4 (`nuxt typecheck`, `nuxt build` with the SSR server smoke-tested, `nuxt generate`). The typecheck files carry `@ts-expect-error` / `@vue-expect-error` lines, so components whose shipped `.d.ts` degrade to `any` fail the check. The Vite apps also prove tree-shaking (GoopCommand, never imported, is not in the bundle) and that `goop.css` reaches the built CSS.
+- **The `-min` apps** install the lowest versions the peer ranges claim: Vue 3.5.2 (3.5.0 and 3.5.1 run, but their types turn every goopUI component into `any`, so the peer is `^3.5.2`), React 18.0.0, Nuxt 3.13.0, Tailwind 4.0.0. Two package managers are enough: they test the peers, not the manager.
+
+### 2. Publish (the owner)
+
+```sh
+git checkout main && git pull
+pnpm install
+npm whoami || npm login --auth-type=web     # the login expires
+pnpm release:publish --dry-run              # optional: every step except the publish
+pnpm release:publish
+```
+
+`pnpm release:publish` (`scripts/publish-release.sh`):
+
+1. checks `npm whoami` (and prints the `npm login --auth-type=web` hint if it fails);
+2. checks the tree is clean, on `main`, and equal to `origin/main`;
+3. checks the four versions match and aren't on npm yet (`npm view`);
+4. builds, packs fresh tarballs (no `workspace:`, no `._*` files) and runs `check:exports` on them;
+5. publishes core → vue → react → nuxt with `--access public --tag latest --auth-type=web` (each opens a browser window), stopping at the first failure and saying what was and wasn't published. After fixing the cause, run it again: versions already on npm are skipped, so it carries on where it stopped;
+6. polls `npm view` until each version is live (a never-published package can 404 for a few minutes);
+7. prints the `git tag` / `git push` commands, without running them.
+
+`--tag alpha` publishes under another dist-tag (keeps `latest` on an older build). `--dry-run` runs every step with `npm publish --dry-run` in place of the publish, and reports (instead of stopping at) a dirty tree, another branch or a missing login.
+
+### 3. Tag (Claude)
+
+Run what `release:publish` printed:
+
+```sh
+for p in core vue react nuxt; do git tag @goopui/$p@<ver>; done
+git push origin @goopui/core@<ver> @goopui/vue@<ver> @goopui/react@<ver> @goopui/nuxt@<ver>
+```
+
+### By hand
+
+If the script can't be used, the same steps:
+
+```sh
 OUT="$(mktemp -d)"
 for p in core vue react nuxt; do (cd packages/$p && pnpm pack --pack-destination "$OUT"); done
-ls "$OUT"
-for t in "$OUT"/*.tgz; do tar -xOzf "$t" package/package.json | grep -n workspace: && echo "BAD: $t"; done
-for t in "$OUT"/*.tgz; do tar tzf "$t" | grep -E '(^|/)\._|\.map$' && echo "BAD: $t"; done
-
-# 3. The owner publishes, in this order, from their own terminal (each opens a browser
-#    window). Check the login first: it expires.
-npm whoami
+bash scripts/check-exports.sh "$OUT"
 npm publish "$OUT"/goopui-core-<ver>.tgz  --access public --tag latest --auth-type=web
 npm publish "$OUT"/goopui-vue-<ver>.tgz   --access public --tag latest --auth-type=web
 npm publish "$OUT"/goopui-react-<ver>.tgz --access public --tag latest --auth-type=web
 npm publish "$OUT"/goopui-nuxt-<ver>.tgz  --access public --tag latest --auth-type=web
-
-# 4. Verify (a package that has never been published can 404 for a few minutes)
 for p in core vue react nuxt; do npm view @goopui/$p dist-tags; done
-npm view @goopui/react@<ver> dependencies      # real versions, no workspace:*
-npm view @goopui/nuxt@<ver> dependencies
-
-# 5. Tag and push (Changesets tag format)
-for p in core vue react nuxt; do git tag @goopui/$p@<ver>; done
-git push origin main --tags
 ```
-
-Use `--tag alpha` instead of `--tag latest` to keep `latest` on an older build.
 
 Why not `pnpm changeset publish`? It needs a non-interactive login, and in pre mode it publishes a never-published package (React in `0.1.0-alpha.1`) under the `alpha` dist-tag, which then needs `npm dist-tag add @goopui/<pkg>@<ver> latest`.
 

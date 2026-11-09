@@ -2,7 +2,7 @@
 // Popover), NumberField and InputOTP (input-otp). Each renders shadcn/ui's markup, keeps engine
 // props off the DOM, and attaches the same core engine as @goopui/vue.
 import type { EmergeHandle, InputOTPHandle, MenuHighlightHandle, NumberFieldHandle, ToasterHandle } from '@goopui/core'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createElement as h, createRef, useState } from 'react'
 import { toast } from 'sonner'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -248,12 +248,19 @@ describe('GoopCombobox', () => {
     await act(async () => {
       fireEvent.click(trigger)
     })
-    await flush()
-    const list = document.querySelector('[data-slot="combobox-list"]') as HTMLElement
-    expect(list).not.toBeNull()
-    expect(list.querySelector(':scope > [data-goop="surface"]')).not.toBeNull()
-    expect(emerge.current).not.toBeNull()
-    expect(list.querySelector('[cmdk-list-sizer] > [data-goop="highlight"]')).not.toBeNull()
+    // Poll instead of one macrotask: under parallel load the portal, the emerge surface and the
+    // highlight can land a few ticks later.
+    await waitFor(
+      () => {
+        const el = document.querySelector('[data-slot="combobox-list"]')
+        expect(el).not.toBeNull()
+        expect(el!.querySelector(':scope > [data-goop="surface"]')).not.toBeNull()
+        expect(emerge.current).not.toBeNull()
+        expect(el!.querySelector('[cmdk-list-sizer] > [data-goop="highlight"]')).not.toBeNull()
+        expect(hl.current).not.toBeNull()
+      },
+      { timeout: 5000 },
+    )
     const ms = vi.spyOn(hl.current!, 'pop').mockReturnValue(30)
     await act(async () => {
       fireEvent.click(screen.getByText('Next.js'))
@@ -263,8 +270,11 @@ describe('GoopCombobox', () => {
     // The value is set at once (its check mark shows), the list closes once the pop has played.
     expect(screen.getByText('Next.js').closest('[cmdk-item]')!.querySelector('[data-slot="combobox-item-indicator"]')).not.toBeNull()
     expect((screen.getByPlaceholderText('Select framework...') as HTMLInputElement).value).toBe('Next.js')
-    await act(async () => new Promise((r) => setTimeout(r, 60)))
-    expect(document.querySelector('[data-slot="combobox-list"][data-state="open"]')).toBeNull()
+    // Closes after the (mocked, 30ms) pop. Poll rather than sleep a fixed 60ms, which raced
+    // under parallel load.
+    await waitFor(() => expect(document.querySelector('[data-slot="combobox-list"][data-state="open"]')).toBeNull(), {
+      timeout: 5000,
+    })
   })
 
   it('typing opens the list and filters it; the input ring attaches', async () => {

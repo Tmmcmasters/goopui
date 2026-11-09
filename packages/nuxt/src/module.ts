@@ -2,7 +2,8 @@ import type { GoopFinishName, GoopPreset, GoopRendererName, GoopSplashMode, Page
 import { addComponent, addPluginTemplate, addVitePlugin, createResolver, defineNuxtModule, useLogger } from '@nuxt/kit'
 import { componentBaseName, goopComponents } from '@goopui/vue/manifest'
 import type { NuxtModule } from '@nuxt/schema'
-import { dirname } from 'node:path'
+import { existsSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 
 /** App-wide engine defaults. Serializable subset of GoopOptions (no renderer factories). */
 export interface GoopModuleDefaults {
@@ -119,8 +120,15 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     ]
     // vue-sonner keeps its toast queue in module state: GoopToaster and the app's `toast()`
     // must share one copy (pnpm can install two when their optional nuxt peers differ).
-    nuxt.options.vite.resolve ||= {}
-    nuxt.options.vite.resolve.dedupe = [...(nuxt.options.vite.resolve.dedupe ?? []), 'vue-sonner']
+    // Only when the app has vue-sonner itself: `dedupe` resolves it from the app root, so with
+    // vue-sonner only nested under @goopui/vue (pnpm without hoisting; npm in a Nuxt 3 app,
+    // where vue-sonner's optional `nuxt ^4` peer makes npm nest it) every build failed with
+    // `Rollup failed to resolve import "vue-sonner"`. Without its own copy the app can't call
+    // `toast()` from another one, so there is nothing to share.
+    if (nuxt.options.modulesDir.some((dir) => existsSync(join(dir, 'vue-sonner', 'package.json')))) {
+      nuxt.options.vite.resolve ||= {}
+      nuxt.options.vite.resolve.dedupe = [...(nuxt.options.vite.resolve.dedupe ?? []), 'vue-sonner']
+    }
 
     for (const name of goopComponents) {
       addComponent({
@@ -129,6 +137,18 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
         filePath: '@goopui/vue',
       })
     }
+
+    // The generated .nuxt/components.d.ts types each component as `typeof
+    // import('@goopui/vue')[...]`, resolved from the app. An app that only lists @goopui/nuxt
+    // (the docs' install) doesn't have @goopui/vue at its root with pnpm, so that import
+    // failed and every auto-imported component was silently `any` in `nuxi typecheck` and the
+    // editor. Point TypeScript at the copy this module resolves.
+    const vueDir = dirname(dirname(await resolvePath('@goopui/vue/goop.css')))
+    nuxt.hook('prepare:types', ({ tsConfig }) => {
+      tsConfig.compilerOptions ||= {}
+      tsConfig.compilerOptions.paths ||= {}
+      tsConfig.compilerOptions.paths['@goopui/vue'] ||= [vueDir]
+    })
 
     if (options.css) nuxt.options.css.push('@goopui/vue/goop.css')
 
