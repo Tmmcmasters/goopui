@@ -8,6 +8,7 @@
 // Env: CHROMIUM_PATH (a Chromium/headless-shell binary; default: playwright-core's own download).
 // NAV="<link name>|<text>": then close the dialog, click that link and wait for the text on
 // the new page (a client navigation through GoopPageTransition: its overlay must have run).
+// EXPECT="<css selector>": it must match after load (e.g. `[data-goop-active]`: the goo attached).
 import { chromium } from 'playwright-core'
 
 const [url, text, click] = process.argv.slice(2)
@@ -34,6 +35,7 @@ try {
   if (!loaded) throw new Error(`could not load ${url}`)
 
   await page.getByText(text, { exact: false }).first().waitFor({ timeout: 10_000 })
+  if (process.env.EXPECT) await page.locator(process.env.EXPECT).first().waitFor({ state: 'attached', timeout: 10_000 })
   if (click) {
     await page.getByRole('button', { name: click }).click()
     await page.getByRole('dialog').waitFor({ state: 'visible', timeout: 10_000 })

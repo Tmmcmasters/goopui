@@ -32,6 +32,7 @@ All product and architecture decisions are in `HANDOFF.md`. Read it before build
 - `pnpm check:hydration` and `pnpm check:package-managers` run in CI on every push and PR ([`.github/workflows/ci.yml`](.github/workflows/ci.yml); package-managers only when package manifests, entry points, build configs or the lockfile change). Run them locally only to debug a CI failure; the failing run uploads its logs as artifacts.
 - Each worktree needs its own Nuxt Content database: `CONTENT_DB_DIR=$PWD/.data/content` when two worktrees build www at once.
 - On an exFAT `ENOENT ... chmod .../._*` error: delete the app's `.nuxt`, `.output` and `node_modules/.cache/nuxt`, run `pnpm clean:dot`, rebuild.
+- shadcn registries: `scripts/build-registry.mjs` turns every folder in `packages/{react,vue}/src/components/` into a registry item (plus `goop-lib` and `goop-css`). www regenerates them into `apps/www/public/r/` (gitignored) on every start/build (`apps/www/modules/goop-registry.ts`); `pnpm build:registry` runs it alone. `pnpm check:registry` installs every item with the real shadcn / shadcn-vue CLIs into fresh Next.js, Vite Vue and Nuxt apps, builds and smoke-tests them (ports 3044/3045; CI job `registry` when components or the generator change). Installed apps type-check with `noUnusedLocals`, so unused imports in component source break it.
 - Don't run a dev server while `check:package-managers` runs locally (it serves the consumer apps on port 4317 and needs the whole machine).
 
 ## Gotchas
