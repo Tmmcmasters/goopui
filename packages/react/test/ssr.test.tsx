@@ -210,5 +210,79 @@ describe('SSR (react-dom/server)', () => {
     expect(html).not.toContain('data-goop="surface"')
     expect(html).not.toContain('plop')
   })
+
+  it("GoopSidebar renders shadcn's desktop markup (expanded, no goo, stable skeleton width)", async () => {
+    const m = await import('../src')
+    const html = await render(() =>
+      h(
+        m.GoopSidebarProvider,
+        null,
+        h(
+          m.GoopSidebar,
+          { variant: 'inset', collapsible: 'icon', slosh: 1.5 },
+          h(
+            m.GoopSidebarContent,
+            null,
+            h(
+              m.GoopSidebarMenu,
+              null,
+              h(m.GoopSidebarMenuItem, null, h(m.GoopSidebarMenuButton, { isActive: true, tooltip: 'Home' }, 'Home')),
+              h(m.GoopSidebarMenuItem, null, h(m.GoopSidebarMenuSkeleton, { showIcon: true })),
+            ),
+          ),
+          h(m.GoopSidebarRail),
+        ),
+        h(m.GoopSidebarInset, null, h(m.GoopSidebarTrigger)),
+      ),
+    )
+    expect(html).toContain('data-slot="sidebar-wrapper"')
+    expect(html).toContain('data-state="expanded"')
+    expect(html).toContain('data-variant="inset"')
+    expect(html).toContain('data-goop-sidebar=""')
+    expect(html).toContain('data-goop-pill=""')
+    expect(html).toContain('data-active="true"')
+    expect(html).toMatch(/--skeleton-width:\d+%/)
+    expect(html).not.toContain('data-mobile')
+    expect(html).not.toContain('sidebar-edge')
+    expect(html).not.toContain('slosh')
+    // travel's curve is client-only: the server keeps shadcn's linear classes.
+    expect(html).not.toContain('transition-timing-function')
+  })
+
+  it("GoopCarousel renders shadcn's markup (no goo, no dots before embla counts the snaps)", async () => {
+    const m = await import('../src')
+    const html = await render(() =>
+      h(
+        m.GoopCarousel,
+        { stretch: 1.5, className: 'w-64' },
+        h(m.GoopCarouselContent, null, h(m.GoopCarouselItem, null, '1'), h(m.GoopCarouselItem, null, '2')),
+        h(m.GoopCarouselPrevious),
+        h(m.GoopCarouselNext),
+        h(m.GoopCarouselDots),
+      ),
+    )
+    expect(html).toContain('data-slot="carousel"')
+    expect(html).toContain('aria-roledescription="carousel"')
+    expect(html).toContain('data-slot="carousel-item"')
+    expect(html).toContain('data-slot="carousel-next"')
+    expect(html).toContain('data-goop-carousel-dots=""')
+    expect(html).not.toContain('data-goop-carousel-dot=""')
+    expect(html).not.toContain('carousel-slosh')
+    expect(html).not.toContain('stretch')
+  })
+
+  it('GoopPageTransition renders only its children', async () => {
+    const { GoopPageTransition } = await import('../src')
+    const html = await render(() => h(GoopPageTransition, { routeKey: '/', direction: 'up' }, h('main', null, 'Page')))
+    expect(html).toBe('<main>Page</main>')
+  })
+
+  it("'use client' on the new client modules; their class files stay server-safe", async () => {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const client = (f: string) => /^\s*['"]use client['"]/.test(readFileSync(join(__dirname, '../src/components', f), 'utf8'))
+    for (const f of ['sidebar/GoopSidebar.tsx', 'sidebar/use-sidebar-goo.ts', 'carousel/GoopCarousel.tsx', 'page-transition/GoopPageTransition.tsx']) expect(client(f), f).toBe(true)
+    expect(client('sidebar/variants.ts')).toBe(false)
+  })
 })
 
