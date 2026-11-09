@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   TOAST_FEEL,
   TOAST_GOO_ATTR,
@@ -172,6 +172,7 @@ describe('toastFadeBody', () => {
 describe('attachToaster (DOM)', () => {
   afterEach(() => {
     document.body.innerHTML = ''
+    vi.restoreAllMocks()
   })
   const mount = () => {
     const section = document.createElement('section')
@@ -239,6 +240,9 @@ describe('attachToaster (DOM)', () => {
   const flush = () => new Promise((r) => setTimeout(r, 0))
 
   it('a leaving body follows the toast, and stays put (no jump back) once it unmounts', async () => {
+    // No animation frames: only refresh() paints, so the two reads below differ only by the
+    // unmount, not by however many frames a loaded machine ran during the awaits.
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 0)
     const section = mount()
     const li = section.querySelector('li')!
     stub(li, { x: 0, y: 100, width: 300, height: 50 })

@@ -1,7 +1,7 @@
 import { MENU_FEEL, activeTickerCount, type EmergeOptions, type EmergePoint } from '@goopui/core'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { defineComponent, h, ref, type PropType } from 'vue'
+import { defineComponent, h, ref, type PropType, nextTick } from 'vue'
 
 // Pass-through spy on attachEmerge, so tests can read the options each panel attached with.
 const attached = vi.hoisted(() => [] as { host: HTMLElement; opts: EmergeOptions }[])
@@ -229,10 +229,11 @@ describe('GoopContextMenu', () => {
     await flushPromises()
     await rightClick(40, 50)
     content()!.querySelector<HTMLElement>('#back')!.click()
-    await flushPromises()
+    // Microtasks only: a flushPromises macrotask could let the pop's close timer fire first.
+    await nextTick()
+    await nextTick()
     expect((w.vm as unknown as { open: boolean }).open).toBe(true)
-    await wait(POP + 30)
-    expect((w.vm as unknown as { open: boolean }).open).toBe(false)
+    await vi.waitFor(() => expect((w.vm as unknown as { open: boolean }).open).toBe(false), { timeout: 5000, interval: 10 })
     w.unmount()
   })
 
