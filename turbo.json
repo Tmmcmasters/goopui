@@ -17,6 +17,13 @@
     "test": {
       "dependsOn": ["^build"]
     },
+    // Core's ssr.test.ts imports core's own dist, and tsdown's `clean` empties dist while it
+    // rebuilds: without its own `build` first, core's tests ran beside the core build that the
+    // adapters' tests need and raced it (`Cannot find module '/dist/index.mjs'` under
+    // `--force`). Only core: a generic `build` dependency would also build every Nuxt app.
+    "@goopui/core#test": {
+      "dependsOn": ["^build", "build"]
+    },
     "generate": {
       "dependsOn": ["^build"],
       "outputs": [".output/**", ".nuxt/**"]

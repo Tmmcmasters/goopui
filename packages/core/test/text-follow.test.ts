@@ -14,7 +14,6 @@ import {
 } from '../src'
 
 const tick = () => new Promise((r) => setTimeout(r, 0))
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const box = (x: number, y: number, w: number, h: number) =>
   ({ x, y, left: x, top: y, width: w, height: h, right: x + w, bottom: y + h, toJSON: () => ({}) }) as DOMRect
 
@@ -93,8 +92,7 @@ describe('text follows the goo', () => {
     expect(b.querySelectorAll(`[${GOOP_PART_ATTR}="${TEXT_COPY_PART}"]`)).toHaveLength(1)
     expect(copy.querySelector(`[${GOOP_PART_ATTR}]`)).toBeNull()
     press(b, false)
-    await wait(250)
-    expect(h.running).toBe(false)
+    await vi.waitFor(() => expect(h.running).toBe(false), { timeout: 5000, interval: 10 })
     expect(copyOf(b)).toBeNull()
     // Still following: the real label keeps its normal color.
     expect(b.hasAttribute(TEXT_FOLLOW_ATTR)).toBe(true)
@@ -105,11 +103,11 @@ describe('text follows the goo', () => {
     const b = button(160, 36, 'Italic')
     const h = attachToggle(b, { speed: 0.5 })
     press(b, true)
-    await wait(40)
+    await vi.waitFor(() => expect(copyOf(b)).not.toBeNull(), { timeout: 5000, interval: 10 })
     const first = copyOf(b)!.style.getPropertyValue('clip-path')
-    await wait(60)
+    // Poll for the next drawn frame instead of a fixed 60ms (frames slow down under load).
+    await vi.waitFor(() => expect(copyOf(b)!.style.getPropertyValue('clip-path')).not.toBe(first), { timeout: 5000, interval: 10 })
     const later = copyOf(b)!.style.getPropertyValue('clip-path')
-    expect(later).not.toBe(first)
     const vanish = gooVanishRadius(toggleGooParams(36))
     expect(later).toBe(`path("${gooClipPath(h.pose!.circles, { x: 0, y: 0, w: 160, h: 36 }, vanish)}")`)
     h.destroy()
@@ -119,12 +117,13 @@ describe('text follows the goo', () => {
     const b = button(120, 36, 'Bold')
     const h = attachToggle(b, { speed: 0.5 })
     press(b, true)
-    await wait(40)
+    // Wait for the copy rather than a fixed 40ms: under parallel load the first goo frame can
+    // land later, and the copy only exists once it has.
+    await vi.waitFor(() => expect(copyOf(b)).not.toBeNull(), { timeout: 5000, interval: 10 })
     b.querySelector('span')!.textContent = 'Heavy'
     b.setAttribute('data-size', 'lg')
-    await tick()
+    await vi.waitFor(() => expect(copyOf(b)?.textContent).toBe('Heavy'), { timeout: 5000, interval: 10 })
     const copy = copyOf(b)!
-    expect(copy.textContent).toBe('Heavy')
     expect(copy.getAttribute('data-state')).toBe('on')
     expect(copy.getAttribute('data-size')).toBe('lg')
     expect(copy.hasAttribute('aria-pressed')).toBe(false)
@@ -135,8 +134,7 @@ describe('text follows the goo', () => {
     const b = button(120, 36, 'Bold')
     const h = attachToggle(b, { speed: 0.5 })
     press(b, true)
-    await wait(40)
-    expect(copyOf(b)).not.toBeNull()
+    await vi.waitFor(() => expect(copyOf(b)).not.toBeNull(), { timeout: 5000, interval: 10 })
     h.destroy()
     expect(copyOf(b)).toBeNull()
     expect(b.hasAttribute(TEXT_FOLLOW_ATTR)).toBe(false)
@@ -146,8 +144,7 @@ describe('text follows the goo', () => {
     const b = button(120, 36, 'Bold')
     const h = attachToggle(b, { speed: 0.5 })
     press(b, true)
-    await wait(40)
-    expect(copyOf(b)).not.toBeNull()
+    await vi.waitFor(() => expect(copyOf(b)).not.toBeNull(), { timeout: 5000, interval: 10 })
     h.update({ textFollow: false })
     expect(copyOf(b)).toBeNull()
     expect(b.hasAttribute(TEXT_FOLLOW_ATTR)).toBe(false)
@@ -173,8 +170,7 @@ describe('text follows the goo', () => {
       const i = trigger(false)
       const h = attachAccordion(i.host, { speed: 0.5 })
       setOpen(i, true)
-      await wait(80)
-      expect(copyOf(i.trigger)).not.toBeNull()
+      await vi.waitFor(() => expect(copyOf(i.trigger)).not.toBeNull(), { timeout: 5000, interval: 10 })
       expect(i.trigger.hasAttribute(ACCORDION_FLOODED_ATTR)).toBe(false)
       h.destroy()
       expect(copyOf(i.trigger)).toBeNull()

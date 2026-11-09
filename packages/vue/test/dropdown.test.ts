@@ -1,7 +1,7 @@
 import { MENU_FEEL, MENU_HIGHLIGHT_CIRCLES, activeTickerCount } from '@goopui/core'
 import { flushPromises, mount } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
-import { defineComponent, h, ref, type PropType } from 'vue'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { defineComponent, h, ref, type PropType, nextTick } from 'vue'
 import {
   GoopPlugin,
   GoopDropdownMenu,
@@ -191,10 +191,11 @@ describe('GoopDropdownMenu', () => {
     const w = mount(Demo, { attachTo: document.body })
     await flushPromises()
     content()!.querySelector<HTMLElement>('#profile')!.click()
-    await flushPromises()
+    // Microtasks only: a flushPromises macrotask could let the pop's close timer fire first.
+    await nextTick()
+    await nextTick()
     expect((w.vm as unknown as { open: boolean }).open).toBe(true)
-    await wait(POP + 30)
-    expect((w.vm as unknown as { open: boolean }).open).toBe(false)
+    await vi.waitFor(() => expect((w.vm as unknown as { open: boolean }).open).toBe(false), { timeout: 5000, interval: 10 })
     w.unmount()
   })
 
@@ -202,12 +203,13 @@ describe('GoopDropdownMenu', () => {
     const w = mount(Demo, { attachTo: document.body })
     await flushPromises()
     content()!.querySelector<HTMLElement>('#check')!.click()
-    await flushPromises()
+    // Microtasks only: a flushPromises macrotask could let the pop's close timer fire first.
+    await nextTick()
+    await nextTick()
     const vm = w.vm as unknown as { open: boolean; checked: boolean }
     expect(vm.checked).toBe(true)
     expect(vm.open).toBe(true)
-    await wait(POP + 30)
-    expect(vm.open).toBe(false)
+    await vi.waitFor(() => expect(vm.open).toBe(false), { timeout: 5000, interval: 10 })
     w.unmount()
   })
 
