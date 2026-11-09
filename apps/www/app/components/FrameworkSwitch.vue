@@ -89,6 +89,9 @@ function pick(target: Framework) {
   .fw-option {
     padding: 0 0.3125rem;
   }
+}
+/* The labels only fit next to the full desktop nav from `lg` (1024px) up. */
+@media (max-width: 1023.98px) {
   .fw-label {
     position: absolute;
     width: 1px;
