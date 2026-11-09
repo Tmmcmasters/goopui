@@ -6,7 +6,7 @@ name: CI
 #                    only when the published surface may have changed, or on manual dispatch.
 on:
   push:
-    branches: [main, site-v1, preview, ci-heavy-checks]
+    branches: [main, site-v1, preview]
   pull_request:
     branches: [main, site-v1]
   workflow_dispatch:
