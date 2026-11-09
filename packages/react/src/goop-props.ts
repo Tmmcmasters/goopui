@@ -691,3 +691,335 @@ import {
   type SpinnerOptions,
   type SpinnerVariant,
 } from '@goopui/core'
+
+// ---- GoopAlert / GoopKbd / GoopButtonGroup (static set, goo on by default) -------------------
+// Same as @goopui/vue. Alert: core `attachAlert` (the entrance: `bloom`, icon `wobble`). Kbd:
+// core `attachKbd` (the key-press squish: `press`, plus opt-in `keys`). ButtonGroup: core
+// `attachButtonGroup` (`press` squish + neighbour `tug`); GoopButtons inside a group leave
+// their own goo off unless they set `goo`. Each effect takes a boolean or a multiplier, plus
+// speed / preset; `goo={false}` renders plain shadcn.
+
+/** Every GoopAlert engine prop. */
+export const ALERT_PROP_KEYS = ['goo', ...ALERT_EFFECTS, 'speed', 'preset'] as const
+/** Every GoopKbd engine prop. */
+export const KBD_PROP_KEYS = ['goo', ...KBD_EFFECTS, 'keys', 'speed', 'preset'] as const
+/** Every GoopButtonGroup engine prop. */
+export const BUTTON_GROUP_PROP_KEYS = ['goo', ...BUTTON_GROUP_EFFECTS, 'speed', 'preset'] as const
+
+export type GoopAlertEngineProps = GoopStaticEffectProps<AlertEffect> & {
+  /** Master switch. `false` renders a plain shadcn Alert. Default true. */
+  goo?: boolean
+}
+export type GoopKbdEngineProps = GoopStaticEffectProps<KbdEffect> & {
+  /** Keyboard keys that press it, e.g. ['Meta', 'K'] (all held = pressed). Default: none. */
+  keys?: readonly string[]
+  /** Master switch. `false` renders a plain shadcn Kbd. Default true. */
+  goo?: boolean
+}
+export type GoopButtonGroupEngineProps = GoopStaticEffectProps<ButtonGroupEffect> & {
+  /** Master switch. `false` renders a plain shadcn ButtonGroup. Default true. */
+  goo?: boolean
+}
+
+type AlertUnhandled = Exclude<keyof AlertOptions, keyof GoopAlertEngineProps | StaticAdapterOwned>
+const _allAlertOptionsHandled: [AlertUnhandled] extends [never] ? true : { unhandled: AlertUnhandled } = true
+void _allAlertOptionsHandled
+type KbdUnhandled = Exclude<keyof KbdOptions, keyof GoopKbdEngineProps | StaticAdapterOwned>
+const _allKbdOptionsHandled: [KbdUnhandled] extends [never] ? true : { unhandled: KbdUnhandled } = true
+void _allKbdOptionsHandled
+type ButtonGroupUnhandled = Exclude<keyof ButtonGroupOptions, keyof GoopButtonGroupEngineProps | StaticAdapterOwned | 'orientation'>
+const _allButtonGroupOptionsHandled: [ButtonGroupUnhandled] extends [never] ? true : { unhandled: ButtonGroupUnhandled } = true
+void _allButtonGroupOptionsHandled
+const _simpleStaticPropsListed: [
+  | StaticListed<typeof ALERT_PROP_KEYS, GoopAlertEngineProps>
+  | StaticListed<typeof KBD_PROP_KEYS, GoopKbdEngineProps>
+  | StaticListed<typeof BUTTON_GROUP_PROP_KEYS, GoopButtonGroupEngineProps>,
+] extends [never]
+  ? true
+  : false = true
+void _simpleStaticPropsListed
+
+/** Entrance options for core over app config, or null when the goo is off. */
+export const toAlertOptions = (props: GoopAlertEngineProps, config: GoopOptions = {}): AlertOptions | null =>
+  props.goo === false ? null : toStaticOptions(ALERT_EFFECTS, props, config)
+
+/** Squish options for core over app config, or null when the goo or the squish is off. */
+export function toKbdOptions(props: GoopKbdEngineProps, config: GoopOptions = {}): KbdOptions | null {
+  if (props.goo === false || props.press === false || props.press === 0) return null
+  const out: KbdOptions = toStaticOptions(KBD_EFFECTS, props, config)
+  if (props.keys?.length) out.keys = [...props.keys]
+  return out
+}
+
+/** Group options for core over app config, or null when the goo is off. `orientation` is the
+ *  group's own (shadcn) prop. */
+export function toButtonGroupOptions(
+  props: GoopButtonGroupEngineProps,
+  config: GoopOptions = {},
+  orientation?: ButtonGroupOrientation | null,
+): ButtonGroupOptions | null {
+  if (props.goo === false) return null
+  const out: ButtonGroupOptions = toStaticOptions(BUTTON_GROUP_EFFECTS, props, config)
+  if (orientation) out.orientation = orientation
+  return out
+}
+
+/** A part's props over the root's: each prop the part sets wins, the rest are inherited. */
+function resolveOver<P extends object>(keys: readonly (keyof P)[], own: P, parent?: P | null): P {
+  const out = {} as P
+  for (const k of keys) {
+    const v = own[k] ?? parent?.[k]
+    if (v !== undefined) out[k] = v as P[keyof P]
+  }
+  return out
+}
+
+// ---- GoopEmpty ------------------------------------------------------------------------------
+// The media (GoopEmptyMedia) sits in a goo puddle of its own muted tone (core
+// `attachEmptyPuddle`) that breathes very slowly, about 1px. Props can sit on GoopEmpty (the
+// media inherits them) or on GoopEmptyMedia (wins). The other parts are plain.
+
+/** Every GoopEmpty engine prop. */
+export const EMPTY_PROP_KEYS = ['goo', ...EMPTY_EFFECTS, 'speed', 'preset'] as const
+
+/** Engine props of GoopEmpty (inherited) and GoopEmptyMedia. */
+export interface GoopEmptyProps {
+  /** Master switch. `false` renders plain shadcn Empty parts. */
+  goo?: boolean
+  /** The goo puddle under the media. A number scales its depth. */
+  puddle?: boolean | number
+  /** The puddle's slow ~1px breathing. A number scales it. */
+  breathe?: boolean | number
+  /** Animation speed multiplier (a faster breath). */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+}
+
+type EmptyUnhandled = Exclude<keyof EmptyPuddleOptions, keyof GoopEmptyProps | 'reducedMotion' | 'seed'>
+const _allEmptyOptionsHandled: [EmptyUnhandled] extends [never] ? true : { unhandled: EmptyUnhandled } = true
+void _allEmptyOptionsHandled
+type EmptyPropsListed = Exclude<keyof GoopEmptyProps, (typeof EMPTY_PROP_KEYS)[number]>
+const _allEmptyPropsListed: [EmptyPropsListed] extends [never] ? true : { unlisted: EmptyPropsListed } = true
+void _allEmptyPropsListed
+
+/** The media's props over the root's. */
+export const resolveEmptyProps = (own: GoopEmptyProps, parent?: GoopEmptyProps | null): GoopEmptyProps =>
+  resolveOver(EMPTY_PROP_KEYS, own, parent)
+
+/** Puddle options for core over app config, or null when the puddle is off. */
+export function toEmptyOptions(props: GoopEmptyProps, config: GoopOptions = {}): EmptyPuddleOptions | null {
+  if (props.goo === false || props.puddle === false || props.puddle === 0) return null
+  const out: EmptyPuddleOptions = { preset: props.preset ?? config.preset, reducedMotion: config.reducedMotion }
+  if (props.puddle !== undefined) out.puddle = props.puddle
+  if (props.breathe !== undefined) out.breathe = props.breathe
+  if (props.speed !== undefined) out.speed = props.speed
+  return out
+}
+
+// ---- GoopBreadcrumb -------------------------------------------------------------------------
+// The links' hover / keyboard-focus highlight is ONE goo blob (core `attachBreadcrumbHighlight`)
+// on GoopBreadcrumbList. Every prop can sit on GoopBreadcrumb (the list inherits it) or on
+// GoopBreadcrumbList (wins there). Toggles from core's BREADCRUMB_EFFECTS; all default true.
+
+/** Every GoopBreadcrumb engine prop. */
+export const BREADCRUMB_PROP_KEYS = ['goo', ...BREADCRUMB_EFFECTS, 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopBreadcrumb (inherited) and GoopBreadcrumbList. */
+export interface GoopBreadcrumbProps {
+  /** Master switch. `false` renders plain shadcn Breadcrumb parts. */
+  goo?: boolean
+  /** The links' hover / focus highlight is one goo blob that flows between them (false: shadcn's
+   *  text-colour hover only). */
+  highlight?: boolean
+  /** Soft jelly landing when the blob reaches a link. */
+  wobble?: boolean
+  /** Momentum: the blob stretches gently and trails a short tail while it travels. */
+  momentum?: boolean
+  /** A low, wide swell of the blob sits under the pointer (false: centred). */
+  followPointer?: boolean
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+type BreadcrumbUnhandled = Exclude<keyof BreadcrumbHighlightOptions | BreadcrumbEffect, keyof GoopBreadcrumbProps | 'feel' | 'reducedMotion'>
+const _allBreadcrumbOptionsHandled: [BreadcrumbUnhandled] extends [never] ? true : { unhandled: BreadcrumbUnhandled } = true
+void _allBreadcrumbOptionsHandled
+type BreadcrumbPropsListed = Exclude<keyof GoopBreadcrumbProps, (typeof BREADCRUMB_PROP_KEYS)[number]>
+const _allBreadcrumbPropsListed: [BreadcrumbPropsListed] extends [never] ? true : { unlisted: BreadcrumbPropsListed } = true
+void _allBreadcrumbPropsListed
+
+/** The list's props over the root's. */
+export const resolveBreadcrumbProps = (own: GoopBreadcrumbProps, parent?: GoopBreadcrumbProps | null): GoopBreadcrumbProps =>
+  resolveOver(BREADCRUMB_PROP_KEYS, own, parent)
+
+/** Highlight options for core over app config, or null when the blob is off. */
+export function toBreadcrumbOptions(props: GoopBreadcrumbProps, config: GoopOptions = {}): BreadcrumbHighlightOptions | null {
+  if (props.goo === false || props.highlight === false) return null
+  return {
+    feel: BREADCRUMB_FEEL,
+    wobble: props.wobble !== false,
+    momentum: props.momentum !== false,
+    followPointer: props.followPointer !== false,
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+}
+
+// ---- GoopPagination -------------------------------------------------------------------------
+// The current page is ONE goo blob (core `attachPaginationIndicator`) on GoopPaginationContent.
+// Previous / Next are ghost GoopButtons, so they press-squish. Every prop can sit on
+// GoopPagination (all parts inherit it) or on a part (wins there). Toggles from core's
+// PAGINATION_EFFECTS; all default true.
+
+/** Every GoopPagination engine prop. */
+export const PAGINATION_PROP_KEYS = ['goo', ...PAGINATION_EFFECTS, 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopPagination (inherited by its parts) and GoopPaginationContent. */
+export interface GoopPaginationProps {
+  /** Master switch. `false` renders plain shadcn Pagination parts. */
+  goo?: boolean
+  /** The current page's background is a goo blob that slides between pages (false: shadcn's outline button). */
+  indicator?: boolean
+  /** Jelly overshoot when the blob lands. */
+  wobble?: boolean
+  /** Momentum: the blob stretches and necks to a trailing tail while it travels. */
+  momentum?: boolean
+  /** Previous / Next squish when pressed (GoopButton's press squish). */
+  press?: boolean
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+/** Engine props of the button parts (Previous / Next). */
+export type GoopPaginationButtonProps = Pick<GoopPaginationProps, 'goo' | 'press' | 'speed' | 'preset' | 'renderer'>
+export const PAGINATION_BUTTON_PROP_KEYS = ['goo', 'press', 'speed', 'preset', 'renderer'] as const
+
+type PaginationUnhandled = Exclude<keyof PaginationIndicatorOptions | PaginationEffect, keyof GoopPaginationProps | 'feel' | 'reducedMotion'>
+const _allPaginationOptionsHandled: [PaginationUnhandled] extends [never] ? true : { unhandled: PaginationUnhandled } = true
+void _allPaginationOptionsHandled
+type PaginationPropsListed = Exclude<keyof GoopPaginationProps, (typeof PAGINATION_PROP_KEYS)[number]>
+const _allPaginationPropsListed: [PaginationPropsListed] extends [never] ? true : { unlisted: PaginationPropsListed } = true
+void _allPaginationPropsListed
+type PaginationButtonPropsListed = Exclude<keyof GoopPaginationButtonProps, (typeof PAGINATION_BUTTON_PROP_KEYS)[number]>
+const _allPaginationButtonPropsListed: [PaginationButtonPropsListed] extends [never] ? true : { unlisted: PaginationButtonPropsListed } = true
+void _allPaginationButtonPropsListed
+
+/** A part's props over the root's. */
+export const resolvePaginationProps = (own: GoopPaginationProps, parent?: GoopPaginationProps | null): GoopPaginationProps =>
+  resolveOver(PAGINATION_PROP_KEYS, own, parent)
+
+/** Blob options for core over app config, or null when the goo blob is off. */
+export function toPaginationOptions(props: GoopPaginationProps, config: GoopOptions = {}): PaginationIndicatorOptions | null {
+  if (props.goo === false || props.indicator === false) return null
+  return {
+    feel: PAGINATION_FEEL,
+    wobble: props.wobble !== false,
+    momentum: props.momentum !== false,
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+}
+
+/** GoopButton props for a button part (ghost GoopButton): `press: false` turns the squish off. */
+export function toPaginationButtonProps(props: GoopPaginationButtonProps): GoopEngineProps & { goo?: boolean } {
+  const out: GoopEngineProps & { goo?: boolean } = {}
+  if (props.goo !== undefined) out.goo = props.goo
+  if (props.press === false) out.squish = false
+  if (props.preset !== undefined) out.preset = props.preset
+  if (props.renderer !== undefined) out.renderer = props.renderer
+  if (props.speed !== undefined) out.timeScale = props.speed
+  return out
+}
+
+// ---- GoopAccordion / GoopCollapsible --------------------------------------------------------
+// Core `attachAccordion` on each item (and on the collapsible root): ACCORDION_EFFECTS (flood,
+// wobble, droplets: GoopToggle's fill on the trigger row; jelly: the content's spring), each
+// `true` (default), `false`, or a 0..2 strength, plus textFollow / speed / preset / renderer.
+// Set them on GoopAccordion (every item follows) or GoopCollapsible. `goo={false}` is plain shadcn.
+
+/** Every GoopAccordion / GoopCollapsible engine prop. */
+export const ACCORDION_PROP_KEYS = ['goo', ...ACCORDION_EFFECTS, 'textFollow', 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopAccordion and GoopCollapsible. */
+export interface GoopAccordionProps {
+  /** Master switch. `false` renders a plain shadcn Accordion / Collapsible. */
+  goo?: boolean
+  /** The trigger row floods with goo from the click point on open and drains away from the
+   *  label on close (off: the fill snaps). `true`, `false` or 0..2. */
+  flood?: boolean | number
+  /** Crest of the flood front and a jelly wobble of the row once full. `true`, `false` or 0..2. */
+  wobble?: boolean | number
+  /** A few droplets splash off the row's top edge as it floods. `true`, `false` or 0..2. */
+  droplets?: boolean | number
+  /** The content opens on a jelly spring (overshoot + settle). `true`, `false` or 0..2. */
+  jelly?: boolean | number
+  /** The trigger's text color follows the goo's edge (default true). `false`: it flips all at
+   *  once when the goo crosses the label. */
+  textFollow?: boolean
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+type AccordionUnhandled = Exclude<keyof AccordionOptions | AccordionEffect, keyof GoopAccordionProps | 'reducedMotion'>
+const _allAccordionOptionsHandled: [AccordionUnhandled] extends [never] ? true : { unhandled: AccordionUnhandled } = true
+void _allAccordionOptionsHandled
+type AccordionPropsListed = Exclude<keyof GoopAccordionProps, (typeof ACCORDION_PROP_KEYS)[number]>
+const _allAccordionPropsListed: [AccordionPropsListed] extends [never] ? true : { unlisted: AccordionPropsListed } = true
+void _allAccordionPropsListed
+
+/** Accordion options from props, over app config, or null when the goo is off. */
+export function toAccordionOptions(props: GoopAccordionProps, config: GoopOptions = {}): AccordionOptions | null {
+  if (props.goo === false) return null
+  const out: AccordionOptions = {
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+  if (props.speed !== undefined) out.speed = props.speed
+  if (props.textFollow !== undefined) out.textFollow = props.textFollow
+  for (const k of ACCORDION_EFFECTS) if (props[k] !== undefined) out[k] = props[k]
+  return out
+}
+
+import {
+  ACCORDION_EFFECTS,
+  ALERT_EFFECTS,
+  BREADCRUMB_EFFECTS,
+  BREADCRUMB_FEEL,
+  BUTTON_GROUP_EFFECTS,
+  EMPTY_EFFECTS,
+  KBD_EFFECTS,
+  PAGINATION_EFFECTS,
+  PAGINATION_FEEL,
+  type AccordionEffect,
+  type AccordionOptions,
+  type AlertEffect,
+  type AlertOptions,
+  type BreadcrumbEffect,
+  type BreadcrumbHighlightOptions,
+  type ButtonGroupEffect,
+  type ButtonGroupOptions,
+  type ButtonGroupOrientation,
+  type EmptyPuddleOptions,
+  type KbdEffect,
+  type KbdOptions,
+  type PaginationEffect,
+  type PaginationIndicatorOptions,
+} from '@goopui/core'
