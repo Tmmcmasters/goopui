@@ -113,6 +113,7 @@ export const GoopCalendar = forwardRef<HTMLDivElement, GoopCalendarProps>(functi
     formatters,
     components,
     modifiers,
+    labels,
     sound,
     goopRef,
     ...rest
@@ -173,6 +174,13 @@ export const GoopCalendar = forwardRef<HTMLDivElement, GoopCalendarProps>(functi
           className={cn(CALENDAR, className)}
           captionLayout={captionLayout}
           locale={locale}
+          labels={{
+            // react-day-picker's default ("Sunday, November 1st, 2026") doesn't contain the
+            // visible "1" as a word (axe label-content-name-mismatch); Intl's long date does.
+            labelDayButton: (date, mods) =>
+              `${mods.today ? 'Today, ' : ''}${date.toLocaleDateString(locale?.code, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}${mods.selected ? ', selected' : ''}`,
+            ...labels,
+          }}
           formatters={{
             formatMonthDropdown: (date) => date.toLocaleString(locale?.code, { month: 'short' }),
             ...formatters,
