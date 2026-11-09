@@ -1,8 +1,41 @@
-# goopUI handoff (updated 2026-11-08 late, end of session 10)
+# goopUI handoff (updated 2026-11-09 evening, session 11)
 
-Repo: **public** `github.com/Tmmcmasters/goopui`. `CLAUDE.md` covers layout, tooling and gotchas; this note covers state, decisions and what's next.
+Repo: **public** `github.com/Tmmcmasters/goopui`. `CLAUDE.md` covers layout, tooling, verification and gotchas; this note covers state, decisions and what's next.
 
-## Session 10 state (read this first; session 9 and older notes below are history)
+## Session 11 state (read this first; session 10 and older notes below are history)
+
+**Live = `main` = `site-v1` = `preview` = `fcac89e`** (goop.timmcmasters.work and the review preview are identical). Everything below is merged and deployed.
+
+**Release: 0.1.0-alpha.2 is versioned on main and NOT yet published.** 0.1.0-alpha.1 was never published (skipped). `pnpm release:publish --dry-run` on main passed every step (build, pack, publint + attw, `npm publish --dry-run` ×4). Next: the user runs `pnpm release:publish` on a clean `main` in their own terminal (browser 2FA; it publishes core → vue → react → nuxt, resumes if re-run), then Claude pushes the four `@goopui/<pkg>@0.1.0-alpha.2` tags. The shadcn registry items pin `@goopui/core@0.1.0-alpha.2` exactly, so `shadcn add` from the live registry only works after this publish.
+
+**Shipped this session (PRs #79–#99):**
+- **React is complete:** all 43 components then on the site ported to `@goopui/react` (Radix, shadcn/ui React parts, same goo as Vue). `@goopui/react` publishes with the others. Drawer drives core's own engine on Radix Dialog with a vaul-compatible API (not vaul).
+- **New components (Vue + React):** Tags Input + Field (#93), Aspect Ratio + Scroll Area + Resizable (#96), Table + Item + Input Group (#95). Docs pages 45–52.
+- **Button Group (#89):** every segment keeps its real GoopButton goo, cut clean at the seams (`seams`; press/tug now opt-in). The shared-blob version (#88) was rejected: composites must feel like their parts.
+- **Site:** header fits 320–1280px (#fix-header); chrome goo highlight across docs nav, TOC, header, switch, tabs, search (#91); phone feel fixes: Toggle pressed = green via `--goop-toggle-on`, dark contrast for Command/Breadcrumb/Empty, React "Open again", Vue menu quietFocus (#92).
+- **shadcn registry (#94):** `/r/react/*.json` and `/r/vue/*.json`, generated from package source at www build (`scripts/build-registry.mjs`, never committed); `@goopui/core` stays npm. Docs: a "shadcn CLI" block on every component page + `getting-started/6.shadcn-cli.md`. `check:registry` installs into fresh Next / Vite Vue / Nuxt apps.
+- **Stability:** release hardening (#98: Nuxt+pnpm `any` types, Nuxt vue-sonner resolution, Vue node16 types, Vue peer `^3.5.2`, turbo test race, flaky tests, `check:exports`, `release:publish`, 25-combo install matrix incl. Nuxt, React 18, min peers); CI moved to GitHub Actions (#90: `check`, `hydration`, `package-managers` (path-filtered), `registry`, `demos`); `check:demos` (#97) drives every demo in both frameworks + axe, and fixed a ToggleGroup freeze, a Vue Drawer aria-hidden leak, ~15 a11y issues and Item list semantics.
+
+**Decisions (user):**
+- Continuous integration: merge PRs yourself once CI is green and the work is checked; put feel changes on the preview and tell the user, but don't block on review.
+- Distribution = shadcn registry + npm (core npm-only).
+- Railway: the live service (`coming-soon`) has no watch patterns now: every push to main redeploys. The `review` service (review-production-7272.up.railway.app) deploys branch `preview`.
+- Toggle pressed state is green. Tags Input ring and Button Group seams approved.
+
+**Open / next:**
+1. User publishes alpha.2; Claude tags. Re-auth the Cloudflare MCP (`/mcp`) when convenient (purges failed; HTML isn't cached, so not urgent).
+2. Remaining shadcn components: Calendar, Range Calendar, Date Picker (WIP branch `goop-calendar`), Chart, Data Table.
+3. Registry decisions for the user: list in shadcn's public directory (PR to shadcn-ui/ui)? exact pin vs caret for core; file layout `components/ui/goop-<name>/`.
+4. 1.0 criteria were discussed (API freeze + API report in CI, full catalog, Safari/iOS testing, perf budgets, visual regression, beta with users, feel sign-off, docs, dogfooding); offer a ROADMAP.md + GitHub milestone.
+5. Feel items awaiting the user's input: Carousel, NavigationMenu drips, Sidebar pour bead, Drawer/Accordion sign-off. Dependabot #29–#31.
+
+**Gotchas learned this session:**
+- Never put Nuxt dev/build or `CONTENT_DB_DIR` on the exFAT drive (SQLite "readonly database", Nitro `listen ENOTSUP`). Big temp consumer apps may go under `/Volumes/CrucialP3/tmp-goop/`, but the internal disk is small (~17 GB free): delete temp apps promptly; it filled up once with parallel agents.
+- Many parallel branches append to the same shared files; merge one PR at a time, `gh pr update-branch` the next, let CI rerun. GitHub occasionally drops CI jobs ("workflow file issue"): `gh run rerun` or push again.
+- Verify deploys with a build-unique marker (a word the old page also had gave a false "live" once today).
+- `git` printed "non-monotonic index ._pack-*.idx": AppleDouble files inside `.git`; `find .git -name '._*' -delete` is safe.
+
+## Session 10 state (history)
 
 **Live (`main` = `site-v1` = `ac7990b`, goop.timmcmasters.work):** #76 GoopCommand `ignoreFilter` (docs search `Bridge.vue` removed), #77 React batch 1 (Skeleton, Badge, Card, Avatar, Separator, Label, Spinner) + React Tabs no focus ring on click, #78 **Vue style refresh** to current shadcn classes (overlays on `bg-popover` + ring, ghost X, muted footer, blurred overlay; Card ring; Badge pill; Skeleton `bg-muted`; www `main.css` gained shadcn's base `* { border-border outline-ring/50 }`). Additive API: `size` on Card/Avatar/AlertDialogContent, Badge `ghost`/`link`, `GoopAlertDialogMedia`, `class` on Accordion. Verified before deploy: build, typecheck 13/13, tests core 676 / vue 375 / react 54, `check:hydration` 0/105 (fresh, prefs, mobile) on the combined branch. Railway production deploy `1465a286` SUCCESS; Cloudflare cache purged for the goop host. **Not done:** the live `check:hydration` run after this deploy (the user stopped it); run `BASE_URL=https://goop.timmcmasters.work pnpm check:hydration --no-build` first thing.
 
