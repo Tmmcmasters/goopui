@@ -2834,3 +2834,101 @@ export function toFieldErrorOptions(props: GoopFieldProps, config: GoopOptions =
 }
 
 import { FIELD_ERROR_EFFECTS, type FieldErrorOptions } from '@goopui/core'
+
+// ---- GoopScrollArea -------------------------------------------------------------------------
+// The scrollbar thumb is a goo body (core `attachScrollArea`): it stretches a little with the
+// scroll speed (`stretch`) and, pushed past an end, squashes against it and springs back with a
+// small jelly wobble (`jelly`). Each takes a boolean or a multiplier; `goo: false` renders a
+// plain shadcn ScrollArea. Reduced motion: a plain thumb. The scroll bars follow their root.
+// Same as @goopui/vue / @goopui/react.
+
+/** Every GoopScrollArea engine prop. */
+export const SCROLL_AREA_PROP_KEYS = ['goo', ...SCROLL_AREA_EFFECTS, 'speed', 'preset'] as const
+
+/** Engine props of GoopScrollArea. */
+export interface GoopScrollAreaProps {
+  /** Master switch. `false` renders a plain shadcn ScrollArea. Default true. */
+  goo?: boolean
+  /** The thumb stretches with the scroll speed. A number scales it. */
+  stretch?: boolean | number
+  /** Pushing past an end squashes the thumb against it, then a jelly wobble. A number scales it. */
+  jelly?: boolean | number
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+}
+
+type ScrollAreaUnhandled = Exclude<keyof ScrollAreaOptions, keyof GoopScrollAreaProps | 'reducedMotion'>
+const _allScrollAreaOptionsHandled: [ScrollAreaUnhandled] extends [never] ? true : { unhandled: ScrollAreaUnhandled } = true
+void _allScrollAreaOptionsHandled
+type ScrollAreaPropsListed = Exclude<keyof GoopScrollAreaProps, (typeof SCROLL_AREA_PROP_KEYS)[number]>
+const _allScrollAreaPropsListed: [ScrollAreaPropsListed] extends [never] ? true : { unlisted: ScrollAreaPropsListed } = true
+void _allScrollAreaPropsListed
+
+/** Thumb options for core over app config, or null when the goo (or every effect) is off. */
+export function toScrollAreaOptions(props: GoopScrollAreaProps, config: GoopOptions = {}): ScrollAreaOptions | null {
+  const off = (v: boolean | number | undefined): boolean => v === false || v === 0
+  if (props.goo === false || (off(props.stretch) && off(props.jelly))) return null
+  const out: ScrollAreaOptions = { preset: props.preset ?? config.preset, reducedMotion: config.reducedMotion }
+  if (props.stretch !== undefined) out.stretch = props.stretch
+  if (props.jelly !== undefined) out.jelly = props.jelly
+  if (props.speed !== undefined) out.speed = props.speed
+  return out
+}
+
+import { SCROLL_AREA_EFFECTS, type ScrollAreaOptions } from '@goopui/core'
+
+// ---- GoopResizable --------------------------------------------------------------------------
+// The handle's grip is a goo bead (core `attachResizableHandle`): while dragged it swells a
+// little and bulges toward the drag direction in a low, wide mound (`bulge`); on release it
+// wobbles back like jelly (`wobble`; off: it eases back). A handle without a grip gets the same
+// mound on its line, under the pointer. Props can sit on GoopResizablePanelGroup (its handles
+// inherit them) or on GoopResizableHandle (wins). Panels are plain. Reduced motion: a plain
+// handle. Same as @goopui/vue / @goopui/react.
+
+/** Every GoopResizable engine prop. */
+export const RESIZABLE_PROP_KEYS = ['goo', ...RESIZABLE_EFFECTS, 'speed', 'preset'] as const
+
+/** Engine props of GoopResizablePanelGroup (inherited) and GoopResizableHandle. */
+export interface GoopResizableProps {
+  /** Master switch. `false` renders a plain shadcn handle. Default true. */
+  goo?: boolean
+  /** The bead swells and bulges toward the drag. A number scales it. */
+  bulge?: boolean | number
+  /** The bead wobbles back like jelly on release (off: it eases back). A number scales it. */
+  wobble?: boolean | number
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+}
+
+type ResizableUnhandled = Exclude<keyof ResizableOptions, keyof GoopResizableProps | 'reducedMotion'>
+const _allResizableOptionsHandled: [ResizableUnhandled] extends [never] ? true : { unhandled: ResizableUnhandled } = true
+void _allResizableOptionsHandled
+type ResizablePropsListed = Exclude<keyof GoopResizableProps, (typeof RESIZABLE_PROP_KEYS)[number]>
+const _allResizablePropsListed: [ResizablePropsListed] extends [never] ? true : { unlisted: ResizablePropsListed } = true
+void _allResizablePropsListed
+
+/** The handle's props over the group's: each prop the handle sets wins, the rest are inherited. */
+export function resolveResizableProps(own: GoopResizableProps, parent?: GoopResizableProps | null): GoopResizableProps {
+  const out: GoopResizableProps = {}
+  for (const k of RESIZABLE_PROP_KEYS) {
+    const v = own[k] ?? parent?.[k]
+    if (v !== undefined) (out as Record<string, unknown>)[k] = v
+  }
+  return out
+}
+
+/** Bead options for core over app config, or null when the goo or the bulge is off. */
+export function toResizableOptions(props: GoopResizableProps, config: GoopOptions = {}): ResizableOptions | null {
+  if (props.goo === false || props.bulge === false || props.bulge === 0) return null
+  const out: ResizableOptions = { preset: props.preset ?? config.preset, reducedMotion: config.reducedMotion }
+  if (props.bulge !== undefined) out.bulge = props.bulge
+  if (props.wobble !== undefined) out.wobble = props.wobble
+  if (props.speed !== undefined) out.speed = props.speed
+  return out
+}
+
+import { RESIZABLE_EFFECTS, type ResizableOptions } from '@goopui/core'
