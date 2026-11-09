@@ -39,7 +39,7 @@ jobs:
       - run: pnpm test
 
   hydration:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # Playwright 1.59 has no Chromium for Ubuntu 26 (ubuntu-latest)
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -94,7 +94,7 @@ jobs:
   package-managers:
     needs: changes
     if: needs.changes.outputs.package-managers == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # Playwright 1.59 has no Chromium for Ubuntu 26 (ubuntu-latest)
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
