@@ -4,6 +4,7 @@
 // new component's tile works before anyone draws one. Add a case here to give it a preview.
 // On /react/docs the ported components' tiles are React previews (react-demos/batch1.tsx `Tile`).
 import { REACT_BESPOKE2_TILES, REACT_FORMS_TILES, REACT_SIMPLE_TILES, REACT_TILES } from '~/react-demos/tiles'
+import { REACT_LAYOUT_TILES } from '~/react-demos/tiles'
 
 defineProps<{ slug: string; title: string }>()
 const { isReact } = useFramework()
@@ -15,6 +16,7 @@ const { isReact } = useFramework()
     <ReactIsland v-else-if="isReact && REACT_FORMS_TILES.has(slug)" demo="forms-tile" :set="slug" />
     <ReactIsland v-else-if="isReact && REACT_SIMPLE_TILES.has(slug)" demo="tile-simple" :set="slug" />
     <ReactIsland v-else-if="isReact && REACT_BESPOKE2_TILES.has(slug)" demo="tile-bespoke-2" :set="slug" />
+    <ReactIsland v-else-if="isReact && REACT_LAYOUT_TILES.has(slug)" demo="tile-layout" :set="slug" />
     <GoopButton v-else-if="slug === 'button'" size="sm" :resting-drips="[0.3, 0.72]" :interactive="false">Button</GoopButton>
     <GoopSpinner v-else-if="slug === 'spinner'" class="size-9" />
     <GoopToggle v-else-if="slug === 'toggle'" default-value class="[--accent:var(--goo)] [--accent-foreground:var(--goo-foreground)]" aria-label="Bold">
@@ -251,6 +253,20 @@ const { isReact } = useFramework()
         <GoopMenubarTrigger>{{ m }}</GoopMenubarTrigger>
       </GoopMenubarMenu>
     </GoopMenubar>
+    <!-- Layout batch: a 16:9 box; a scroll area with its goo thumb; panels split by a goo bead. -->
+    <div v-else-if="slug === 'aspect-ratio'" class="w-28">
+      <GoopAspectRatio :ratio="16 / 9" class="ratio-tile" />
+    </div>
+    <GoopScrollArea v-else-if="slug === 'scroll-area'" type="always" class="sk-card h-16 w-28" tabindex="-1">
+      <div class="flex flex-col gap-1.5 p-2 pr-3.5">
+        <span v-for="(w, i) in [90, 70, 100, 60, 85, 75, 95]" :key="i" class="sk-line" :style="{ width: `${w}%` }" />
+      </div>
+    </GoopScrollArea>
+    <GoopResizablePanelGroup v-else-if="slug === 'resizable'" direction="horizontal" class="sk-card h-16! w-28!">
+      <GoopResizablePanel :default-size="45" />
+      <GoopResizableHandle with-handle />
+      <GoopResizablePanel :default-size="55" />
+    </GoopResizablePanelGroup>
     <span v-else class="monogram">{{ title.charAt(0) }}</span>
   </div>
 </template>
@@ -352,5 +368,14 @@ const { isReact } = useFramework()
   border-radius: 0.5rem;
   background: color-mix(in oklch, var(--foreground) 5%, transparent);
   box-shadow: inset 0 0 0 1px var(--border);
+}
+.tile-art .ratio-tile {
+  border-radius: 0.45rem;
+  background:
+    radial-gradient(120% 75% at 30% 110%, color-mix(in oklch, var(--foreground) 16%, transparent) 0 55%, transparent 56%),
+    var(--card);
+  box-shadow:
+    inset 0 0 0 1px var(--border-strong),
+    0 6px 14px -8px rgb(0 0 0 / 0.4);
 }
 </style>

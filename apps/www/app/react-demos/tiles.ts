@@ -10,3 +10,6 @@ export const REACT_SIMPLE_TILES: ReadonlySet<string> = new Set(['alert', 'kbd', 
 
 // Select, Carousel, Drawer, Sidebar, Page transition (react-demos/bespoke2-tiles.tsx `Bespoke2Tile`).
 export const REACT_BESPOKE2_TILES: ReadonlySet<string> = new Set(['select', 'carousel', 'drawer', 'sidebar', 'page-transition'])
+
+// Layout batch (react-demos/layout.tsx `LayoutTile`): Aspect Ratio, Scroll Area, Resizable.
+export const REACT_LAYOUT_TILES: ReadonlySet<string> = new Set(['aspect-ratio', 'scroll-area', 'resizable'])

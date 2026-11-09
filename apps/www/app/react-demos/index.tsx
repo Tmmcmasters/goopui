@@ -37,6 +37,7 @@ import { CarouselDemo } from './carousel'
 import { SidebarDemo } from './sidebar'
 import { PageTransitionDemo } from './page-transition'
 import { Bespoke2Tile } from './bespoke2-tiles'
+import { AspectRatioDemo, LayoutTile, ResizableDemo, ScrollAreaDemo } from './layout'
 
 /** What a Vue demo hands its island. */
 export interface ReactDemoProps {
@@ -145,6 +146,15 @@ export function ReactDemo(props: ReactDemoProps) {
         return <PageTransitionDemo pg={props.pg} />
       case 'tile-bespoke-2':
         return <Bespoke2Tile slug={props.set} />
+      // Layout batch (./layout): 'aspect-ratio' | 'scroll-area' | 'resizable' | 'tile-layout'.
+      case 'aspect-ratio':
+        return <AspectRatioDemo set={props.set} />
+      case 'scroll-area':
+        return <ScrollAreaDemo set={props.set} pg={props.pg} />
+      case 'resizable':
+        return <ResizableDemo set={props.set} pg={props.pg} />
+      case 'tile-layout':
+        return <LayoutTile slug={props.set} />
       default:
         return null
     }
