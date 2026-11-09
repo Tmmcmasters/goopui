@@ -260,7 +260,7 @@ install_cmd() { # $1 = manager, $2 = dir; sets cmd
     npm)   cmd=(npm install --no-audit --no-fund) ;;
     pnpm)  cmd=(pnpm install) ;;
     yarn1) cmd=(npx -y yarn@1.22.22 install --non-interactive --cache-folder "$2/.yarn-cache") ;;
-    yarn4) touch "$2/yarn.lock"; printf 'nodeLinker: node-modules\nenableGlobalCache: false\n' > "$2/.yarnrc.yml"
+    yarn4) touch "$2/yarn.lock"; printf 'nodeLinker: node-modules\nenableGlobalCache: false\nenableImmutableInstalls: false\n' > "$2/.yarnrc.yml"
            cmd=(npx -y @yarnpkg/cli-dist@4 install) ;;
     bun)   if command -v bun >/dev/null 2>&1; then cmd=(bun install); else cmd=(npx -y bun@1 install); fi ;;
     *) return 1 ;;
@@ -320,7 +320,7 @@ for m in "${MANAGERS[@]}"; do
     fi
     echo "$line"; results+=("$line")
     case "$line" in FAIL*)
-      grep -iE 'error|could not resolve|failed' "$dir/build.log" "$dir/smoke.log" 2>/dev/null | head -5 ;;
+      grep -iE 'error|could not resolve|failed' "$dir/install.log" "$dir/build.log" "$dir/smoke.log" 2>/dev/null | head -8 ;;
     esac
   done
 done

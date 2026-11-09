@@ -1,9 +1,15 @@
 name: CI
 
+# check:             build, typecheck, test (every run).
+# hydration:         `pnpm check:hydration` (www `nuxt generate` + every page in headless Chromium).
+# package-managers:  `pnpm check:package-managers` (npm/pnpm/yarn1/yarn4/bun x Vue/React/Next),
+#                    only when the published surface may have changed, or on manual dispatch.
 on:
   push:
-    branches: [main]
+    branches: [main, site-v1, preview]
   pull_request:
+    branches: [main, site-v1]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -11,6 +17,11 @@ permissions:
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  NUXT_TELEMETRY_DISABLED: 1
+  NEXT_TELEMETRY_DISABLED: 1
 
 jobs:
   check:
@@ -26,3 +37,80 @@ jobs:
       - run: pnpm build
       - run: pnpm typecheck
       - run: pnpm test
+
+  hydration:
+    runs-on: ubuntu-24.04 # Playwright 1.59 has no Chromium for Ubuntu 26 (ubuntu-latest)
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      # Also builds the library packages (their `prepare` scripts), which www links to.
+      - run: pnpm install --frozen-lockfile
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      # No CHROMIUM_PATH: the scripts fall back to playwright-core's own download.
+      - run: pnpm exec playwright-core install --with-deps chromium
+      - name: pnpm check:hydration
+        shell: bash # -o pipefail: tee must not hide the exit code
+        run: pnpm check:hydration 2>&1 | tee hydration.log
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hydration-log
+          path: hydration.log
+          if-no-files-found: ignore
+
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      package-managers: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.package-managers == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        if: github.event_name != 'workflow_dispatch'
+        with:
+          filters: |
+            package-managers:
+              - 'packages/*/package.json'
+              - 'packages/*/src/index.ts'
+              - 'packages/*/tsdown.config.ts'
+              - 'packages/*/scripts/**'
+              - 'packages/vue/build.mjs'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'turbo.json'
+              - 'scripts/check-package-managers.sh'
+              - 'scripts/smoke-page.mjs'
+              - '.github/workflows/ci.yml'
+              - '.github/actions/setup-package-managers/**'
+
+  package-managers:
+    needs: changes
+    if: needs.changes.outputs.package-managers == 'true'
+    runs-on: ubuntu-24.04 # Playwright 1.59 has no Chromium for Ubuntu 26 (ubuntu-latest)
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      # Installing builds core/vue/react/nuxt (their `prepare` scripts): all the check packs.
+      - uses: ./.github/actions/setup-package-managers
+      - name: pnpm check:package-managers
+        shell: bash # -o pipefail: tee must not hide the exit code
+        run: pnpm check:package-managers 2>&1 | tee package-managers.log
+        env:
+          TMPDIR: ${{ runner.temp }}
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-managers-logs
+          path: |
+            package-managers.log
+            ${{ runner.temp }}/goop-pm.*/*/*.log
+          if-no-files-found: ignore
