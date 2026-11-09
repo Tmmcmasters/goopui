@@ -19,6 +19,8 @@
 #      is kept with its logs), KEEP=1 keeps them all, CHROMIUM_PATH (smoke browser),
 #      SHADCN / SHADCN_VUE (CLI specs, default shadcn@latest / shadcn-vue@latest),
 #      REGISTRY_PORT (3044), APP_PORT (3045).
+# On an exFAT TMPDIR, `nuxt generate` can fail with `ENOENT ... chmod .../._*` (AppleDouble
+# race); run the nuxt target with TMPDIR on an APFS / ext4 disk.
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -36,7 +38,10 @@ echo "work dir: $WORK"
 
 pids=()
 cleanup() {
-  for p in "${pids[@]}"; do kill "$p" 2>/dev/null; done
+  for p in "${pids[@]}"; do
+    kill "$p" 2>/dev/null
+    wait "$p" 2>/dev/null
+  done
   if [ "$KEEP" != 1 ] && [ -z "$(ls -A "$WORK/apps" 2>/dev/null)" ]; then rm -rf "$WORK"; fi
 }
 trap cleanup EXIT
