@@ -31,11 +31,13 @@ import { DrawerDemo } from './drawer'
 import { FormsTile, InputDemo, ProgressDemo, RadioGroupDemo, SliderDemo, ToggleDemo } from './forms'
 import { AlertDialogDemo, HoverCardDemo, PopoverDemo, SheetDemo, TooltipDemo } from './overlays'
 import { AccordionDemo, AlertDemo, BreadcrumbDemo, ButtonGroupDemo, EmptyDemo, KbdDemo, PaginationDemo, SimpleTile } from './batch-simple'
+import { ContextMenuDemo, DropdownMenuDemo, MenubarDemo, NavigationMenuDemo } from './menus'
 
 /** What a Vue demo hands its island. */
 export interface ReactDemoProps {
   /** Which demo: 'button' | 'switch' | 'checkbox' | 'tabs' | 'dialog' | 'static-set' |
-   *  'skeleton-reveal' | 'spinner' | 'tile' (an index tile; `set` is the slug) | 'drawer'. */
+   *  'skeleton-reveal' | 'spinner' | 'tile' (an index tile; `set` is the slug) | 'drawer' |
+   *  'dropdown-menu' | 'context-menu' | 'menubar' | 'navigation-menu'. */
   demo: string
   /** The demo's set (as on the Vue side). */
   set: string
@@ -114,6 +116,14 @@ export function ReactDemo(props: ReactDemoProps) {
         return <AccordionDemo set={props.set} pg={props.pg} />
       case 'tile-simple':
         return <SimpleTile slug={props.set} />
+      case 'dropdown-menu':
+        return <DropdownMenuDemo set={props.set} pg={props.pg} />
+      case 'context-menu':
+        return <ContextMenuDemo pg={props.pg} />
+      case 'menubar':
+        return <MenubarDemo pg={props.pg} />
+      case 'navigation-menu':
+        return <NavigationMenuDemo set={props.set} pg={props.pg} />
       default:
         return null
     }

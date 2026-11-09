@@ -212,3 +212,53 @@ describe('SSR (react-dom/server)', () => {
   })
 })
 
+
+describe('SSR: menus', () => {
+  it('dropdown, context menu, menubar and navigation menu render shadcn markup (panels are client-only)', async () => {
+    const m = await import('../src')
+    const html = await render(() =>
+      h(
+        'div',
+        null,
+        h(m.GoopDropdownMenu, null, h(m.GoopDropdownMenuTrigger, { asChild: true }, h(m.GoopButton, { variant: 'outline' }, 'Open')), h(m.GoopDropdownMenuContent, { wobble: false }, h(m.GoopDropdownMenuItem, null, 'Profile'))),
+        h(m.GoopContextMenu, null, h(m.GoopContextMenuTrigger, null, 'Right-click'), h(m.GoopContextMenuContent, null, h(m.GoopContextMenuItem, null, 'Back'))),
+        h(
+          m.GoopMenubar,
+          { wobble: false },
+          h(m.GoopMenubarMenu, null, h(m.GoopMenubarTrigger, null, 'File'), h(m.GoopMenubarContent, null, h(m.GoopMenubarItem, null, 'New Tab'))),
+        ),
+        h(
+          m.GoopNavigationMenu,
+          { speed: 2 },
+          h(
+            m.GoopNavigationMenuList,
+            null,
+            h(m.GoopNavigationMenuItem, null, h(m.GoopNavigationMenuTrigger, null, 'Getting started'), h(m.GoopNavigationMenuContent, null, h(m.GoopNavigationMenuLink, { href: '#' }, 'Intro'))),
+          ),
+        ),
+      ),
+    )
+    expect(html).toContain('data-slot="dropdown-menu-trigger"')
+    expect(html).toContain('aria-haspopup="menu"')
+    expect(html).toContain('data-slot="context-menu-trigger"')
+    expect(html).toContain('data-slot="menubar" data-goop-menubar=""')
+    expect(html).toContain('data-slot="menubar-trigger"')
+    expect(html).toContain('data-slot="navigation-menu"')
+    expect(html).toContain('data-viewport="true"')
+    expect(html).toContain('data-goop-nav-item=""')
+    expect(html).toContain('data-slot="navigation-menu-viewport-box"')
+    expect(html).not.toContain('data-goop="highlight"')
+    expect(html).not.toContain('wobble')
+    expect(html).not.toContain('speed')
+    expect(html).not.toContain('Profile')
+  })
+
+  it("'use client' on every menu module", async () => {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const client = (f: string) => /^\s*['"]use client['"]/.test(readFileSync(join(__dirname, '../src/components', f), 'utf8'))
+    for (const f of ['dropdown-menu/GoopDropdownMenu.tsx', 'dropdown-menu/menu-goo.tsx', 'context-menu/GoopContextMenu.tsx', 'menubar/GoopMenubar.tsx', 'navigation-menu/GoopNavigationMenu.tsx'])
+      expect(client(f), f).toBe(true)
+    for (const f of ['dropdown-menu/styles.ts', 'context-menu/styles.ts', 'menubar/styles.ts', 'navigation-menu/variants.ts']) expect(client(f), f).toBe(false)
+  })
+})

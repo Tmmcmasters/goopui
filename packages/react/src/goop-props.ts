@@ -706,8 +706,8 @@ import {
   type SelectPlopOptions,
 } from '@goopui/core'
 
-/** The emerge toggles a select list takes (@goopui/vue's EMERGE_EFFECT_KEYS). */
-const SELECT_EMERGE_EFFECTS = ['bridge', 'wobble', 'momentum', 'fade', 'openSlosh', 'openDrips', 'closeSlosh'] as const
+/** Emerge toggles shared by the select list and the menus (@goopui/vue's EMERGE_EFFECT_KEYS). */
+export const EMERGE_EFFECT_KEYS = ['bridge', 'wobble', 'momentum', 'fade', 'openSlosh', 'openDrips', 'closeSlosh'] as const
 
 /** Every GoopSelectContent engine prop. */
 export const SELECT_PROP_KEYS = [
@@ -716,7 +716,7 @@ export const SELECT_PROP_KEYS = [
   'flowStyle',
   'bloomStart',
   'bloomFrom',
-  ...SELECT_EMERGE_EFFECTS,
+  ...EMERGE_EFFECT_KEYS,
   ...EMERGE_DRIP_KEYS,
   ...SELECT_EFFECTS,
   'followPointer',
@@ -1610,4 +1610,475 @@ import {
   type KbdOptions,
   type PaginationEffect,
   type PaginationIndicatorOptions,
+} from '@goopui/core'
+
+// ---- GoopDropdownMenu -----------------------------------------------------------------------
+// The menu panel reuses core's emerge engine (the bloom by default) and adds core's
+// MENU_EFFECTS: the goo highlight blob, the select pop, and goo submenus. Every toggle is a
+// boolean; `undefined` (absent) means "inherit" (a submenu takes its parent menu's value), then
+// on. Same keys, defaults and rules as @goopui/vue.
+
+/** Every GoopDropdownMenuContent / SubContent engine prop. */
+export const MENU_PROP_KEYS = [
+  'goo',
+  'flow',
+  'flowStyle',
+  'bloomStart',
+  ...EMERGE_EFFECT_KEYS,
+  ...EMERGE_DRIP_KEYS,
+  ...MENU_EFFECTS,
+  'followPointer',
+  'surface',
+  'speed',
+  'preset',
+  'renderer',
+] as const
+
+/** Engine props of GoopDropdownMenuContent / GoopDropdownMenuSubContent. */
+export interface GoopMenuProps {
+  /** Master switch. `false` renders plain shadcn DropdownMenu parts. */
+  goo?: boolean
+  /** Flow out of the trigger (with `flowStyle="neck"`). Default true; submenus inherit it.
+   *  `false`: the menu inflates from a bulb at the trigger edge. */
+  flow?: boolean
+  /** How the flow opens: 'bloom' (default: the menu pools from its own center and spreads
+   *  out in every direction with a lobed edge, overshoots, then splashes all around, keeping
+   *  the drops off the trigger; close pulls in, wobbles and shrinks back to the center) or
+   *  'neck' (out of the trigger through a thick neck). Submenus inherit it. */
+  flowStyle?: EmergeFlowStyle
+  /** Bloom start: 'single' (default: one droplet swells) or 'merge' (a few drops fuse). */
+  bloomStart?: EmergeBloomStart
+  /** Bulb + lumpy neck between trigger (or submenu row) and panel (not used by bloom). */
+  bridge?: boolean
+  /** Jelly overshoot: panel wobble (bloom: the open overshoot and settle), highlight
+   *  overshoot and grow-in. */
+  wobble?: boolean
+  /** Momentum: the panel's launch (not used by bloom), and the highlight's stretch + neck
+   *  while it travels. */
+  momentum?: boolean
+  /** Content fades in once the goo settles. */
+  fade?: boolean
+  /** On open, every edge (bloom) overshoots, rebounds and wobbles. */
+  openSlosh?: boolean
+  /** On open, every edge splashes (drops kept off the trigger). */
+  openDrips?: boolean
+  /** Burst drop count scale (0..3, default 1). */
+  openDripAmount?: number
+  /** Burst drop size scale (0.3..2.5, default 1). */
+  openDripSize?: number
+  /** How far burst drops are flung (0..3, default 1). */
+  openDripFling?: number
+  /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
+  openDripVariety?: number
+  /** 0..1: how differently each side bulges on open and sloshes on close. Default 1. */
+  sloshVariety?: number
+  /** On close, the panel pulls in and wobbles before it shrinks to the center (bloom). */
+  closeSlosh?: boolean
+  /** Item highlight is a goo blob that slides between items (false: shadcn's flat bg). */
+  highlight?: boolean
+  /** Jelly squish of the highlight when an item is selected, before the menu closes. */
+  pop?: boolean
+  /** The highlight's swell (its neck while it slides, and a soft low mound as the pointer
+   *  moves along an item) follows the pointer with a little lag (false, or keyboard: centred). */
+  followPointer?: boolean
+  /** Submenus emerge from their row (false: plain shadcn submenus). */
+  submenus?: boolean
+  /** Panel color: 'trigger' (default: the trigger's background and text color, falling back
+   *  to the theme's primary when the trigger has none), 'popover' (shadcn's popover tokens),
+   *  or any CSS color. Submenus that leave it unset reuse their parent menu's resolved colors. */
+  surface?: EmergeSurfaceColor
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+/** Compile-time guards: every emerge / highlight option core grows must be handled here. */
+type MenuAdapterOwned = 'anchor' | 'side' | 'ready' | 'surface' | 'surfaceColor' | 'find' | 'feel' | 'reducedMotion' | 'detached' | 'bloomOrigin'
+type MenuUnhandled = Exclude<keyof EmergeOptions | keyof MenuHighlightOptions | MenuEffect, keyof GoopMenuProps | MenuAdapterOwned>
+const _allMenuOptionsHandled: [MenuUnhandled] extends [never] ? true : { unhandled: MenuUnhandled } = true
+void _allMenuOptionsHandled
+type MenuPropsListed = Exclude<keyof GoopMenuProps, (typeof MENU_PROP_KEYS)[number]>
+const _allMenuPropsListed: [MenuPropsListed] extends [never] ? true : { unlisted: MenuPropsListed } = true
+void _allMenuPropsListed
+
+/** Fully resolved menu settings (no undefined toggles). */
+export interface ResolvedMenuProps
+  extends Required<Omit<GoopMenuProps, 'preset' | 'renderer' | (typeof EMERGE_DRIP_KEYS)[number]>>,
+    Pick<GoopMenuProps, (typeof EMERGE_DRIP_KEYS)[number]> {
+  preset?: GoopPreset
+  renderer?: GoopRendererOption
+}
+
+const MENU_TOGGLES = ['goo', 'flow', ...EMERGE_EFFECT_KEYS, ...MENU_EFFECTS, 'followPointer'] as const
+
+/** Resolve menu props over a parent menu's resolved settings (submenus) or the defaults. */
+export function resolveMenuProps(props: GoopMenuProps, parent?: ResolvedMenuProps | null): ResolvedMenuProps {
+  const out = { speed: props.speed ?? parent?.speed ?? 1 } as ResolvedMenuProps
+  for (const k of MENU_TOGGLES) out[k] = props[k] ?? parent?.[k] ?? true
+  for (const k of EMERGE_DRIP_KEYS) {
+    const v = props[k] ?? parent?.[k]
+    if (v !== undefined) out[k] = v
+  }
+  out.flowStyle = props.flowStyle ?? parent?.flowStyle ?? 'bloom'
+  out.bloomStart = props.bloomStart ?? parent?.bloomStart ?? 'single'
+  out.surface = props.surface ?? parent?.surface ?? 'trigger'
+  out.preset = props.preset ?? parent?.preset
+  out.renderer = props.renderer ?? parent?.renderer
+  return out
+}
+
+/** Core options for the panel (emerge) and the highlight, over app config. */
+export function toMenuOptions(
+  menu: ResolvedMenuProps,
+  config: GoopOptions = {},
+): { emerge: EmergeOptions; highlight: MenuHighlightOptions | null } {
+  const common = {
+    speed: menu.speed,
+    preset: menu.preset ?? config.preset,
+    renderer: menu.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+  return {
+    emerge: {
+      ...common,
+      flow: menu.flow,
+      flowStyle: menu.flowStyle,
+      bloomStart: menu.bloomStart,
+      bridge: menu.bridge,
+      wobble: menu.wobble,
+      momentum: menu.momentum,
+      fade: menu.fade,
+      openSlosh: menu.openSlosh,
+      openDrips: menu.openDrips,
+      closeSlosh: menu.closeSlosh,
+      openDripAmount: menu.openDripAmount,
+      openDripSize: menu.openDripSize,
+      openDripFling: menu.openDripFling,
+      openDripVariety: menu.openDripVariety,
+      sloshVariety: menu.sloshVariety,
+      surfaceColor: menu.surface,
+    },
+    highlight: menu.goo && menu.highlight ? { ...common, wobble: menu.wobble, momentum: menu.momentum, pop: menu.pop, followPointer: menu.followPointer } : null,
+  }
+}
+
+// ---- GoopContextMenu ------------------------------------------------------------------------
+// The dropdown menu's goo with no trigger box: the root panel blooms detached from the
+// right-click point (`bloomFrom: 'pointer'`, core `attachContextPoint`), so `flow` /
+// `flowStyle` / `bridge` don't apply (always the bloom). Submenus bloom out of their parent
+// item. Surface defaults to 'popover'. `undefined` toggles inherit from the parent menu.
+
+/** Every GoopContextMenuContent / SubContent engine prop. */
+export const CONTEXT_MENU_PROP_KEYS = [
+  'goo',
+  'bloomStart',
+  'bloomFrom',
+  'wobble',
+  'momentum',
+  'fade',
+  'openSlosh',
+  'openDrips',
+  'closeSlosh',
+  ...EMERGE_DRIP_KEYS,
+  ...MENU_EFFECTS,
+  'followPointer',
+  'surface',
+  'speed',
+  'preset',
+  'renderer',
+] as const
+
+/** Engine props of GoopContextMenuContent / GoopContextMenuSubContent. Same meaning as
+ *  GoopDropdownMenuContent's, except as noted. */
+export interface GoopContextMenuProps extends Omit<GoopMenuProps, 'flow' | 'flowStyle' | 'bridge'> {
+  /** Where the bloom starts: 'pointer' (default: the right-click / long-press point; a
+   *  submenu: its parent item) or 'center' (the panel's own center). */
+  bloomFrom?: ContextMenuBloomFrom
+  /** Panel color: 'popover' (default: shadcn's popover tokens), 'trigger' (the trigger
+   *  area's colors) or any CSS color. Submenus that leave it unset reuse their parent's. */
+  surface?: EmergeSurfaceColor
+}
+
+type ContextMenuAdapterOwned = MenuAdapterOwned | 'flow' | 'flowStyle' | 'bridge'
+type ContextMenuUnhandled = Exclude<
+  keyof EmergeOptions | keyof MenuHighlightOptions | MenuEffect,
+  keyof GoopContextMenuProps | ContextMenuAdapterOwned
+>
+const _allContextMenuOptionsHandled: [ContextMenuUnhandled] extends [never] ? true : { unhandled: ContextMenuUnhandled } = true
+void _allContextMenuOptionsHandled
+type ContextMenuPropsListed = Exclude<keyof GoopContextMenuProps, (typeof CONTEXT_MENU_PROP_KEYS)[number]>
+const _allContextMenuPropsListed: [ContextMenuPropsListed] extends [never] ? true : { unlisted: ContextMenuPropsListed } = true
+void _allContextMenuPropsListed
+
+/** Fully resolved context-menu settings. */
+export interface ResolvedContextMenuProps extends ResolvedMenuProps {
+  bloomFrom: ContextMenuBloomFrom
+}
+
+/** Resolve context-menu props over a parent menu's (submenus) or the defaults. */
+export function resolveContextMenuProps(props: GoopContextMenuProps, parent?: ResolvedContextMenuProps | null): ResolvedContextMenuProps {
+  const surface = props.surface ?? parent?.surface ?? 'popover'
+  const m = resolveMenuProps({ ...props, flow: true, flowStyle: 'bloom', bridge: true, surface }, parent)
+  return { ...m, bloomFrom: props.bloomFrom ?? parent?.bloomFrom ?? 'pointer' }
+}
+
+/** Core options for a context-menu panel (emerge) and its highlight, over app config. */
+export function toContextMenuOptions(
+  menu: ResolvedContextMenuProps,
+  config: GoopOptions = {},
+): { emerge: EmergeOptions; highlight: MenuHighlightOptions | null } {
+  return toMenuOptions(menu, config)
+}
+
+// ---- GoopMenubar ----------------------------------------------------------------------------
+// The bar's trigger highlight is ONE goo body (core `attachMenubarHighlight`: the menu
+// highlight engine fed MENUBAR_FEEL, the tabs feel). Each menu is GoopDropdownMenuContent's
+// goo on Radix's Menubar parts. Menu props left unset inherit the bar's `goo`, `wobble`,
+// `momentum`, `speed`, `preset` and `renderer`; submenus inherit their parent menu's. Surface
+// defaults to 'popover'.
+
+/** Every GoopMenubar engine prop (the trigger highlight). */
+export const MENUBAR_PROP_KEYS = ['goo', ...MENUBAR_EFFECTS, 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopMenubar (the bar). */
+export interface GoopMenubarProps {
+  /** Master switch. `false` renders plain shadcn Menubar parts (menus too, unless they set
+   *  their own `goo`). */
+  goo?: boolean
+  /** The trigger highlight (hover, keyboard focus, open menu) is one goo body that flows
+   *  between triggers (false: shadcn's flat hover / open bg). */
+  highlight?: boolean
+  /** Jelly overshoot when the highlight lands (menus inherit it). */
+  wobble?: boolean
+  /** Momentum: the highlight stretches and necks to a trailing tail while it travels (menus
+   *  inherit it). */
+  momentum?: boolean
+  /** Animation speed multiplier (menus inherit it). */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful.
+   *  Menus inherit it. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory (menus inherit it). */
+  renderer?: GoopRendererOption
+}
+
+type MenubarAdapterOwned = 'feel' | 'reducedMotion'
+type MenubarUnhandled = Exclude<keyof MenubarHighlightOptions | MenubarEffect, keyof GoopMenubarProps | MenubarAdapterOwned>
+const _allMenubarOptionsHandled: [MenubarUnhandled] extends [never] ? true : { unhandled: MenubarUnhandled } = true
+void _allMenubarOptionsHandled
+type MenubarPropsListed = Exclude<keyof GoopMenubarProps, (typeof MENUBAR_PROP_KEYS)[number]>
+const _allMenubarPropsListed: [MenubarPropsListed] extends [never] ? true : { unlisted: MenubarPropsListed } = true
+void _allMenubarPropsListed
+
+/** Trigger highlight options for core over app config, or null when it is off. */
+export function toMenubarOptions(props: GoopMenubarProps, config: GoopOptions = {}): MenubarHighlightOptions | null {
+  if (props.goo === false || props.highlight === false) return null
+  return {
+    feel: MENUBAR_FEEL,
+    wobble: props.wobble !== false,
+    momentum: props.momentum !== false,
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+}
+
+/** Every GoopMenubarContent / SubContent engine prop (same as GoopDropdownMenuContent's). */
+export const MENUBAR_MENU_PROP_KEYS = MENU_PROP_KEYS
+
+/** Engine props of GoopMenubarContent / GoopMenubarSubContent. Same meaning as
+ *  GoopDropdownMenuContent's, except as noted. */
+export interface GoopMenubarMenuEngineProps extends Omit<GoopMenuProps, 'surface'> {
+  /** Menu color: 'popover' (default: shadcn's popover tokens), 'trigger' (the trigger's
+   *  colors) or any CSS color. Submenus that leave it unset reuse their parent's. */
+  surface?: EmergeSurfaceColor
+}
+
+/** Resolve a menubar menu's props over its parent menu's (submenus), else over the bar's
+ *  shared settings, then the defaults. */
+export function resolveMenubarMenuProps(props: GoopMenubarMenuEngineProps, parent?: ResolvedMenuProps | null, bar?: GoopMenubarProps | null): ResolvedMenuProps {
+  const base =
+    parent ??
+    resolveMenuProps({
+      goo: bar?.goo,
+      wobble: bar?.wobble,
+      momentum: bar?.momentum,
+      speed: bar?.speed,
+      preset: bar?.preset,
+      renderer: bar?.renderer,
+      surface: 'popover',
+    })
+  return resolveMenuProps(props, base)
+}
+
+/** Core options for a menubar menu (emerge) and its item highlight, over app config. */
+export function toMenubarMenuOptions(
+  menu: ResolvedMenuProps,
+  config: GoopOptions = {},
+): { emerge: EmergeOptions; highlight: MenuHighlightOptions | null } {
+  return toMenuOptions(menu, config)
+}
+
+// ---- GoopNavigationMenu ---------------------------------------------------------------------
+// Two engines, set on the root and shared by its parts: the top-level items' hover / focus /
+// open highlight is one goo blob (core `attachNavigationMenuHighlight`; the links inside a
+// panel get the same blob with the menu's feel), and the viewport is an emerge bloom out of
+// the active trigger whose box jelly-springs between triggers (core
+// `attachNavigationMenuViewport`). Toggles: core's NAVIGATION_MENU_EFFECTS plus the bloom's
+// emerge knobs; all default on (`openDrips` included).
+
+/** Every GoopNavigationMenu engine prop. */
+export const NAVIGATION_MENU_PROP_KEYS = [
+  'goo',
+  ...NAVIGATION_MENU_EFFECTS,
+  'fade',
+  'openSlosh',
+  'openDrips',
+  'closeSlosh',
+  ...EMERGE_DRIP_KEYS,
+  'surface',
+  'speed',
+  'preset',
+  'renderer',
+] as const
+
+/** Engine props of GoopNavigationMenu. Every toggle defaults on. */
+export interface GoopNavigationMenuProps {
+  /** Master switch. `false` renders a plain shadcn NavigationMenu. */
+  goo?: boolean
+  /** The top-level items' hover / open background is one goo blob that flows between them. */
+  highlight?: boolean
+  /** The links inside a panel get the same goo blob (false: shadcn's flat hover bg). */
+  contentHighlight?: boolean
+  /** The panel is a goo body that blooms out of its trigger and shrinks back into it (false:
+   *  shadcn's zoom; `jelly` then has nothing to move). */
+  bloom?: boolean
+  /** Moving to another trigger, the panel slides and resizes on a spring as one body (false:
+   *  it jumps to the new size, like shadcn). */
+  jelly?: boolean
+  /** Overshoot: the blob lands with a jelly bounce, the bloom overshoots, the panel wobbles as
+   *  it settles. */
+  wobble?: boolean
+  /** Momentum: the highlight stretches and necks to a trailing tail while it travels. */
+  momentum?: boolean
+  /** The panel's content fades in once the goo settles. */
+  fade?: boolean
+  /** Open: every edge of the panel bulges past rest, rebounds and wobbles. `true`, `false` or 0..2. */
+  openSlosh?: boolean | number
+  /** Open: a light splash of drops (kept off the menu bar). `true`, `false` or 0..2. */
+  openDrips?: boolean | number
+  /** Burst drop count scale (0..3, default 1). */
+  openDripAmount?: number
+  /** Burst drop size scale (0.3..2.5, default 1). */
+  openDripSize?: number
+  /** How far burst drops are flung (0..3, default 1). */
+  openDripFling?: number
+  /** 0..1 mix of big globs vs specks and unevenness (default 0.7; 0: all alike). */
+  openDripVariety?: number
+  /** 0..1: how differently each side bulges (re-rolled every open). Default 1. */
+  sloshVariety?: number
+  /** Close: the panel pulls in and wobbles before it shrinks back. `true`, `false` or 0..2. */
+  closeSlosh?: boolean | number
+  /** Panel color: 'popover' (default: shadcn's popover tokens), 'trigger' or a CSS color. */
+  surface?: EmergeSurfaceColor
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+type NavigationMenuAdapterOwned =
+  | 'anchor'
+  | 'side'
+  | 'ready'
+  | 'surface'
+  | 'surfaceColor'
+  | 'feel'
+  | 'jellyFeel'
+  | 'target'
+  | 'reducedMotion'
+  | 'detached'
+  | 'bloomOrigin'
+  | 'flow'
+  | 'flowStyle'
+  | 'bloomStart'
+  | 'bridge'
+type NavigationMenuUnhandled = Exclude<
+  keyof NavigationMenuViewportOptions | keyof NavigationMenuHighlightOptions | NavigationMenuEffect,
+  keyof GoopNavigationMenuProps | NavigationMenuAdapterOwned
+>
+const _allNavigationMenuOptionsHandled: [NavigationMenuUnhandled] extends [never] ? true : { unhandled: NavigationMenuUnhandled } = true
+void _allNavigationMenuOptionsHandled
+type NavigationMenuPropsListed = Exclude<keyof GoopNavigationMenuProps, (typeof NAVIGATION_MENU_PROP_KEYS)[number]>
+const _allNavigationMenuPropsListed: [NavigationMenuPropsListed] extends [never] ? true : { unlisted: NavigationMenuPropsListed } = true
+void _allNavigationMenuPropsListed
+
+/** Resolved navigation menu goo: what each part should do (null: that part is plain shadcn). */
+export interface ResolvedNavigationMenuGoo {
+  /** Top-level highlight options, or null. */
+  highlight: NavigationMenuHighlightOptions | null
+  /** Panel link highlight options, or null. */
+  contentHighlight: NavigationMenuHighlightOptions | null
+  /** Viewport (and `viewport={false}` panel) options, or null. */
+  viewport: NavigationMenuViewportOptions | null
+}
+
+/** Navigation menu goo from props, over app config (`preset`, `renderer`, `reducedMotion`). */
+export function toNavigationMenuOptions(props: GoopNavigationMenuProps, config: GoopOptions = {}): ResolvedNavigationMenuGoo {
+  const on = props.goo !== false
+  const common = {
+    wobble: props.wobble !== false,
+    momentum: props.momentum !== false,
+    speed: props.speed ?? 1,
+    preset: props.preset ?? config.preset,
+    renderer: props.renderer ?? config.renderer,
+    reducedMotion: config.reducedMotion,
+  }
+  return {
+    highlight: on && props.highlight !== false ? { ...common, feel: NAVIGATION_MENU_FEEL } : null,
+    contentHighlight: on && props.contentHighlight !== false ? { ...common, feel: NAVIGATION_MENU_CONTENT_FEEL } : null,
+    viewport:
+      on && props.bloom !== false
+        ? {
+            ...common,
+            flow: true,
+            flowStyle: 'bloom',
+            bloomStart: 'single',
+            bridge: true,
+            jelly: props.jelly !== false,
+            fade: props.fade !== false,
+            openSlosh: props.openSlosh ?? true,
+            openDrips: props.openDrips ?? true,
+            closeSlosh: props.closeSlosh ?? true,
+            openDripAmount: props.openDripAmount,
+            openDripSize: props.openDripSize,
+            openDripFling: props.openDripFling,
+            openDripVariety: props.openDripVariety,
+            sloshVariety: props.sloshVariety,
+            surfaceColor: props.surface ?? 'popover',
+          }
+        : null,
+  }
+}
+
+import {
+  MENU_EFFECTS,
+  MENUBAR_EFFECTS,
+  MENUBAR_FEEL,
+  NAVIGATION_MENU_CONTENT_FEEL,
+  NAVIGATION_MENU_EFFECTS,
+  NAVIGATION_MENU_FEEL,
+  type ContextMenuBloomFrom,
+  type MenubarEffect,
+  type MenubarHighlightOptions,
+  type MenuEffect,
+  type NavigationMenuEffect,
+  type NavigationMenuHighlightOptions,
+  type NavigationMenuViewportOptions,
 } from '@goopui/core'

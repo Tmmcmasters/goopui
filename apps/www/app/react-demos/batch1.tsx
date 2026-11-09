@@ -27,6 +27,7 @@ import {
 } from '@goopui/react'
 import { GoopInput } from '@goopui/react'
 import { useEffect, useRef, useState } from 'react'
+import { MenubarTile } from './menus'
 
 type Pg = Record<string, Record<string, unknown>>
 
@@ -355,6 +356,8 @@ function SkeletonRevealTile() {
 
 export function Tile({ slug }: { slug: string }) {
   switch (slug) {
+    case 'menubar':
+      return <MenubarTile />
     case 'button':
       return (
         <GoopButton size="sm" restingDrips={[0.3, 0.72]} interactive={false}>
