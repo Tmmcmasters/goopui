@@ -19,7 +19,7 @@ const picked = ref('INV002')
 
 <template>
   <ReactIsland v-if="isReact" demo="table" :set="props.set" :pg="{ main: pg.props }" />
-  <GoopTable v-else-if="props.set === 'basic'" class="w-full max-w-xl" v-bind="pg.props">
+  <GoopTable v-else-if="props.set === 'basic'" class="mx-auto w-full max-w-xl" v-bind="pg.props">
     <GoopTableCaption>A list of your recent invoices.</GoopTableCaption>
     <GoopTableHeader>
       <GoopTableRow>
@@ -44,7 +44,7 @@ const picked = ref('INV002')
       </GoopTableRow>
     </GoopTableFooter>
   </GoopTable>
-  <GoopTable v-else class="w-full max-w-xl" selected>
+  <GoopTable v-else class="mx-auto w-full max-w-xl" selected>
     <GoopTableHeader>
       <GoopTableRow>
         <GoopTableHead class="w-[100px]">Invoice</GoopTableHead>

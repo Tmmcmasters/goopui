@@ -130,14 +130,14 @@ const { isReact } = useFramework()
         <GoopEmptyTitle class="text-[11px]">No projects</GoopEmptyTitle>
       </GoopEmptyHeader>
     </GoopEmpty>
-    <GoopTable v-else-if="slug === 'table'" class="w-36 text-[10px]">
+    <div v-else-if="slug === 'table'" class="w-36"><GoopTable class="text-[10px]">
       <GoopTableBody>
         <GoopTableRow v-for="(id, i) in ['INV001', 'INV002', 'INV003']" :key="id" :data-state="i === 1 ? 'selected' : undefined">
           <GoopTableCell class="px-1.5 py-1 font-medium">{{ id }}</GoopTableCell>
           <GoopTableCell class="px-1.5 py-1 text-right">${{ (i + 2) * 50 }}</GoopTableCell>
         </GoopTableRow>
       </GoopTableBody>
-    </GoopTable>
+    </GoopTable></div>
     <GoopItem v-else-if="slug === 'item'" variant="outline" size="xs" class="w-36">
       <GoopItemMedia variant="icon"><SiteIcon name="circleCheck" :size="12" /></GoopItemMedia>
       <GoopItemContent>

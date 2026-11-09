@@ -76,7 +76,7 @@ export function TableDemo({ set, pg }: { set: string; pg: Pg }) {
   const [picked, setPicked] = useState('INV002')
   if (set === 'selected')
     return (
-      <GoopTable className="w-full max-w-xl" selected>
+      <GoopTable className="mx-auto w-full max-w-xl" selected>
         <GoopTableHeader>
           <GoopTableRow>
             <GoopTableHead className="w-[100px]">Invoice</GoopTableHead>
@@ -101,7 +101,7 @@ export function TableDemo({ set, pg }: { set: string; pg: Pg }) {
       </GoopTable>
     )
   return (
-    <GoopTable className="w-full max-w-xl" {...pg.main}>
+    <GoopTable className="mx-auto w-full max-w-xl" {...pg.main}>
       <GoopTableCaption>A list of your recent invoices.</GoopTableCaption>
       <GoopTableHeader>
         <GoopTableRow>
@@ -239,7 +239,7 @@ export function DisplayTile({ slug }: { slug: string }) {
   switch (slug) {
     case 'table':
       return (
-        <GoopTable className="w-36 text-[10px]">
+        <div className="w-36"><GoopTable className="text-[10px]">
           <GoopTableBody>
             {['INV001', 'INV002', 'INV003'].map((id, i) => (
               <GoopTableRow key={id} data-state={i === 1 ? 'selected' : undefined}>
@@ -248,7 +248,7 @@ export function DisplayTile({ slug }: { slug: string }) {
               </GoopTableRow>
             ))}
           </GoopTableBody>
-        </GoopTable>
+        </GoopTable></div>
       )
     case 'item':
       return (
