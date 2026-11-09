@@ -513,6 +513,17 @@ async function runAxe(page, axe) {
     else if (await trigger.count()) opened = !!(await trigger.click({ timeout: 1500 }).then(() => true, () => false))
     if (opened) {
       await sleep(800)
+      // Let the open finish (a slow CI runner may still be fading the content in, and axe would
+      // measure the half-faded text): every emerging panel's content fully opaque.
+      await page
+        .waitForFunction(
+          () =>
+            [...document.querySelectorAll('[data-goop-emerge] > :not([data-goop])')].every((el) => getComputedStyle(el).opacity === '1'),
+          null,
+          { timeout: 5000, polling: 100 },
+        )
+        .catch(() => {})
+      await sleep(200)
       if ((await page.evaluate(OPEN_OVERLAYS)).length) await axeRun(page, 'dark, demo open', axe, AXE_DISABLED_OPEN)
       await page.keyboard.press('Escape').catch(() => {})
       await quiesce(page)
