@@ -20,6 +20,7 @@ import {
   createContext,
   forwardRef,
   useContext,
+  useId,
   useRef,
   type ComponentPropsWithoutRef,
   type HTMLAttributes,
@@ -46,9 +47,11 @@ interface PopoverState {
   trigger: MutableRefObject<HTMLElement | null>
   /** A GoopPopoverAnchor, if any: the goo emerges from it instead of the trigger. */
   anchor: MutableRefObject<HTMLElement | null>
+  /** The trigger's default id (the content is labelled by the trigger, as in reka-ui). */
+  triggerId: string | undefined
 }
 const PopoverContext = createContext<PopoverState | null>(null)
-const FALLBACK: PopoverState = { open: false, trigger: { current: null }, anchor: { current: null } }
+const FALLBACK: PopoverState = { open: false, trigger: { current: null }, anchor: { current: null }, triggerId: undefined }
 const usePopoverState = (): PopoverState => useContext(PopoverContext) ?? FALLBACK
 
 export type GoopPopoverRootProps = ComponentPropsWithoutRef<typeof PopoverPrimitive.Root> & GoopSoundProps
@@ -58,9 +61,10 @@ export function GoopPopover({ open: openProp, defaultOpen, onOpenChange, sound, 
   const [open, onChange] = useOpenState(openProp, defaultOpen, onOpenChange)
   const trigger = useRef<HTMLElement | null>(null)
   const anchor = useRef<HTMLElement | null>(null)
+  const triggerId = useId()
   useGoopSound(sound)
   return (
-    <PopoverContext.Provider value={{ open, trigger, anchor }}>
+    <PopoverContext.Provider value={{ open, trigger, anchor, triggerId }}>
       <GoopSoundScope sound={sound}>
         <PopoverPrimitive.Root data-slot="popover" open={open} onOpenChange={onChange} {...props} />
       </GoopSoundScope>
@@ -75,12 +79,12 @@ export type GoopPopoverTriggerProps = ComponentPropsWithoutRef<typeof PopoverPri
 /** shadcn's PopoverTrigger. The goo takes its color from this element (`surface="trigger"`)
  *  unless a GoopPopoverAnchor is present. */
 export const GoopPopoverTrigger = forwardRef<HTMLButtonElement, GoopPopoverTriggerProps>(function GoopPopoverTrigger(props, ref) {
-  const { open, trigger } = usePopoverState()
+  const { open, trigger, triggerId } = usePopoverState()
   const composed = useComposedRefs<HTMLButtonElement>(ref, trigger as MutableRefObject<HTMLButtonElement | null>)
   const cue = useGoopCue('popoverTrigger', { open })
   return (
     <GoopCueClaim>
-      <PopoverPrimitive.Trigger ref={composed} data-slot="popover-trigger" {...cue} {...props} />
+      <PopoverPrimitive.Trigger ref={composed} data-slot="popover-trigger" id={triggerId} {...cue} {...props} />
     </GoopCueClaim>
   )
 })
@@ -110,6 +114,10 @@ export const GoopPopoverContent = forwardRef<HTMLDivElement, GoopPopoverContentP
   const goo = engine.goo !== false
 
   const { open, trigger, anchor } = usePopoverState()
+  // Radix's role="dialog" has no name unless a title is used; like reka-ui, name it by the
+  // trigger (unless the content is labelled).
+  const named = rest['aria-label'] !== undefined || rest['aria-labelledby'] !== undefined
+  const labelledBy = named ? undefined : trigger.current?.id || undefined
   const config = useGoopConfig()
   const options = useStableValue(toPopoverOptions(engine, config))
   const create = useRef((host: HTMLElement, el: HTMLElement, o: EmergeOptions): EmergeHandle =>
@@ -124,6 +132,7 @@ export const GoopPopoverContent = forwardRef<HTMLDivElement, GoopPopoverContentP
         align={align}
         sideOffset={sideOffset}
         className={cn(goo ? POPOVER_CONTENT_GOO : POPOVER_CONTENT_SHADCN, className)}
+        {...(labelledBy ? { 'aria-labelledby': labelledBy } : null)}
         {...rest}
       >
         {goo ? <BloomSurface options={options} open={open} create={create} handleRef={goopRef} /> : null}

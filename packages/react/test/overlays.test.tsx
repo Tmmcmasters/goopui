@@ -83,6 +83,13 @@ describe('GoopPopover', () => {
       ),
     )
 
+  it('the dialog is named by its trigger (as in reka-ui) unless labelled', () => {
+    render(Demo())
+    const trigger = screen.getByRole('button', { name: 'Open popover' })
+    act(() => fireEvent.click(trigger))
+    expect(screen.getByRole('dialog', { name: 'Open popover' })).toBeTruthy()
+  })
+
   it('blooms the panel on an aria-hidden surface, not on the trigger; close holds it', () => {
     render(Demo({ speed: 2, openDrips: 0.5 }))
     const trigger = screen.getByRole('button', { name: 'Open popover' })

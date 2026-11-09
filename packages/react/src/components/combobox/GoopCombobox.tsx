@@ -523,6 +523,10 @@ export const GoopComboboxList = forwardRef<HTMLDivElement, GoopComboboxListProps
       <PopoverPrimitive.Content
         ref={ref}
         data-slot="combobox-list"
+        // Not a dialog: focus stays in the input and the popup is cmdk's listbox inside (the
+        // input's aria-controls), as in reka-ui's Vue combobox. Radix would add an unnamed
+        // role="dialog" around it.
+        role={undefined}
         side={side}
         align={align}
         sideOffset={sideOffset}
