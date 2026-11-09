@@ -1,57 +1,80 @@
 # Releasing
 
-Published packages: `@goopui/core`, `@goopui/vue`, `@goopui/nuxt`. They are versioned together (Changesets `fixed` group). `@goopui/react` and `@goopui/svelte` stay `private` and are in the Changesets `ignore` list until they're ready.
+Published packages: `@goopui/core`, `@goopui/vue`, `@goopui/react`, `@goopui/nuxt`. They are versioned together (Changesets `fixed` group `@goopui/*`). `@goopui/svelte` stays `private` and is in the Changesets `ignore` list until it's ready.
+
+`0.1.0-alpha.0` of core, vue and nuxt is on npm (`latest`). `@goopui/react` is first published with `0.1.0-alpha.1`.
 
 The repo is in Changesets **pre mode** (`.changeset/pre.json`, tag `alpha`), so `changeset version` produces `0.1.0-alpha.N` versions.
 
-## First publish: 0.1.0-alpha.0 on `latest`
+## Publish order
 
-The versions are already bumped to `0.1.0-alpha.0` (changelogs written). Run from the repo root on an up-to-date `main` with a clean tree:
+Dependencies go first, so a package never points at a version that isn't on npm yet:
+
+1. `@goopui/core` (no internal deps)
+2. `@goopui/vue` (core)
+3. `@goopui/react` (core)
+4. `@goopui/nuxt` (core, vue)
+
+`pnpm publish -r` sorts them the same way (topologically) and skips private packages.
+
+## Cutting a version
 
 ```sh
-# 1. Log in (once per machine). Check the account owns or can create the @goopui scope.
-npm login
-npm whoami
+pnpm changeset                 # describe the change (pick any @goopui/* package; they bump together)
+pnpm changeset version         # -> 0.1.0-alpha.N for all four, updates changelogs
+pnpm install                   # refresh the lockfile
+git commit -am "chore: release 0.1.0-alpha.N" && git push
+```
 
-# 2. Fresh build, checks, and a dry run. On an exFAT drive, clear AppleDouble files first
+## Publishing (browser 2FA)
+
+The npm account uses **browser 2FA** (no OTP codes), so `pnpm publish` / `npm publish` can't finish from a non-interactive shell (an agent, or a script). The flow: pack the tarballs (pnpm rewrites `workspace:*` to real versions while packing), check them, then the owner publishes each tarball from their own terminal.
+
+Run from the repo root on an up-to-date `main` with a clean tree, after the version commit:
+
+```sh
+# 1. Fresh build and checks. On an exFAT drive, clear AppleDouble files first
 #    (the `files` field also excludes them from the tarballs).
 pnpm install
 pnpm clean:dot
-pnpm turbo run build typecheck test --filter=./packages/core --filter=./packages/vue --filter=./packages/nuxt
-pnpm publish -r --filter "./packages/*" --access public --tag latest --dry-run
-pnpm check:package-managers   # installs + builds a test app with npm, pnpm, yarn 1, yarn 4, bun
+pnpm build --concurrency=1
+pnpm typecheck
+pnpm turbo run test --filter=./packages/core --filter=./packages/vue --filter=./packages/react --filter=./packages/nuxt
+pnpm check:package-managers   # npm, pnpm, yarn 1, yarn 4, bun x Vite Vue, Vite React, Next.js 16
 
-# 3. Publish. pnpm rewrites `workspace:*` to 0.1.0-alpha.0 and skips private packages.
-#    With npm 2FA on, add --otp=<code>.
-pnpm publish -r --filter "./packages/*" --access public --tag latest
+# 2. Pack each package into a scratch dir and inspect the tarballs.
+OUT="$(mktemp -d)"
+for p in core vue react nuxt; do (cd packages/$p && pnpm pack --pack-destination "$OUT"); done
+ls "$OUT"
+for t in "$OUT"/*.tgz; do tar -xOzf "$t" package/package.json | grep -n workspace: && echo "BAD: $t"; done
+for t in "$OUT"/*.tgz; do tar tzf "$t" | grep -E '(^|/)\._|\.map$' && echo "BAD: $t"; done
 
-# 4. Verify
-npm view @goopui/core dist-tags
-npm view @goopui/vue dist-tags
-npm view @goopui/nuxt dist-tags
-npm view @goopui/nuxt@0.1.0-alpha.0 dependencies   # real versions, no workspace:*
+# 3. The owner publishes, in this order, from their own terminal (each opens a browser
+#    window). Check the login first: it expires.
+npm whoami
+npm publish "$OUT"/goopui-core-<ver>.tgz  --access public --tag latest --auth-type=web
+npm publish "$OUT"/goopui-vue-<ver>.tgz   --access public --tag latest --auth-type=web
+npm publish "$OUT"/goopui-react-<ver>.tgz --access public --tag latest --auth-type=web
+npm publish "$OUT"/goopui-nuxt-<ver>.tgz  --access public --tag latest --auth-type=web
+
+# 4. Verify (a package that has never been published can 404 for a few minutes)
+for p in core vue react nuxt; do npm view @goopui/$p dist-tags; done
+npm view @goopui/react@<ver> dependencies      # real versions, no workspace:*
+npm view @goopui/nuxt@<ver> dependencies
 
 # 5. Tag and push (Changesets tag format)
-git tag @goopui/core@0.1.0-alpha.0
-git tag @goopui/vue@0.1.0-alpha.0
-git tag @goopui/nuxt@0.1.0-alpha.0
+for p in core vue react nuxt; do git tag @goopui/$p@<ver>; done
 git push origin main --tags
 ```
 
-Why not `pnpm changeset publish`? In pre mode it publishes a never-published package under the `alpha` dist-tag. That works too, followed by `npm dist-tag add @goopui/<pkg>@0.1.0-alpha.0 latest` for each package, but publishing with `--tag latest` directly is one step.
+Use `--tag alpha` instead of `--tag latest` to keep `latest` on an older build.
 
-Smoke test after publishing: `npx nuxi init goop-test`, add Tailwind v4, `npx nuxi module add @goopui/nuxt`, render `<GoopButton>`.
+Why not `pnpm changeset publish`? It needs a non-interactive login, and in pre mode it publishes a never-published package (React in `0.1.0-alpha.1`) under the `alpha` dist-tag, which then needs `npm dist-tag add @goopui/<pkg>@<ver> latest`.
 
-## Later alphas
+Smoke tests after publishing:
 
-```sh
-pnpm changeset                 # describe the change (pick core/vue/nuxt; they bump together)
-pnpm changeset version         # -> 0.1.0-alpha.1, updates changelogs
-pnpm install                   # refresh the lockfile
-git commit -am "chore: release 0.1.0-alpha.1" && git push
-```
-
-Then publish locally as above (with `--tag latest`, or `--tag alpha` to keep `latest` on an older build), or run the **Release** GitHub Actions workflow.
+- Nuxt: `npx nuxi init goop-test`, add Tailwind v4, `npx nuxi module add @goopui/nuxt`, render `<GoopButton>`.
+- React: `npx create-next-app@latest goop-next` (Tailwind on), `npm install @goopui/react`, add `@import "@goopui/react/goop.css";` after `@import "tailwindcss";` in `app/globals.css`, render `<GoopButton>` from `app/page.tsx`.
 
 ## Leaving alpha
 
@@ -62,6 +85,6 @@ pnpm changeset version         # -> 0.1.0
 
 ## GitHub Actions
 
-`.github/workflows/release.yml` runs on manual dispatch only (Actions -> Release -> Run workflow). It installs, builds, typechecks, tests and runs `pnpm publish -r` for the public packages with npm provenance. Inputs: `tag` (dist-tag, default `latest`) and `dry_run` (default `true`).
+`.github/workflows/release.yml` runs on manual dispatch only (Actions -> Release -> Run workflow). It installs, builds, typechecks, tests and runs `pnpm publish -r` for the public packages (core, vue, react, nuxt, in dependency order) with npm provenance. Inputs: `tag` (dist-tag, default `latest`) and `dry_run` (default `true`).
 
-Setup: create an npm **automation** (or granular, publish-enabled for `@goopui/*`) token and save it as the `NPM_TOKEN` repository secret. The workflow publishes whatever versions are committed, so run `changeset version` and push first.
+Setup: create an npm **automation** (or granular, publish-enabled for `@goopui/*`) token and save it as the `NPM_TOKEN` repository secret. A token skips the browser 2FA, so this is the only way to publish without the owner at a terminal. The workflow publishes whatever versions are committed, so run `changeset version` and push first.
