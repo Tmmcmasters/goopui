@@ -27,6 +27,10 @@ const { errors, writtenFiles } = await mkdist({
   format: 'esm',
   ext: 'mjs',
   declaration: true,
+  // Explicit '.js' / '/index.js' on relative imports in the .d.ts files: without them an app
+  // on `moduleResolution: node16/nodenext` can't follow `export * from './components/button'`
+  // and gets no types (attw: InternalResolutionError).
+  addRelativeDeclarationExtensions: true,
   typescript: { compilerOptions },
 })
 

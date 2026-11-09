@@ -6,6 +6,9 @@ name: CI
 #                    Vue and React at desktop + phone width, and runs axe-core on each page).
 # package-managers:  `pnpm check:package-managers` (npm/pnpm/yarn1/yarn4/bun x Vue/React/Next),
 #                    only when the published surface may have changed, or on manual dispatch.
+# registry:          `pnpm check:registry` (shadcn / shadcn-vue CLI installs every registry item
+#                    into fresh Next.js, Vite Vue and Nuxt apps, builds and smoke-tests them),
+#                    only when components, the generator or the registry check change.
 on:
   push:
     branches: [main, site-v1, preview]
@@ -104,6 +107,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       package-managers: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.package-managers == 'true' }}
+      registry: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.registry == 'true' }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -124,6 +128,19 @@ jobs:
               - 'scripts/smoke-page.mjs'
               - '.github/workflows/ci.yml'
               - '.github/actions/setup-package-managers/**'
+            registry:
+              - 'packages/core/src/**'
+              - 'packages/core/package.json'
+              - 'packages/react/src/**'
+              - 'packages/react/package.json'
+              - 'packages/vue/src/**'
+              - 'packages/vue/package.json'
+              - 'scripts/build-registry.mjs'
+              - 'scripts/check-registry.sh'
+              - 'scripts/registry-fixtures/**'
+              - 'scripts/serve-static.mjs'
+              - 'scripts/smoke-page.mjs'
+              - '.github/workflows/ci.yml'
 
   package-managers:
     needs: changes
@@ -146,4 +163,39 @@ jobs:
           path: |
             package-managers.log
             ${{ runner.temp }}/goop-pm.*/*/*.log
+          if-no-files-found: ignore
+
+  registry:
+    needs: changes
+    if: needs.changes.outputs.registry == 'true'
+    runs-on: ubuntu-24.04 # Playwright 1.59 has no Chromium for Ubuntu 26 (ubuntu-latest)
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      # Also builds @goopui/core (its `prepare` script), which the check packs.
+      - run: pnpm install --frozen-lockfile
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - run: pnpm exec playwright-core install --with-deps chromium
+      - name: pnpm check:registry
+        shell: bash # -o pipefail: tee must not hide the exit code
+        run: pnpm check:registry 2>&1 | tee registry.log
+        env:
+          TMPDIR: ${{ runner.temp }}
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: registry-logs
+          path: |
+            registry.log
+            ${{ runner.temp }}/goop-registry.*/apps/*.log
+            ${{ runner.temp }}/goop-registry.*/apps/*/*.log
           if-no-files-found: ignore

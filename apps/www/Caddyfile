@@ -19,6 +19,12 @@
 	@builds path /_nuxt/builds/*
 	header @builds Cache-Control "no-cache"
 
+	# The shadcn registries (/r/react/*.json, /r/vue/*.json, built by modules/goop-registry.ts).
+	# file_server already sends application/json and @fresh revalidates them; the CLIs run in
+	# Node and need nothing else, but browser tools (registry directories, v0) fetch them too.
+	@registry path /r/*
+	header @registry Access-Control-Allow-Origin "*"
+
 	# Pages are prerendered for their slash-less URL (/docs/components/sheet) but stored as
 	# sheet/index.html. Plain file_server 308s /sheet to /sheet/, and the client router then
 	# hydrates /sheet/, a different route than the HTML was rendered for (every active NuxtLink
