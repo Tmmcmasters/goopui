@@ -254,7 +254,7 @@ describe('GoopCombobox', () => {
     expect(list.querySelector(':scope > [data-goop="surface"]')).not.toBeNull()
     expect(emerge.current).not.toBeNull()
     expect(list.querySelector('[cmdk-list-sizer] > [data-goop="highlight"]')).not.toBeNull()
-    const ms = vi.spyOn(hl.current!, 'pop').mockReturnValue(30)
+    const ms = vi.spyOn(hl.current!, 'pop').mockReturnValue(300) // long enough for slow CI runners to assert before the close
     await act(async () => {
       fireEvent.click(screen.getByText('Next.js'))
     })
@@ -263,7 +263,7 @@ describe('GoopCombobox', () => {
     // The value is set at once (its check mark shows), the list closes once the pop has played.
     expect(screen.getByText('Next.js').closest('[cmdk-item]')!.querySelector('[data-slot="combobox-item-indicator"]')).not.toBeNull()
     expect((screen.getByPlaceholderText('Select framework...') as HTMLInputElement).value).toBe('Next.js')
-    await act(async () => new Promise((r) => setTimeout(r, 60)))
+    await act(async () => new Promise((r) => setTimeout(r, 400)))
     expect(document.querySelector('[data-slot="combobox-list"][data-state="open"]')).toBeNull()
   })
 

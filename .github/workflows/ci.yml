@@ -58,6 +58,7 @@ jobs:
       # No CHROMIUM_PATH: the scripts fall back to playwright-core's own download.
       - run: pnpm exec playwright-core install --with-deps chromium
       - name: pnpm check:hydration
+        shell: bash # -o pipefail: tee must not hide the exit code
         run: pnpm check:hydration 2>&1 | tee hydration.log
       - if: failure()
         uses: actions/upload-artifact@v4
@@ -101,6 +102,7 @@ jobs:
       # Installing builds core/vue/react/nuxt (their `prepare` scripts): all the check packs.
       - uses: ./.github/actions/setup-package-managers
       - name: pnpm check:package-managers
+        shell: bash # -o pipefail: tee must not hide the exit code
         run: pnpm check:package-managers 2>&1 | tee package-managers.log
         env:
           TMPDIR: ${{ runner.temp }}
