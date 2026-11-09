@@ -6,6 +6,8 @@ import { navigationMenuTriggerStyle } from '@goopui/vue'
 withDefaults(defineProps<{ set?: 'basic' | 'inline' }>(), { set: 'basic' })
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react menus (react-demos/menus.tsx).
+const { isReact } = useFramework()
 
 const started = [
   { title: 'Introduction', body: 'Components that drip, built on reka-ui and Tailwind.' },
@@ -22,7 +24,8 @@ const panel = 'grid gap-1 p-1 w-[min(17rem,calc(100vw-5rem))] sm:w-80'
 </script>
 
 <template>
-  <div class="flex w-full justify-start pb-72 sm:justify-center">
+  <ReactIsland v-if="isReact" demo="navigation-menu" :set="set" :pg="{ main: pg.props }" />
+  <div v-else class="flex w-full justify-start pb-72 sm:justify-center">
     <GoopNavigationMenu v-bind="pg.props" :viewport="set !== 'inline'">
       <GoopNavigationMenuList class="m-0 p-0">
         <GoopNavigationMenuItem class="m-0 p-0">

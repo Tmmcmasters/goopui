@@ -17,6 +17,10 @@ export * from './components/avatar'
 export * from './components/separator'
 export * from './components/label'
 export * from './components/spinner'
+export * from './components/dropdown-menu'
+export * from './components/context-menu'
+export * from './components/menubar'
+export * from './components/navigation-menu'
 export { GoopConfigContext, GoopProvider, useGoopConfig, type GoopConfig, type GoopProviderProps } from './config'
 export { GoopCueClaim, GoopSoundContext, GoopSoundScope, useGoopCue, useGoopSound } from './sound'
 export {
@@ -76,8 +80,33 @@ export {
   type GoopSwitchEngineProps,
   type GoopTabsProps,
 } from './goop-props'
+export {
+  CONTEXT_MENU_PROP_KEYS,
+  EMERGE_EFFECT_KEYS,
+  MENU_PROP_KEYS,
+  MENUBAR_MENU_PROP_KEYS,
+  MENUBAR_PROP_KEYS,
+  NAVIGATION_MENU_PROP_KEYS,
+  resolveContextMenuProps,
+  resolveMenubarMenuProps,
+  resolveMenuProps,
+  toContextMenuOptions,
+  toMenubarMenuOptions,
+  toMenubarOptions,
+  toMenuOptions,
+  toNavigationMenuOptions,
+  type GoopContextMenuProps,
+  type GoopMenubarMenuEngineProps,
+  type GoopMenubarProps,
+  type GoopMenuProps,
+  type GoopNavigationMenuProps,
+  type ResolvedContextMenuProps,
+  type ResolvedMenuProps,
+  type ResolvedNavigationMenuGoo,
+} from './goop-props'
 export { goopComponents, type GoopComponentName } from './manifest'
 export { seedFrom, useAttached, useGoop, type UseGoopReturn } from './use-goop'
 export { cn } from 'cn'
 // Engine types used in props and refs.
+export type { NavigationMenuViewportHandle } from '@goopui/core'
 export type { BackdropHandle, CardHandle, CheckboxHandle, CheckboxState, EmergeHandle, GoopHandle, GoopOptions, GoopPreset, MenuHighlightHandle, SkeletonRevealHandle, SpinnerHandle, SpinnerVariant, SwitchHandle } from '@goopui/core'

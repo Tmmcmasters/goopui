@@ -7,10 +7,13 @@ const panel = ref(false)
 const position = ref('bottom')
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react menus (react-demos/menus.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <div class="flex flex-wrap items-start justify-center gap-4 pb-36">
+  <ReactIsland v-if="isReact" demo="dropdown-menu" :set="set" :pg="{ content: pg.part('content') }" />
+  <div v-else class="flex flex-wrap items-start justify-center gap-4 pb-36">
   <GoopDropdownMenu v-if="set === 'basic'">
     <GoopDropdownMenuTrigger as-child>
       <GoopButton variant="outline">Open menu</GoopButton>

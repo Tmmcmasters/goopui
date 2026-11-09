@@ -90,3 +90,40 @@ describe('hydration', () => {
   })
 })
 
+
+describe('hydration: menus', () => {
+  it('hydrates the menus without mismatch, then the bar and list blobs and the viewport goo attach', async () => {
+    const m = await import('../src')
+    const App = () =>
+      h(
+        m.GoopProvider,
+        { preset: 'playful', sound: true },
+        h(m.GoopDropdownMenu, null, h(m.GoopDropdownMenuTrigger, { asChild: true }, h(m.GoopButton, { variant: 'outline' }, 'Open')), h(m.GoopDropdownMenuContent, null, h(m.GoopDropdownMenuItem, null, 'Profile'))),
+        h(m.GoopContextMenu, null, h(m.GoopContextMenuTrigger, null, 'Right-click'), h(m.GoopContextMenuContent, null, h(m.GoopContextMenuItem, null, 'Back'))),
+        h(
+          m.GoopMenubar,
+          null,
+          h(m.GoopMenubarMenu, null, h(m.GoopMenubarTrigger, null, 'File'), h(m.GoopMenubarContent, null, h(m.GoopMenubarItem, null, 'New Tab'))),
+          h(m.GoopMenubarMenu, null, h(m.GoopMenubarTrigger, null, 'Edit'), h(m.GoopMenubarContent, null, h(m.GoopMenubarItem, null, 'Undo'))),
+        ),
+        h(
+          m.GoopNavigationMenu,
+          null,
+          h(
+            m.GoopNavigationMenuList,
+            null,
+            h(m.GoopNavigationMenuItem, null, h(m.GoopNavigationMenuTrigger, null, 'Getting started'), h(m.GoopNavigationMenuContent, null, h(m.GoopNavigationMenuLink, { href: '#' }, 'Intro'))),
+            h(m.GoopNavigationMenuItem, null, h(m.GoopNavigationMenuLink, { href: '#d' }, 'Docs')),
+          ),
+        ),
+      )
+    const { root, r, messages, recoverable } = await hydrate(App)
+    expect(messages.filter((msg) => /hydrat|mismatch|did not match/i.test(msg))).toEqual([])
+    expect(recoverable).toEqual([])
+    expect(root.querySelector('[data-slot="menubar"] > [data-goop="highlight"]')).not.toBeNull()
+    expect(root.querySelector('[data-slot="navigation-menu-list"]')!.parentElement!.querySelector(':scope > [data-goop="highlight"]')).not.toBeNull()
+    expect(root.querySelector('[data-slot="navigation-menu-viewport-box"]')!.hasAttribute('data-goop-emerge')).toBe(true)
+    await act(async () => r.unmount())
+    expect(document.querySelector('[data-goop]')).toBeNull()
+  })
+})

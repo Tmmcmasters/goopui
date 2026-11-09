@@ -6,10 +6,13 @@ const urls = ref(false)
 const person = ref('pedro')
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react menus (react-demos/menus.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <GoopContextMenu>
+  <ReactIsland v-if="isReact" demo="context-menu" :pg="{ content: pg.part('content') }" />
+  <GoopContextMenu v-else>
     <GoopContextMenuTrigger class="flex h-44 w-full max-w-sm select-none items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
       Right-click here (or long-press)
     </GoopContextMenuTrigger>

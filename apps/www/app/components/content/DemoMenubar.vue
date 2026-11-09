@@ -6,10 +6,13 @@ const urls = ref(true)
 const person = ref('benoit')
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react menus (react-demos/menus.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <GoopMenubar v-bind="pg.props">
+  <ReactIsland v-if="isReact" demo="menubar" :pg="{ main: pg.props, content: pg.part('content') }" />
+  <GoopMenubar v-else v-bind="pg.props">
     <GoopMenubarMenu>
       <GoopMenubarTrigger>File</GoopMenubarTrigger>
       <GoopMenubarContent v-bind="pg.part('content')">

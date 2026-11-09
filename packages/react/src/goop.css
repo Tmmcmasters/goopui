@@ -402,3 +402,41 @@
       inset 0 1px 2px color-mix(in oklab, var(--sidebar-primary, var(--primary)) 8%, transparent);
   }
 }
+
+/* Menubar and NavigationMenu (GoopMenubar, GoopNavigationMenu). Same rules as
+   @goopui/vue/goop.css. */
+@layer components {
+  /* Menubar trigger highlight: one goo body in shadcn's hover / open bg-muted. Until it
+     attaches (SSR, first paint), the hovered / open trigger keeps shadcn's look. */
+  [data-goop-menubar] > [data-goop='highlight'] {
+    --goop-color: var(--muted);
+  }
+  [data-goop-menubar]:not([data-goop-menu]) [data-slot='menubar-trigger']:is(:hover, [aria-expanded='true']) {
+    background-color: var(--muted);
+  }
+
+  /* Navigation menu: one goo blob is the items' hover / open background (shadcn's bg-muted),
+     on the bar and inside a panel. Once the blob is attached (core marks the scope
+     data-goop-menu) the items drop their own flat bg so only the goo shows. */
+  [data-goop-nav-scope] > [data-goop='highlight'] {
+    --goop-color: var(--muted);
+  }
+  [data-goop-menu] [data-goop-nav-item] {
+    background-color: transparent !important;
+  }
+  /* The blob isolates the list (a stacking context): while a `viewport={false}` panel is
+     mounted inside it, lift the list so the panel stays above what follows on the page. */
+  [data-goop-menu][data-goop-nav-scope]:has([data-slot='navigation-menu-content']) {
+    z-index: 50;
+  }
+  /* The viewport's goo is its background, ring and shadow (shadcn: ring-1 + shadow). */
+  [data-slot='navigation-menu-viewport-box'][data-goop-emerge] {
+    --goop-surface-shadow: drop-shadow(0 0 0.5px color-mix(in oklab, var(--foreground, #000) 30%, transparent))
+      drop-shadow(0 1px 3px rgb(0 0 0 / 0.1)) drop-shadow(0 1px 2px rgb(0 0 0 / 0.06));
+  }
+  /* Radix's viewport inside the goo box is what its Presence watches: hold it while the goo
+     shrinks back into the trigger. Off under reduced motion. */
+  [data-goop-emerge]:not([data-goop-still]) > [data-slot='navigation-menu-viewport'][data-state='closed'] {
+    animation: goop-emerge-hold var(--goop-emerge-close, 0ms) linear both;
+  }
+}

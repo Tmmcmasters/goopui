@@ -26,11 +26,13 @@ import {
 import { useState, type MouseEvent, type ReactNode } from 'react'
 import type { CheckboxState } from '@goopui/core'
 import { SkeletonRevealDemo, SpinnerDemo, StaticSet, Tile } from './batch1'
+import { ContextMenuDemo, DropdownMenuDemo, MenubarDemo, NavigationMenuDemo } from './menus'
 
 /** What a Vue demo hands its island. */
 export interface ReactDemoProps {
   /** Which demo: 'button' | 'switch' | 'checkbox' | 'tabs' | 'dialog' | 'static-set' |
-   *  'skeleton-reveal' | 'spinner' | 'tile' (an index tile; `set` is the slug). */
+   *  'skeleton-reveal' | 'spinner' | 'tile' (an index tile; `set` is the slug) |
+   *  'dropdown-menu' | 'context-menu' | 'menubar' | 'navigation-menu'. */
   demo: string
   /** The demo's set (as on the Vue side). */
   set: string
@@ -65,6 +67,14 @@ export function ReactDemo(props: ReactDemoProps) {
         return <SpinnerDemo set={props.set} pg={props.pg} />
       case 'tile':
         return <Tile slug={props.set} />
+      case 'dropdown-menu':
+        return <DropdownMenuDemo set={props.set} pg={props.pg} />
+      case 'context-menu':
+        return <ContextMenuDemo pg={props.pg} />
+      case 'menubar':
+        return <MenubarDemo pg={props.pg} />
+      case 'navigation-menu':
+        return <NavigationMenuDemo set={props.set} pg={props.pg} />
       default:
         return null
     }
