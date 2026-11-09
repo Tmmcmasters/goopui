@@ -1,5 +1,43 @@
 # @goopui/nuxt
 
+## 0.1.0-alpha.2
+
+### Minor Changes
+
+- 578195e: The menu highlight blob over any list of links or buttons: core `attachListHighlight(list, { items, active, hover })` and Vue `useGoopListHighlight(el, options, enabled)`. The blob follows hover (mouse / pen, never touch) and keyboard focus, and rests on the `active` item (the current page, the section in view) otherwise. Reduced motion: it snaps.
+
+### Patch Changes
+
+- 3cf30ef: Fixes found by the new demo smoke + axe check:
+
+  - Core `attachToggleGroup` no longer counts its own text-follow copies as items. With an item selector like `[data-slot="toggle-group-item"]` (React's GoopToggleGroup) un-pressing a pressed item froze the page in a MutationObserver loop.
+  - A one-thumb GoopSlider's `aria-label` / `aria-labelledby` also names its thumb (the focusable `role="slider"`).
+  - GoopCarouselDots space the dots 16px apart, so each dot's target is 24px (WCAG 2.2 target size).
+  - GoopCommandSeparator is decorative (`role="none"`): a listbox may only own groups and options. Vue's GoopCommandList is named "Suggestions" by default, like cmdk's.
+  - Destructive menu items on a tinted goo surface (`surface="trigger"`) mix toward the surface's text color, so they stay readable.
+  - Vue: GoopComboboxInput drops reka's stale `aria-activedescendant` while the list is closed; GoopDrawer no longer leaves the page `aria-hidden` after a second drawer closes (reka's aria-hidden cleanup ran twice).
+  - React: GoopComboboxInput's `aria-expanded` / `aria-controls` follow the popover (cmdk hardcodes them); GoopTabs keeps every panel element in the DOM (hidden while inactive, children still unmounted), and a trigger without a panel names no `aria-controls`, as in reka-ui. GoopPopoverContent's dialog is named by its trigger (as in reka-ui), and GoopComboboxList's popup is no longer an unnamed `role="dialog"` around the listbox. GoopScrollArea's viewport is focusable (`tabIndex={0}`, as reka-ui's is), so keyboard users can scroll it.
+
+- 3a1bd7d: Install fixes found by testing the packed packages in real apps:
+
+  - `@goopui/nuxt`: auto-imported components are typed again with pnpm. The generated `components.d.ts` imports `@goopui/vue`, which an app that only installs `@goopui/nuxt` can't resolve under pnpm, so every component was `any`; the module now maps `@goopui/vue` for TypeScript.
+  - `@goopui/nuxt`: builds no longer fail with `Rollup failed to resolve import "vue-sonner"` when the app doesn't have its own `vue-sonner` (pnpm, or npm in a Nuxt 3 app). `vue-sonner` is only deduped when the app installs it.
+  - `@goopui/vue`: declarations use explicit `.js` / `/index.js` relative imports, so apps on `moduleResolution: "node16"` / `"nodenext"` get types.
+  - `@goopui/vue`: the `vue` peer is now `^3.5.2`. Vue 3.5.0 and 3.5.1 run, but their types turn every component into `any`.
+
+- Updated dependencies [776ac37]
+- Updated dependencies [3cf30ef]
+- Updated dependencies [365aeba]
+- Updated dependencies [2623a5f]
+- Updated dependencies [1751ccc]
+- Updated dependencies [b859252]
+- Updated dependencies [578195e]
+- Updated dependencies [36a1d4f]
+- Updated dependencies [927792c]
+- Updated dependencies [3a1bd7d]
+  - @goopui/core@0.1.0-alpha.2
+  - @goopui/vue@0.1.0-alpha.2
+
 ## 0.1.0-alpha.1
 
 ### Minor Changes
