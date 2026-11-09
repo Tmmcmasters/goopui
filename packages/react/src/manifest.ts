@@ -58,6 +58,15 @@ export const goopComponents = [
   'GoopDrawerPortal',
   'GoopDrawerTitle',
   'GoopDrawerTrigger',
+  'GoopInput',
+  'GoopTextarea',
+  'GoopRadioGroup',
+  'GoopRadioGroupItem',
+  'GoopSlider',
+  'GoopProgress',
+  'GoopToggle',
+  'GoopToggleGroup',
+  'GoopToggleGroupItem',
 ] as const
 
 export type GoopComponentName = (typeof goopComponents)[number]

@@ -6,6 +6,8 @@ const props = withDefaults(defineProps<{ set?: 'basic' | 'auto' | 'tall' | 'inde
 const value = ref(35)
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react components (react-demos/forms.tsx).
+const { isReact } = useFramework()
 const step = (d: number) => {
   value.value = Math.max(0, Math.min(100, value.value + d))
 }
@@ -25,13 +27,14 @@ const tick = () => {
   timer = setTimeout(tick, 450 + Math.random() * 700)
 }
 onMounted(() => {
-  if (props.set === 'auto') tick()
+  if (props.set === 'auto' && !isReact.value) tick()
 })
 onBeforeUnmount(() => clearTimeout(timer))
 </script>
 
 <template>
-  <div v-if="set === 'basic'" class="grid w-full max-w-sm gap-4">
+  <ReactIsland v-if="isReact" demo="progress" :set="set" :pg="{ main: pg.props }" />
+  <div v-else-if="set === 'basic'" class="grid w-full max-w-sm gap-4">
     <GoopProgress :model-value="value" aria-label="Upload" v-bind="pg.props" />
     <div class="flex flex-wrap items-center gap-2">
       <GoopButton size="sm" variant="outline" @click="step(-25)">-25</GoopButton>

@@ -8,10 +8,13 @@ const sizes = ['s', 'm', 'l', 'xl']
 
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react components (react-demos/forms.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <template v-if="set === 'default'">
+  <ReactIsland v-if="isReact" demo="radio-group" :set="set" :pg="{ main: pg.props }" />
+  <template v-else-if="set === 'default'">
     <GoopRadioGroup v-model="plan" class="w-40" v-bind="pg.props">
       <label v-for="p in plans" :key="p" class="flex items-center gap-2 text-sm capitalize">
         <GoopRadioGroupItem :id="`plan-${p}`" :value="p" /> {{ p }}

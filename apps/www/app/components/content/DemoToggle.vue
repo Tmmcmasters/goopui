@@ -7,11 +7,14 @@ const align = ref('left')
 const marks = ref<string[]>(['bold', 'italic'])
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react components (react-demos/forms.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
+  <ReactIsland v-if="isReact" demo="toggle" :set="set" :pg="{ main: pg.props }" />
   <!-- The site theme has no shadcn --accent tokens, so the demos set them to Slime. -->
-  <div class="contents [--accent:var(--goo)] [--accent-foreground:var(--goo-foreground)]">
+  <div v-else class="contents [--accent:var(--goo)] [--accent-foreground:var(--goo-foreground)]">
   <GoopToggle v-if="set === 'basic'" v-model="bold" aria-label="Toggle bold" v-bind="pg.props">
     <span class="font-bold">B</span> Bold
   </GoopToggle>

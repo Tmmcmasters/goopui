@@ -25,7 +25,8 @@ import {
   GoopSpinner,
   GoopSwitch,
 } from '@goopui/react'
-import { useEffect, useRef, useState, type InputHTMLAttributes } from 'react'
+import { GoopInput } from '@goopui/react'
+import { useEffect, useRef, useState } from 'react'
 
 type Pg = Record<string, Record<string, unknown>>
 
@@ -34,10 +35,8 @@ const portrait = (hue: number) =>
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${hue} 22% 60%)"/><stop offset="1" stop-color="hsl(${hue + 30} 18% 34%)"/></linearGradient></defs><rect width="64" height="64" fill="url(#g)"/><circle cx="32" cy="26" r="11" fill="hsl(${hue} 15% 86%)"/><path d="M12 64c2-14 10-20 20-20s18 6 20 20z" fill="hsl(${hue} 15% 86%)"/></svg>`,
   )}`
 
-/** shadcn/ui's Input (radix-nova classes): @goopui/react has no GoopInput yet. */
-const INPUT =
-  'h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30'
-const Input = ({ className = '', ...props }: InputHTMLAttributes<HTMLInputElement>) => <input className={`${INPUT} ${className}`} {...props} />
+/** The Label demos pair it with the real GoopInput, as on the Vue page. */
+const Input = GoopInput
 
 // ---- Skeleton, Badge, Card, Avatar, Separator, Label (DemoStaticSet.vue) --------------------
 

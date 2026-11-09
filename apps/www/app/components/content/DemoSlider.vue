@@ -9,10 +9,13 @@ const vertical = ref([40])
 const steps = ref([30])
 // Customize choices from the page's playground (empty outside it).
 const pg = usePlayground()
+// On /react/docs: the same sets, as real @goopui/react components (react-demos/forms.tsx).
+const { isReact } = useFramework()
 </script>
 
 <template>
-  <div v-if="set === 'basic'" class="grid w-full max-w-sm gap-3">
+  <ReactIsland v-if="isReact" demo="slider" :set="set" :pg="{ main: pg.props }" />
+  <div v-else-if="set === 'basic'" class="grid w-full max-w-sm gap-3">
     <GoopSlider v-model="single" :max="100" :step="1" aria-label="Volume" v-bind="pg.props" />
     <span class="font-mono text-xs text-muted-foreground">{{ single[0] }}</span>
   </div>

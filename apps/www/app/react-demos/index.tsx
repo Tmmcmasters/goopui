@@ -28,6 +28,7 @@ import type { CheckboxState } from '@goopui/core'
 import { SkeletonRevealDemo, SpinnerDemo, StaticSet, Tile } from './batch1'
 import { SelectDemo } from './select'
 import { DrawerDemo } from './drawer'
+import { FormsTile, InputDemo, ProgressDemo, RadioGroupDemo, SliderDemo, ToggleDemo } from './forms'
 
 /** What a Vue demo hands its island. */
 export interface ReactDemoProps {
@@ -71,6 +72,18 @@ export function ReactDemo(props: ReactDemoProps) {
         return <SelectDemo set={props.set} pg={props.pg} />
       case 'drawer':
         return <DrawerDemo set={props.set} pg={props.pg} />
+      case 'input':
+        return <InputDemo set={props.set} pg={props.pg} />
+      case 'radio-group':
+        return <RadioGroupDemo set={props.set} pg={props.pg} />
+      case 'slider':
+        return <SliderDemo set={props.set} pg={props.pg} />
+      case 'progress':
+        return <ProgressDemo set={props.set} pg={props.pg} />
+      case 'toggle':
+        return <ToggleDemo set={props.set} pg={props.pg} />
+      case 'forms-tile':
+        return <FormsTile slug={props.set} />
       default:
         return null
     }
