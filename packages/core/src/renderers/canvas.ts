@@ -20,7 +20,7 @@
 //                      instead of aliased.
 
 import { acquireGooFilter, type GooFilterLease, type GooFilterParams } from '../filter'
-import { GOOP_PART_ATTR, type GoopBlob, type GoopLayerPadding, type GoopRenderer, type GoopRendererFactory } from '../renderer'
+import { GOOP_PART_ATTR, type GoopBlob, type GoopBodyBleed, type GoopLayerPadding, type GoopRenderer, type GoopRendererFactory } from '../renderer'
 import { isMovingGooHost, watchPageEdge, type PageEdgeCut } from '../page-edge'
 import { isReducedMotion, watchReducedMotion } from '../reduced-motion'
 import { readFinish, type GoopFinish } from './finish'
@@ -186,6 +186,8 @@ function createCanvasRendererImpl(
   let bodyTy = 0
   /** tan(skewX). */
   let bodyShear = 0
+  /** Joined seams: the body reaches this far past the host (scaled about the host centre). */
+  let bleed: GoopBodyBleed = { top: 0, right: 0, bottom: 0, left: 0 }
   const blobs = new Set<BlobState>()
   const bodyVisible = (): boolean => bodySx > 0 && bodySy > 0 && hostW > 0 && hostH > 0
   /** Nothing to draw: lets a big, mostly idle surface (e.g. a page overlay) drop its pixels. */
@@ -301,10 +303,10 @@ function createCanvasRendererImpl(
       const py = (y: number): number => oy + (y + pad.side) * ky
       if (bodyVisible()) {
         out.push({
-          cx: px(hostW / 2 + bodyTx),
-          cy: py(hostH / 2 + bodyTy),
-          hx: (hostW / 2) * kx,
-          hy: (hostH / 2) * ky,
+          cx: px(hostW / 2 + bodyTx + ((bleed.right - bleed.left) / 2) * bodySx),
+          cy: py(hostH / 2 + bodyTy + ((bleed.bottom - bleed.top) / 2) * bodySy),
+          hx: (hostW / 2 + (bleed.left + bleed.right) / 2) * kx,
+          hy: (hostH / 2 + (bleed.top + bleed.bottom) / 2) * ky,
           tl: radii[0] * k,
           tr: radii[1] * k,
           br: radii[2] * k,
@@ -372,7 +374,14 @@ function createCanvasRendererImpl(
         c.translate(hostW / 2 + bodyTx, hostH / 2 + bodyTy)
         if (bodyShear) c.transform(1, 0, bodyShear, 1, 0, 0)
         c.scale(bodySx, bodySy)
-        roundRectPath(c, -hostW / 2, -hostH / 2, hostW, hostH, radii)
+        roundRectPath(
+          c,
+          -hostW / 2 - bleed.left,
+          -hostH / 2 - bleed.top,
+          hostW + bleed.left + bleed.right,
+          hostH + bleed.top + bleed.bottom,
+          radii,
+        )
         c.restore() // path keeps the body transform; fill (gradient) in host space
         c.fill()
       }
@@ -579,6 +588,11 @@ function createCanvasRendererImpl(
       bodyTx = 0
       bodyTy = 0
       bodyShear = 0
+      inst.dirty = true
+    },
+    setBodyBleed(next) {
+      if (next.top === bleed.top && next.right === bleed.right && next.bottom === bleed.bottom && next.left === bleed.left) return
+      bleed = { ...next }
       inst.dirty = true
     },
     setBodyTransform({ tx, ty, skew, sx, sy }) {

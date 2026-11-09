@@ -1,11 +1,11 @@
 <script setup lang="ts">
 // GoopButtonGroup: shadcn-vue's ButtonGroup (a div role="group", `orientation`, `class`
-// merge). The buttons flex as one goo body (core `attachButtonGroup`): pressing one squishes it
-// (`press`) and tugs its neighbours toward it (`tug`), then everything springs back with a
-// small jelly rebound. Joined edges only ever overlap, so no gap or seam opens, and nothing
-// shifts layout (transforms). GoopButtons inside leave their own goo off unless they set
-// `goo`. Before mount, during SSR, with `:goo="false"` or under reduced motion it is a plain
-// shadcn ButtonGroup.
+// merge). Every GoopButton inside keeps its own goo body, exactly as when it stands alone; the
+// group (core `attachButtonGroup`) marks each member's joined sides (`seams`) so core cuts
+// that goo clean at the seams: no bulge, drip or splash crosses onto a neighbour, the seam
+// never opens, and the outer edges bulge, drip and splash as usual. `press` / `tug` (the old
+// whole-button squish and neighbour tug) are opt-in. Before mount, during SSR or with
+// `:goo="false"` (the buttons too) it is a plain shadcn ButtonGroup.
 import { attachButtonGroup, type ButtonGroupHandle } from '@goopui/core'
 import { cn } from 'cn'
 import { computed, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch, type HTMLAttributes, type PropType } from 'vue'
@@ -19,7 +19,7 @@ const props = defineProps({
   orientation: { type: String as PropType<ButtonGroupVariants['orientation']>, default: undefined },
   class: { type: [String, Array, Object] as PropType<HTMLAttributes['class']>, default: undefined },
 })
-provideGoopButtonGroup()
+provideGoopButtonGroup(() => props.goo !== false)
 
 const root = useTemplateRef<HTMLElement>('root')
 const config = useGoopConfig()

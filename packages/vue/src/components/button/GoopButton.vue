@@ -21,7 +21,7 @@ import {
   type ButtonVariant,
 } from './variants'
 import { useGoopCue } from '../../sound'
-import { inGoopButtonGroup } from '../button-group/context'
+import { useGoopButtonGroup } from '../button-group/context'
 
 const props = defineProps({
   ...goopProps,
@@ -34,7 +34,8 @@ const props = defineProps({
   /** Render the single child instead, merging classes and attrs onto it (reka-ui Primitive). */
   asChild: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
-  /** Master switch. `false` renders a plain shadcn Button. Default: on, except `link`. */
+  /** Master switch. `false` renders a plain shadcn Button. Default: on, except `link` (and
+   *  inside a GoopButtonGroup whose `goo` is false). */
   goo: { type: Boolean as PropType<boolean | undefined>, default: undefined },
 })
 
@@ -47,9 +48,11 @@ const cue = useGoopCue('button', { sound: () => props.sound })
 
 const variantKey = computed<ButtonVariant>(() => props.variant ?? 'default')
 const gooStyle = computed(() => goopButtonStyles[variantKey.value])
-// Inside a GoopButtonGroup the group flexes the buttons; their own goo stays off unless set.
-const grouped = inGoopButtonGroup()
-const enabled = computed(() => props.goo ?? (!grouped && gooStyle.value !== 'none'))
+// Inside a GoopButtonGroup each button keeps its own goo body; the group marks the joined
+// sides (data-goop-seams) and core cuts the goo clean there. The group's `goo: false` makes
+// them plain; an explicit `goo` on the button always wins.
+const group = useGoopButtonGroup()
+const enabled = computed(() => props.goo ?? ((group?.() ?? true) && gooStyle.value !== 'none'))
 
 const options = computed<GoopOptions>(() =>
   toGoopOptions(props, {
@@ -60,6 +63,8 @@ const options = computed<GoopOptions>(() =>
     // The outline stroke's inner fill follows the body pose (--goop-x/y/skew/sx/sy).
     cssVars: gooStyle.value === 'stroke',
     disabled: props.disabled,
+    // Follow the group's seam marks (no-op outside a group).
+    seams: group ? true : undefined,
   }),
 )
 

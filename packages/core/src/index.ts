@@ -7,7 +7,17 @@ import { GOOP_DEFAULTS } from './constants'
 
 export const VERSION = '0.0.0'
 
-export { attachGoop, type GoopDebugState, type GoopHandle, type GoopOptions } from './goop'
+export {
+  GOOP_SEAMS_ATTR,
+  attachGoop,
+  goopSeamClip,
+  parseGoopSeams,
+  type GoopDebugState,
+  type GoopHandle,
+  type GoopOptions,
+  type GoopSeams,
+  type GoopSide,
+} from './goop'
 export {
   ParticleFluid,
   drainRadius,
@@ -69,6 +79,7 @@ export {
   GOOP_PART_ATTR,
   createSvgFilterRenderer,
   type GoopBlob,
+  type GoopBodyBleed,
   type GoopBodyTransform,
   type GoopSheen,
   type GoopLayerPadding,
@@ -914,6 +925,7 @@ export {
   BUTTON_GROUP_PRESSABLE,
   attachButtonGroup,
   buttonGroupPose,
+  buttonGroupSeams,
   type ButtonGroupEffect,
   type ButtonGroupFeel,
   type ButtonGroupHandle,

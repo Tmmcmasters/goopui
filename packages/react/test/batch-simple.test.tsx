@@ -221,14 +221,14 @@ describe('GoopEmpty', () => {
 })
 
 describe('GoopButtonGroup', () => {
-  it("renders shadcn's markup; GoopButtons inside keep their own goo off unless they set it", () => {
+  it("renders shadcn's markup; GoopButtons inside keep their own goo, cut at the marked seams", async () => {
     const api = createRef<ButtonGroupHandle>()
     const r = render(
       h(
         GoopButtonGroup,
         { orientation: 'vertical', className: 'mx-2', goopRef: api, tug: false } as never,
         h(GoopButton, { variant: 'outline', 'data-testid': 'a' } as never, 'A'),
-        h(GoopButton, { variant: 'outline', goo: true, 'data-testid': 'b' } as never, 'B'),
+        h(GoopButton, { variant: 'outline', goo: false, 'data-testid': 'b' } as never, 'B'),
         h(GoopButtonGroupSeparator),
         h(GoopButtonGroupText, null, 'Text'),
       ),
@@ -239,13 +239,26 @@ describe('GoopButtonGroup', () => {
     for (const c of buttonGroupVariants({ orientation: 'vertical' }).split(' ')) expect(classes(g)).toContain(c)
     expect(classes(g)).toContain('mx-2')
     noEngineAttrs(g, /^(tug|goo)$/)
-    expect(screen.getByTestId('a').hasAttribute('data-goop-host')).toBe(false)
-    expect(screen.getByTestId('b').hasAttribute('data-goop-host')).toBe(true)
+    // Seam marks reach each button's goo through a MutationObserver (a microtask).
+    await act(async () => {})
+    // Own goo body, joined below (vertical); an explicit goo={false} stays plain.
+    expect(screen.getByTestId('a').getAttribute('data-goop-host')).toBe('stroke')
+    expect(screen.getByTestId('a').getAttribute('data-goop-seams')).toBe('bottom')
+    expect(screen.getByTestId('a').style.clipPath).toContain('polygon(')
+    expect(screen.getByTestId('b').hasAttribute('data-goop-host')).toBe(false)
+    expect(screen.getByTestId('b').getAttribute('data-goop-seams')).toBe('top bottom')
+    expect(screen.getByTestId('b').style.clipPath).toBe('')
     const sep = document.querySelector('[data-slot="button-group-separator"]')!
     expect(sep.getAttribute('data-orientation')).toBe('vertical')
     expect(classes(sep)).toContain('bg-input')
     expect(screen.getByText('Text').className).toContain('bg-muted')
     expect(api.current).not.toBeNull()
+    // The group's goo={false} makes its buttons plain shadcn too.
+    r.rerender(
+      h(GoopButtonGroup, { goo: false } as never, h(GoopButton, { variant: 'outline', 'data-testid': 'a' } as never, 'A')),
+    )
+    expect(screen.getByTestId('a').hasAttribute('data-goop-host')).toBe(false)
+    expect(screen.getByTestId('a').hasAttribute('data-goop-seams')).toBe(false)
     r.unmount()
     // Outside a group the same button has its goo.
     render(h(GoopButton, { variant: 'outline', 'data-testid': 'c' } as never, 'C'))
@@ -478,8 +491,10 @@ describe('hydration: simple batch', () => {
     expect(root.querySelector('[data-slot="empty-icon"] [data-goop="empty-puddle"]')).not.toBeNull()
     expect(root.querySelector('[data-goop-pagination]')!.hasAttribute('data-goop-menu')).toBe(true)
     expect(root.querySelector('[aria-label="Go to previous page"]')!.hasAttribute('data-goop-active')).toBe(true)
-    // Buttons inside the group stay plain; the group flexes them.
-    for (const b of root.querySelectorAll('[data-slot="button-group"] [data-slot="button"]')) expect(b.hasAttribute('data-goop-host')).toBe(false)
+    // Buttons inside the group keep their own goo; the group marks their seams.
+    const grouped = [...root.querySelectorAll('[data-slot="button-group"] [data-slot="button"]')]
+    expect(grouped.map((b) => b.getAttribute('data-goop-seams'))).toEqual(['right', 'left'])
+    for (const b of grouped) expect(b.hasAttribute('data-goop-active')).toBe(true)
     for (const t of root.querySelectorAll('[data-slot="accordion-trigger"]')) expect(t.querySelector(':scope > [data-goop="layer"]')).not.toBeNull()
     expect(root.querySelector('[data-slot="collapsible-trigger"] > [data-goop="layer"]')).not.toBeNull()
 

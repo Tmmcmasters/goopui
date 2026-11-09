@@ -134,6 +134,59 @@ export interface GoopOptions extends Partial<Omit<GoopTuning, ToggleKeys>> {
    *  `--goop-skew` deg, `--goop-sx`, `--goop-sy`) so content can ride along with the goo.
    *  Default false. */
   cssVars?: boolean
+  /** Joined edges (a button inside a button group). On a joined side the goo is cut flush at
+   *  the host's edge (the host gets an inline `clip-path`), the body reaches past it so the
+   *  seam stays filled through the jelly, and no drips hang from a joined bottom. Outer sides
+   *  behave as usual. `true`: follow the host's `data-goop-seams` attribute (space-separated
+   *  sides, kept up to date by `attachButtonGroup`); an object sets the sides directly.
+   *  `--goop-seam-outset` (length) loosens the cut, e.g. for a focus ring. While joined, core
+   *  writes `--goop-seam-bleed` (px) on the host: how far the body reaches past a seam.
+   *  Default off. */
+  seams?: boolean | GoopSeams
+}
+
+export type GoopSide = 'top' | 'right' | 'bottom' | 'left'
+/** Which sides of a host are joined to a neighbour (see `GoopOptions.seams`). */
+export type GoopSeams = Partial<Record<GoopSide, boolean>>
+/** Attribute `attachButtonGroup` writes on its members ("left right", "top", ...). */
+export const GOOP_SEAMS_ATTR = 'data-goop-seams'
+const SIDES: readonly GoopSide[] = ['top', 'right', 'bottom', 'left']
+/** How far past a neighbour's corners its band is cut (px). */
+const SEAM_MARGIN = 3
+
+/** Parse a `data-goop-seams` value ("left right"). */
+export function parseGoopSeams(value: string | null | undefined): GoopSeams {
+  const out: GoopSeams = {}
+  for (const t of (value ?? '').split(/\s+/)) if ((SIDES as readonly string[]).includes(t)) out[t as GoopSide] = true
+  return out
+}
+
+/**
+ * The inline `clip-path` that cuts a host flush at its joined sides ('' when none). Only the
+ * neighbour's band is cut away (the strip past each joined side, `margin` px longer at both
+ * ends so the body's jelly can't peek past the neighbour's corner): splash and drips that fly
+ * out past the strip's outer edges, below or beside a seam, stay whole. The end sides (right,
+ * bottom) reach 1px under the next member, which paints over it, so two antialiased cuts on
+ * the same fractional pixel never leave a hairline of page showing through.
+ */
+export function goopSeamClip(seams: GoopSeams, margin = 0): string {
+  if (!SIDES.some((k) => seams[k])) return ''
+  const o = 'var(--goop-seam-outset, 0px)'
+  const lo = `calc(0px - ${o})`
+  const hi = `calc(100% + 1px + ${o})`
+  const a = `${-margin}px`
+  const b = `calc(100% + ${margin}px)`
+  const n = '-100vmax'
+  const f = 'calc(100% + 100vmax)'
+  const p: string[] = [`${n} ${n}`]
+  if (seams.top) p.push(`${a} ${n}`, `${a} ${lo}`, `${b} ${lo}`, `${b} ${n}`)
+  p.push(`${f} ${n}`)
+  if (seams.right) p.push(`${f} ${a}`, `${hi} ${a}`, `${hi} ${b}`, `${f} ${b}`)
+  p.push(`${f} ${f}`)
+  if (seams.bottom) p.push(`${b} ${f}`, `${b} ${hi}`, `${a} ${hi}`, `${a} ${f}`)
+  p.push(`${n} ${f}`)
+  if (seams.left) p.push(`${n} ${b}`, `${lo} ${b}`, `${lo} ${a}`, `${n} ${a}`)
+  return `polygon(${p.join(', ')})`
 }
 
 /** Snapshot of what is driving the goo right now (for demos / devtools). */
@@ -314,7 +367,7 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
   const random = (): number => (opts.random ?? Math.random)()
 
   // ---- host setup ----------------------------------------------------------
-  const prevStyle = { position: host.style.position, isolation: host.style.isolation }
+  const prevStyle = { position: host.style.position, isolation: host.style.isolation, clipPath: host.style.clipPath }
   if (win?.getComputedStyle(host).position === 'static') host.style.position = 'relative'
   host.style.isolation = 'isolate'
 
@@ -348,6 +401,8 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
   let width = host.offsetWidth
   let height = host.offsetHeight
   let cornerRadius = 0
+  /** Joined sides (GoopOptions.seams). */
+  let joined: GoopSeams = {}
   const body = spring(1) // press: vertical scale
   const jelly = { tx: spring(), ty: spring(), dsx: spring(), dsy: spring(), skew: spring(), swell: spring() }
   const slosh = { x: spring(), y: spring() }
@@ -389,6 +444,46 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
     const px = Number.isFinite(n) ? (r.trim().endsWith('%') ? (n / 100) * width : n) : 0
     // A 9999px pill radius really means "half the height".
     cornerRadius = Math.min(px, height / 2, width / 2)
+    applySeams()
+  }
+  /** Joined sides: cut the host flush there and extend the body past them far enough that the
+   *  seam stays filled through the filter's rounding and the largest jelly pose (lean, skew,
+   *  narrowing, press). */
+  function applySeams(): void {
+    joined = opts.seams === true ? parseGoopSeams(host.getAttribute(GOOP_SEAMS_ATTR)) : opts.seams || {}
+    // The neighbour's band is cut a few px past its corners: about the most the jelly lifts or
+    // drops the body's edge (lean, swell, rebound). Splash flying past it stays whole.
+    const clip = goopSeamClip(joined, SEAM_MARGIN)
+    host.style.clipPath = clip || prevStyle.clipPath
+    const across = Math.ceil(tuning.softness * 3 + P.maxOffset + P.maxDeform * width * 0.5 + Math.tan(P.maxSkew * DEG) * height * 0.5 + 2)
+    const along = Math.ceil(tuning.softness * 3 + P.maxOffset + P.maxDeform * height * 0.5 + tuning.squish * height * 0.5 + 2)
+    renderer.setBodyBleed?.({
+      top: joined.top ? along : 0,
+      right: joined.right ? across : 0,
+      bottom: joined.bottom ? along : 0,
+      left: joined.left ? across : 0,
+    })
+    // Content riding the pose past a seam (the outline fill) reaches this far under it.
+    if (clip) host.style.setProperty('--goop-seam-bleed', `${Math.max(across, along)}px`)
+    else host.style.removeProperty('--goop-seam-bleed')
+  }
+  /** `seams: true` follows the host's data-goop-seams attribute. */
+  let seamWatch: MutationObserver | null = null
+  const watchSeams = (): void => {
+    const MO = win?.MutationObserver
+    if (opts.seams === true && MO && !seamWatch) {
+      seamWatch = new MO(() => {
+        if (destroyed) return
+        readGeometry()
+        if (joined.bottom) field.clear()
+        drawResting()
+        wake()
+      })
+      seamWatch.observe(host, { attributes: true, attributeFilter: [GOOP_SEAMS_ATTR] })
+    } else if (opts.seams !== true && seamWatch) {
+      seamWatch.disconnect()
+      seamWatch = null
+    }
   }
   readGeometry()
 
@@ -463,13 +558,16 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
   const react = (): number => tuning.pointerReaction
   const speedOf = (s: { speed: number }): number => Math.min(2, s.speed / P.speedRef)
   const canInteract = (): boolean => !destroyed && !reduced && !opts.disabled
-  const dripsOn = (): boolean => opts.drips !== false && tuning.dripCount > 0
+  // A joined bottom would hang drips over the neighbour below: none there.
+  const dripsOn = (): boolean => opts.drips !== false && tuning.dripCount > 0 && !joined.bottom
 
-  /** Usable x range along the bottom edge, clear of the rounded corners. */
+  /** Usable x range along the bottom edge, clear of the rounded corners (and further clear
+   *  of a joined side, so drips never sway into the seam's cut). */
   const edgeRange = (): [number, number] => {
     const inset = Math.max(cornerRadius, tuning.dripSize * 1.4) + tuning.dripSize * 1.2
-    const lo = Math.min(inset, width / 2)
-    return [lo, Math.max(lo, width - inset)]
+    const seam = tuning.dripSize * 3
+    const lo = Math.min(inset + (joined.left ? seam : 0), width / 2)
+    return [lo, Math.max(lo, width - inset - (joined.right ? seam : 0))]
   }
 
   /** Pick an anchor x with spacing from `taken`; tries near `near` (+/- spread) first. */
@@ -2057,11 +2155,12 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
   let idleT = 0
   let idleLast = -1
   const drawResting = (): void => {
-    resting = restingSpecs()
+    resting = joined.bottom ? [] : restingSpecs()
     field.drawResting({ tuning, width, height }, resting, reduced || tuning.idle <= 0 ? undefined : idleT)
     if (resting.length && tuning.idle > 0) wake()
   }
   drawResting()
+  watchSeams()
   const RO = win?.ResizeObserver
   const ro = RO
     ? new RO(() => {
@@ -2146,7 +2245,9 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
       syncSprings()
       syncTilt()
       listen(opts.interactive !== false)
+      watchSeams()
       readGeometry()
+      if (joined.bottom) field.clear()
       drawResting()
       findLabels()
       lastLabel = '\u0000'
@@ -2189,8 +2290,12 @@ export function attachGoop(host: HTMLElement, options: GoopOptions = {}): GoopHa
       rideLabels(0, 0, 0, 1, 1)
       for (const l of labels) l.style.transform = ''
       renderer.destroy()
+      seamWatch?.disconnect()
+      seamWatch = null
       host.style.position = prevStyle.position
       host.style.isolation = prevStyle.isolation
+      host.style.clipPath = prevStyle.clipPath
+      host.style.removeProperty('--goop-seam-bleed')
       if (opts.cssVars) for (const v of ['x', 'y', 'skew', 'sx', 'sy']) host.style.removeProperty(`--goop-${v}`)
     },
     press,

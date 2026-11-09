@@ -147,7 +147,8 @@ export const FEATURE_KEYS = [
 export const CSS_VAR_KEYS = ['oilIntensity', 'oilBandSize', 'oilHueShift', 'oilFollowPointer'] as const
 
 /** Options the component sets itself (from its own props / state), never exposed. */
-type AdapterOwned = 'disabled' | 'cssVars' | 'random'
+/** `seams`: set by GoopButton inside a GoopButtonGroup (the group's `seams` prop drives it). */
+type AdapterOwned = 'disabled' | 'cssVars' | 'random' | 'seams'
 /** Old option names (GOOP_OPTION_RENAMES). Still accepted inside `goop`, with core's warning. */
 type DeprecatedOption =
   | 'blur'
@@ -2652,11 +2653,11 @@ export function toBreadcrumbOptions(props: GoopBreadcrumbProps, config: GoopOpti
 import { BREADCRUMB_EFFECTS, BREADCRUMB_FEEL, type BreadcrumbEffect, type BreadcrumbHighlightOptions } from '@goopui/core'
 
 // ---- GoopButtonGroup ------------------------------------------------------------------------
-// The group flexes as one goo body (core `attachButtonGroup`): pressing a button squishes it
-// (`press`) and tugs its neighbours toward it from their far edges (`tug`); joined edges only
-// ever overlap, so no gap or seam opens. Each takes a boolean or a multiplier, plus speed /
-// preset; `goo: false` renders a plain shadcn ButtonGroup. Inside a group, GoopButtons leave
-// their own goo off unless they set `goo` (the group's joined corners are shadcn's).
+// Every GoopButton inside keeps its own goo body. The group (core `attachButtonGroup`) marks
+// each member's joined sides (`seams`, default on) so that goo is cut clean at the seams;
+// `press` (whole-button squish) and `tug` (neighbours pulled toward the pressed one) are the
+// older transform flex, opt-in. Each takes a boolean or a multiplier, plus speed / preset;
+// `goo: false` renders a plain shadcn ButtonGroup with plain buttons.
 
 /** Every GoopButtonGroup engine prop. */
 export const BUTTON_GROUP_PROP_KEYS = ['goo', ...BUTTON_GROUP_EFFECTS, 'speed', 'preset'] as const

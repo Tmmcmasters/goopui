@@ -93,7 +93,8 @@ export const FEATURE_KEYS = [
 export const CSS_VAR_KEYS = ['oilIntensity', 'oilBandSize', 'oilHueShift', 'oilFollowPointer'] as const
 
 /** Options the component sets itself (from its own props / state), never exposed. */
-type AdapterOwned = 'disabled' | 'cssVars' | 'random'
+/** `seams`: set by GoopButton inside a GoopButtonGroup (the group's `seams` prop drives it). */
+type AdapterOwned = 'disabled' | 'cssVars' | 'random' | 'seams'
 /** Old option names (GOOP_OPTION_RENAMES). Still accepted inside `goop`, with core's warning. */
 type DeprecatedOption =
   | 'blur'
@@ -1283,9 +1284,10 @@ export function toSheetOptions(props: GoopSheetProps, config: GoopOptions = {}):
 // ---- GoopAlert / GoopKbd / GoopButtonGroup (static set, goo on by default) -------------------
 // Same as @goopui/vue. Alert: core `attachAlert` (the entrance: `bloom`, icon `wobble`). Kbd:
 // core `attachKbd` (the key-press squish: `press`, plus opt-in `keys`). ButtonGroup: core
-// `attachButtonGroup` (`press` squish + neighbour `tug`); GoopButtons inside a group leave
-// their own goo off unless they set `goo`. Each effect takes a boolean or a multiplier, plus
-// speed / preset; `goo={false}` renders plain shadcn.
+// `attachButtonGroup`: GoopButtons inside keep their own goo body, cut clean at the joined
+// sides the group marks (`seams`, default on); `press` squish + neighbour `tug` are opt-in.
+// Each effect takes a boolean or a multiplier, plus speed / preset; `goo={false}` renders
+// plain shadcn (the group's buttons too).
 
 /** Every GoopAlert engine prop. */
 export const ALERT_PROP_KEYS = ['goo', ...ALERT_EFFECTS, 'speed', 'preset'] as const
@@ -1305,7 +1307,7 @@ export type GoopKbdEngineProps = GoopStaticEffectProps<KbdEffect> & {
   goo?: boolean
 }
 export type GoopButtonGroupEngineProps = GoopStaticEffectProps<ButtonGroupEffect> & {
-  /** Master switch. `false` renders a plain shadcn ButtonGroup. Default true. */
+  /** Master switch. `false` renders a plain shadcn ButtonGroup with plain buttons. Default true. */
   goo?: boolean
 }
 

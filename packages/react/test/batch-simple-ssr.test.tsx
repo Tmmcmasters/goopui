@@ -58,8 +58,9 @@ describe('SSR (react-dom/server): simple batch', () => {
     expect(html).toContain('data-slot="empty-icon" data-variant="icon"')
     expect(html).toContain('<p data-slot="empty-description"')
     expect(html).toContain('role="group" data-slot="button-group" data-orientation="vertical" data-goop-host="button-group"')
-    // A GoopButton inside the group leaves its own goo off.
-    expect(html).toMatch(/data-slot="button" data-variant="outline" data-size="default" class=/)
+    // A GoopButton inside the group keeps its own goo host; seams are marked after hydration.
+    expect(html).toMatch(/data-slot="button" data-variant="outline" data-size="default" data-goop-host="stroke"/)
+    expect(html).not.toContain('data-goop-seams')
     expect(html).toContain('data-slot="button-group-separator"')
   })
 

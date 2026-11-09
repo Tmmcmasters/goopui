@@ -256,6 +256,26 @@ export function ButtonGroupDemo({ set, pg }: { set: string; pg: Pg }) {
           </GoopButton>
         </GoopButtonGroup>
       )
+    case 'variants':
+      return (
+        <div className="flex flex-col items-center gap-4">
+          {(['default', 'outline', 'secondary', 'ghost'] as const).map((variant) => (
+            <GoopButtonGroup key={variant} aria-label={`${variant} group`}>
+              <GoopButton variant={variant}>Bold</GoopButton>
+              <GoopButton variant={variant}>Italic</GoopButton>
+              <GoopButton variant={variant}>Underline</GoopButton>
+            </GoopButtonGroup>
+          ))}
+          <GoopButtonGroup aria-label="Zoom">
+            <GoopButton variant="outline" size="icon" aria-label="Zoom out">
+              <Icon name="minus" />
+            </GoopButton>
+            <GoopButton variant="outline" size="icon" aria-label="Zoom in">
+              <Icon name="plus" />
+            </GoopButton>
+          </GoopButtonGroup>
+        </div>
+      )
     case 'separator':
       return (
         <div className="flex flex-wrap items-center justify-center gap-4">

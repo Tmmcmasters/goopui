@@ -13,15 +13,17 @@
 // No DOM access until `attachButtonGroup` is called (SSR-safe); `buttonGroupPose` is pure.
 
 import { GOOP_DEFAULT_PRESET, type GoopPreset, type SpringFeel } from './constants'
+import { GOOP_SEAMS_ATTR, type GoopSeams, type GoopSide } from './goop'
 import { removeTicker, wakeTicker, type Ticker } from './loop'
 import { isReducedMotion, watchReducedMotion } from './reduced-motion'
 import { effectStrength } from './skeleton'
 import { isSpringSettled, springConfig, stepSpring, type SpringState } from './spring'
 import { readPreset } from './tuning'
 
-/** Individually toggleable button group effects (boolean or multiplier). `press`: the pressed
- *  button's squish. `tug`: its neighbours are pulled toward it. */
-export const BUTTON_GROUP_EFFECTS = ['press', 'tug'] as const
+/** Individually toggleable button group effects (boolean or multiplier). `seams`: each
+ *  member's own goo (a GoopButton's body) is cut clean at the joined edges (on by default).
+ *  `press`: the pressed button's squish. `tug`: its neighbours are pulled toward it. */
+export const BUTTON_GROUP_EFFECTS = ['seams', 'press', 'tug'] as const
 export type ButtonGroupEffect = (typeof BUTTON_GROUP_EFFECTS)[number]
 
 export type ButtonGroupOrientation = 'horizontal' | 'vertical'
@@ -50,9 +52,14 @@ export const BUTTON_GROUP_FEEL: Readonly<Record<GoopPreset, Readonly<ButtonGroup
 })
 
 export interface ButtonGroupOptions {
-  /** The pressed button's squish. `false`: off; `true`: the preset's; a number scales it. */
+  /** Mark each member's joined sides (`data-goop-seams`) so its goo (`attachGoop` with
+   *  `seams: true`) is cut flush at the seams. Default on; `false` removes the marks. */
+  seams?: boolean | number
+  /** The pressed button's whole-element squish (label included). Opt-in (default off: each
+   *  GoopButton's own goo body squishes instead); `true`: the preset's; a number scales it. */
   press?: boolean | number
-  /** Neighbours tugged toward the pressed button. `false`: off; a number scales it. */
+  /** Neighbours tugged toward the pressed button (whole elements). Opt-in, default off; `true`:
+   *  the preset's; a number scales it. */
   tug?: boolean | number
   /** Default: the group's `data-orientation`, else horizontal. */
   orientation?: ButtonGroupOrientation
@@ -118,6 +125,32 @@ export function buttonGroupPose(
   }
 }
 
+/**
+ * Joined sides of each element in a button group, in order, mirroring shadcn's ButtonGroup
+ * classes: every member but the first is joined at its start (left / top); every member but
+ * the last is joined at its end, except the last `[data-slot]` member (shadcn rounds it again
+ * when only an unslotted helper, such as a native select, follows it). A group of groups
+ * (`gap-2`) joins nothing. Pure on the given list.
+ */
+export function buttonGroupSeams(members: readonly Element[], orientation: ButtonGroupOrientation = 'horizontal'): GoopSeams[] {
+  const nested = members.some((m) => m.getAttribute('data-slot') === 'button-group')
+  const [start, end]: [GoopSide, GoopSide] = orientation === 'vertical' ? ['top', 'bottom'] : ['left', 'right']
+  let lastSlot = -1
+  members.forEach((m, i) => {
+    if (m.hasAttribute('data-slot')) lastSlot = i
+  })
+  return members.map((m, i) => {
+    if (nested) return {}
+    const out: GoopSeams = {}
+    if (i > 0) out[start] = true
+    if (i < members.length - 1 && !(m.hasAttribute('data-slot') && i === lastSlot)) out[end] = true
+    return out
+  })
+}
+
+const seamValue = (s: GoopSeams): string =>
+  (['top', 'right', 'bottom', 'left'] as const).filter((k) => s[k]).join(' ')
+
 /** Members a press can start on: buttons and links (not inputs, text or separators). */
 export const BUTTON_GROUP_PRESSABLE = 'button, a[href], [role="button"], [data-slot="button"]'
 
@@ -142,13 +175,50 @@ export function attachButtonGroup(group: HTMLElement, initial: ButtonGroupOption
   /** Members touched this press, with their own inline transform to restore. */
   let touched = new Map<HTMLElement, { transform: string; origin: string }>()
 
-  const press = (): number => effectStrength(options.press)
-  const tug = (): number => effectStrength(options.tug)
+  // Opt-in: each button's own goo body already squishes on press; these flex the whole
+  // button (label included) and only make sense with plain (goo-less) members.
+  const press = (): number => (options.press === undefined ? 0 : effectStrength(options.press))
+  const tug = (): number => (options.tug === undefined ? 0 : effectStrength(options.tug))
   const speed = (): number => (options.speed && options.speed > 0 ? options.speed : 1)
   const active = (): boolean => !reduced && (press() > 0 || tug() > 0)
   const vertical = (): boolean =>
     (options.orientation ?? (group.getAttribute('data-orientation') as ButtonGroupOrientation | null)) === 'vertical'
   const members = (): HTMLElement[] => [...group.children].filter((c): c is HTMLElement => c instanceof (win?.HTMLElement ?? HTMLElement) && !c.hasAttribute('data-goop'))
+
+  // ---- seams: mark each member's joined sides for its own goo ----
+  /** Members we marked, with the attribute value they had before. */
+  let marked = new Map<Element, string | null>()
+  const unmark = (): void => {
+    for (const [el, prev] of marked) {
+      if (prev === null) el.removeAttribute(GOOP_SEAMS_ATTR)
+      else el.setAttribute(GOOP_SEAMS_ATTR, prev)
+    }
+    marked = new Map()
+  }
+  const mark = (): void => {
+    if (!(effectStrength(options.seams) > 0)) return unmark()
+    const list = [...group.children].filter((c) => !c.hasAttribute('data-goop'))
+    const seams = buttonGroupSeams(list, vertical() ? 'vertical' : 'horizontal')
+    const next = new Map<Element, string | null>()
+    list.forEach((el, i) => {
+      next.set(el, marked.has(el) ? marked.get(el)! : el.getAttribute(GOOP_SEAMS_ATTR))
+      const v = seamValue(seams[i]!)
+      if (el.getAttribute(GOOP_SEAMS_ATTR) !== v) el.setAttribute(GOOP_SEAMS_ATTR, v)
+    })
+    for (const [el, prev] of marked) {
+      if (next.has(el)) continue
+      if (prev === null) el.removeAttribute(GOOP_SEAMS_ATTR)
+      else el.setAttribute(GOOP_SEAMS_ATTR, prev)
+    }
+    marked = next
+  }
+  const MO = win?.MutationObserver
+  // Members come and go (v-if, lists); the orientation can flip.
+  let gone = false
+  // A record queued before destroy must not mark again.
+  const seamWatch = MO ? new MO(() => !gone && mark()) : null
+  seamWatch?.observe(group, { childList: true, attributes: true, attributeFilter: ['data-orientation'] })
+  mark()
 
   const restore = (): void => {
     for (const [el, prev] of touched) {
@@ -264,8 +334,10 @@ export function attachButtonGroup(group: HTMLElement, initial: ButtonGroupOption
     press: pressAt,
     release,
     update(next) {
+      if (gone) return
       options = { ...next }
       reduced = readReduced()
+      mark()
       if (!active()) {
         removeTicker(tick)
         target = 0
@@ -283,6 +355,9 @@ export function attachButtonGroup(group: HTMLElement, initial: ButtonGroupOption
       removeTicker(tick)
       target = 0
       rest()
+      gone = true
+      seamWatch?.disconnect()
+      unmark()
       group.removeEventListener('pointerdown', onPointerDown)
       group.removeEventListener('keydown', onKeyDown)
       group.removeEventListener('keyup', onUp)

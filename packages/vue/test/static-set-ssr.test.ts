@@ -92,7 +92,7 @@ describe('small set SSR', () => {
     expect(html).not.toContain('data-goop="highlight"')
   })
 
-  it('button group renders shadcn markup, buttons plain', async () => {
+  it('button group renders shadcn markup; buttons keep their own goo host, no seam marks yet', async () => {
     const { GoopButtonGroup, GoopButton, GoopButtonGroupSeparator } = await import('../src')
     const html = await renderToString(
       createSSRApp({
@@ -102,7 +102,9 @@ describe('small set SSR', () => {
     )
     expect(html).toContain('role="group" data-slot="button-group"')
     expect(html).toContain('data-slot="button-group-separator"')
-    expect(html).not.toContain('data-goop-host="stroke"')
+    expect(html).toContain('data-goop-host="stroke"')
+    expect(html).not.toContain('data-goop-seams')
+    expect(html).not.toContain('clip-path')
     expect(html).not.toContain('style="transform')
   })
 

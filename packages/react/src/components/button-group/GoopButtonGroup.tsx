@@ -1,14 +1,15 @@
 'use client'
 // GoopButtonGroup: shadcn/ui's ButtonGroup (a div role="group", `orientation`, `className`
-// merge). The buttons flex as one goo body (core `attachButtonGroup` after hydration):
-// pressing one squishes it (`press`) and tugs its neighbours toward it (`tug`), then everything
-// springs back with a small jelly rebound. Joined edges only ever overlap, so no gap or seam
-// opens, and nothing shifts layout (transforms). GoopButtons inside leave their own goo off
-// unless they set `goo`. Before mount, during SSR, with `goo={false}` or under reduced motion it
-// is a plain shadcn ButtonGroup. Separator and Text are server-safe (./parts).
+// merge). Every GoopButton inside keeps its own goo body, exactly as when it stands alone; the
+// group (core `attachButtonGroup` after hydration) marks each member's joined sides (`seams`)
+// so core cuts that goo clean at the seams: no bulge, drip or splash crosses onto a
+// neighbour, the seam never opens, and the outer edges bulge, drip and splash as usual.
+// `press` / `tug` (the old whole-button squish and neighbour tug) are opt-in. Before mount,
+// during SSR or with `goo={false}` (the buttons too) it is a plain shadcn ButtonGroup.
+// Separator and Text are server-safe (./parts).
 import { attachButtonGroup, type ButtonGroupHandle } from '@goopui/core'
 import { cn } from 'cn'
-import { forwardRef, useImperativeHandle, useRef, type ComponentPropsWithoutRef, type Ref } from 'react'
+import { forwardRef, useImperativeHandle, useMemo, useRef, type ComponentPropsWithoutRef, type Ref } from 'react'
 import { useGoopConfig } from '../../config'
 import { BUTTON_GROUP_PROP_KEYS, splitProps, toButtonGroupOptions, type GoopButtonGroupEngineProps } from '../../goop-props'
 import { useAttached } from '../../use-goop'
@@ -31,8 +32,9 @@ export const GoopButtonGroup = forwardRef<HTMLDivElement, GoopButtonGroupProps>(
   const options = useStableValue(toButtonGroupOptions(engine, useGoopConfig(), orientation ?? 'horizontal'))
   const handle = useAttached(el, attachButtonGroup, options ?? {}, options !== null)
   useImperativeHandle(goopRef, () => handle as ButtonGroupHandle, [handle])
+  const context = useMemo(() => ({ goo: engine.goo !== false }), [engine.goo])
   return (
-    <GoopButtonGroupContext.Provider value>
+    <GoopButtonGroupContext.Provider value={context}>
       <div
         ref={composed}
         role="group"

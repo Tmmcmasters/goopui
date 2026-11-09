@@ -60,6 +60,48 @@
       scale(var(--goop-sx, 1), var(--goop-sy, 1));
   }
 
+  /* Button group seams (core `seams`; GoopButtonGroup marks data-goop-seams on its members):
+     core cuts each member's goo flush at its joined sides and its body reaches under them, so
+     the strip never opens. The outline fill does the same (it rides the pose, so it reaches
+     --goop-seam-bleed past a joined side and the cut trims it), and the 1px seam line is the
+     member's own end border (shadcn keeps border-r / border-b on all but the last), drawn in
+     the goo's stroke color above the fill. A focused member loosens its cut by the ring. */
+  [data-goop-host='stroke'][data-goop-active][data-goop-seams~='top']::after {
+    top: calc(-1 * var(--goop-seam-bleed, 0px));
+  }
+  [data-goop-host='stroke'][data-goop-active][data-goop-seams~='right']::after {
+    right: calc(-1 * var(--goop-seam-bleed, 0px));
+  }
+  [data-goop-host='stroke'][data-goop-active][data-goop-seams~='bottom']::after {
+    bottom: calc(-1 * var(--goop-seam-bleed, 0px));
+  }
+  [data-goop-host='stroke'][data-goop-active][data-goop-seams~='left']::after {
+    left: calc(-1 * var(--goop-seam-bleed, 0px));
+  }
+  [data-goop-host='stroke'][data-goop-active]:is([data-goop-seams~='right'], [data-goop-seams~='bottom'])::before {
+    content: '';
+    position: absolute;
+    z-index: 0;
+    pointer-events: none;
+    background: var(--goop-color, currentColor);
+    opacity: var(--goop-opacity, 1);
+  }
+  [data-goop-host='stroke'][data-goop-active][data-goop-seams~='right']::before {
+    top: 0;
+    bottom: 0;
+    right: calc(-1 * var(--goop-stroke-width));
+    width: var(--goop-stroke-width);
+  }
+  [data-goop-host='stroke'][data-goop-active][data-goop-seams~='bottom']::before {
+    left: 0;
+    right: 0;
+    bottom: calc(-1 * var(--goop-stroke-width));
+    height: var(--goop-stroke-width);
+  }
+  [data-goop-seams]:focus-visible {
+    --goop-seam-outset: 3px;
+  }
+
   /* Emerging surfaces (GoopPopoverContent): core draws the panel as goo on an aria-hidden
      surface and publishes the content's opacity; the goo gets shadcn's ring + shadow as a
      drop-shadow that follows its silhouette, bridge included. */

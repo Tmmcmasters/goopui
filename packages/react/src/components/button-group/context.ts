@@ -1,10 +1,11 @@
 'use client'
 import { createContext, useContext } from 'react'
 
-/** Provided by GoopButtonGroup: GoopButtons inside leave their own goo off unless they set
- *  `goo` (the group's joined corners and borders are shadcn's; the group flexes them). */
-export const GoopButtonGroupContext = createContext(false)
+/** Provided by GoopButtonGroup: `null` outside a group, else the group's `goo` switch.
+ *  GoopButtons inside keep their own goo body (cut clean at the seams the group marks); the
+ *  group's `goo={false}` makes them plain unless they set `goo` themselves. */
+export const GoopButtonGroupContext = createContext<{ goo: boolean } | null>(null)
 GoopButtonGroupContext.displayName = 'GoopButtonGroupContext'
 
-/** Is this inside a GoopButtonGroup? */
-export const useInGoopButtonGroup = (): boolean => useContext(GoopButtonGroupContext)
+/** The enclosing GoopButtonGroup's goo switch, or null outside one. */
+export const useGoopButtonGroup = (): { goo: boolean } | null => useContext(GoopButtonGroupContext)

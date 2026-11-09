@@ -24,6 +24,14 @@ export interface GoopBodyTransform {
   sy: number
 }
 
+/** Px the body reaches past the host on each side (0 = flush). */
+export interface GoopBodyBleed {
+  top: number
+  right: number
+  bottom: number
+  left: number
+}
+
 /** Per-frame film state the sim computes from pointer motion. */
 export interface GoopSheen {
   /** Accumulated band offset in px (flows with pointer motion and position). */
@@ -57,6 +65,9 @@ export interface GoopRenderer {
   setBodyTransform?(t: GoopBodyTransform): void
   /** Optional, additive: per-frame sheen flow for the 'oil' finish (ignored when solid). */
   setSheen?(sheen: GoopSheen): void
+  /** Optional, additive: extend the body this many px past the host on each side (joined
+   *  seams, see `GoopOptions.seams`). The pose still scales about the host's centre. */
+  setBodyBleed?(bleed: GoopBodyBleed): void
   createBlob(): GoopBlob
   /** Called once per sim frame after all blobs are set (a canvas renderer draws here). */
   flush(): void
@@ -129,6 +140,7 @@ export function createSvgFilterRenderer(
   // sides move out by the filter's reach: only goo past the page edge is ever cut.
   let pad: GoopLayerPadding = { side: 0, bottom: 0 }
   let cut: PageEdgeCut = { right: null, bottom: null }
+  let bleed: GoopBodyBleed = { top: 0, right: 0, bottom: 0, left: 0 }
   const placeLayer = (pending = false): void => {
     const { side, bottom } = pad
     const clipped = cut.right !== null || cut.bottom !== null
@@ -145,10 +157,10 @@ export function createSvgFilterRenderer(
     gooBox.style.left = `${mx}px`
     gooBox.style.right = `${right - side}px`
     gooBox.style.bottom = `${below - bottom}px`
-    body.style.top = `${side}px`
-    body.style.left = `${side}px`
-    body.style.right = `${side}px`
-    body.style.bottom = `${bottom}px`
+    body.style.top = `${side - bleed.top}px`
+    body.style.left = `${side - bleed.left}px`
+    body.style.right = `${side - bleed.right}px`
+    body.style.bottom = `${bottom - bleed.bottom}px`
     origin.style.left = `${side}px`
     origin.style.top = `${side}px`
     layer.style.overflowX = cut.right === null ? '' : 'clip'
@@ -235,6 +247,15 @@ export function createSvgFilterRenderer(
     setSheen({ phase, swirl, ox = 0, oy = 0 }) {
       // --goop-oil-shift offsets film thickness by whole color cycles.
       oil?.setFlow(phase + finish.oilHueShift * 2 * OIL_BAND_PX * finish.oilBandSize, swirl, ox, oy)
+    },
+    setBodyBleed(next) {
+      if (next.top === bleed.top && next.right === bleed.right && next.bottom === bleed.bottom && next.left === bleed.left) return
+      bleed = { ...next }
+      // Pose about the host's centre, not the extended box's.
+      const ox = (bleed.left - bleed.right) / 2
+      const oy = (bleed.top - bleed.bottom) / 2
+      body.style.transformOrigin = ox || oy ? `calc(50% + ${fmt(ox)}px) calc(50% + ${fmt(oy)}px)` : '50% 50%'
+      placeLayer()
     },
     setBodyScale(sx, sy) {
       const t = sx === 1 && sy === 1 ? '' : `scale(${sx.toFixed(4)},${sy.toFixed(4)})`
