@@ -2731,6 +2731,77 @@ export function toPageTransitionOptions(props: GoopPageTransitionProps, config: 
 
 import type { PageTransitionDirection, PageTransitionOptions } from '@goopui/core'
 
+// ---- GoopTagsInput --------------------------------------------------------------------------
+// Same as @goopui/vue. Core `attachTagsInput`: the Input's goo focus ring around the whole box
+// (INPUT_EFFECTS), plus the tags' own `merge` (a new tag plops in like a droplet joining) and
+// `melt` (a removed tag drains away), and speed / preset / renderer. `goo={false}` renders the
+// plain TagsInput.
+
+/** Every GoopTagsInput engine prop (besides `goo`). */
+export const TAGS_INPUT_PROP_KEYS = effectKeys(_TAGS_INPUT_EFFECTS)
+export type GoopTagsInputEngineProps = GoopEffectProps<_TagsInputEffect>
+type TagsInputUnhandled = Exclude<keyof _TagsInputOptions, keyof GoopTagsInputEngineProps | 'invalid' | 'reducedMotion'>
+const _allTagsInputOptionsHandled: [TagsInputUnhandled] extends [never] ? true : { unhandled: TagsInputUnhandled } = true
+void _allTagsInputOptionsHandled
+
+/** Engine options for core over app config. */
+export function toTagsInputOptions(props: GoopTagsInputEngineProps, config: GoopOptions = {}): _TagsInputOptions {
+  return toEffectOptions(_TAGS_INPUT_EFFECTS, props, config)
+}
+
+// ---- GoopField ------------------------------------------------------------------------------
+// Same as @goopui/vue. The Field parts are shadcn's; the controls inside keep their own goo.
+// GoopFieldError drips in when it appears (core `attachFieldError`: `drip`, `reveal`). Props
+// can sit on GoopField (the error inherits them) or on GoopFieldError (wins).
+
+/** Every GoopField engine prop. */
+export const FIELD_PROP_KEYS = ['goo', ..._FIELD_ERROR_EFFECTS, 'speed', 'preset', 'renderer'] as const
+
+/** Engine props of GoopField (inherited) and GoopFieldError. */
+export interface GoopFieldProps {
+  /** Master switch. `false` renders plain shadcn Field parts. */
+  goo?: boolean
+  /** The error's drop: falls from under the control into the message. A number scales it. */
+  drip?: boolean | number
+  /** The error message unrolls top-down behind the drop (false: it just shows). */
+  reveal?: boolean | number
+  /** Animation speed multiplier. */
+  speed?: number
+  /** Feel: 'subtle' | 'playful' | 'wild'. Default: app config, `--goop-preset`, then playful. */
+  preset?: GoopPreset
+  /** 'svg' (default) | 'canvas' | a custom renderer factory. */
+  renderer?: GoopRendererOption
+}
+
+type FieldUnhandled = Exclude<keyof _FieldErrorOptions, keyof GoopFieldProps | 'reducedMotion'>
+const _allFieldOptionsHandled: [FieldUnhandled] extends [never] ? true : { unhandled: FieldUnhandled } = true
+void _allFieldOptionsHandled
+type FieldPropsListed = Exclude<keyof GoopFieldProps, (typeof FIELD_PROP_KEYS)[number]>
+const _allFieldPropsListed: [FieldPropsListed] extends [never] ? true : { unlisted: FieldPropsListed } = true
+void _allFieldPropsListed
+
+/** The error's props over the field's. */
+export const resolveFieldProps = (own: GoopFieldProps, parent?: GoopFieldProps | null): GoopFieldProps =>
+  resolveOver(FIELD_PROP_KEYS, own, parent)
+
+/** Drip-in options for core over app config, or null when the goo is off. */
+export function toFieldErrorOptions(props: GoopFieldProps, config: GoopOptions = {}): _FieldErrorOptions | null {
+  if (props.goo === false) return null
+  const out: _FieldErrorOptions = { preset: props.preset ?? config.preset, renderer: props.renderer ?? config.renderer, reducedMotion: config.reducedMotion }
+  if (props.drip !== undefined) out.drip = props.drip
+  if (props.reveal !== undefined) out.reveal = props.reveal
+  if (props.speed !== undefined) out.speed = props.speed
+  return out
+}
+
+import {
+  FIELD_ERROR_EFFECTS as _FIELD_ERROR_EFFECTS,
+  TAGS_INPUT_EFFECTS as _TAGS_INPUT_EFFECTS,
+  type FieldErrorOptions as _FieldErrorOptions,
+  type TagsInputEffect as _TagsInputEffect,
+  type TagsInputOptions as _TagsInputOptions,
+} from '@goopui/core'
+
 // ---- GoopTable ------------------------------------------------------------------------------
 // The body rows' hover background is ONE goo blob (core `attachTableHighlight`) that glides
 // from row to row, in a clipping stage beside the <table>. `selected` (opt-in) lets it rest on

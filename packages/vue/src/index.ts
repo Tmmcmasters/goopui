@@ -256,6 +256,16 @@ export {
 } from './goop-props'
 export * from './components/empty'
 export { EMPTY_PROP_KEYS, resolveEmptyProps, toEmptyOptions, type GoopEmptyProps } from './goop-props'
+export * from './components/tags-input'
+export {
+  TAGS_INPUT_PROP_KEYS,
+  goopTagsInputProps,
+  toTagsInputOptions,
+  type GoopTagsInputPropsDefinition,
+  type GoopTagsInputPropsInput,
+} from './goop-props'
+export * from './components/field'
+export { FIELD_PROP_KEYS, resolveFieldProps, toFieldErrorOptions, type GoopFieldProps } from './goop-props'
 export * from './components/table'
 export { TABLE_PROP_KEYS, toTableOptions, type GoopTableProps } from './goop-props'
 export type { TableHighlightHandle } from '@goopui/core'

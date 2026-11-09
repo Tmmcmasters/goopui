@@ -8,6 +8,7 @@ import { DropdownMenuItemIndicator, DropdownMenuRadioItem, useForwardPropsEmits 
 import { computed, type HTMLAttributes } from 'vue'
 import { injectGoopMenuContent } from './context'
 import { useGoopCue } from '../../sound'
+import { quietFocus } from './quiet-focus'
 
 const props = defineProps<DropdownMenuRadioItemProps & { class?: HTMLAttributes['class'] }>()
 const emits = defineEmits<DropdownMenuRadioItemEmits>()
@@ -35,6 +36,7 @@ const cue = useGoopCue('menuRadioItem')
     data-slot="dropdown-menu-radio-item"
     v-bind="{ ...forwarded, ...cue }"
     :class="classes"
+    @pointermove="quietFocus"
     @select="onSelect"
   >
     <span

@@ -532,19 +532,27 @@ interface RingSource {
 /**
  * Attach the goo focus ring. `host` wraps `field` (it gets the goo layer and must be the
  * field's positioned ancestor; core makes it `position: relative` if static).
+ * `frame` (optional): the element whose border box the ring follows when it isn't the field
+ * itself, e.g. a tags input's bordered box around its borderless <input>. Its aria-invalid
+ * counts too. Default: the field.
  */
-export function attachInput(host: HTMLElement, field: TextControl, options: InputOptions = {}): InputHandle {
+export function attachInput(
+  host: HTMLElement,
+  field: TextControl,
+  options: InputOptions = {},
+  frame: HTMLElement = field,
+): InputHandle {
   const ariaInvalid = (el: Element): boolean => {
     const v = el.getAttribute('aria-invalid')
     return v !== null && v !== 'false'
   }
   return attachRing(
     host,
-    field,
+    frame,
     {
       control: () => field,
       focused: () => field.ownerDocument.activeElement === field,
-      invalid: () => ariaInvalid(field),
+      invalid: () => ariaInvalid(field) || (frame !== field && ariaInvalid(frame)),
       listen(onFocus, onBlur, onInput) {
         field.addEventListener('focus', onFocus)
         field.addEventListener('blur', onBlur)
@@ -555,7 +563,8 @@ export function attachInput(host: HTMLElement, field: TextControl, options: Inpu
           field.removeEventListener('input', onInput)
         }
       },
-      watch: { el: field, subtree: false },
+      // A frame holds the field: watching its subtree covers both.
+      watch: { el: frame, subtree: frame !== field },
     },
     options,
   )

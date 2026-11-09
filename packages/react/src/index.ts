@@ -249,6 +249,13 @@ export type { CarouselHandle } from '@goopui/core'
 export * from './components/page-transition'
 export { PAGE_TRANSITION_PROP_KEYS, toPageTransitionOptions, type GoopPageTransitionProps } from './goop-props'
 export type { PageTransitionDirection, PageTransitionHandle } from '@goopui/core'
+// Tags Input (goopUI's own: shadcn/ui has none) and Field.
+export * from './components/tags-input'
+export { TAGS_INPUT_PROP_KEYS, toTagsInputOptions, type GoopTagsInputEngineProps } from './goop-props'
+export type { TagsInputHandle } from '@goopui/core'
+export * from './components/field'
+export { FIELD_PROP_KEYS, resolveFieldProps, toFieldErrorOptions, type GoopFieldProps } from './goop-props'
+export type { FieldErrorHandle } from '@goopui/core'
 // Table, Item, Input Group.
 export * from './components/table'
 export { TABLE_PROP_KEYS, toTableOptions, type GoopTableProps } from './goop-props'

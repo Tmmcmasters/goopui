@@ -56,7 +56,7 @@ export function useMenuSelect(onSelect: ((event: Event) => void) | undefined): {
 /**
  * Radix focuses a menu item from script as the pointer moves over it, and browsers treat that
  * script focus as keyboard-like: `:focus-visible` matched, so a page's focus-visible outline
- * showed on hovered items (reka's items never match it, so the Vue menus never did). This runs
+ * showed on hovered items (@goopui/vue does the same for reka's menus). This runs
  * before Radix's handler and makes its `focus()` for this one event pass
  * `focusVisible: false`. Keyboard focus is untouched.
  */
