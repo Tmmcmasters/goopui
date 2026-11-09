@@ -58,7 +58,7 @@ describe('hydration: Tags Input and Field', () => {
         ),
         h(
           GoopField,
-          { 'data-invalid': true },
+          { ...{ 'data-invalid': true }, orientation: 'vertical' },
           h(GoopFieldLabel, { htmlFor: 'e' }, 'Email'),
           h(GoopInput, { id: 'e', 'aria-invalid': true }),
           h(GoopFieldDescription, null, 'We never share it.'),

@@ -18,5 +18,6 @@ export const TAGS_INPUT_INPUT = 'text-sm min-h-5 focus:outline-none flex-1 bg-tr
 export const goopTagsInputContainer = 'relative w-full min-w-0'
 
 /** While the goo ring is attached it is the focus indicator: it replaces shadcn's box-shadow
- *  ring (border colours stay). Reduced motion still draws the ring (static). */
-export const goopTagsInputActive = 'focus-within:ring-0 aria-invalid:ring-0'
+ *  ring (border colours stay), and any app-level `:focus-visible` outline on the inner field
+ *  (it would sit inside the goo ring). Reduced motion still draws the ring (static). */
+export const goopTagsInputActive = 'focus-within:ring-0 aria-invalid:ring-0 [&_[data-slot=tags-input-input]]:focus-visible:outline-none!'

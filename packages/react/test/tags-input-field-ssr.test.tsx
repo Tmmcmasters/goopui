@@ -39,7 +39,7 @@ describe('SSR (react-dom/server): Tags Input and Field', () => {
           h(m.GoopFieldLegend, null, 'Profile'),
           h(
             m.GoopField,
-            { 'data-invalid': true, drip: false },
+            { ...{ 'data-invalid': true }, drip: false },
             h(m.GoopFieldLabel, { htmlFor: 'n' }, 'Name'),
             h(m.GoopFieldDescription, null, 'Your name'),
             h(m.GoopFieldError, { errors: ['Required', 'Too short'] }),

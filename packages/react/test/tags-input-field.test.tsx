@@ -181,7 +181,7 @@ describe('GoopField', () => {
           null,
           h(
             GoopField,
-            { 'data-invalid': errors.length ? true : undefined, drip: 0.5 },
+            { ...{ 'data-invalid': errors.length ? true : undefined }, drip: 0.5 },
             h(GoopFieldLabel, { htmlFor: 'n' }, 'Name'),
             h(GoopInput, { id: 'n', 'aria-invalid': errors.length ? true : undefined }),
             h(GoopFieldError, { errors, goopRef }),

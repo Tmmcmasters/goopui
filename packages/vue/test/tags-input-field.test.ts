@@ -40,7 +40,7 @@ const Tags = defineComponent({
     return () =>
       h(
         GoopTagsInput,
-        { modelValue: tags.value, 'onUpdate:modelValue': (v: string[]) => (tags.value = v), goo: props.goo },
+        { modelValue: tags.value, 'onUpdate:modelValue': (v: unknown[]) => (tags.value = v as string[]), goo: props.goo },
         () => [
           ...tags.value.map((t) =>
             h(GoopTagsInputItem, { key: t, value: t }, () => [h(GoopTagsInputItemText), h(GoopTagsInputItemDelete)]),
