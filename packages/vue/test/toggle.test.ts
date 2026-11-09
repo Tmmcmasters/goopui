@@ -46,6 +46,9 @@ describe('GoopToggle', () => {
     expect(btn.classes()).toContain('h-7') // shadcn radix-nova's sm size
     expect(btn.attributes()).toHaveProperty('data-goop-active')
     expect(btn.classes()).toContain('data-[state=on]:bg-transparent')
+    // Pressed: the theme's on color (--goop-toggle-on, default --primary), not shadcn's grey.
+    expect(btn.classes()).toContain('[--goop-toggle-fill:var(--goop-toggle-on,var(--primary))]')
+    expect(btn.classes()).toContain('[--goop-toggle-text:var(--goop-toggle-on-foreground,var(--primary-foreground))]')
     // Its goo layer sits under its own background: no drain marker needed.
     expect(btn.classes()).not.toContain('data-[goop-filled]:hover:bg-transparent')
     expect(layers(btn.element)).toHaveLength(1)
